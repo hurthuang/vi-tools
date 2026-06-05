@@ -1,0 +1,3454 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點字即時轉換器 (專業校對版)</title>
+    <style>
+        @font-face { font-family: 'SimBraille'; src: url('SIMBRL.TTF') format('truetype'); }
+        
+        :root {
+            --base-font-size: 22px; /* 預設字體大小 */
+            --braille-scale: 1.3;   /* 點字相對縮放比例 */
+        }
+
+        body { font-family: "Microsoft JhengHei", sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background-color: #f4f7f9; }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+        }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .rules-status { background: #e8f5e9; padding: 6px 12px; border-radius: 4px; font-size: 0.85em; border: 1px solid #c8e6c9; color: #2e7d32; }
+
+        /* 控制面板 */
+        .control-panel { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 25px; align-items: center; }
+        .control-item { display: flex; align-items: center; gap: 8px; }
+        .btn-group { display: flex; gap: 10px; margin-left: auto; }
+        @media (max-width: 600px) {
+            .control-panel { padding: 10px 12px; gap: 12px; }
+            .btn-group { margin-left: 0; flex-wrap: wrap; gap: 6px; }
+        }
+        
+        button { padding: 8px 18px; border: none; border-radius: 4px; background-color: #4caf50; color: white; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        button:hover { background-color: #388e3c; }
+        button.secondary { background-color: #2196f3; }
+
+        /* 區塊比例調整 1:3 */
+        .container { display: flex; gap: 20px; margin-bottom: 25px; align-items: stretch; }
+        .input-area { flex: 1; display: flex; flex-direction: column; }
+        .output-area { flex: 3; display: flex; flex-direction: column; }
+        @media (max-width: 600px) {
+            .container { flex-direction: column; gap: 12px; }
+            .output-area { flex: 1; }
+            textarea { height: 180px; padding: 10px; font-size: 14px; }
+        }
+        
+        label { font-weight: bold; margin-bottom: 8px; display: block; color: #333; }
+        textarea { 
+            width: 100%; 
+            height: 300px;
+            max-height: 300px;
+            overflow-y: scroll;
+            padding: 15px; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            font-size: var(--base-font-size); 
+            line-height: 1.5; 
+            box-sizing: border-box; 
+            background: white;
+        }
+
+        /* 點字字型樣式 */
+        .font-ascii { font-family: 'SimBraille', sans-serif !important; letter-spacing: 0px; }
+        .font-unicode { font-family: "Apple Braille", "Segoe UI Symbol", monospace; letter-spacing: 1px; }
+
+        /* ── 自定義規則區 ── */
+        .custom-rules-panel {
+            background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px; overflow: hidden;
+        }
+        /* button 重設後還原成 header 外觀 */
+        .custom-rules-header {
+            display: flex; align-items: center; gap: 12px;
+            width: 100%; padding: 11px 20px; cursor: pointer;
+            background: #f8f9fa; border: none; border-bottom: 1px solid #e0e0e0;
+            text-align: left; font-family: inherit; font-size: inherit;
+            user-select: none;
+        }
+        .custom-rules-header:hover { background: #f0f2f4; }
+        .custom-rules-header:focus-visible { outline: 3px solid #1976d2; outline-offset: -3px; }
+        .custom-rules-header h3 { margin: 0; font-size: 1em; color: #333; flex: 1; }
+        .toggle-arrow { font-size: 0.78em; color: #aaa; transition: transform 0.2s; display: inline-block; }
+        /* 透過 aria-expanded 控制箭頭旋轉（不依賴 .open class） */
+        .custom-rules-header[aria-expanded="true"] .toggle-arrow,
+        .dot-grid-toggle[aria-expanded="true"] .toggle-arrow { transform: rotate(90deg); }
+        .custom-rules-body { padding: 20px; display: none; }
+        .custom-rules-body.open { display: block; }
+
+        /* dot-grid-toggle 也是 button */
+        .dot-grid-toggle {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.75em; color: #888; cursor: pointer;
+            background: none; border: none; padding: 4px 0;
+            font-family: inherit; text-align: left;
+            user-select: none; margin-top: 2px;
+        }
+        .dot-grid-toggle:hover { color: #555; }
+        .dot-grid-toggle:focus-visible { outline: 2px solid #1976d2; outline-offset: 2px; border-radius: 2px; }
+        .dot-grid-toggle .toggle-arrow { font-size: 0.8em; }
+
+        /* sr-only：僅螢幕閱讀器可見 */
+        .sr-only {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        /* 新增規則表單 — 兩欄 */
+        .add-rule-form {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 16px;
+            align-items: start;
+            background: #f7f9fc;
+            padding: 16px 18px;
+            border-radius: 8px;
+            border: 1px solid #e8edf2;
+            margin-bottom: 18px;
+        }
+        /* 欄1：印刷字 */
+        .rf-col-text { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
+        .rf-col-text label { font-size: 0.8em; font-weight: 700; color: #555; margin: 0; }
+        .rf-col-text input[type="text"] {
+            padding: 8px 10px; border: 1px solid #ccc; border-radius: 5px;
+            font-size: 1em; width: 140px; box-sizing: border-box;
+        }
+        /* 欄2：點字輸入 */
+        .rf-col-braille { display: flex; flex-direction: column; gap: 6px; }
+        .rf-col-braille > .rf-label-row {
+            display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+        }
+        .rf-col-braille .rf-label { font-size: 0.8em; font-weight: 700; color: #555; }
+        .rf-col-braille .rf-hint {
+            font-size: 0.72em; color: #999; font-weight: normal;
+        }
+        .rf-braille-row { display: flex; gap: 8px; align-items: flex-start; }
+        #rule-braille-input {
+            width: 260px; height: 58px;
+            font-family: "Apple Braille","Segoe UI Symbol",monospace;
+            font-size: 1.6em; letter-spacing: 2px;
+            padding: 7px 10px;
+            border: 2px solid #e53935; border-radius: 6px;
+            background: #fff8f8; color: #1a237e;
+            resize: none; line-height: 1.4; box-sizing: border-box;
+        }
+        #rule-braille-input.ascii-font {
+            font-family: 'SimBraille', sans-serif;
+        }
+        .rf-braille-btns { display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+        .rf-braille-btns button { padding: 4px 10px; font-size: 0.78em; }
+        .rf-ascii-label { font-size: 0.72em; color: #888; display: flex; align-items: center; gap: 4px; white-space: nowrap; cursor: pointer; }
+
+        /* 點陣輔助（可收合） */
+        .dot-grid-toggle {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.75em; color: #888; cursor: pointer;
+            user-select: none; margin-top: 2px;
+        }
+        .dot-grid-toggle .toggle-arrow { font-size: 0.8em; }
+        .dot-grid-panel { display: none; margin-top: 6px; }
+        .dot-grid-panel.open { display: flex; gap: 10px; align-items: center; }
+        .dot-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+            padding: 8px; background: white; border: 1px solid #d0d0d0;
+            border-radius: 6px;
+        }
+        .dot-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2px solid #ccc; background: white; cursor: pointer;
+            font-size: 0.75em; font-weight: bold; color: #999;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0; transition: 0.15s; line-height: 1;
+        }
+        .dot-btn.active { background: #1a237e; border-color: #1a237e; color: white; }
+        .dot-preview-cell {
+            font-family: "Apple Braille","Segoe UI Symbol",monospace;
+            font-size: 2.4em; color: #1a237e; line-height: 1;
+            min-width: 40px; text-align: center;
+        }
+        .dot-grid-actions { display: flex; flex-direction: column; gap: 5px; }
+        .dot-grid-actions button { padding: 4px 10px; font-size: 0.75em; }
+        .btn-dot-add  { background: #546e7a !important; }
+        .btn-dot-add:hover { background: #37474f !important; }
+        .btn-dot-clr  { background: #90a4ae !important; }
+        .btn-dot-clr:hover { background: #607d8b !important; }
+
+        /* 欄3：新增按鈕 */
+        .rf-col-action { display: flex; align-items: flex-end; padding-bottom: 2px; }
+        .btn-add-rule { white-space: nowrap; }
+
+        /* 規則列表 */
+        .rules-list-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .rules-count { font-size: 0.85em; color: #888; }
+        .rules-list-actions { display: flex; gap: 8px; }
+        .rules-list-actions button { padding: 5px 12px; font-size: 0.82em; }
+        .btn-import { background: #546e7a !important; }
+        .btn-import:hover { background: #37474f !important; }
+        .btn-export { background: #7b1fa2 !important; }
+        .btn-export:hover { background: #4a148c !important; }
+        .btn-clear-all { background: #ef5350 !important; }
+        .btn-clear-all:hover { background: #c62828 !important; }
+        .rules-table {
+            width: 100%; border-collapse: collapse; font-size: 0.9em;
+        }
+        .rules-table th {
+            text-align: left; padding: 8px 10px;
+            background: #f4f7f9; border-bottom: 2px solid #e0e0e0;
+            color: #555; font-weight: bold;
+        }
+        .rules-table td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .rules-table tr:hover td { background: #fafafa; }
+        .rules-table .td-text { font-weight: bold; color: #333; }
+        .rules-table .td-braille {
+            font-family: "Apple Braille","Segoe UI Symbol",monospace;
+            font-size: 1.4em; color: #1a237e;
+        }
+        .rules-table .td-braille.ascii-mode { font-family: 'SimBraille', sans-serif; }
+        .rules-table .td-del button {
+            padding: 3px 8px; font-size: 0.78em;
+            background: #ef5350 !important; border-radius: 3px;
+        }
+        .rules-table .td-del button:hover { background: #c62828 !important; }
+        .rules-empty { text-align: center; color: #aaa; padding: 20px; font-size: 0.9em; }
+
+        .diff-legend {
+            font-size: 0.78em; margin-bottom: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+        }
+        .diff-legend span { display: flex; align-items: center; gap: 4px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+        /* 雙視校對區 */
+        .parallel-container { background: white; padding: 25px; border-radius: 8px; border: 1px solid #e0e0e0; max-height: 600px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .parallel-title { font-weight: bold; font-size: 1.1em; margin-bottom: 15px; border-left: 5px solid #4caf50; padding-left: 12px; position: sticky; top: 0; background: white; z-index: 10; padding-top: 5px; }
+        
+        #parallel-view { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 18px; align-items: flex-start; }
+        
+        .token-group { 
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 6px; background-color: #fdfdfd; 
+            border: 1px solid #e0e0e0; border-radius: 4px; 
+            transition: background-color 0.12s, border-color 0.12s, transform 0.08s;
+        }
+        .token-group:hover {
+            background-color: #e3f2fd !important;
+            border-color: #90caf9 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(33,150,243,0.18);
+        }
+        .token-group:active {
+            transform: translateY(0);
+            background-color: #bbdefb !important;
+            border-color: #42a5f5 !important;
+        }
+        .token-text { 
+            font-size: calc(var(--base-font-size) * 0.6); color: #666; 
+            border-bottom: 1px solid #eee; width: 100%; 
+            text-align: center; margin-bottom: 6px; padding-bottom: 2px;
+        }
+        .token-braille { 
+            font-size: calc(var(--base-font-size) * var(--braille-scale)); 
+            line-height: 1; color: #1a1a1a; 
+        }
+        /* 規則轉換 → 綠色 */
+        .token-group { background-color: #f1f8e9; border-color: #a5d6a7; }
+        .token-group .token-braille { color: #2e7d32; }
+        .token-group .token-text { color: #388e3c; border-color: #c8e6c9; }
+        /* 自定義規則 → 橘色 */
+        .token-group.custom-rule { background-color: #fff3e0 !important; border-color: #ffb74d !important; }
+        .token-group.custom-rule .token-braille { color: #e65100; }
+        .token-group.custom-rule .token-text { color: #ef6c00; border-color: #ffe0b2; }
+        /* Nemeth 數學 → 深橘紅色 */
+        .token-group.is-nemeth { background-color: #fbe9e7 !important; border-color: #ff5722 !important; border-width: 2px !important; }
+        .token-group.is-nemeth .token-braille { color: #bf360c; }
+        .token-group.is-nemeth .token-text { color: #e64a19; border-color: #ffccbc; }
+        /* 空格保持黃色 */
+        .token-space { background-color: #fffde7 !important; border-color: #fff176 !important; }
+        .token-space .token-text { color: #f9a825 !important; border-color: #fff9c4 !important; }
+        .token-space .token-braille { color: #f9a825 !important; }
+
+        .line-break { flex-basis: 100%; height: 25px; border-top: 1px dashed #cfd8dc; margin: 15px 0; position: relative; }
+        .line-break::after { content: " 斷行 "; position: absolute; right: 10px; top: -12px; font-size: 12px; color: #90a4ae; background: #f4f7f9; padding: 0 8px; }
+
+        /* ── UEB 自定縮寫規則面板 ── */
+        #ueb-custom-panel {
+            display: none;
+            background: white;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-top: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #ueb-custom-panel.visible { display: block; }
+        .ucp-title {
+            font-size: 0.88em; font-weight: bold; color: #2e7d32;
+            margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+        }
+        .ucp-groups { display: flex; flex-wrap: wrap; gap: 14px; }
+        .ucp-group {
+            background: #f8fdf8;
+            border: 1px solid #c8e6c9;
+            border-radius: 6px;
+            padding: 10px 14px;
+            min-width: 200px;
+            flex: 1;
+        }
+        .ucp-group-title {
+            font-size: 0.78em; font-weight: 700; color: #388e3c;
+            margin-bottom: 7px; letter-spacing: 0.02em;
+            border-bottom: 1px solid #c8e6c9; padding-bottom: 5px;
+        }
+        .ucp-checkboxes { display: flex; flex-direction: column; gap: 4px; }
+        .ucp-cb-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8em; color: #333; cursor: pointer;
+            padding: 2px 4px; border-radius: 3px;
+        }
+        .ucp-cb-label:hover { background: #e8f5e9; }
+        .ucp-cb-label input[type="checkbox"] { margin: 0; cursor: pointer; accent-color: #4caf50; }
+        .ucp-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .ucp-actions button { padding: 4px 12px; font-size: 0.8em; }
+        .btn-ucp-all { background: #4caf50 !important; }
+        .btn-ucp-none { background: #90a4ae !important; }
+        .ucp-group-toggle {
+            display: flex; align-items: center; gap: 6px;
+            cursor: pointer; user-select: none;
+        }
+        .ucp-group-toggle input[type="checkbox"] {
+            margin: 0; cursor: pointer; accent-color: #388e3c;
+            width: 14px; height: 14px; flex-shrink: 0;
+        }
+        /* 可折疊標頭 */
+        .ucp-header {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; padding: 8px 12px; margin-bottom: 8px;
+            background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px;
+            cursor: pointer; font-family: inherit; font-size: 0.88em;
+            font-weight: bold; color: #2e7d32; text-align: left;
+            user-select: none;
+        }
+        .ucp-header:hover { background: #d7eeda; }
+        .ucp-header:focus-visible { outline: 2px solid #388e3c; outline-offset: 1px; }
+        .ucp-header-title { flex: 0 0 auto; }
+        .ucp-header-summary {
+            flex: 1; font-size: 0.85em; font-weight: normal;
+            color: #555; overflow: hidden; white-space: nowrap;
+            text-overflow: ellipsis; padding-left: 6px;
+        }
+        .ucp-header-arrow { font-size: 1em; transition: transform 0.18s; }
+        .ucp-header[aria-expanded="false"] .ucp-header-arrow { transform: rotate(-90deg); }
+        .ucp-body { display: block; }
+        .ucp-body.collapsed { display: none; }
+        /* 縮寫字標示 */
+        .token-group.is-contraction { background-color: #e8eaf6 !important; border-color: #9fa8da !important; }
+        .token-group.is-contraction .token-braille { color: #283593; }
+        .token-group.is-contraction .token-text { color: #3949ab; border-color: #c5cae9; }
+
+        /* ── 點字直接輸入模式 ── */
+        #braille-mode-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: #b71c1c;
+            color: white;
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-size: 0.82em;
+            font-weight: bold;
+        }
+        #braille-mode-indicator.active { display: flex; }
+        #braille-mode-indicator .bmi-hint {
+            font-weight: normal;
+            font-size: 0.88em;
+            opacity: 0.88;
+        }
+
+        /* modal CSS → shared.js */
+
+        /* ── 深色主題 ── */
+        html[data-theme="dark"] body {
+            background-color: #0f1117 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] .header h1 { color: #e2e8f0; }
+        html[data-theme="dark"] .panel,
+        html[data-theme="dark"] .section,
+        html[data-theme="dark"] .output-section,
+        html[data-theme="dark"] .input-area,
+        html[data-theme="dark"] .controls {
+            background-color: #1a1d27 !important;
+            border-color: #2e3350 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] input[type="text"],
+        html[data-theme="dark"] select {
+            background-color: #1a1d27 !important;
+            border-color: #2e3350 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] .output-text,
+        html[data-theme="dark"] #output-text,
+        html[data-theme="dark"] .braille-output,
+        html[data-theme="dark"] #parallel-view {
+            background-color: #1a1d27 !important;
+            color: #e2e8f0 !important;
+            border-color: #2e3350 !important;
+        }
+        html[data-theme="dark"] label { color: #b0bec5 !important; }
+        html[data-theme="dark"] h2,
+        html[data-theme="dark"] h3 { color: #cfd8dc !important; }
+        html[data-theme="dark"] .rules-status {
+            background: #1b2e1b !important;
+            border-color: #2e7d32 !important;
+            color: #81c784 !important;
+        }
+        html[data-theme="dark"] .parallel-title,
+        html[data-theme="dark"] .parallel-container {
+            background: #1a1d27 !important;
+            border-color: #2e3350 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] .custom-rules-header {
+            background: #1e2130 !important;
+            border-color: #2e3350 !important;
+            color: #cfd8dc !important;
+        }
+        html[data-theme="dark"] .ucp-section,
+        html[data-theme="dark"] .ucp-header,
+        html[data-theme="dark"] #ueb-custom-panel {
+            background: #1a1d27 !important;
+            border-color: #2e3350 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] .diff-legend { color: #90a4ae !important; }
+        html[data-theme="dark"] hr { border-color: #2e3350 !important; }
+        html[data-theme="dark"] code { background: #252839 !important; color: #80cbc4 !important; }
+    </style>
+<!-- liblouis WebAssembly build -->
+<script src="build-no-tables-utf32.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>點字即時轉換器</h1>
+        <div class="rules-status" id="rules-status">正在載入規則...</div>
+    </div>
+
+    <div class="control-panel">
+        <div class="control-item">
+            <strong>每行方數：</strong><input type="number" id="cell-limit" value="40" style="width: 50px;">
+        </div>
+        <div class="control-item">
+            <strong>字體大小：</strong>
+            <input type="range" id="font-size-slider" min="16" max="48" value="22" style="vertical-align: middle;">
+            <span id="font-size-val">22px</span>
+        </div>
+        <div class="control-item">
+            <strong>格式：</strong>
+            <label style="display:inline; margin:0;"><input type="radio" name="output-format" value="unicode" checked> Unicode</label>
+            <label style="display:inline; margin:0;"><input type="radio" name="output-format" value="ascii"> ASCII</label>
+        </div>
+        <div class="control-item">
+            <strong>英文點字：</strong>
+            <select id="en-mode">
+                <option value="ueb-g1">UEB Grade 1（不縮寫）</option>
+                <option value="ueb-g2">UEB Grade 2（縮寫）</option>
+                <option value="ueb-custom">UEB 自定</option>
+                <option value="comp8">電腦八點（comp8）</option>
+            </select>
+        </div>
+        <div class="control-item" title="勾選後，數字與數學符號改用 Nemeth 點字碼（下位數字系統）">
+            <label style="display:inline; margin:0; cursor:pointer;">
+                <input type="checkbox" id="nemeth-mode" onchange="render()" style="cursor:pointer; accent-color:#e65100;">
+                <strong style="color:#e65100;">⟨N⟩ Nemeth 數學</strong>
+            </label>
+        </div>
+        <div class="btn-group">
+            <button onclick="openFileDialog()" style="background:#795548;">📂 開啟檔案</button>
+            <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;">💾 儲存原文</button>
+            <button onclick="downloadTxt()">💾 儲存點字</button>
+            <button class="secondary" onclick="downloadParallelHtml()">📄 匯出雙視</button>
+        </div>
+    </div>
+    <!-- 隱藏的檔案輸入 -->
+    <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf" style="display:none" onchange="handleOpenFile(event, 'input-text', render)" aria-hidden="true">
+    </div>
+        <!-- UEB 自定縮寫規則面板 -->
+        <div id="ueb-custom-panel" role="region" aria-label="UEB 自定縮寫規則">
+            <button class="ucp-header" id="ucp-toggle" aria-expanded="true" aria-controls="ucp-body" onclick="ucpTogglePanel()">
+                <span class="ucp-header-title">⚙ 選擇啟用的 UEB G2 縮寫規則</span>
+                <span class="ucp-header-summary" id="ucp-summary" aria-hidden="true"></span>
+                <span class="ucp-header-arrow toggle-arrow" aria-hidden="true">▾</span>
+            </button>
+            <div class="ucp-body" id="ucp-body">
+            <div class="ucp-groups">
+                <div class="ucp-group">
+                    <label class="ucp-group-title ucp-group-toggle">
+                        <input type="checkbox" class="ucp-group-cb" data-group="grp_alpha" checked onchange="ucpToggleGroup(this)">
+                        ALPHABETIC WORDSIGNS（字母單字縮寫）
+                    </label>
+                    <div class="ucp-checkboxes">
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_alpha" value="ws_alpha" checked> 字母整詞縮寫 (b=but, c=can, d=do, e=every, f=from, g=go, h=have, j=just, k=knowledge, l=like, m=more, n=not, p=people, q=quite, r=rather, s=so, t=that, u=us, v=very, w=will, x=it, y=you, z=as)</label>
+                    </div>
+                </div>
+                <div class="ucp-group">
+                    <label class="ucp-group-title ucp-group-toggle">
+                        <input type="checkbox" class="ucp-group-cb" data-group="grp_strong" checked onchange="ucpToggleGroup(this)">
+                        STRONG WORDSIGNS &amp; GROUPSIGNS（強縮寫）
+                    </label>
+                    <div class="ucp-checkboxes">
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_strong" value="strong_contractions" checked> Strong Contractions：and, for, of, the, with</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_strong" value="ws_strong" checked> Strong Wordsigns：child, shall, this, which, out, still</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_strong" value="gs_ch_sh" checked> Strong Groupsigns (1)：ch, sh, th, wh, ou, st, gh</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_strong" value="gs_ed_er" checked> Strong Groupsigns (2)：ed, er, ow, ar, ing</label>
+                    </div>
+                </div>
+                <div class="ucp-group">
+                    <label class="ucp-group-title ucp-group-toggle">
+                        <input type="checkbox" class="ucp-group-cb" data-group="grp_lower" checked onchange="ucpToggleGroup(this)">
+                        LOWER GROUPSIGNS &amp; WORDSIGNS（低位縮寫）
+                    </label>
+                    <div class="ucp-checkboxes">
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_lower" value="lg_ea_bb" checked> Lower Groupsigns (mid)：ea, bb, cc, ff, gg</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_lower" value="lg_con_dis" checked> Lower Groupsigns (beg)：con, dis, be (字首)</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_lower" value="lg_en_in" checked> Lower Groupsigns (any)：en, in（任何位置）</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_lower" value="lw_words" checked> Lower Wordsigns：be, enough, were, his, in, was</label>
+                    </div>
+                </div>
+                <div class="ucp-group">
+                    <label class="ucp-group-title ucp-group-toggle">
+                        <input type="checkbox" class="ucp-group-cb" data-group="grp_suffix" checked onchange="ucpToggleGroup(this)">
+                        FINAL-LETTER GROUPSIGNS（字尾組合符號）
+                    </label>
+                    <div class="ucp-checkboxes">
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_suffix" value="suffix_dot46" checked> dots-46 (⠨) 前綴：sion, ance, ound, ount, less</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_suffix" value="suffix_dot56" checked> dots-56 (⠰) 前綴：tion, ence, ment, ness, ful, ity, ong</label>
+                    </div>
+                </div>
+                <div class="ucp-group">
+                    <label class="ucp-group-title ucp-group-toggle">
+                        <input type="checkbox" class="ucp-group-cb" data-group="grp_word" checked onchange="ucpToggleGroup(this)">
+                        WORD CONTRACTIONS（整詞縮寫）
+                    </label>
+                    <div class="ucp-checkboxes">
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_word" value="init_con" checked> Initial-letter Contractions（首字母縮寫）：day, here, name, one, part, right, some, there, through, time, under, where, work, young, upon, these, those, whose, word, their, many, spirit, world, had…</label>
+                        <label class="ucp-cb-label"><input type="checkbox" name="ucp" data-group="grp_word" value="shortform" checked> Shortform Words（簡短字形）：about, according, after, almost, already, also, although, always, because, before, blind, children, could, first, friend, good, great, little, much, necessary, quick, receive, should, today, together, would…</label>
+                    </div>
+                </div>
+            </div>
+            <div class="ucp-actions">
+                <button class="btn-ucp-all" onclick="ucpSetAll(true)">全選</button>
+                <button class="btn-ucp-none" onclick="ucpSetAll(false)">全不選</button>
+            </div>
+            </div><!-- /ucp-body -->
+        </div>
+
+    <div class="container">
+        <div class="input-area">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <label style="margin:0;">輸入文字：</label>
+                <button onclick="openFormatModal('input-text', render)" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
+                <div id="braille-mode-indicator" role="status" aria-live="polite">點字輸入</div>
+            </div>
+            <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
+        </div>
+        <div class="output-area">
+            <label>點字輸出：</label>
+            <textarea id="output-text" readonly spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    <!-- ── 自定義規則區 ── -->
+    <div class="custom-rules-panel">
+        <button class="custom-rules-header" id="custom-rules-toggle"
+                aria-expanded="false" aria-controls="custom-rules-body">
+            <span class="toggle-arrow" aria-hidden="true">▶</span>
+            <h3>⚙ 自定義點字規則</h3>
+            <span id="custom-count-badge" style="font-size:0.82em;color:#888;" aria-live="polite"></span>
+        </button>
+        <div class="custom-rules-body" id="custom-rules-body" role="region" aria-label="自定義點字規則">
+            <!-- 新增規則表單 -->
+            <div class="add-rule-form">
+
+                <!-- 欄1：印刷字 -->
+                <div class="rf-col-text">
+                    <label for="rule-text-input">印刷字</label>
+                    <input type="text" id="rule-text-input" placeholder="文字或詞" maxlength="20">
+                </div>
+
+                <!-- 欄2：點字輸入 -->
+                <div class="rf-col-braille">
+                    <div class="rf-label-row">
+                        <label for="rule-braille-input" class="rf-label">自訂點字</label>
+                        <span class="rf-hint" aria-hidden="true">S=1 D=2 F=3 &nbsp;J=4 K=5 L=6 &nbsp;｜&nbsp; Space=空格</span>
+                    </div>
+                    <div class="rf-braille-row">
+                        <textarea id="rule-braille-input"
+                            placeholder="在此輸入…"
+                            spellcheck="false"
+                            aria-label="自訂點字輸入（鍵盤六點：S=點1 D=點2 F=點3 J=點4 K=點5 L=點6，空白=空格）"
+                        ></textarea>
+                        <div class="rf-braille-btns">
+                            <button onclick="clearRuleBraille()" style="background:#ef5350!important;">清除</button>
+                            <label class="rf-ascii-label">
+                                <input type="checkbox" id="rule-braille-ascii-mode" onchange="toggleRuleAsciiMode()"> ASCII字型
+                            </label>
+                        </div>
+                    </div>
+                    <!-- 點陣輔助（可收合） -->
+                    <button class="dot-grid-toggle" id="dot-grid-toggle"
+                            aria-expanded="false" aria-controls="dot-grid-panel"
+                            onclick="toggleDotGrid()">
+                        <span class="toggle-arrow" id="dot-grid-arrow" aria-hidden="true">▶</span>
+                        <span>點陣輔助（點擊選點 → 按「加格」）</span>
+                    </button>
+                    <div class="dot-grid-panel" id="dot-grid-panel" role="group" aria-label="六點點陣輔助">
+                        <div class="dot-grid" id="dot-grid" role="group" aria-label="點位選擇">
+                            <button class="dot-btn" data-dot="1" aria-pressed="false" aria-label="點1">1</button>
+                            <button class="dot-btn" data-dot="4" aria-pressed="false" aria-label="點4">4</button>
+                            <button class="dot-btn" data-dot="2" aria-pressed="false" aria-label="點2">2</button>
+                            <button class="dot-btn" data-dot="5" aria-pressed="false" aria-label="點5">5</button>
+                            <button class="dot-btn" data-dot="3" aria-pressed="false" aria-label="點3">3</button>
+                            <button class="dot-btn" data-dot="6" aria-pressed="false" aria-label="點6">6</button>
+                            <button class="dot-btn" data-dot="7" style="border-radius:4px;font-size:0.68em;" aria-pressed="false" aria-label="點7（八點用）">7</button>
+                            <button class="dot-btn" data-dot="8" style="border-radius:4px;font-size:0.68em;" aria-pressed="false" aria-label="點8（八點用）">8</button>
+                        </div>
+                        <div class="dot-preview-cell" id="dot-preview" aria-live="polite" aria-label="目前點字預覽">⠀</div>
+                        <div class="dot-grid-actions">
+                            <button class="btn-dot-add" onclick="dotGridAddCell()">加入此格</button>
+                            <button class="btn-dot-clr" onclick="dotGridClearDots()">清除點選</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 欄3：新增按鈕 -->
+                <div class="rf-col-action">
+                    <button class="btn-add-rule" onclick="addCustomRule()">✚ 新增規則</button>
+                </div>
+
+            </div>
+
+            <!-- 規則列表 -->
+            <div class="rules-list-header">
+                <span class="rules-count" id="rules-count" aria-live="polite">共 0 條規則</span>
+                <div class="rules-list-actions">
+                    <button class="btn-import" onclick="importRules()">匯入規則</button>
+                    <button class="btn-export" onclick="exportRules()">匯出規則</button>
+                    <button class="btn-clear-all" onclick="clearAllRules()">清除全部規則</button>
+                </div>
+            </div>
+            <table class="rules-table" id="rules-table" aria-label="自定義點字規則列表">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width:30px;">#</th>
+                        <th scope="col">印刷字</th>
+                        <th scope="col">點字（Unicode）</th>
+                        <th scope="col">點字（ASCII）</th>
+                        <th scope="col" style="width:60px;"><span class="sr-only">操作</span></th>
+                    </tr>
+                </thead>
+                <tbody id="rules-tbody">
+                    <tr><td colspan="5" class="rules-empty">尚無自定義規則</td></tr>
+                </tbody>
+            </table>
+            <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="handleImportFile(event)" aria-hidden="true">
+        </div>
+    </div>
+
+    <div class="parallel-container" tabindex="0" role="region" aria-label="雙視校對區">
+        <div class="parallel-title" aria-hidden="true">
+            <span>雙視校對區</span>
+        </div>
+        <div class="diff-legend" aria-hidden="true">
+            <span><span class="legend-dot" style="background:#f1f8e9;border:1px solid #a5d6a7;"></span> 規則轉換</span>
+            <span><span class="legend-dot" style="background:#fff3e0;border:1px solid #ffb74d;"></span> 自定義規則</span>
+            <span><span class="legend-dot" style="background:#fffde7;border:1px solid #fff176;"></span> 空格</span>
+            <span id="contraction-legend" style="display:none"><span class="legend-dot" style="background:#e8eaf6;border:1px solid #9fa8da;"></span> 縮寫字</span>
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.82em;cursor:pointer;margin-left:8px;">
+                <input type="checkbox" id="highlight-contractions" onchange="renderParallelView(window._lastTokens||[])" style="cursor:pointer;accent-color:#3949ab;">
+                標示縮寫字
+            </label>
+        </div>
+        <div id="parallel-view" aria-live="polite" aria-label="點字雙視對照內容"></div>
+    </div>
+<script>(function(){
+    try {
+        var t = localStorage.getItem('site-theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme','light');
+    } catch(e){}
+})();
+
+// ════════════════════════════════════════════════════════════
+//  liblouis WASM 包裝層
+// ════════════════════════════════════════════════════════════
+const LOU = (() => {
+    // liblouisBuild 在 script 載入時已自動呼叫完畢，直接是模組實例
+    const M = (typeof liblouisBuild !== 'undefined') ? liblouisBuild : null;
+
+    const _tableCache = new Set();
+    const TABLE_DIR = 'table/';
+
+    const MODE_TABLES = {
+        'comp8':  'en-us-comp8.ctb',
+        'ueb-g1': 'en-ueb-g1.ctb',
+        'ueb-g2': 'en-ueb-g2.ctb',
+    };
+
+    const TABLE_DEPS = {
+        'en-us-comp8.ctb':    ['latinLetterDef8Dots.uti','latinUppercaseComp6.uti','spaces.uti','braille-patterns.cti'],
+        'en-ueb-g1.ctb':      ['text_nabcc.dis','en-ueb-chardefs.uti','spaces.uti'],
+        'en-ueb-g2.ctb':      ['en-ueb-math.ctb','en-ueb-chardefs.uti','en-ueb-g1.ctb','spaces.uti'],
+        'en-ueb-chardefs.uti':['en-chardefs.cti','latinLetterDef6Dots.uti','litdigits6Dots.uti','loweredDigits6Dots.uti'],
+    };
+
+    function isReady() { return !!(M && M.calledRun); }
+
+    async function _loadTableFile(filename) {
+        if (_tableCache.has(filename)) return;
+        _tableCache.add(filename);
+        try {
+            const resp = await fetch(TABLE_DIR + filename);
+            if (!resp.ok) throw new Error(resp.status);
+            const arrayBuf = await resp.arrayBuffer();
+            try { M.FS.mkdir('/tables'); } catch(e) {}
+            // build-no-tables-utf32.js 的 FS.writeFile 需要字串，不接受 Uint8Array
+            // 用 intArrayFromString 的反向操作：把 bytes 轉成 JS string（latin-1）
+            const bytes = new Uint8Array(arrayBuf);
+            let fileStr = '';
+            for (let b = 0; b < bytes.length; b++) fileStr += String.fromCharCode(bytes[b]);
+            // 過濾舊版 liblouis WASM 不支援的指令（seqdelimiter 等 3.12+ 新增）
+            if (filename.endsWith('.ctb') || filename.endsWith('.uti')) {
+                fileStr = fileStr.split('\n').map(line => {
+                    const t = line.trim();
+                    if (t.startsWith('seqdelimiter') || t.startsWith('seqbeforechars') ||
+                        t.startsWith('seqafterchars') || t.startsWith('seqafterexpression') ||
+                        t.startsWith('seqafterpattern')) {
+                        return '# ' + line; // 註解掉
+                    }
+                    return line;
+                }).join('\n');
+            }
+            M.FS.writeFile('/tables/' + filename, fileStr);
+        } catch(e) {
+            console.warn('liblouis: 無法載入表格', filename, e.message);
+        }
+        const deps = TABLE_DEPS[filename] || [];
+        await Promise.all(deps.map(d => _loadTableFile(d)));
+    }
+
+    function _louTranslate(tableFile, text) {
+        if (!isReady()) return null;
+        try {
+            const inputLen = text.length;
+            const inBuf = M._malloc((inputLen + 1) * 4);
+            for (let i = 0; i < inputLen; i++)
+                M.setValue(inBuf + i * 4, text.codePointAt(i), 'i32');
+            M.setValue(inBuf + inputLen * 4, 0, 'i32');
+
+            const outMax = inputLen * 4;
+            const outBuf    = M._malloc((outMax + 1) * 4);
+            const inLenPtr  = M._malloc(4);
+            const outLenPtr = M._malloc(4);
+            M.setValue(inLenPtr,  inputLen, 'i32');
+            M.setValue(outLenPtr, outMax,   'i32');
+
+            const tableStr = M.allocate(
+                M.intArrayFromString('/tables/' + tableFile),
+                'i8', M.ALLOC_NORMAL
+            );
+            const ret = M._lou_translateString(
+                tableStr, inBuf, inLenPtr, outBuf, outLenPtr,
+                0, 0, 0
+            );
+            M._free(tableStr);
+
+            let result = null;
+            if (ret > 0) {
+                const outLen = M.getValue(outLenPtr, 'i32');
+                // liblouis 輸出的是 NABCC ASCII 字元碼（因 text_nabcc.dis display table）
+                // 需要查反向表轉回 Unicode 點字
+                // NABCC → Unicode 對應（從 BR_TO_ASCII 反查）
+                const NABCC_TO_UNI = {
+                    32:0x2800, 97:0x2801, 49:0x2802, 98:0x2803, 39:0x2804,
+                    107:0x2805, 50:0x2806, 108:0x2807, 96:0x2808, 99:0x2809,
+                    105:0x280a, 102:0x280b, 47:0x280c, 109:0x280d, 115:0x280e,
+                    112:0x280f, 34:0x2810, 101:0x2811, 51:0x2812, 104:0x2813,
+                    57:0x2814, 111:0x2815, 54:0x2816, 114:0x2817, 126:0x2818,
+                    100:0x2819, 106:0x281a, 103:0x281b, 62:0x281c, 110:0x281d,
+                    116:0x281e, 113:0x281f, 44:0x2820, 42:0x2821, 53:0x2822,
+                    60:0x2823, 45:0x2824, 117:0x2825, 56:0x2826, 118:0x2827,
+                    46:0x2828, 37:0x2829, 123:0x282a, 36:0x282b, 43:0x282c,
+                    120:0x282d, 33:0x282e, 38:0x282f, 59:0x2830, 58:0x2831,
+                    52:0x2832, 124:0x2833, 48:0x2834, 122:0x2835, 55:0x2836,
+                    40:0x2837, 95:0x2838, 63:0x2839, 119:0x283a, 125:0x283b,
+                    35:0x283c, 121:0x283d, 41:0x283e, 61:0x283f
+                };
+                let out = '';
+                for (let i = 0; i < outLen; i++) {
+                    const val = M.getValue(outBuf + i * 4, 'i32');
+                    const uni = NABCC_TO_UNI[val];
+                    out += String.fromCharCode(uni !== undefined ? uni : 0x2800 + val);
+                }
+                result = out;
+            }
+            M._free(inBuf); M._free(outBuf);
+            M._free(inLenPtr); M._free(outLenPtr);
+            return result;
+        } catch(e) {
+            console.error('liblouis translate error:', e);
+            return null;
+        }
+    }
+
+    function translateEnglish(text, mode) {
+        const tableFile = MODE_TABLES[mode];
+        if (!tableFile) return null;
+        return _louTranslate(tableFile, text);
+    }
+
+    // 整句翻譯：回傳整段點字字串（無 outputPos，用 token 長度切割）
+    function translateSpan(text, mode) {
+        const tableFile = MODE_TABLES[mode];
+        if (!tableFile) return null;
+        return _louTranslate(tableFile, text);
+    }
+
+    async function preloadTables() {
+        if (!isReady()) { console.warn('liblouis: 模組未就緒'); return; }
+        await Promise.all(Object.values(MODE_TABLES).map(f => _loadTableFile(f)));
+        console.log('liblouis: 所有英文表格預載完成');
+    }
+
+    return { translateEnglish, translateSpan, preloadTables, isReady };
+})();
+
+// ════════════════════════════════════════════════════════════
+//  內建英文點字對照表
+// ════════════════════════════════════════════════════════════
+
+// UEB / 6-dot literary  a–z（comp8 小寫與 UEB 相同）
+const UEB_ALPHA = {
+    'a':'\u2801','b':'\u2803','c':'\u2809','d':'\u2819','e':'\u2811',
+    'f':'\u280b','g':'\u281b','h':'\u2813','i':'\u280a','j':'\u281a',
+    'k':'\u2805','l':'\u2807','m':'\u280d','n':'\u281d','o':'\u2815',
+    'p':'\u280f','q':'\u281f','r':'\u2817','s':'\u280e','t':'\u281e',
+    'u':'\u2825','v':'\u2827','w':'\u283a','x':'\u282d','y':'\u283d',
+    'z':'\u2835'
+};
+
+// comp8 大寫 = 大寫指示符 ⠠（dots 6）+ 小寫字母點字
+const COMP8_CAP_INDICATOR = '\u2820'; // ⠠ dots 6
+const COMP8_UPPER = {};
+for (const [c, u] of Object.entries(UEB_ALPHA))
+    COMP8_UPPER[c.toUpperCase()] = COMP8_CAP_INDICATOR + u;
+
+// comp8 數字：與 UEB 相同，用 lowered a-j（dots 2456 前綴 ⠼ + a-j）
+// 注意：電腦點字數字不加第 8 點，直接用 a-j 的低位形式
+const COMP8_DIGIT = {
+    '1':'\u2801','2':'\u2803','3':'\u2809','4':'\u2819','5':'\u2811',
+    '6':'\u280b','7':'\u281b','8':'\u2813','9':'\u280a','0':'\u281a'
+};
+
+// UEB 數字前綴 ⠼ dots 3456，數字用 lowered a-j（與 comp8 相同）
+const UEB_NUMSIGN = '\u283c';  // ⠼ dots 3456
+const UEB_DIGIT = {
+    '1':'\u2801','2':'\u2803','3':'\u2809','4':'\u2819','5':'\u2811',
+    '6':'\u280b','7':'\u281b','8':'\u2813','9':'\u280a','0':'\u281a'
+};
+
+// ════════════════════════════════════════════════════════════
+//  Nemeth 數學點字系統（CTI: nemethdefs.cti）
+// ════════════════════════════════════════════════════════════
+// Nemeth 下位數字：dots 2,3,4,5,6 下移一排
+const NEMETH_DIGIT = {
+    '1':'\u2802',  // ⠂ dots 2
+    '2':'\u2806',  // ⠆ dots 23
+    '3':'\u2812',  // ⠒ dots 25
+    '4':'\u2832',  // ⠲ dots 256
+    '5':'\u2822',  // ⠢ dots 26
+    '6':'\u2816',  // ⠖ dots 235
+    '7':'\u2836',  // ⠶ dots 2356
+    '8':'\u2826',  // ⠦ dots 236
+    '9':'\u2814',  // ⠔ dots 35
+    '0':'\u2834',  // ⠴ dots 356
+};
+const NEMETH_NUMSIGN = '\u283c';   // ⠼  dots 3456（數字開始指示符）
+const NEMETH_DECIMAL = '\u2828';   // ⠨  dots 46（小數點）
+const NEMETH_LETTER  = '\u2830';   // ⠰  dots 56（數字模式結束→字母指示符）
+
+// Nemeth 數學符號（依 Nemeth 2022 規範）
+const NEMETH_MATH_PUNCT = {
+    '+': '\u282c',  // ⠬ dots 346  (Rule 20)
+    '-': '\u2824',  // ⠤ dots 36   (Rule 20)
+    '−': '\u2824',  // ⠤ U+2212 minus sign
+    '=': '\u2828\u2805',  // ⠨⠅ dots 46-13  (Rule 21: .k)
+    '/': '\u280c',  // ⠌ dots 34
+    '%': '\u2808\u2834',  // ⠈⠴ dots 4-356 percent
+    '×': '\u2808\u2821',  // ⠈⠡ dots 4-16 (×, Rule 20)
+    '÷': '\u2828\u280c',  // ⠨⠌ dots 46-34 (Rule 20)
+    '±': '\u282c\u2824',  // ⠬⠤ dots 346-36
+    '<': '\u2808\u2805',  // ⠈⠅ dots 4-13  (Rule 21: "k)
+    '>': '\u2828\u2802',  // ⠨⠂ dots 46-2  (Rule 21: .1)
+    '≤': '\u2808\u2805\u2831', // ⠈⠅⠱ dots 4-13-156  (≤)
+    '≥': '\u2828\u2802\u2831', // ⠨⠂⠱ dots 46-2-156  (≥)
+    '≠': '\u2808\u2824\u2828\u2805', // ⠈⠤⠨⠅ dots 4-36-46-13  (≠ = /.k)
+    '≈': '\u2808\u2831\u2808\u2831', // ⠈⠱⠈⠱ dots 4-156-4-156 (approx equal)
+    '∞': '\u2820\u283f',  // ⠠⠿ dots 6-123456
+    '√': '\u2810\u2809',  // ⠐⠉ dots 5-14 (square root)
+    '^': '\u2838\u2823',  // ⠸⠣ superscript indicator 456-126 (opening)
+    '²': '\u2818\u2806',  // ⠘⠆ 45-23 superscript 2
+    '³': '\u2818\u2809',  // ⠘⠉ 45-14 superscript 3
+    '(': '\u2837',        // ⠷ dots 12356  (Rule 19: normal left parenthesis)
+    ')': '\u283e',        // ⠾ dots 23456  (Rule 19: normal right parenthesis)
+    '[': '\u2808\u2837',  // ⠈⠷ dots 4-12356  (Rule 19: @()
+    ']': '\u2808\u283e',  // ⠈⠾ dots 4-23456  (Rule 19: @))
+    '{': '\u2832\u2837',  // ⠲⠷ dots 256-12356  (Rule 19: .()
+    '}': '\u2832\u283e',  // ⠲⠾ dots 256-23456  (Rule 19: .))
+};
+
+// Nemeth 字母指示符（用於數字後出現字母時）
+// 在 Nemeth 中，數字串結束後如需字母，加 ⠰ 指示符
+function isNemethMode() {
+    const cb = document.getElementById('nemeth-mode');
+    return cb && cb.checked;
+}
+
+/**
+ * 將一個數字字串轉成 Nemeth 點字
+ * 處理：整數、小數、分數（a/b）、負號、千位逗號
+ * @param {string} numStr - 純數字串（含可能的 . , - /）
+ * @returns {string} Nemeth 點字
+ */
+function translateNemethNumber(numStr) {
+    let result = NEMETH_NUMSIGN;
+    let i = 0;
+    while (i < numStr.length) {
+        const ch = numStr[i];
+        if (ch >= '0' && ch <= '9') {
+            result += NEMETH_DIGIT[ch];
+        } else if (ch === '.') {
+            result += NEMETH_DECIMAL;  // ⠨ decimal point
+        } else if (ch === ',') {
+            // Nemeth: comma in numbers is blank (dots a = empty)
+            // 通常直接忽略千位符，或輸出空格
+            // 標準做法：千位符在 Nemeth 中省略
+            // skip
+        } else if (ch === '/') {
+            // 分數線：先結束數字模式，輸出 ⠌，再開新數字
+            result += NEMETH_DIGIT['0']; // placeholder? no:
+            // 實際分數線在 Nemeth = dots 34 = ⠌，前後各有 numsign
+            // 但這裡我們簡化：直接輸出 ⠌ 作為分數線
+            result = result.slice(0, -0); // no-op
+            // 刪除剛才加入的內容，改用正確分數格式
+            // 分子已在 result 中，現在加分數線再加分母
+            result += '\u280c'; // ⠌ fraction line
+            result += NEMETH_NUMSIGN; // 重新開啟數字模式給分母
+        } else if (ch === '-' || ch === '−') {
+            result += NEMETH_MATH_PUNCT['-']; // ⠤ minus
+        } else {
+            result += ch;
+        }
+        i++;
+    }
+    return result;
+}
+
+/**
+ * Nemeth 模式下的 token 翻譯
+ *
+ * 數字指示符規則（Nemeth 2022 §3.3 / §3.4）：
+ *  §3.3.1 數字號用在：行首、空格後、負號在行首/空格後
+ *  §3.4.1 數字前面緊接（unspaced）任何符號時 → 【不需要】數字號
+ *         例：+3 → +3（無⠼）；x-5 → x-5（無⠼）
+ *
+ *  跨 token 情況：
+ *    - 運算符號（+, -, ×, ÷）是獨立 token，後接數字 token
+ *    - 此時數字 token 雖然是 token 開頭，但前一個 token 是運算符，不加⠼
+ *    - 由呼叫者傳入 skipNumsign=true 處理
+ *
+ * @param {string}  token        - 數字或含運算符的字串（不含空格）
+ * @param {boolean} skipNumsign  - true=跳過 token 開頭的數字號（緊接運算符後）
+ */
+function translateNemethInline(token, skipNumsign = false) {
+    // 運算符號（緊接後面的數字不需要數字號）
+    const OPER = new Set(['+', '-', '−', '×', '÷', '/', '*', '·', '±', '∓']);
+
+    let result = '';
+    let i = 0;
+    let lastWasOper = false;  // 前一個字符是否為運算符號
+
+    while (i < token.length) {
+        const ch = token[i];
+
+        // ── 數字 ──
+        if (ch >= '0' && ch <= '9') {
+            // 加數字號的條件：
+            //   token 開頭（i===0）且沒有運算符在前（lastWasOper=false）
+            //   且呼叫者沒有要求跳過（skipNumsign=false）
+            if (i === 0 && !lastWasOper && !skipNumsign) {
+                result += NEMETH_NUMSIGN;
+            }
+            result += NEMETH_DIGIT[ch];
+            lastWasOper = false;
+            i++; continue;
+        }
+
+        // ── 小數點（在數字串中間，後面接數字）──
+        if (ch === '.' && i + 1 < token.length && token[i+1] >= '0' && token[i+1] <= '9') {
+            result += NEMETH_DECIMAL; // ⠨ dots 46
+            lastWasOper = false;
+            i++; continue;
+        }
+
+        // ── 千位逗號（忽略）──
+        if (ch === ',') {
+            i++; continue;
+        }
+
+        // ── 運算符號 ──
+        if (OPER.has(ch) && NEMETH_MATH_PUNCT[ch]) {
+            result += NEMETH_MATH_PUNCT[ch];
+            lastWasOper = true;  // 後面的數字不需要⠼
+            i++; continue;
+        }
+
+        // ── 其他數學符號（關係符號等）──
+        if (NEMETH_MATH_PUNCT[ch]) {
+            result += NEMETH_MATH_PUNCT[ch];
+            lastWasOper = false;
+            i++; continue;
+        }
+
+        // ── 其他字元 ──
+        result += ch;
+        lastWasOper = false;
+        i++;
+    }
+    return result;
+}
+
+
+// UEB 大寫指示符
+const CAP1 = '\u2820';           // ⠠  dots 6
+const CAP_WORD = '\u2820\u2820'; // ⠠⠠  dots 6-6
+const END_CAPS = '\u2820\u2804'; // ⠠⠄  dots 6-3
+
+// Grade 1 指示符（UEB Lesson 25）
+const G1_SYM  = '\u2830';       // ⠰  dots 56  — 單符號
+const G1_WORD = '\u2830\u2830'; // ⠰⠰  dots 56-56 — 整詞
+
+// a-j 在 numeric mode 後需要 G1 indicator（UEB §5.6）
+const NUMERIC_AJ = new Set(['a','b','c','d','e','f','g','h','i','j']);
+
+// comp8 標點
+const COMP8_PUNCT = {",": "\u2820", ".": "\u2828", "?": "\u2839", "!": "\u282e", ":": "\u2831", ";": "\u2830", "'": "\u2804", "\"": "\u2810", "-": "\u2824", "_": "\u2838", "(": "\u2837", ")": "\u283e", "[": "\u286a", "]": "\u287b", "{": "\u282a", "}": "\u283b", "/": "\u280c", "\\": "\u2873", "@": "\u2848", "#": "\u283c", "$": "\u282b", "%": "\u2829", "&": "\u282f", "*": "\u2821", "+": "\u282c", "=": "\u283f", "<": "\u2823", ">": "\u281c", "|": "\u2833", "~": "\u2818", "`": "\u2808", "^": "\u2858", "\u2018": "\u2826", "\u2019": "\u2834", "\u201c": "\u2826", "\u201d": "\u2834", "\u2013": "\u2824", "\u2014": "\u2824", "\u2026": "\u2804\u2804\u2804"};
+
+// UEB 標點（G1 / G2 共用）— 依 UEB Lesson 23/24 規範
+// Lesson 23: dash ⠠⠤, long dash ⠐⠠⠤,
+//            opening double " ⠦, closing double " ⠴
+//            opening single ' ⠠⠦, closing single ' ⠠⠴
+//            two-cell opening " ⠘⠦, two-cell closing " ⠘⠴
+//            ellipsis ⠲⠲⠲ (three full-stop cells)
+//            [ ⠨⠣  ] ⠨⠜  { ⠸⠣  } ⠸⠜
+const UEB_PUNCT = {
+    // 逗號、句號、問號、驚嘆號、冒號、分號
+    ",":  "\u2802",  // ⠂ dots 2
+    ";":  "\u2806",  // ⠆ dots 23
+    ":":  "\u2812",  // ⠒ dots 25
+    ".":  "\u2832",  // ⠲ dots 256
+    "!":  "\u2816",  // ⠖ dots 235
+    "?":  "\u2826",  // ⠦ dots 236
+    // 連字號與破折號
+    "-":  "\u2824",  // ⠤ dots 36
+    // en dash ‒ / em dash — → UEB dash ⠠⠤
+    "\u2013": "\u2820\u2824",  // – → ⠠⠤
+    "\u2014": "\u2820\u2824",  // — → ⠠⠤（長破折號改用 ⠐⠠⠤ 視印刷而定，此處保守用 ⠠⠤）
+    // 省略號
+    "\u2026": "\u2832\u2832\u2832",  // … → ⠲⠲⠲
+    // 撇號
+    "'":  "\u2804",  // ⠄ dots 3
+    // 引號（雙）
+    "\u201c": "\u2826",          // " → ⠦ opening double  dots 236
+    "\u201d": "\u2834",          // " → ⠴ closing double  dots 356
+    "\"":     "\u2834",          // 直引號 → closing form（通用）
+    // 引號（單）
+    "\u2018": "\u2820\u2826",    // ' → ⠠⠦ opening single  dot6 + dots236
+    "\u2019": "\u2820\u2834",    // ' → ⠠⠴ closing single  dot6 + dots356
+    // 括號 — UEB §7.3
+    "(":  "\u2810\u2823",  // ⠐⠣ dot5 + dots126
+    ")":  "\u2810\u281c",  // ⠐⠜ dot5 + dots345
+    "[":  "\u2828\u2823",  // ⠨⠣ opening square  dots46 + dots126
+    "]":  "\u2828\u281c",  // ⠨⠜ closing square  dots46 + dots345
+    "{":  "\u2838\u2823",  // ⠸⠣ opening brace   dots456 + dots126
+    "}":  "\u2838\u281c",  // ⠸⠜ closing brace   dots456 + dots345
+    // 斜線
+    "/":  "\u2838\u280c",  // ⠸⠌ dots456 + dots34
+    "\\": "\u2838\u2821",  // ⠸⠡ dots456 + dots16
+    // 其他符號
+    "@":  "\u2808\u2801",  // ⠈⠁ dot4 + dot1
+    "#":  "\u2838\u2839",  // ⠸⠹
+    "$":  "\u2808\u280e",  // ⠈⠎
+    "%":  "\u2828\u2834",  // ⠨⠴ dots46 + dots356
+    "&":  "\u2808\u282f",  // ⠈⠯
+    "*":  "\u2810\u2814",  // ⠐⠔ dot5 + dots35
+    "+":  "\u2810\u2816",  // ⠐⠖ dot5 + dots235
+    "=":  "\u2810\u2836",  // ⠐⠶
+    "<":  "\u2808\u2823",  // ⠈⠣
+    ">":  "\u2808\u281c",  // ⠈⠜
+    "|":  "\u2838\u2833",  // ⠸⠳
+    "~":  "\u2808\u2814",  // ⠈⠔ dot4 + dots35  (UEB §3 / en-ueb-chardefs.uti)
+    "`":  "\u2808",        // ⠈
+    "^":  "\u2808\u2822",  // ⠈⠢
+    "_":  "\u2828\u2824"   // ⠨⠤ dots46 + dots36  (UEB §3 / en-ueb-chardefs.uti)
+};
+
+// Unicode 長破折號 ⸺ → UEB long dash ⠐⠠⠤
+UEB_PUNCT["\u2E3A"] = "\u2810\u2820\u2824";
+UEB_PUNCT["\u2E3B"] = "\u2810\u2820\u2824";
+
+// ── 補充 UEB 特殊符號（en-ueb-chardefs.uti 完整版）──
+// 修正：© ® ± ≈ 的值與 CTB 對照後更正
+UEB_PUNCT["\u00a9"] = "⠘⠉"; // © copyright  45-14
+UEB_PUNCT["\u00ae"] = "⠘⠗"; // ® registered  45-1235
+UEB_PUNCT["\u00b1"] = "⠸⠖"; // ± plus-minus  456-235
+UEB_PUNCT["\u2248"] = "⠘⠔"; // ≈ almost equal  45-35
+UEB_PUNCT["\u00a0"] = "⠀"; // NBSP → space
+UEB_PUNCT["\u00a1"] = "⠖"; // ¡ inverted !  235
+UEB_PUNCT["\u00a4"] = "⠫"; // ¤ currency  1246
+UEB_PUNCT["\u00a5"] = "⠈⠽"; // ¥ yen  4-13456
+UEB_PUNCT["\u00a6"] = "⠸⠳"; // ¦ broken bar  456-1256
+UEB_PUNCT["\u00a8"] = "⠘⠒"; // ¨ diaeresis  45-25
+UEB_PUNCT["\u00ab"] = "⠸⠦"; // « left guillemet  456-236
+UEB_PUNCT["\u00ac"] = "⠈⠹"; // ¬ not sign  4-1456
+UEB_PUNCT["\u00ad"] = "⠤"; // soft hyphen  36
+UEB_PUNCT["\u00af"] = "⠈⠤"; // ¯ macron  4-36
+UEB_PUNCT["\u00b4"] = "⠘⠌"; // ´ acute accent  45-34
+UEB_PUNCT["\u00b5"] = "⠨⠍"; // µ micro  46-134
+UEB_PUNCT["\u00b7"] = "⠈⠡"; // · middle dot  4-16
+UEB_PUNCT["\u00b8"] = "⠘⠯"; // ¸ cedilla  45-12346
+UEB_PUNCT["\u00bb"] = "⠸⠴"; // » right guillemet  456-356
+UEB_PUNCT["\u00bc"] = "⠼⠁⠌⠙"; // ¼ one quarter  3456-1-34-145
+UEB_PUNCT["\u00bd"] = "⠼⠁⠌⠃"; // ½ one half  3456-1-34-12
+UEB_PUNCT["\u00be"] = "⠼⠉⠌⠙"; // ¾ three quarters  3456-14-34-145
+UEB_PUNCT["\u00bf"] = "⠘⠰⠦"; // ¿ inverted ?  45-56-236
+UEB_PUNCT["\u00b2"] = "⠰⠔⠼⠃"; // ² superscript 2  56-35-3456-12
+UEB_PUNCT["\u00b3"] = "⠰⠔⠼⠉"; // ³ superscript 3  56-35-3456-14
+UEB_PUNCT["\u2010"] = "⠤"; // ‐ hyphen U+2010  36
+UEB_PUNCT["\u2011"] = "⠤"; // ‑ non-breaking hyphen  36
+UEB_PUNCT["\u2015"] = "⠐⠠⠤"; // ― horizontal bar  5-6-36
+UEB_PUNCT["\u2020"] = "⠈⠠⠹"; // † dagger  4-6-1456
+UEB_PUNCT["\u2021"] = "⠈⠠⠻"; // ‡ double dagger  4-6-12456
+UEB_PUNCT["\u2032"] = "⠶"; // ′ prime  2356
+UEB_PUNCT["\u2033"] = "⠶⠶"; // ″ double prime  2356-2356
+UEB_PUNCT["\u20a3"] = "⠈⠋"; // ₣ franc  4-124
+UEB_PUNCT["\u20a6"] = "⠈⠝"; // ₦ naira  4-1345
+UEB_PUNCT["\u2122"] = "⠘⠞"; // ™ trademark  45-2345
+UEB_PUNCT["\u2200"] = "⠘⠁"; // ∀ for all  45-1
+UEB_PUNCT["\u2202"] = "⠈⠙"; // ∂ partial derivative  4-145
+UEB_PUNCT["\u2203"] = "⠘⠢"; // ∃ there exists  45-26
+UEB_PUNCT["\u2205"] = "⠈⠚"; // ∅ empty set  4-245
+UEB_PUNCT["\u2207"] = "⠘⠙"; // ∇ nabla  45-145
+UEB_PUNCT["\u2208"] = "⠘⠑"; // ∈ element of  45-15
+UEB_PUNCT["\u221a"] = "⠐⠩"; // √ square root  5-146
+UEB_PUNCT["\u221e"] = "⠼⠿"; // ∞ infinity  3456-123456
+UEB_PUNCT["\u2212"] = "⠐⠤"; // − minus sign  5-36
+UEB_PUNCT["\u2220"] = "⠸⠪"; // ∠ angle  456-246
+UEB_PUNCT["\u222b"] = "⠮"; // ∫ integral  2346
+UEB_PUNCT["\u2234"] = "⠠⠡"; // ∴ therefore  6-16
+UEB_PUNCT["\u2235"] = "⠈⠌"; // ∵ because  4-34
+UEB_PUNCT["\u2260"] = "⠐⠶⠈⠱"; // ≠ not equal  5-2356-4-156
+UEB_PUNCT["\u2261"] = "⠸⠿"; // ≡ identical  456-123456
+UEB_PUNCT["\u2264"] = "⠸⠈⠣"; // ≤ less or equal  456-4-126
+UEB_PUNCT["\u2265"] = "⠸⠈⠜"; // ≥ greater or equal  456-4-345
+UEB_PUNCT["\u2190"] = "⠰⠳⠪"; // ← left arrow  56-1256-246
+UEB_PUNCT["\u2191"] = "⠰⠳⠬"; // ↑ up arrow  56-1256-346
+UEB_PUNCT["\u2192"] = "⠰⠳⠕"; // → right arrow  56-1256-135
+UEB_PUNCT["\u2193"] = "⠰⠳⠩"; // ↓ down arrow  56-1256-146
+// Greek lowercase letters (46-x prefix)
+UEB_PUNCT["\u03b1"] = "⠨⠁"; // α alpha  46-1
+UEB_PUNCT["\u03b2"] = "⠨⠃"; // β beta  46-12
+UEB_PUNCT["\u03b3"] = "⠨⠛"; // γ gamma  46-1245
+UEB_PUNCT["\u03b4"] = "⠨⠙"; // δ delta  46-145
+UEB_PUNCT["\u03b5"] = "⠨⠑"; // ε epsilon  46-15
+UEB_PUNCT["\u03b6"] = "⠨⠵"; // ζ zeta  46-1356
+UEB_PUNCT["\u03b7"] = "⠨⠱"; // η eta  46-156
+UEB_PUNCT["\u03b8"] = "⠨⠹"; // θ theta  46-1456
+UEB_PUNCT["\u03b9"] = "⠨⠊"; // ι iota  46-24
+UEB_PUNCT["\u03ba"] = "⠨⠅"; // κ kappa  46-13
+UEB_PUNCT["\u03bb"] = "⠨⠇"; // λ lambda  46-123
+UEB_PUNCT["\u03bc"] = "⠨⠍"; // μ mu  46-134
+UEB_PUNCT["\u03bd"] = "⠨⠝"; // ν nu  46-1345
+UEB_PUNCT["\u03be"] = "⠨⠭"; // ξ xi  46-1346
+UEB_PUNCT["\u03bf"] = "⠨⠕"; // ο omicron  46-135
+UEB_PUNCT["\u03c0"] = "⠨⠏"; // π pi  46-1234
+UEB_PUNCT["\u03c1"] = "⠨⠗"; // ρ rho  46-1235
+UEB_PUNCT["\u03c2"] = "⠨⠎"; // ς sigma (final)  46-234
+UEB_PUNCT["\u03c3"] = "⠨⠎"; // σ sigma  46-234
+UEB_PUNCT["\u03c4"] = "⠨⠞"; // τ tau  46-2345
+UEB_PUNCT["\u03c5"] = "⠨⠥"; // υ upsilon  46-136
+UEB_PUNCT["\u03c6"] = "⠨⠋"; // φ phi  46-124
+UEB_PUNCT["\u03c7"] = "⠨⠯"; // χ chi  46-12346
+UEB_PUNCT["\u03c8"] = "⠨⠽"; // ψ psi  46-13456
+UEB_PUNCT["\u03c9"] = "⠨⠺"; // ω omega  46-2456
+// Musical symbols
+UEB_PUNCT["\u266d"] = "⠼⠣"; // ♭ flat  3456-126
+UEB_PUNCT["\u266e"] = "⠼⠡"; // ♮ natural  3456-16
+UEB_PUNCT["\u266f"] = "⠼⠩"; // ♯ sharp  3456-146
+// Miscellaneous
+UEB_PUNCT["\u2022"] = "⠸⠲"; // • bullet  456-256
+UEB_PUNCT["\u2713"] = "⠈⠩"; // ✓ check mark  4-146
+UEB_PUNCT["\u00b0"] = "⠘⠚"; // ° degree  45-245
+UEB_PUNCT["\u00a2"] = "⠈⠉"; // ¢ cent  4-14
+UEB_PUNCT["\u00a3"] = "⠈⠇"; // £ pound  4-123
+UEB_PUNCT["\u20ac"] = "⠈⠑"; // € euro  4-15
+UEB_PUNCT["\u00a7"] = "⠘⠎"; // § section  45-234
+UEB_PUNCT["\u00b6"] = "⠘⠏"; // ¶ paragraph  45-1234
+UEB_PUNCT["\u00f7"] = "⠐⠌"; // ÷ division  5-34
+UEB_PUNCT["\u00d7"] = "⠐⠦"; // × multiply  5-236
+
+// ── UEB G2 縮寫表格 ─────────────────────────────────────────
+// always groupsigns（任何位置）
+const G2_ALWAYS = {'and':'⠯','ar':'⠜','betws':'⠃⠑⠞⠺⠎','cannot':'⠸⠉','cch':'⠉⠡','ch':'⠡','character':'⠐⠡','day':'⠐⠙','ear':'⠑⠜','ed':'⠫','eever':'⠑⠑⠧⠻','encephal':'⠢⠉⠑⠏⠓⠁⠇','enough':'⠢⠳⠣','er':'⠻','ever':'⠐⠑','eversion':'⠑⠧⠻⠨⠝','evertebra':'⠑⠧⠻⠞⠑⠃⠗⠁','evertib':'⠑⠧⠻⠞⠊⠃','father':'⠐⠋','ffor':'⠋⠿','for':'⠿','gh':'⠣','had':'⠸⠓','here':'⠐⠓','hered':'⠓⠻⠫','herence':'⠓⠻⠰⠑','herencies':'⠓⠻⠢⠉⠊⠑⠎','herency':'⠓⠻⠢⠉⠽','herend':'⠓⠻⠢⠙','herent':'⠓⠻⠢⠞','herer':'⠓⠻⠻','honest':'⠓⠐⠕⠌','iever':'⠊⠑⠧⠻','know':'⠐⠅','lord':'⠐⠇','many':'⠸⠍','mention':'⠍⠢⠰⠝','monetary':'⠍⠐⠕⠞⠜⠽','mother':'⠐⠍','name':'⠐⠝','nament':'⠝⠁⠰⠞','of':'⠷','ofor':'⠕⠿','one':'⠐⠕','ou':'⠳','ought':'⠐⠳','ow':'⠪','owork':'⠕⠐⠺','part':'⠐⠏','phad':'⠏⠓⠁⠙','pineapple':'⠏⠔⠑⠁⠏⠏⠇⠑','question':'⠐⠟','reverb':'⠗⠑⠧⠻⠃','reversab':'⠗⠑⠧⠻⠎⠁⠃','reversib':'⠗⠑⠧⠻⠎⠊⠃','reversif':'⠗⠑⠧⠻⠎⠊⠋','right':'⠐⠗','severed':'⠎⠐⠑⠫','sh':'⠩','some':'⠐⠎','somever':'⠎⠕⠍⠐⠑','spirit':'⠸⠎','st':'⠌','th':'⠹','the':'⠮','their':'⠸⠮','these':'⠘⠮','through':'⠐⠹','time':'⠐⠞','timent':'⠞⠊⠰⠞','under':'⠐⠥','upon':'⠘⠥','vinedress':'⠧⠔⠑⠙⠗⠑⠎⠎','wh':'⠱','where':'⠐⠱','whose':'⠘⠱','with':'⠾','word':'⠘⠺','work':'⠐⠺','world':'⠸⠺','young':'⠐⠽','there':'⠐⠮','those':'⠘⠹'};
+
+// nofor_always：任何位置（含字首）
+const G2_ANYWHERE = {'in':'⠔','en':'⠢'};
+
+// nofor_begword：只在字首（後面必須有字元）
+const G2_BEGWORD = {'con':'⠒','dis':'⠲','be':'⠆'};
+
+// nofor_midword：字中（非字首非字尾）
+const G2_MIDWORD = {'ea':'⠂','bb':'⠆','cc':'⠒','ff':'⠖','gg':'⠶'};
+
+// nofor_midendword：字中或字尾（非字首）
+const G2_MIDEND = {'ing':'⠬','tion':'⠰⠝','ence':'⠰⠑','ance':'⠨⠑','ment':'⠰⠞','ness':'⠰⠎','ful':'⠰⠇','ity':'⠰⠽','ound':'⠨⠙','ount':'⠨⠞','sion':'⠨⠝','less':'⠨⠎','ong':'⠰⠛'};
+
+// nofor_lowword：整詞低位點字縮寫
+const G2_LOWWORD = {'his':'⠦','was':'⠴','were':'⠶','enough':'⠢'};
+
+// nofor_sufword：字尾
+const G2_SUFWORD = {'be':'⠆'};
+
+// word-signs（整詞縮寫）
+const G2_WORD = {
+// ── CTB sufword 例外（ar/st/ow/here 搶先，需直接指定）──
+'aright':'⠁⠐⠗','arights':'⠁⠐⠗⠎',
+'nowhere':'⠝⠕⠐⠱','nowheres':'⠝⠕⠐⠱⠎',
+'heresy':'⠓⠻⠑⠎⠽','heresies':'⠓⠻⠑⠎⠊⠑⠎',
+'heretic':'⠓⠻⠑⠞⠊⠉','heretics':'⠓⠻⠑⠞⠊⠉⠎','heretical':'⠓⠻⠑⠞⠊⠉⠁⠇','heretically':'⠓⠻⠑⠞⠊⠉⠁⠇⠇⠽',
+'mistime':'⠍⠊⠎⠐⠞','mistimed':'⠍⠊⠎⠐⠞⠙','mistiming':'⠍⠊⠎⠐⠞⠬','mistimes':'⠍⠊⠎⠐⠞⠎',
+'pastime':'⠏⠁⠎⠐⠞','pastimes':'⠏⠁⠎⠐⠞⠎',
+'altimeter':'⠁⠇⠞⠊⠍⠑⠞⠻','altimeters':'⠁⠇⠞⠊⠍⠑⠞⠻⠎',
+'asthma':'⠁⠎⠹⠍⠁','asthmas':'⠁⠎⠹⠍⠁⠎','asthmatic':'⠁⠎⠹⠍⠁⠞⠊⠉','asthmatics':'⠁⠎⠹⠍⠁⠞⠊⠉⠎',
+'indiarubber':'⠔⠙⠊⠁⠗⠥⠆⠻','indiarubbers':'⠔⠙⠊⠁⠗⠥⠆⠻⠎',
+'infrared':'⠔⠋⠗⠁⠗⠫','infrareds':'⠔⠋⠗⠁⠗⠫⠎',
+// CTB: cation = ca+tion（不是 ca+t+ion，tion 優先）
+'cation':'⠉⠁⠰⠝','cations':'⠉⠁⠰⠝⠎',
+// CTB: centime = cen+time（en+time 組合）
+'centime':'⠉⠢⠐⠞','centimes':'⠉⠢⠐⠞⠎',
+// CTB: bundestag = bund+est+ag（st 不跨複合詞邊界）
+'bundestag':'⠃⠥⠝⠙⠑⠎⠞⠁⠛',
+// CTB: blossomed = bl+o+ss+omed（some 不縮）
+'blossomed':'⠃⠇⠕⠎⠎⠕⠍⠫',
+// L29: 字母分讀縮寫（acronyms pronounced letter-by-letter → 不縮）
+'kwh':'⠅⠺⠓','kWh':'⠅⠠⠺⠓',
+// L30: foreign words / anglicised words where 'one' must NOT be contracted
+'panettone':'⠏⠁⠝⠑⠞⠞⠕⠝⠑','panettones':'⠏⠁⠝⠑⠞⠞⠕⠝⠑⠎',
+// ── PDF 例外詞：無法靠規則自動處理，直接指定輸出 ──
+// L16: one 縮寫例外（發音不符）
+'colonel':'⠉⠕⠇⠕⠝⠑⠇','colonels':'⠉⠕⠇⠕⠝⠑⠇⠎',
+// L15: ever 縮寫例外（-vere / 前有 e/i）
+'severe':'⠎⠑⠧⠻⠑','severed':'⠎⠐⠑⠫','severely':'⠎⠑⠧⠻⠑⠇⠽','severer':'⠎⠑⠧⠻⠑⠗','severest':'⠎⠑⠧⠻⠑⠌',
+'revere':'⠗⠑⠧⠻⠑','revered':'⠗⠑⠧⠻⠫','reveres':'⠗⠑⠧⠻⠑⠎','revering':'⠗⠑⠧⠻⠬',
+'persevere':'⠏⠻⠎⠑⠧⠻⠑','persevered':'⠏⠻⠎⠑⠧⠻⠫','perseveres':'⠏⠻⠎⠑⠧⠻⠑⠎','persevering':'⠏⠻⠎⠑⠧⠻⠬',
+// L18: these 縮寫例外（theses 意義不同）
+'theses':'⠮⠎⠑⠎','thesis':'⠮⠎⠊⠎',
+// L19: dispirited（spirit 優先於 dis）
+'dispirited':'⠙⠊⠸⠎⠫','dispiritedly':'⠙⠊⠸⠎⠫⠇⠽','dispiritedness':'⠙⠊⠸⠎⠫⠰⠎',
+'dispiriting':'⠙⠊⠸⠎⠬',
+// L17: lathered（the 優先，the+er+ed，而非 there+d）
+'lathered':'⠇⠁⠮⠗⠫',
+// L22: beautifully（beau 是單一音節，be 不縮）
+'beautifully':'⠃⠂⠥⠞⠊⠰⠇⠇⠽','beautify':'⠃⠂⠥⠞⠊⠋⠽','beautified':'⠃⠂⠥⠞⠊⠋⠊⠫','beautifying':'⠃⠂⠥⠞⠊⠋⠊⠬','beautifies':'⠃⠂⠥⠞⠊⠋⠊⠑⠎',
+// L20: lioness/baroness（ness 優先於 one）
+'lioness':'⠇⠊⠕⠰⠎','lionesses':'⠇⠊⠕⠰⠎⠑⠎',
+'baroness':'⠃⠜⠕⠰⠎','baronesses':'⠃⠜⠕⠰⠎⠑⠎',
+'viscountess':'⠧⠊⠎⠉⠨⠞⠰⠎','viscountesses':'⠧⠊⠎⠉⠨⠞⠰⠎⠑⠎',
+'countess':'⠉⠨⠞⠰⠎','countesses':'⠉⠨⠞⠰⠎⠑⠎',
+// L16: name 縮寫例外（en 搶先，需直接指定）
+'renamed':'⠗⠑⠐⠝⠙','renames':'⠗⠑⠐⠝⠎','renaming':'⠗⠑⠐⠝⠬',
+'filename':'⠋⠊⠇⠑⠐⠝','filenames':'⠋⠊⠇⠑⠐⠝⠎',
+// L16: time/st 優先序衝突（st 先吃掉，time 無法匹配）
+'mistimed':'⠍⠊⠎⠐⠞⠙','mistiming':'⠍⠊⠎⠐⠞⠬',
+// L16: under 縮寫（understand 中 under 是詞根，應縮；underived 是 un- 前綴，不縮）
+'understand':'⠐⠥⠌⠯','understands':'⠐⠥⠌⠯⠎','understood':'⠐⠥⠌⠕⠕⠙',
+'understanding':'⠐⠥⠌⠯⠬','understandings':'⠐⠥⠌⠯⠬⠎','understandable':'⠐⠥⠌⠯⠁⠃⠇⠑',
+'misunderstand':'⠍⠊⠎⠐⠥⠌⠯','misunderstood':'⠍⠊⠎⠐⠥⠌⠕⠕⠙',
+// ──────────────────────────────────────────────────
+'about':'⠁⠃','aboutface':'⠁⠃⠋⠁⠉⠑','aboutfaced':'⠁⠃⠋⠁⠉⠫','aboutfacer':'⠁⠃⠋⠁⠉⠻','aboutfacers':'⠁⠃⠋⠁⠉⠻⠎','aboutfaces':'⠁⠃⠋⠁⠉⠑⠎','aboutfacing':'⠁⠃⠋⠁⠉⠬','aboutfacings':'⠁⠃⠋⠁⠉⠬⠎','abouts':'⠁⠃⠳⠞⠎','aboutturn':'⠁⠃⠞⠥⠗⠝','aboutturned':'⠁⠃⠞⠥⠗⠝⠫','aboutturns':'⠁⠃⠞⠥⠗⠝⠎','above':'⠁⠃⠧','aboveboard':'⠁⠃⠧⠃⠕⠜⠙','aboveboards':'⠁⠃⠧⠃⠕⠜⠙⠎','aboveground':'⠁⠃⠧⠛⠗⠨⠙','abovegrounds':'⠁⠃⠧⠛⠗⠨⠙⠎','abovementioned':'⠁⠃⠧⠍⠢⠰⠝⠫','aboves':'⠁⠃⠧⠎','according':'⠁⠉','accordingly':'⠁⠉⠇⠽','accordings':'⠁⠉⠎','across':'⠁⠉⠗','acrosss':'⠁⠉⠗⠎','aforesaid':'⠁⠿⠑⠎⠙','aforesaids':'⠁⠿⠑⠎⠙⠎','after':'⠁⠋','afterbattle':'⠁⠋⠃⠁⠞⠞⠇⠑','afterbattles':'⠁⠋⠃⠁⠞⠞⠇⠑⠎','afterbirth':'⠁⠋⠃⠊⠗⠹','afterbirths':'⠁⠋⠃⠊⠗⠹⠎','afterbreakfast':'⠁⠋⠃⠗⠂⠅⠋⠁⠌','afterbreakfasts':'⠁⠋⠃⠗⠂⠅⠋⠁⠌⠎','afterburn':'⠁⠋⠃⠥⠗⠝','afterburned':'⠁⠋⠃⠥⠗⠝⠫','afterburner':'⠁⠋⠃⠥⠗⠝⠻','afterburners':'⠁⠋⠃⠥⠗⠝⠻⠎','afterburning':'⠁⠋⠃⠥⠗⠝⠬','afterburnings':'⠁⠋⠃⠥⠗⠝⠬⠎','afterburns':'⠁⠋⠃⠥⠗⠝⠎','aftercare':'⠁⠋⠉⠜⠑','aftercares':'⠁⠋⠉⠜⠑⠎','afterclap':'⠁⠋⠉⠇⠁⠏','afterclaps':'⠁⠋⠉⠇⠁⠏⠎','aftercoffee':'⠁⠋⠉⠷⠋⠑⠑','aftercoffees':'⠁⠋⠉⠷⠋⠑⠑⠎','afterdamp':'⠁⠋⠙⠁⠍⠏','afterdamps':'⠁⠋⠙⠁⠍⠏⠎','afterdark':'⠁⠋⠙⠜⠅','afterdarks':'⠁⠋⠙⠜⠅⠎','afterdeck':'⠁⠋⠙⠑⠉⠅','afterdecks':'⠁⠋⠙⠑⠉⠅⠎','afterdinner':'⠁⠋⠙⠔⠝⠻','afterdinners':'⠁⠋⠙⠔⠝⠻⠎','afterflow':'⠁⠋⠋⠇⠪','afterflows':'⠁⠋⠋⠇⠪⠎','aftergame':'⠁⠋⠛⠁⠍⠑','aftergames':'⠁⠋⠛⠁⠍⠑⠎','afterglow':'⠁⠋⠛⠇⠪','afterglows':'⠁⠋⠛⠇⠪⠎','afterguard':'⠁⠋⠛⠥⠜⠙','afterguards':'⠁⠋⠛⠥⠜⠙⠎','afterhatch':'⠁⠋⠓⠁⠞⠡','afterhatches':'⠁⠋⠓⠁⠞⠡⠑⠎','afterhatchess':'⠁⠋⠓⠁⠞⠡⠑⠎⠎','afterhatchs':'⠁⠋⠓⠁⠞⠡⠎','afterhour':'⠁⠋⠓⠳⠗','afterhours':'⠁⠋⠓⠳⠗⠎','afterlife':'⠁⠋⠇⠊⠋⠑','afterlifes':'⠁⠋⠇⠊⠋⠑⠎','afterlight':'⠁⠋⠇⠊⠣⠞','afterlights':'⠁⠋⠇⠊⠣⠞⠎','afterlives':'⠁⠋⠇⠊⠧⠑⠎','afterlivess':'⠁⠋⠇⠊⠧⠑⠎⠎','afterlunch':'⠁⠋⠇⠥⠝⠡','afterlunches':'⠁⠋⠇⠥⠝⠡⠑⠎','afterlunchess':'⠁⠋⠇⠥⠝⠡⠑⠎⠎','afterlunchs':'⠁⠋⠇⠥⠝⠡⠎','aftermarket':'⠁⠋⠍⠜⠅⠑⠞','aftermarkets':'⠁⠋⠍⠜⠅⠑⠞⠎','aftermatch':'⠁⠋⠍⠁⠞⠡','aftermatches':'⠁⠋⠍⠁⠞⠡⠑⠎','aftermatchs':'⠁⠋⠍⠁⠞⠡⠎','aftermath':'⠁⠋⠍⠁⠹','aftermaths':'⠁⠋⠍⠁⠹⠎','aftermeeting':'⠁⠋⠍⠑⠑⠞⠬','aftermeetings':'⠁⠋⠍⠑⠑⠞⠬⠎','aftermentioned':'⠁⠋⠍⠢⠰⠝⠫','aftermentioneds':'⠁⠋⠍⠢⠰⠝⠫⠎','aftermidday':'⠁⠋⠍⠊⠙⠐⠙','aftermiddays':'⠁⠋⠍⠊⠙⠐⠙⠎','aftermidnight':'⠁⠋⠍⠊⠙⠝⠊⠣⠞','aftermidnights':'⠁⠋⠍⠊⠙⠝⠊⠣⠞⠎','aftermost':'⠁⠋⠍⠕⠌','aftermosts':'⠁⠋⠍⠕⠌⠎','afternoon':'⠁⠋⠝','afternoons':'⠁⠋⠝⠎','afternoontea':'⠁⠋⠝⠞⠑⠁','afternoonteas':'⠁⠋⠝⠞⠑⠁⠎','afterpain':'⠁⠋⠏⠁⠔','afterpains':'⠁⠋⠏⠁⠔⠎','afterparties':'⠁⠋⠐⠏⠊⠑⠎','afterpartiess':'⠁⠋⠐⠏⠊⠑⠎⠎','afterparty':'⠁⠋⠐⠏⠽','afterpartys':'⠁⠋⠐⠏⠽⠎','afterpiece':'⠁⠋⠏⠊⠑⠉⠑','afterpieces':'⠁⠋⠏⠊⠑⠉⠑⠎','afterplay':'⠁⠋⠏⠇⠁⠽','afterplays':'⠁⠋⠏⠇⠁⠽⠎','afters':'⠁⠋⠎','aftersale':'⠁⠋⠎⠁⠇⠑','aftersales':'⠁⠋⠎⠁⠇⠑⠎','afterschool':'⠁⠋⠎⠡⠕⠕⠇','afterschools':'⠁⠋⠎⠡⠕⠕⠇⠎','aftersensation':'⠁⠋⠎⠢⠎⠁⠰⠝','aftersensations':'⠁⠋⠎⠢⠎⠁⠰⠝⠎','aftershave':'⠁⠋⠩⠁⠧⠑','aftershaves':'⠁⠋⠩⠁⠧⠑⠎','aftershock':'⠁⠋⠩⠕⠉⠅','aftershocks':'⠁⠋⠩⠕⠉⠅⠎','aftershow':'⠁⠋⠩⠪','aftershower':'⠁⠋⠩⠪⠻','aftershowers':'⠁⠋⠩⠪⠻⠎','aftershows':'⠁⠋⠩⠪⠎','aftersupper':'⠁⠋⠎⠥⠏⠏⠻','aftersuppers':'⠁⠋⠎⠥⠏⠏⠻⠎','aftertaste':'⠁⠋⠞⠁⠌⠑','aftertastes':'⠁⠋⠞⠁⠌⠑⠎','aftertax':'⠁⠋⠞⠁⠭','aftertaxes':'⠁⠋⠞⠁⠭⠑⠎','aftertaxess':'⠁⠋⠞⠁⠭⠑⠎⠎','aftertaxs':'⠁⠋⠞⠁⠭⠎','aftertea':'⠁⠋⠞⠑⠁','afterteas':'⠁⠋⠞⠑⠁⠎','aftertheater':'⠁⠋⠮⠁⠞⠻','aftertheaters':'⠁⠋⠮⠁⠞⠻⠎','aftertheatre':'⠁⠋⠮⠁⠞⠗⠑','aftertheatres':'⠁⠋⠮⠁⠞⠗⠑⠎','afterthought':'⠁⠋⠹⠐⠳','afterthoughts':'⠁⠋⠹⠐⠳⠎','aftertime':'⠁⠋⠐⠞','aftertimes':'⠁⠋⠐⠞⠎','aftertreatment':'⠁⠋⠞⠗⠂⠞⠰⠞','aftertreatments':'⠁⠋⠞⠗⠂⠞⠰⠞⠎','afterward':'⠁⠋⠺','afterwards':'⠁⠋⠺⠎','afterword':'⠁⠋⠘⠺','afterwords':'⠁⠋⠘⠺⠎','afterwork':'⠁⠋⠐⠺','afterworks':'⠁⠋⠐⠺⠎','afterworld':'⠁⠋⠸⠺','afterworlds':'⠁⠋⠸⠺⠎','again':'⠁⠛','agains':'⠁⠛⠎','against':'⠁⠛⠌','againsts':'⠁⠛⠌⠎','almost':'⠁⠇⠍','almosts':'⠁⠇⠍⠕⠌⠎','alms':'⠁⠇⠍⠎','already':'⠁⠇⠗','alreadys':'⠁⠇⠗⠎','also':'⠁⠇','alsos':'⠁⠇⠎','although':'⠁⠇⠹','althoughs':'⠁⠇⠹⠎','altogether':'⠁⠇⠞','altogethers':'⠁⠇⠞⠎','always':'⠁⠇⠺','alwayss':'⠁⠇⠺⠎','apperceive':'⠁⠏⠏⠻⠉⠧','apperceived':'⠁⠏⠏⠻⠉⠧⠙','apperceiver':'⠁⠏⠏⠻⠉⠧⠗','apperceivers':'⠁⠏⠏⠻⠉⠧⠗⠎','apperceives':'⠁⠏⠏⠻⠉⠧⠎','apperceiving':'⠁⠏⠏⠻⠉⠧⠛','apperceivings':'⠁⠏⠏⠻⠉⠧⠛⠎','archdeceiver':'⠜⠡⠙⠉⠧⠗','archdeceivers':'⠜⠡⠙⠉⠧⠗⠎','as':'⠵','beata':'⠆⠁⠞⠁','beatae':'⠆⠁⠞⠁⠑','beati':'⠆⠁⠞⠊','beatus':'⠆⠁⠞⠥⠎','because':'⠆⠉','becauses':'⠆⠉⠎','beche':'⠃⠑⠡⠑','beches':'⠃⠑⠡⠑⠎','bede':'⠃⠫⠑','beden':'⠃⠫⠢','bedes':'⠃⠫⠑⠎','before':'⠆⠋','beforehand':'⠆⠋⠓⠯','beforehands':'⠆⠋⠓⠯⠎','beforementioned':'⠆⠋⠍⠢⠰⠝⠫','beforementioneds':'⠆⠋⠍⠢⠰⠝⠫⠎','befores':'⠆⠋⠎','befriend':'⠆⠋⠗','befriends':'⠆⠋⠗⠎','behind':'⠆⠓','behindhand':'⠆⠓⠓⠯','behindhands':'⠆⠓⠓⠯⠎','behinds':'⠆⠓⠎','bein':'⠃⠑⠔','beins':'⠃⠑⠔⠎','belittle':'⠆⠇⠇','belittled':'⠆⠇⠇⠙','belittlement':'⠆⠇⠇⠰⠞','belittlements':'⠆⠇⠇⠰⠞⠎','belittler':'⠆⠇⠇⠗','belittlers':'⠆⠇⠇⠗⠎','belittles':'⠆⠇⠇⠎','below':'⠆⠇','belowdeck':'⠆⠇⠙⠑⠉⠅','belowdecks':'⠆⠇⠙⠑⠉⠅⠎','belowground':'⠆⠇⠛⠗⠨⠙','belowgrounds':'⠆⠇⠛⠗⠨⠙⠎','belowmentioned':'⠆⠇⠍⠢⠰⠝⠫','belows':'⠆⠇⠎','ben':'⠃⠢','benammi':'⠃⠢⠁⠍⠍⠊','beneath':'⠆⠝','beneathdeck':'⠆⠝⠙⠑⠉⠅','beneathdecks':'⠆⠝⠙⠑⠉⠅⠎','beneathground':'⠆⠝⠛⠗⠨⠙','beneathgrounds':'⠆⠝⠛⠗⠨⠙⠎','beneaths':'⠆⠝⠎','benefic':'⠆⠝⠑⠋⠊⠉','beside':'⠆⠎','besides':'⠆⠎⠎','best':'⠃⠑⠌','bested':'⠃⠑⠌⠫','bester':'⠃⠑⠌⠻','bestest':'⠃⠑⠌⠑⠌','besting':'⠃⠑⠌⠬','bestness':'⠃⠑⠌⠰⠎','besty':'⠃⠑⠌⠽','between':'⠆⠞','betweendeck':'⠆⠞⠙⠑⠉⠅','betweendecks':'⠆⠞⠙⠑⠉⠅⠎','betweens':'⠆⠞⠎','betweentime':'⠆⠞⠐⠞','betweentimes':'⠆⠞⠐⠞⠎','betweenwhile':'⠆⠞⠱⠊⠇⠑','betweenwhiles':'⠆⠞⠱⠊⠇⠑⠎','beyond':'⠆⠽','beyonds':'⠆⠽⠎','biscuity':'⠃⠊⠎⠉⠥⠊⠞⠽','blind':'⠃⠇','blindfish':'⠃⠇⠋⠊⠩','blindfishes':'⠃⠇⠋⠊⠩⠑⠎','blindfishess':'⠃⠇⠋⠊⠩⠑⠎⠎','blindfishs':'⠃⠇⠋⠊⠩⠎','blindfold':'⠃⠇⠋⠕⠇⠙','blindfolded':'⠃⠇⠋⠕⠇⠙⠫','blindfolder':'⠃⠇⠋⠕⠇⠙⠻','blindfolders':'⠃⠇⠋⠕⠇⠙⠻⠎','blindfolding':'⠃⠇⠋⠕⠇⠙⠬','blindfoldings':'⠃⠇⠋⠕⠇⠙⠬⠎','blindfolds':'⠃⠇⠋⠕⠇⠙⠎','blindly':'⠃⠇⠇⠽','blindlys':'⠃⠇⠇⠽⠎','blindman':'⠃⠇⠍⠁⠝','blindmans':'⠃⠇⠍⠁⠝⠎','blindmen':'⠃⠇⠍⠢','blindmens':'⠃⠇⠍⠢⠎','blindness':'⠃⠇⠰⠎','blindnesses':'⠃⠇⠰⠎⠑⠎','blindnessess':'⠃⠇⠰⠎⠑⠎⠎','blindnesss':'⠃⠇⠰⠎⠎','blinds':'⠃⠇⠎','blindside':'⠃⠇⠎⠊⠙⠑','blindsided':'⠃⠇⠎⠊⠙⠫','blindsider':'⠃⠇⠎⠊⠙⠻','blindsiders':'⠃⠇⠎⠊⠙⠻⠎','blindsides':'⠃⠇⠎⠊⠙⠑⠎','blindsiding':'⠃⠇⠎⠊⠙⠬','blindsidings':'⠃⠇⠎⠊⠙⠬⠎','blindsight':'⠃⠇⠎⠊⠣⠞','blindsights':'⠃⠇⠎⠊⠣⠞⠎','blindstories':'⠃⠇⠌⠕⠗⠊⠑⠎','blindstoriess':'⠃⠇⠌⠕⠗⠊⠑⠎⠎','blindstory':'⠃⠇⠌⠕⠗⠽','blindstorys':'⠃⠇⠌⠕⠗⠽⠎','blindworm':'⠃⠇⠺⠕⠗⠍','blindworms':'⠃⠇⠺⠕⠗⠍⠎','bloodletter':'⠃⠇⠕⠕⠙⠇⠗','bloodletters':'⠃⠇⠕⠕⠙⠇⠗⠎','boyfriend':'⠃⠕⠽⠋⠗','boyfriends':'⠃⠕⠽⠋⠗⠎','braille':'⠃⠗⠇','brailled':'⠃⠗⠇⠙','brailler':'⠃⠗⠇⠗','braillers':'⠃⠗⠇⠗⠎','brailles':'⠃⠗⠇⠎','braillewriter':'⠃⠗⠇⠺⠗⠊⠞⠻','braillewriters':'⠃⠗⠇⠺⠗⠊⠞⠻⠎','braillewriting':'⠃⠗⠇⠺⠗⠊⠞⠬','braillewritings':'⠃⠗⠇⠺⠗⠊⠞⠬⠎','brailley':'⠃⠗⠇⠽','brailleys':'⠃⠗⠇⠽⠎','brainchildren':'⠃⠗⠁⠔⠡⠝','brainchildrens':'⠃⠗⠁⠔⠡⠝⠎','but':'⠃','can':'⠉','chainletter':'⠡⠁⠔⠇⠗','chainletters':'⠡⠁⠔⠇⠗⠎','child':'⠡','children':'⠡⠝','childrens':'⠡⠝⠎','colorblind':'⠉⠕⠇⠕⠗⠃⠇','colorblindness':'⠉⠕⠇⠕⠗⠃⠇⠰⠎','colorblindnesses':'⠉⠕⠇⠕⠗⠃⠇⠰⠎⠑⠎','colorblindnessess':'⠉⠕⠇⠕⠗⠃⠇⠰⠎⠑⠎⠎','colorblindnesss':'⠉⠕⠇⠕⠗⠃⠇⠰⠎⠎','colorblinds':'⠉⠕⠇⠕⠗⠃⠇⠎','colourblind':'⠉⠕⠇⠳⠗⠃⠇','colourblindness':'⠉⠕⠇⠳⠗⠃⠇⠰⠎','colourblindnesses':'⠉⠕⠇⠳⠗⠃⠇⠰⠎⠑⠎','colourblindnessess':'⠉⠕⠇⠳⠗⠃⠇⠰⠎⠑⠎⠎','colourblindnesss':'⠉⠕⠇⠳⠗⠃⠇⠰⠎⠎','colourblinds':'⠉⠕⠇⠳⠗⠃⠇⠎','conceive':'⠒⠉⠧','conceived':'⠒⠉⠧⠙','conceiver':'⠒⠉⠧⠗','conceivers':'⠒⠉⠧⠗⠎','conceives':'⠒⠉⠧⠎','conceiving':'⠒⠉⠧⠛','conceivings':'⠒⠉⠧⠛⠎','could':'⠉⠙','coulda':'⠉⠙⠁','couldas':'⠉⠙⠁⠎','couldest':'⠉⠙⠑⠌','couldests':'⠉⠙⠑⠌⠎','coulds':'⠉⠙⠎','couldst':'⠉⠙⠌','couldsts':'⠉⠙⠌⠎','dacoity':'⠙⠁⠉⠕⠊⠞⠽','deafblind':'⠙⠂⠋⠃⠇','deafblindness':'⠙⠂⠋⠃⠇⠰⠎','deafblindnesses':'⠙⠂⠋⠃⠇⠰⠎⠑⠎','deafblindnessess':'⠙⠂⠋⠃⠇⠰⠎⠑⠎⠎','deafblindnesss':'⠙⠂⠋⠃⠇⠰⠎⠎','deafblinds':'⠙⠂⠋⠃⠇⠎','deceive':'⠙⠉⠧','deceived':'⠙⠉⠧⠙','deceiver':'⠙⠉⠧⠗','deceivers':'⠙⠉⠧⠗⠎','deceives':'⠙⠉⠧⠎','deceiving':'⠙⠉⠧⠛','deceivings':'⠙⠉⠧⠛⠎','declare':'⠙⠉⠇','declared':'⠙⠉⠇⠙','declarer':'⠙⠉⠇⠗','declarers':'⠙⠉⠇⠗⠎','declares':'⠙⠉⠇⠎','declaring':'⠙⠉⠇⠛','declarings':'⠙⠉⠇⠛⠎','defriend':'⠙⠑⠋⠗','defriends':'⠙⠑⠋⠗⠎','dish':'⠙⠊⠩','disher':'⠙⠊⠩⠻','dishers':'⠙⠊⠩⠻⠎','dishy':'⠙⠊⠩⠽','disulphide':'⠙⠊⠎⠥⠇⠏⠓⠊⠙⠑','do':'⠙','doublequick':'⠙⠳⠃⠇⠑⠟⠅','doublequicks':'⠙⠳⠃⠇⠑⠟⠅⠎','eastabout':'⠑⠁⠌⠁⠃','eastabouts':'⠑⠁⠌⠁⠃⠎','either':'⠑⠊','eithers':'⠑⠊⠎','erigone':'⠻⠊⠛⠕⠝⠑','every':'⠑','feelgood':'⠋⠑⠑⠇⠛⠙','feelgoods':'⠋⠑⠑⠇⠛⠙⠎','feetfirst':'⠋⠑⠑⠞⠋⠌','feetfirsts':'⠋⠑⠑⠞⠋⠌⠎','first':'⠋⠌','firstaid':'⠋⠌⠁⠊⠙','firstaider':'⠋⠌⠁⠊⠙⠻','firstaiders':'⠋⠌⠁⠊⠙⠻⠎','firstaids':'⠋⠌⠁⠊⠙⠎','firstborn':'⠋⠌⠃⠕⠗⠝','firstborns':'⠋⠌⠃⠕⠗⠝⠎','firstclass':'⠋⠌⠉⠇⠁⠎⠎','firstclasses':'⠋⠌⠉⠇⠁⠎⠎⠑⠎','firstclassess':'⠋⠌⠉⠇⠁⠎⠎⠑⠎⠎','firstclasss':'⠋⠌⠉⠇⠁⠎⠎⠎','firstday':'⠋⠌⠐⠙','firstdayer':'⠋⠌⠐⠙⠻','firstdayers':'⠋⠌⠐⠙⠻⠎','firstdays':'⠋⠌⠐⠙⠎','firstfruit':'⠋⠌⠋⠗⠥⠊⠞','firstfruiting':'⠋⠌⠋⠗⠥⠊⠞⠬','firstfruitings':'⠋⠌⠋⠗⠥⠊⠞⠬⠎','firstfruits':'⠋⠌⠋⠗⠥⠊⠞⠎','firstgeneration':'⠋⠌⠛⠢⠻⠁⠰⠝','firstgenerations':'⠋⠌⠛⠢⠻⠁⠰⠝⠎','firsthand':'⠋⠌⠓⠯','firsthanded':'⠋⠌⠓⠯⠫','firsthands':'⠋⠌⠓⠯⠎','firstling':'⠋⠌⠇⠬','firstlings':'⠋⠌⠇⠬⠎','firstly':'⠋⠌⠇⠽','firstlys':'⠋⠌⠇⠽⠎','firstness':'⠋⠌⠰⠎','firstnesss':'⠋⠌⠰⠎⠎','firstnight':'⠋⠌⠝⠊⠣⠞','firstnighter':'⠋⠌⠝⠊⠣⠞⠻','firstnighters':'⠋⠌⠝⠊⠣⠞⠻⠎','firstnights':'⠋⠌⠝⠊⠣⠞⠎','firstrate':'⠋⠌⠗⠁⠞⠑','firstrated':'⠋⠌⠗⠁⠞⠫','firstrates':'⠋⠌⠗⠁⠞⠑⠎','firstrating':'⠋⠌⠗⠁⠞⠬','firstratings':'⠋⠌⠗⠁⠞⠬⠎','firsts':'⠋⠌⠎','firststring':'⠋⠌⠌⠗⠬','firststrings':'⠋⠌⠌⠗⠬⠎','forasmuch':'⠿⠁⠎⠍⠡','forasmuchs':'⠿⠁⠎⠍⠡⠎','foresaid':'⠿⠑⠎⠙','foresaids':'⠿⠑⠎⠙⠎','fosterchildren':'⠋⠕⠌⠻⠡⠝','fosterchildrens':'⠋⠕⠌⠻⠡⠝⠎','friend':'⠋⠗','friendless':'⠋⠗⠨⠎','friendlessness':'⠋⠗⠨⠎⠰⠎','friendlessnesses':'⠋⠗⠨⠎⠰⠎⠑⠎','friendlessnessess':'⠋⠗⠨⠎⠰⠎⠑⠎⠎','friendlessnesss':'⠋⠗⠨⠎⠰⠎⠎','friendlesss':'⠋⠗⠨⠎⠎','friendlier':'⠋⠗⠇⠊⠻','friendliers':'⠋⠗⠇⠊⠻⠎','friendlies':'⠋⠗⠇⠊⠑⠎','friendliess':'⠋⠗⠇⠊⠑⠎⠎','friendliest':'⠋⠗⠇⠊⠑⠌','friendliests':'⠋⠗⠇⠊⠑⠌⠎','friendliness':'⠋⠗⠇⠊⠰⠎','friendlinesses':'⠋⠗⠇⠊⠰⠎⠑⠎','friendlinessess':'⠋⠗⠇⠊⠰⠎⠑⠎⠎','friendlinesss':'⠋⠗⠇⠊⠰⠎⠎','friendly':'⠋⠗⠇⠽','friendlys':'⠋⠗⠇⠽⠎','friends':'⠋⠗⠎','friendship':'⠋⠗⠩⠊⠏','friendships':'⠋⠗⠩⠊⠏⠎','from':'⠋','fruity':'⠋⠗⠥⠊⠞⠽','gaberones':'⠛⠁⠃⠻⠕⠝⠑⠎','gadabout':'⠛⠁⠙⠁⠃','gadabouts':'⠛⠁⠙⠁⠃⠎','gainsaid':'⠛⠁⠔⠎⠙','gainsaids':'⠛⠁⠔⠎⠙⠎','galfriend':'⠛⠁⠇⠋⠗','galfriends':'⠛⠁⠇⠋⠗⠎','gentlemanfriend':'⠛⠢⠞⠇⠑⠍⠁⠝⠋⠗','gentlemanfriends':'⠛⠢⠞⠇⠑⠍⠁⠝⠋⠗⠎','gentlemenfriends':'⠛⠢⠞⠇⠑⠍⠢⠋⠗⠎','gentlemenfriendss':'⠛⠢⠞⠇⠑⠍⠢⠋⠗⠎⠎','girlfriend':'⠛⠊⠗⠇⠋⠗','girlfriends':'⠛⠊⠗⠇⠋⠗⠎','go':'⠛','godchildren':'⠛⠕⠙⠡⠝','godchildrens':'⠛⠕⠙⠡⠝⠎','good':'⠛⠙','goodafternoon':'⠛⠙⠁⠋⠝','goodafternoons':'⠛⠙⠁⠋⠝⠎','goodby':'⠛⠙⠃⠽','goodbye':'⠛⠙⠃⠽⠑','goodbyeing':'⠛⠙⠃⠽⠑⠬','goodbyeings':'⠛⠙⠃⠽⠑⠬⠎','goodbyes':'⠛⠙⠃⠽⠑⠎','goodbying':'⠛⠙⠃⠽⠬','goodbyings':'⠛⠙⠃⠽⠬⠎','goodbys':'⠛⠙⠃⠽⠎','goodday':'⠛⠙⠐⠙','gooddays':'⠛⠙⠐⠙⠎','gooder':'⠛⠙⠻','gooders':'⠛⠙⠻⠎','goodest':'⠛⠙⠑⠌','goodests':'⠛⠙⠑⠌⠎','goodevening':'⠛⠙⠑⠧⠢⠬','goodevenings':'⠛⠙⠑⠧⠢⠬⠎','goodfellow':'⠛⠙⠋⠑⠇⠇⠪','goodfellows':'⠛⠙⠋⠑⠇⠇⠪⠎','goodfellowship':'⠛⠙⠋⠑⠇⠇⠪⠩⠊⠏','goodfellowships':'⠛⠙⠋⠑⠇⠇⠪⠩⠊⠏⠎','goodhearted':'⠛⠙⠓⠑⠜⠞⠫','goodheartedly':'⠛⠙⠓⠑⠜⠞⠫⠇⠽','goodheartedlys':'⠛⠙⠓⠑⠜⠞⠫⠇⠽⠎','goodheartedness':'⠛⠙⠓⠑⠜⠞⠫⠰⠎','goodheartednesss':'⠛⠙⠓⠑⠜⠞⠫⠰⠎⠎','goodhumor':'⠛⠙⠓⠥⠍⠕⠗','goodhumored':'⠛⠙⠓⠥⠍⠕⠗⠫','goodhumoredly':'⠛⠙⠓⠥⠍⠕⠗⠫⠇⠽','goodhumoredlys':'⠛⠙⠓⠥⠍⠕⠗⠫⠇⠽⠎','goodhumoredness':'⠛⠙⠓⠥⠍⠕⠗⠫⠰⠎','goodhumorednesses':'⠛⠙⠓⠥⠍⠕⠗⠫⠰⠎⠑⠎','goodhumorednessess':'⠛⠙⠓⠥⠍⠕⠗⠫⠰⠎⠑⠎⠎','goodhumorednesss':'⠛⠙⠓⠥⠍⠕⠗⠫⠰⠎⠎','goodhumors':'⠛⠙⠓⠥⠍⠕⠗⠎','goodhumour':'⠛⠙⠓⠥⠍⠳⠗','goodhumoured':'⠛⠙⠓⠥⠍⠳⠗⠫','goodhumouredly':'⠛⠙⠓⠥⠍⠳⠗⠫⠇⠽','goodhumouredlys':'⠛⠙⠓⠥⠍⠳⠗⠫⠇⠽⠎','goodhumouredness':'⠛⠙⠓⠥⠍⠳⠗⠫⠰⠎','goodhumourednesses':'⠛⠙⠓⠥⠍⠳⠗⠫⠰⠎⠑⠎','goodhumourednessess':'⠛⠙⠓⠥⠍⠳⠗⠫⠰⠎⠑⠎⠎','goodhumourednesss':'⠛⠙⠓⠥⠍⠳⠗⠫⠰⠎⠎','goodhumours':'⠛⠙⠓⠥⠍⠳⠗⠎','goodie':'⠛⠙⠊⠑','goodies':'⠛⠙⠊⠑⠎','goodish':'⠛⠙⠊⠩','goodishs':'⠛⠙⠊⠩⠎','goodlier':'⠛⠙⠇⠊⠻','goodliers':'⠛⠙⠇⠊⠻⠎','goodliest':'⠛⠙⠇⠊⠑⠌','goodliests':'⠛⠙⠇⠊⠑⠌⠎','goodliness':'⠛⠙⠇⠊⠰⠎','goodlinesss':'⠛⠙⠇⠊⠰⠎⠎','goodlook':'⠛⠙⠇⠕⠕⠅','goodlooker':'⠛⠙⠇⠕⠕⠅⠻','goodlookers':'⠛⠙⠇⠕⠕⠅⠻⠎','goodlooking':'⠛⠙⠇⠕⠕⠅⠬','goodlookings':'⠛⠙⠇⠕⠕⠅⠬⠎','goodlooks':'⠛⠙⠇⠕⠕⠅⠎','goodly':'⠛⠙⠇⠽','goodlys':'⠛⠙⠇⠽⠎','goodman':'⠛⠙⠍⠁⠝','goodmans':'⠛⠙⠍⠁⠝⠎','goodmen':'⠛⠙⠍⠢','goodmens':'⠛⠙⠍⠢⠎','goodmorning':'⠛⠙⠍⠕⠗⠝⠬','goodmornings':'⠛⠙⠍⠕⠗⠝⠬⠎','goodnature':'⠛⠙⠝⠁⠞⠥⠗⠑','goodnatured':'⠛⠙⠝⠁⠞⠥⠗⠫','goodnaturedly':'⠛⠙⠝⠁⠞⠥⠗⠫⠇⠽','goodnaturedlys':'⠛⠙⠝⠁⠞⠥⠗⠫⠇⠽⠎','goodnaturedness':'⠛⠙⠝⠁⠞⠥⠗⠫⠰⠎','goodnaturednesss':'⠛⠙⠝⠁⠞⠥⠗⠫⠰⠎⠎','goodnatures':'⠛⠙⠝⠁⠞⠥⠗⠑⠎','goodness':'⠛⠙⠰⠎','goodnesses':'⠛⠙⠰⠎⠑⠎','goodnessess':'⠛⠙⠰⠎⠑⠎⠎','goodnesss':'⠛⠙⠰⠎⠎','goodnight':'⠛⠙⠝⠊⠣⠞','goodnights':'⠛⠙⠝⠊⠣⠞⠎','goods':'⠛⠙⠎','goodsize':'⠛⠙⠎⠊⠵⠑','goodsized':'⠛⠙⠎⠊⠵⠫','goodsizes':'⠛⠙⠎⠊⠵⠑⠎','goodtempered':'⠛⠙⠞⠑⠍⠏⠻⠫','goodtemperedly':'⠛⠙⠞⠑⠍⠏⠻⠫⠇⠽','goodtemperedlys':'⠛⠙⠞⠑⠍⠏⠻⠫⠇⠽⠎','goodtime':'⠛⠙⠐⠞','goodtimes':'⠛⠙⠐⠞⠎','goodun':'⠛⠙⠥⠝','gooduns':'⠛⠙⠥⠝⠎','goodwife':'⠛⠙⠺⠊⠋⠑','goodwifes':'⠛⠙⠺⠊⠋⠑⠎','goodwill':'⠛⠙⠺⠊⠇⠇','goodwilled':'⠛⠙⠺⠊⠇⠇⠫','goodwills':'⠛⠙⠺⠊⠇⠇⠎','goodwives':'⠛⠙⠺⠊⠧⠑⠎','goodwivess':'⠛⠙⠺⠊⠧⠑⠎⠎','goody':'⠛⠙⠽','goodyear':'⠛⠙⠽⠑⠜','goodyears':'⠛⠙⠽⠑⠜⠎','goodys':'⠛⠙⠽⠎','grandchildren':'⠛⠗⠯⠡⠝','grandchildrens':'⠛⠗⠯⠡⠝⠎','great':'⠛⠗⠞','greataunt':'⠛⠗⠞⠁⠥⠝⠞','greataunts':'⠛⠗⠞⠁⠥⠝⠞⠎','greatbatch':'⠛⠗⠞⠃⠁⠞⠡','greatbatchs':'⠛⠗⠞⠃⠁⠞⠡⠎','greatcircle':'⠛⠗⠞⠉⠊⠗⠉⠇⠑','greatcircles':'⠛⠗⠞⠉⠊⠗⠉⠇⠑⠎','greatcoat':'⠛⠗⠞⠉⠕⠁⠞','greatcoats':'⠛⠗⠞⠉⠕⠁⠞⠎','greaten':'⠛⠗⠞⠢','greatened':'⠛⠗⠞⠢⠫','greatener':'⠛⠗⠞⠢⠻','greateners':'⠛⠗⠞⠢⠻⠎','greatening':'⠛⠗⠞⠢⠬','greatenings':'⠛⠗⠞⠢⠬⠎','greatens':'⠛⠗⠞⠢⠎','greater':'⠛⠗⠞⠻','greaters':'⠛⠗⠞⠻⠎','greatest':'⠛⠗⠞⠑⠌','greatests':'⠛⠗⠞⠑⠌⠎','greatgrandaunt':'⠛⠗⠞⠛⠗⠯⠁⠥⠝⠞','greatgrandaunts':'⠛⠗⠞⠛⠗⠯⠁⠥⠝⠞⠎','greatgrandchild':'⠛⠗⠞⠛⠗⠯⠡⠊⠇⠙','greatgrandchildren':'⠛⠗⠞⠛⠗⠯⠡⠝','greatgrandchildrens':'⠛⠗⠞⠛⠗⠯⠡⠝⠎','greatgrandchilds':'⠛⠗⠞⠛⠗⠯⠡⠊⠇⠙⠎','greatgranddad':'⠛⠗⠞⠛⠗⠯⠙⠁⠙','greatgranddads':'⠛⠗⠞⠛⠗⠯⠙⠁⠙⠎','greatgranddaughter':'⠛⠗⠞⠛⠗⠯⠙⠁⠥⠣⠞⠻','greatgranddaughters':'⠛⠗⠞⠛⠗⠯⠙⠁⠥⠣⠞⠻⠎','greatgrandfather':'⠛⠗⠞⠛⠗⠯⠐⠋','greatgrandfatherhood':'⠛⠗⠞⠛⠗⠯⠐⠋⠓⠕⠕⠙','greatgrandfatherhoods':'⠛⠗⠞⠛⠗⠯⠐⠋⠓⠕⠕⠙⠎','greatgrandfathers':'⠛⠗⠞⠛⠗⠯⠐⠋⠎','greatgrandma':'⠛⠗⠞⠛⠗⠯⠍⠁','greatgrandmas':'⠛⠗⠞⠛⠗⠯⠍⠁⠎','greatgrandmother':'⠛⠗⠞⠛⠗⠯⠐⠍','greatgrandmotherhood':'⠛⠗⠞⠛⠗⠯⠐⠍⠓⠕⠕⠙','greatgrandmotherhoods':'⠛⠗⠞⠛⠗⠯⠐⠍⠓⠕⠕⠙⠎','greatgrandmothers':'⠛⠗⠞⠛⠗⠯⠐⠍⠎','greatgrandnephew':'⠛⠗⠞⠛⠗⠯⠝⠑⠏⠓⠑⠺','greatgrandnephews':'⠛⠗⠞⠛⠗⠯⠝⠑⠏⠓⠑⠺⠎','greatgrandniece':'⠛⠗⠞⠛⠗⠯⠝⠊⠑⠉⠑','greatgrandnieces':'⠛⠗⠞⠛⠗⠯⠝⠊⠑⠉⠑⠎','greatgrandpa':'⠛⠗⠞⠛⠗⠯⠏⠁','greatgrandparent':'⠛⠗⠞⠛⠗⠯⠏⠜⠢⠞','greatgrandparenthood':'⠛⠗⠞⠛⠗⠯⠏⠜⠢⠞⠓⠕⠕⠙','greatgrandparenthoods':'⠛⠗⠞⠛⠗⠯⠏⠜⠢⠞⠓⠕⠕⠙⠎','greatgrandparents':'⠛⠗⠞⠛⠗⠯⠏⠜⠢⠞⠎','greatgrandpas':'⠛⠗⠞⠛⠗⠯⠏⠁⠎','greatgrandson':'⠛⠗⠞⠛⠗⠯⠎⠕⠝','greatgrandsons':'⠛⠗⠞⠛⠗⠯⠎⠕⠝⠎','greatgranduncle':'⠛⠗⠞⠛⠗⠯⠥⠝⠉⠇⠑','greatgranduncles':'⠛⠗⠞⠛⠗⠯⠥⠝⠉⠇⠑⠎','greathearted':'⠛⠗⠞⠓⠑⠜⠞⠫','greatheartedly':'⠛⠗⠞⠓⠑⠜⠞⠫⠇⠽','greatheartedlys':'⠛⠗⠞⠓⠑⠜⠞⠫⠇⠽⠎','greatheartedness':'⠛⠗⠞⠓⠑⠜⠞⠫⠰⠎','greatheartednesses':'⠛⠗⠞⠓⠑⠜⠞⠫⠰⠎⠑⠎','greatheartednessess':'⠛⠗⠞⠓⠑⠜⠞⠫⠰⠎⠑⠎⠎','greatheartednesss':'⠛⠗⠞⠓⠑⠜⠞⠫⠰⠎⠎','greatly':'⠛⠗⠞⠇⠽','greatlys':'⠛⠗⠞⠇⠽⠎','greatnephew':'⠛⠗⠞⠝⠑⠏⠓⠑⠺','greatnephews':'⠛⠗⠞⠝⠑⠏⠓⠑⠺⠎','greatness':'⠛⠗⠞⠰⠎','greatnesses':'⠛⠗⠞⠰⠎⠑⠎','greatnessess':'⠛⠗⠞⠰⠎⠑⠎⠎','greatnesss':'⠛⠗⠞⠰⠎⠎','greatniece':'⠛⠗⠞⠝⠊⠑⠉⠑','greatnieces':'⠛⠗⠞⠝⠊⠑⠉⠑⠎','greats':'⠛⠗⠞⠎','greatsword':'⠛⠗⠞⠎⠘⠺','greatswords':'⠛⠗⠞⠎⠘⠺⠎','greatuncle':'⠛⠗⠞⠥⠝⠉⠇⠑','greatuncles':'⠛⠗⠞⠥⠝⠉⠇⠑⠎','guyfriend':'⠛⠥⠽⠋⠗','guyfriends':'⠛⠥⠽⠋⠗⠎','hateletter':'⠓⠁⠞⠑⠇⠗','hateletters':'⠓⠁⠞⠑⠇⠗⠎','have':'⠓','headfirst':'⠓⠂⠙⠋⠌','headfirsts':'⠓⠂⠙⠋⠌⠎','hereabout':'⠐⠓⠁⠃','hereabouts':'⠐⠓⠁⠃⠎','hereafter':'⠐⠓⠁⠋','hereafters':'⠐⠓⠁⠋⠎','hereagain':'⠐⠓⠁⠛','hereagains':'⠐⠓⠁⠛⠎','hereagainst':'⠐⠓⠁⠛⠌','hereagainsts':'⠐⠓⠁⠛⠌⠎','hereinabove':'⠐⠓⠔⠁⠃⠧','hereinaboves':'⠐⠓⠔⠁⠃⠧⠎','hereinafter':'⠐⠓⠔⠁⠋','hereinafters':'⠐⠓⠔⠁⠋⠎','hereinagain':'⠐⠓⠔⠁⠛','hereinagains':'⠐⠓⠔⠁⠛⠎','herself':'⠓⠻⠋','herselfs':'⠓⠻⠋⠎','highlypaid':'⠓⠊⠣⠇⠽⠏⠙','highlypaids':'⠓⠊⠣⠇⠽⠏⠙⠎','him':'⠓⠍','himbo':'⠓⠍⠃⠕','himboes':'⠓⠍⠃⠕⠑⠎','himboess':'⠓⠍⠃⠕⠑⠎⠎','himbos':'⠓⠍⠃⠕⠎','hims':'⠓⠊⠍⠎','himself':'⠓⠍⠋','himselfs':'⠓⠍⠋⠎','illpaid':'⠊⠇⠇⠏⠙','illpaids':'⠊⠇⠇⠏⠙⠎','immediate':'⠊⠍⠍','immediately':'⠊⠍⠍⠇⠽','immediatelys':'⠊⠍⠍⠇⠽⠎','immediateness':'⠊⠍⠍⠰⠎','immediatenesss':'⠊⠍⠍⠰⠎⠎','immediates':'⠊⠍⠍⠎','inasmuch':'⠔⠁⠎⠍⠡','inasmuchs':'⠔⠁⠎⠍⠡⠎','insomuch':'⠔⠎⠕⠍⠡','insomuchs':'⠔⠎⠕⠍⠡⠎','it':'⠭','its':'⠭⠎','itself':'⠭⠋','itselfs':'⠭⠋⠎','itss':'⠭⠎⠎','just':'⠚','knockabout':'⠅⠝⠕⠉⠅⠁⠃','knockabouts':'⠅⠝⠕⠉⠅⠁⠃⠎','knowledge':'⠅','ladyfriend':'⠇⠁⠙⠽⠋⠗','ladyfriends':'⠇⠁⠙⠽⠋⠗⠎','layabout':'⠇⠁⠽⠁⠃','layabouts':'⠇⠁⠽⠁⠃⠎','leann':'⠇⠑⠁⠝⠝','leanne':'⠇⠑⠁⠝⠝⠑','letter':'⠇⠗','letterbodies':'⠇⠗⠃⠕⠙⠊⠑⠎','letterbodiess':'⠇⠗⠃⠕⠙⠊⠑⠎⠎','letterbody':'⠇⠗⠃⠕⠙⠽','letterbodys':'⠇⠗⠃⠕⠙⠽⠎','letterbomb':'⠇⠗⠃⠕⠍⠃','letterbombed':'⠇⠗⠃⠕⠍⠃⠫','letterbomber':'⠇⠗⠃⠕⠍⠃⠻','letterbombers':'⠇⠗⠃⠕⠍⠃⠻⠎','letterbombing':'⠇⠗⠃⠕⠍⠃⠬','letterbombings':'⠇⠗⠃⠕⠍⠃⠬⠎','letterbombs':'⠇⠗⠃⠕⠍⠃⠎','letterbox':'⠇⠗⠃⠕⠭','letterboxed':'⠇⠗⠃⠕⠭⠫','letterboxer':'⠇⠗⠃⠕⠭⠻','letterboxers':'⠇⠗⠃⠕⠭⠻⠎','letterboxes':'⠇⠗⠃⠕⠭⠑⠎','letterboxess':'⠇⠗⠃⠕⠭⠑⠎⠎','letterboxing':'⠇⠗⠃⠕⠭⠬','letterboxings':'⠇⠗⠃⠕⠭⠬⠎','letterboxs':'⠇⠗⠃⠕⠭⠎','lettered':'⠇⠗⠫','letterer':'⠇⠗⠻','letterers':'⠇⠗⠻⠎','letterform':'⠇⠗⠿⠍','letterforms':'⠇⠗⠿⠍⠎','letterhead':'⠇⠗⠓⠂⠙','letterheading':'⠇⠗⠓⠂⠙⠬','letterheadings':'⠇⠗⠓⠂⠙⠬⠎','letterheads':'⠇⠗⠓⠂⠙⠎','lettering':'⠇⠗⠬','letterings':'⠇⠗⠬⠎','letterman':'⠇⠗⠍⠁⠝','lettermans':'⠇⠗⠍⠁⠝⠎','lettermen':'⠇⠗⠍⠢','lettermens':'⠇⠗⠍⠢⠎','letteropener':'⠇⠗⠕⠏⠢⠻','letteropeners':'⠇⠗⠕⠏⠢⠻⠎','letterperfect':'⠇⠗⠏⠻⠋⠑⠉⠞','letterperfects':'⠇⠗⠏⠻⠋⠑⠉⠞⠎','letterpress':'⠇⠗⠏⠗⠑⠎⠎','letterpressed':'⠇⠗⠏⠗⠑⠎⠎⠫','letterpresses':'⠇⠗⠏⠗⠑⠎⠎⠑⠎','letterpressess':'⠇⠗⠏⠗⠑⠎⠎⠑⠎⠎','letterpressing':'⠇⠗⠏⠗⠑⠎⠎⠬','letterpressings':'⠇⠗⠏⠗⠑⠎⠎⠬⠎','letterpresss':'⠇⠗⠏⠗⠑⠎⠎⠎','letterquality':'⠇⠗⠟⠥⠁⠇⠰⠽','letterqualitys':'⠇⠗⠟⠥⠁⠇⠰⠽⠎','letters':'⠇⠗⠎','letterspace':'⠇⠗⠎⠏⠁⠉⠑','letterspaced':'⠇⠗⠎⠏⠁⠉⠫','letterspaces':'⠇⠗⠎⠏⠁⠉⠑⠎','letterspacing':'⠇⠗⠎⠏⠁⠉⠬','letterspacings':'⠇⠗⠎⠏⠁⠉⠬⠎','lettertext':'⠇⠗⠞⠑⠭⠞','lettertexts':'⠇⠗⠞⠑⠭⠞⠎','like':'⠇','little':'⠇⠇','littled':'⠇⠇⠙','littleneck':'⠇⠇⠝⠑⠉⠅','littlenecks':'⠇⠇⠝⠑⠉⠅⠎','littleness':'⠇⠇⠰⠎','littlenesses':'⠇⠇⠰⠎⠑⠎','littlenessess':'⠇⠇⠰⠎⠑⠎⠎','littlenesss':'⠇⠇⠰⠎⠎','littler':'⠇⠇⠗','littlers':'⠇⠇⠗⠎','littles':'⠇⠇⠎','littlest':'⠇⠇⠌','littlests':'⠇⠇⠌⠎','lovechildren':'⠇⠕⠧⠑⠡⠝','lovechildrens':'⠇⠕⠧⠑⠡⠝⠎','loveletter':'⠇⠕⠧⠑⠇⠗','loveletters':'⠇⠕⠧⠑⠇⠗⠎','lowlypaid':'⠇⠪⠇⠽⠏⠙','lowlypaids':'⠇⠪⠇⠽⠏⠙⠎','manfriend':'⠍⠁⠝⠋⠗','manfriends':'⠍⠁⠝⠋⠗⠎','menfriends':'⠍⠢⠋⠗⠎','menfriendss':'⠍⠢⠋⠗⠎⠎','midafternoon':'⠍⠊⠙⠁⠋⠝','midafternoons':'⠍⠊⠙⠁⠋⠝⠎','misbraille':'⠍⠊⠎⠃⠗⠇','misbrailled':'⠍⠊⠎⠃⠗⠇⠙','misbrailles':'⠍⠊⠎⠃⠗⠇⠎','misperceive':'⠍⠊⠎⠏⠻⠉⠧','misperceived':'⠍⠊⠎⠏⠻⠉⠧⠙','misperceiver':'⠍⠊⠎⠏⠻⠉⠧⠗','misperceivers':'⠍⠊⠎⠏⠻⠉⠧⠗⠎','misperceives':'⠍⠊⠎⠏⠻⠉⠧⠎','misperceiving':'⠍⠊⠎⠏⠻⠉⠧⠛','misperceivings':'⠍⠊⠎⠏⠻⠉⠧⠛⠎','missaid':'⠍⠊⠎⠎⠙','missaids':'⠍⠊⠎⠎⠙⠎','moneth':'⠍⠕⠝⠑⠹','more':'⠍','morningafter':'⠍⠕⠗⠝⠬⠁⠋','morningafters':'⠍⠕⠗⠝⠬⠁⠋⠎','much':'⠍⠡','muchly':'⠍⠡⠇⠽','muchlys':'⠍⠡⠇⠽⠎','muchness':'⠍⠡⠰⠎','muchnesss':'⠍⠡⠰⠎⠎','muchs':'⠍⠡⠎','must':'⠍⠌','musta':'⠍⠌⠁','mustard':'⠍⠌⠜⠙','mustards':'⠍⠌⠜⠙⠎','mustardy':'⠍⠌⠜⠙⠽','mustardys':'⠍⠌⠜⠙⠽⠎','mustas':'⠍⠌⠁⠎','mustier':'⠍⠌⠊⠻','mustiers':'⠍⠌⠊⠻⠎','mustiest':'⠍⠌⠊⠑⠌','mustiests':'⠍⠌⠊⠑⠌⠎','mustily':'⠍⠌⠊⠇⠽','mustilys':'⠍⠌⠊⠇⠽⠎','mustiness':'⠍⠌⠊⠰⠎','mustinesss':'⠍⠌⠊⠰⠎⠎','musts':'⠍⠌⠎','musty':'⠍⠌⠽','mustys':'⠍⠌⠽⠎','myself':'⠍⠽⠋','myselfs':'⠍⠽⠋⠎','necessary':'⠝⠑⠉','necessarys':'⠝⠑⠉⠎','neither':'⠝⠑⠊','neithers':'⠝⠑⠊⠎','nevers':'⠝⠑⠧⠻⠎','newsletter':'⠝⠑⠺⠎⠇⠗','newsletters':'⠝⠑⠺⠎⠇⠗⠎','none':'⠝⠐⠕','nones':'⠝⠐⠕⠎','nonesuch':'⠝⠐⠕⠎⠡','nonesuchs':'⠝⠐⠕⠎⠡⠎','nonsuch':'⠝⠕⠝⠎⠡','nonsuchs':'⠝⠕⠝⠎⠡⠎','northabout':'⠝⠕⠗⠹⠁⠃','northabouts':'⠝⠕⠗⠹⠁⠃⠎','not':'⠝','oneself':'⠐⠕⠋','oneselfs':'⠐⠕⠋⠎','ourselves':'⠳⠗⠧⠎','ourselvess':'⠳⠗⠧⠎⠎','out':'⠳','overmuch':'⠕⠧⠻⠍⠡','overmuchs':'⠕⠧⠻⠍⠡⠎','overpaid':'⠕⠧⠻⠏⠙','overpaids':'⠕⠧⠻⠏⠙⠎','paid':'⠏⠙','paids':'⠏⠙⠎','penfriend':'⠏⠢⠋⠗','penfriends':'⠏⠢⠋⠗⠎','pensione':'⠏⠢⠎⠊⠕⠝⠑','pensiones':'⠏⠢⠎⠊⠕⠝⠑⠎','people':'⠏','perceive':'⠏⠻⠉⠧','perceived':'⠏⠻⠉⠧⠙','perceiver':'⠏⠻⠉⠧⠗','perceivers':'⠏⠻⠉⠧⠗⠎','perceives':'⠏⠻⠉⠧⠎','perceiving':'⠏⠻⠉⠧⠛','perceivings':'⠏⠻⠉⠧⠛⠎','perhaps':'⠏⠻⠓','perhapses':'⠏⠻⠓⠑⠎','perhapsess':'⠏⠻⠓⠑⠎⠎','perhapss':'⠏⠻⠓⠎','pheres':'⠏⠓⠻⠑⠎','pityard':'⠏⠊⠞⠽⠜⠙','poorlypaid':'⠏⠕⠕⠗⠇⠽⠏⠙','poorlypaids':'⠏⠕⠕⠗⠇⠽⠏⠙⠎','postpaid':'⠏⠕⠌⠏⠙','postpaids':'⠏⠕⠌⠏⠙⠎','preceive':'⠏⠗⠉⠧','preceiver':'⠏⠗⠉⠧⠗','preceivers':'⠏⠗⠉⠧⠗⠎','preceives':'⠏⠗⠉⠧⠎','preceiving':'⠏⠗⠉⠧⠛','preceivings':'⠏⠗⠉⠧⠛⠎','prepaid':'⠏⠗⠑⠏⠙','prepaids':'⠏⠗⠑⠏⠙⠎','purblind':'⠏⠥⠗⠃⠇','purblindly':'⠏⠥⠗⠃⠇⠇⠽','purblindlys':'⠏⠥⠗⠃⠇⠇⠽⠎','purblindness':'⠏⠥⠗⠃⠇⠰⠎','purblindnesses':'⠏⠥⠗⠃⠇⠰⠎⠑⠎','purblindnessess':'⠏⠥⠗⠃⠇⠰⠎⠑⠎⠎','purblindnesss':'⠏⠥⠗⠃⠇⠰⠎⠎','purblinds':'⠏⠥⠗⠃⠇⠎','quick':'⠟⠅','quickdraw':'⠟⠅⠙⠗⠁⠺','quickdraws':'⠟⠅⠙⠗⠁⠺⠎','quicken':'⠟⠅⠢','quickened':'⠟⠅⠢⠫','quickener':'⠟⠅⠢⠻','quickeners':'⠟⠅⠢⠻⠎','quickening':'⠟⠅⠢⠬','quickenings':'⠟⠅⠢⠬⠎','quickens':'⠟⠅⠢⠎','quicker':'⠟⠅⠻','quickers':'⠟⠅⠻⠎','quickest':'⠟⠅⠑⠌','quickests':'⠟⠅⠑⠌⠎','quickfire':'⠟⠅⠋⠊⠗⠑','quickfires':'⠟⠅⠋⠊⠗⠑⠎','quickfiring':'⠟⠅⠋⠊⠗⠬','quickfirings':'⠟⠅⠋⠊⠗⠬⠎','quickfreeze':'⠟⠅⠋⠗⠑⠑⠵⠑','quickfreezes':'⠟⠅⠋⠗⠑⠑⠵⠑⠎','quickfreezing':'⠟⠅⠋⠗⠑⠑⠵⠬','quickfreezings':'⠟⠅⠋⠗⠑⠑⠵⠬⠎','quickfroze':'⠟⠅⠋⠗⠕⠵⠑','quickfrozen':'⠟⠅⠋⠗⠕⠵⠢','quickfrozens':'⠟⠅⠋⠗⠕⠵⠢⠎','quickfrozes':'⠟⠅⠋⠗⠕⠵⠑⠎','quickie':'⠟⠅⠊⠑','quickies':'⠟⠅⠊⠑⠎','quickish':'⠟⠅⠊⠩','quickishly':'⠟⠅⠊⠩⠇⠽','quickishlys':'⠟⠅⠊⠩⠇⠽⠎','quickishs':'⠟⠅⠊⠩⠎','quicklime':'⠟⠅⠇⠊⠍⠑','quicklimes':'⠟⠅⠇⠊⠍⠑⠎','quickly':'⠟⠅⠇⠽','quicklys':'⠟⠅⠇⠽⠎','quickness':'⠟⠅⠰⠎','quicknesses':'⠟⠅⠰⠎⠑⠎','quicknessess':'⠟⠅⠰⠎⠑⠎⠎','quicknesss':'⠟⠅⠰⠎⠎','quicks':'⠟⠅⠎','quicksand':'⠟⠅⠎⠯','quicksands':'⠟⠅⠎⠯⠎','quickset':'⠟⠅⠎⠑⠞','quicksets':'⠟⠅⠎⠑⠞⠎','quicksilver':'⠟⠅⠎⠊⠇⠧⠻','quicksilvered':'⠟⠅⠎⠊⠇⠧⠻⠫','quicksilvering':'⠟⠅⠎⠊⠇⠧⠻⠬','quicksilverings':'⠟⠅⠎⠊⠇⠧⠻⠬⠎','quicksilvers':'⠟⠅⠎⠊⠇⠧⠻⠎','quicksnap':'⠟⠅⠎⠝⠁⠏','quicksnaps':'⠟⠅⠎⠝⠁⠏⠎','quickstep':'⠟⠅⠌⠑⠏','quickstepped':'⠟⠅⠌⠑⠏⠏⠫','quickstepper':'⠟⠅⠌⠑⠏⠏⠻','quicksteppers':'⠟⠅⠌⠑⠏⠏⠻⠎','quickstepping':'⠟⠅⠌⠑⠏⠏⠬','quicksteppings':'⠟⠅⠌⠑⠏⠏⠬⠎','quicksteps':'⠟⠅⠌⠑⠏⠎','quicktempered':'⠟⠅⠞⠑⠍⠏⠻⠫','quicktime':'⠟⠅⠐⠞','quicktimes':'⠟⠅⠐⠞⠎','quickwitted':'⠟⠅⠺⠊⠞⠞⠫','quickwittedly':'⠟⠅⠺⠊⠞⠞⠫⠇⠽','quickwittedlys':'⠟⠅⠺⠊⠞⠞⠫⠇⠽⠎','quickwittedness':'⠟⠅⠺⠊⠞⠞⠫⠰⠎','quickwittednesss':'⠟⠅⠺⠊⠞⠞⠫⠰⠎⠎','quicky':'⠟⠅⠽','quickys':'⠟⠅⠽⠎','quite':'⠟','rabbity':'⠗⠁⠆⠊⠞⠽','rared':'⠗⠁⠗⠫','rather':'⠗','readacross':'⠗⠂⠙⠁⠉⠗','readacrosss':'⠗⠂⠙⠁⠉⠗⠎','readme':'⠗⠂⠙⠍⠑','readmes':'⠗⠂⠙⠍⠑⠎','reave':'⠗⠂⠧⠑','reaved':'⠗⠂⠧⠫','reaves':'⠗⠂⠧⠑⠎','reaving':'⠗⠂⠧⠬','rebraille':'⠗⠑⠃⠗⠇','rebrailled':'⠗⠑⠃⠗⠇⠙','rebrailler':'⠗⠑⠃⠗⠇⠗','rebraillers':'⠗⠑⠃⠗⠇⠗⠎','rebrailles':'⠗⠑⠃⠗⠇⠎','receive':'⠗⠉⠧','received':'⠗⠉⠧⠙','receiver':'⠗⠉⠧⠗','receivers':'⠗⠉⠧⠗⠎','receivership':'⠗⠉⠧⠗⠩⠊⠏','receiverships':'⠗⠉⠧⠗⠩⠊⠏⠎','receives':'⠗⠉⠧⠎','receiving':'⠗⠉⠧⠛','receivings':'⠗⠉⠧⠛⠎','rejoice':'⠗⠚⠉','rejoiced':'⠗⠚⠉⠙','rejoiceful':'⠗⠚⠉⠰⠇','rejoicefully':'⠗⠚⠉⠰⠇⠇⠽','rejoicefullys':'⠗⠚⠉⠰⠇⠇⠽⠎','rejoicefulness':'⠗⠚⠉⠰⠇⠰⠎','rejoicefulnesss':'⠗⠚⠉⠰⠇⠰⠎⠎','rejoicefuls':'⠗⠚⠉⠰⠇⠎','rejoicer':'⠗⠚⠉⠗','rejoicers':'⠗⠚⠉⠗⠎','rejoices':'⠗⠚⠉⠎','rejoicing':'⠗⠚⠉⠛','rejoicingly':'⠗⠚⠉⠛⠇⠽','rejoicinglys':'⠗⠚⠉⠛⠇⠽⠎','rejoicings':'⠗⠚⠉⠛⠎','reletter':'⠗⠑⠇⠗','relettered':'⠗⠑⠇⠗⠫','relettering':'⠗⠑⠇⠗⠬','reletterings':'⠗⠑⠇⠗⠬⠎','reletters':'⠗⠑⠇⠗⠎','repaid':'⠗⠑⠏⠙','repaids':'⠗⠑⠏⠙⠎','rightabout':'⠐⠗⠁⠃','rightabouts':'⠐⠗⠁⠃⠎','roundabout':'⠗⠨⠙⠁⠃','roundabouts':'⠗⠨⠙⠁⠃⠎','roustabout':'⠗⠳⠌⠁⠃','roustabouts':'⠗⠳⠌⠁⠃⠎','runabout':'⠗⠥⠝⠁⠃','runabouts':'⠗⠥⠝⠁⠃⠎','said':'⠎⠙','saidest':'⠎⠙⠑⠌','saidests':'⠎⠙⠑⠌⠎','saids':'⠎⠙⠎','saidst':'⠎⠙⠌','saidsts':'⠎⠙⠌⠎','scattergood':'⠎⠉⠁⠞⠞⠻⠛⠙','scattergoods':'⠎⠉⠁⠞⠞⠻⠛⠙⠎','schoolchildren':'⠎⠡⠕⠕⠇⠡⠝','schoolchildrens':'⠎⠡⠕⠕⠇⠡⠝⠎','schoolfriend':'⠎⠡⠕⠕⠇⠋⠗','schoolfriends':'⠎⠡⠕⠕⠇⠋⠗⠎','shall':'⠩','should':'⠩⠙','shoulda':'⠩⠙⠁','shouldas':'⠩⠙⠁⠎','shouldest':'⠩⠙⠑⠌','shouldests':'⠩⠙⠑⠌⠎','shoulds':'⠩⠙⠎','shouldst':'⠩⠙⠌','shouldsts':'⠩⠙⠌⠎','snowblind':'⠎⠝⠪⠃⠇','snowblindness':'⠎⠝⠪⠃⠇⠰⠎','snowblindnesses':'⠎⠝⠪⠃⠇⠰⠎⠑⠎','snowblindnessess':'⠎⠝⠪⠃⠇⠰⠎⠑⠎⠎','snowblindnesss':'⠎⠝⠪⠃⠇⠰⠎⠎','snowblinds':'⠎⠝⠪⠃⠇⠎','so':'⠎','somesch':'⠎⠕⠍⠑⠎⠉⠓','somesuch':'⠐⠎⠎⠡','somesuchs':'⠐⠎⠎⠡⠎','southabout':'⠎⠳⠹⠁⠃','southabouts':'⠎⠳⠹⠁⠃⠎','stepchildren':'⠌⠑⠏⠡⠝','stepchildrens':'⠌⠑⠏⠡⠝⠎','still':'⠌','stirabout':'⠌⠊⠗⠁⠃','stirabouts':'⠌⠊⠗⠁⠃⠎','struthiones':'⠌⠗⠥⠹⠊⠕⠝⠑⠎','sturiones':'⠌⠥⠗⠊⠕⠝⠑⠎','such':'⠎⠡','suchlike':'⠎⠡⠇⠊⠅⠑','suchlikes':'⠎⠡⠇⠊⠅⠑⠎','suchs':'⠎⠡⠎','supergood':'⠎⠥⠏⠻⠛⠙','supergoods':'⠎⠥⠏⠻⠛⠙⠎','superquick':'⠎⠥⠏⠻⠟⠅','superquicks':'⠎⠥⠏⠻⠟⠅⠎','tailfirst':'⠞⠁⠊⠇⠋⠌','tailfirsts':'⠞⠁⠊⠇⠋⠌⠎','that':'⠞','themselves':'⠮⠍⠧⠎','themselvess':'⠮⠍⠧⠎⠎','thereabout':'⠐⠮⠁⠃','thereabouts':'⠐⠮⠁⠃⠎','thereafter':'⠐⠮⠁⠋','thereafters':'⠐⠮⠁⠋⠎','thereagain':'⠐⠮⠁⠛','thereagains':'⠐⠮⠁⠛⠎','thereagainst':'⠐⠮⠁⠛⠌','thereagainsts':'⠐⠮⠁⠛⠌⠎','thereinafter':'⠐⠮⠔⠁⠋','thereinafters':'⠐⠮⠔⠁⠋⠎','thereinagain':'⠐⠮⠔⠁⠛','thereinagains':'⠐⠮⠔⠁⠛⠎','this':'⠹','thyself':'⠹⠽⠋','thyselfs':'⠹⠽⠋⠎','today':'⠞⠙','todays':'⠞⠙⠎','together':'⠞⠛⠗','togetherness':'⠞⠛⠗⠰⠎','togethernesss':'⠞⠛⠗⠰⠎⠎','togethers':'⠞⠛⠗⠎','tomorrow':'⠞⠍','tomorrows':'⠞⠍⠎','tonight':'⠞⠝','tonights':'⠞⠝⠎','turnabout':'⠞⠥⠗⠝⠁⠃','turnabouts':'⠞⠥⠗⠝⠁⠃⠎','unaccording':'⠥⠝⠁⠉','unaccordingly':'⠥⠝⠁⠉⠇⠽','unaccordinglys':'⠥⠝⠁⠉⠇⠽⠎','unaccordings':'⠥⠝⠁⠉⠎','unblindfold':'⠥⠝⠃⠇⠋⠕⠇⠙','unblindfolded':'⠥⠝⠃⠇⠋⠕⠇⠙⠫','unblindfolding':'⠥⠝⠃⠇⠋⠕⠇⠙⠬','unblindfoldings':'⠥⠝⠃⠇⠋⠕⠇⠙⠬⠎','unblindfolds':'⠥⠝⠃⠇⠋⠕⠇⠙⠎','unbraille':'⠥⠝⠃⠗⠇','unbrailled':'⠥⠝⠃⠗⠇⠙','unbrailles':'⠥⠝⠃⠗⠇⠎','undeceive':'⠥⠝⠙⠉⠧','undeceived':'⠥⠝⠙⠉⠧⠙','undeceiver':'⠥⠝⠙⠉⠧⠗','undeceivers':'⠥⠝⠙⠉⠧⠗⠎','undeceives':'⠥⠝⠙⠉⠧⠎','undeceiving':'⠥⠝⠙⠉⠧⠛','undeceivings':'⠥⠝⠙⠉⠧⠛⠎','undeclare':'⠥⠝⠙⠉⠇','undeclared':'⠥⠝⠙⠉⠇⠙','undeclares':'⠥⠝⠙⠉⠇⠎','underpaid':'⠐⠥⠏⠙','underpaids':'⠐⠥⠏⠙⠎','unfriend':'⠥⠝⠋⠗','unfriendlier':'⠥⠝⠋⠗⠇⠊⠻','unfriendliers':'⠥⠝⠋⠗⠇⠊⠻⠎','unfriendliest':'⠥⠝⠋⠗⠇⠊⠑⠌','unfriendliests':'⠥⠝⠋⠗⠇⠊⠑⠌⠎','unfriendliness':'⠥⠝⠋⠗⠇⠊⠰⠎','unfriendlinesses':'⠥⠝⠋⠗⠇⠊⠰⠎⠑⠎','unfriendlinessess':'⠥⠝⠋⠗⠇⠊⠰⠎⠑⠎⠎','unfriendlinesss':'⠥⠝⠋⠗⠇⠊⠰⠎⠎','unfriendly':'⠥⠝⠋⠗⠇⠽','unfriendlys':'⠥⠝⠋⠗⠇⠽⠎','unfriends':'⠥⠝⠋⠗⠎','unlettered':'⠥⠝⠇⠗⠫','unnecessary':'⠥⠝⠝⠑⠉','unnecessarys':'⠥⠝⠝⠑⠉⠎','unpaid':'⠥⠝⠏⠙','unpaids':'⠥⠝⠏⠙⠎','unperceive':'⠥⠝⠏⠻⠉⠧','unperceived':'⠥⠝⠏⠻⠉⠧⠙','unperceives':'⠥⠝⠏⠻⠉⠧⠎','unperceiving':'⠥⠝⠏⠻⠉⠧⠛','unperceivings':'⠥⠝⠏⠻⠉⠧⠛⠎','unquick':'⠥⠝⠟⠅','unquicks':'⠥⠝⠟⠅⠎','unreceived':'⠥⠝⠗⠉⠧⠙','unrejoice':'⠥⠝⠗⠚⠉','unrejoiced':'⠥⠝⠗⠚⠉⠙','unrejoiceful':'⠥⠝⠗⠚⠉⠰⠇','unrejoicefully':'⠥⠝⠗⠚⠉⠰⠇⠇⠽','unrejoicefullys':'⠥⠝⠗⠚⠉⠰⠇⠇⠽⠎','unrejoicefulness':'⠥⠝⠗⠚⠉⠰⠇⠰⠎','unrejoicefulnesss':'⠥⠝⠗⠚⠉⠰⠇⠰⠎⠎','unrejoicefuls':'⠥⠝⠗⠚⠉⠰⠇⠎','unrejoicer':'⠥⠝⠗⠚⠉⠗','unrejoicers':'⠥⠝⠗⠚⠉⠗⠎','unrejoices':'⠥⠝⠗⠚⠉⠎','unrejoicing':'⠥⠝⠗⠚⠉⠛','unrejoicingly':'⠥⠝⠗⠚⠉⠛⠇⠽','unrejoicinglys':'⠥⠝⠗⠚⠉⠛⠇⠽⠎','unrejoicings':'⠥⠝⠗⠚⠉⠛⠎','unrepaid':'⠥⠝⠗⠑⠏⠙','unrepaids':'⠥⠝⠗⠑⠏⠙⠎','unsaid':'⠥⠝⠎⠙','unsaids':'⠥⠝⠎⠙⠎','us':'⠥','very':'⠧','walkabout':'⠺⠁⠇⠅⠁⠃','walkabouts':'⠺⠁⠇⠅⠁⠃⠎','wellpaid':'⠺⠑⠇⠇⠏⠙','wellpaids':'⠺⠑⠇⠇⠏⠙⠎','westabout':'⠺⠑⠌⠁⠃','westabouts':'⠺⠑⠌⠁⠃⠎','whereabout':'⠐⠱⠁⠃','whereabouts':'⠐⠱⠁⠃⠎','whereafter':'⠐⠱⠁⠋','whereafters':'⠐⠱⠁⠋⠎','whereagain':'⠐⠱⠁⠛','whereagains':'⠐⠱⠁⠛⠎','whereagainst':'⠐⠱⠁⠛⠌','whereagainsts':'⠐⠱⠁⠛⠌⠎','whereinafter':'⠐⠱⠔⠁⠋','whereinafters':'⠐⠱⠔⠁⠋⠎','whereinagain':'⠐⠱⠔⠁⠛','whereinagains':'⠐⠱⠔⠁⠛⠎','which':'⠱','will':'⠺','womanfriend':'⠺⠕⠍⠁⠝⠋⠗','womanfriends':'⠺⠕⠍⠁⠝⠋⠗⠎','womenfriends':'⠺⠕⠍⠢⠋⠗⠎','womenfriendss':'⠺⠕⠍⠢⠋⠗⠎⠎','would':'⠺⠙','woulda':'⠺⠙⠁','wouldas':'⠺⠙⠁⠎','wouldest':'⠺⠙⠑⠌','wouldests':'⠺⠙⠑⠌⠎','woulds':'⠺⠙⠎','wouldst':'⠺⠙⠌','wouldsts':'⠺⠙⠌⠎','you':'⠽','your':'⠽⠗','yours':'⠽⠗⠎','yourself':'⠽⠗⠋','yourselfs':'⠽⠗⠋⠎','yourselves':'⠽⠗⠧⠎','yourselvess':'⠽⠗⠧⠎⠎'};
+
+
+// ════════════════════════════════════════════════════════════
+//  CTB 解析器（fetch zh-tw.ctb）
+// ════════════════════════════════════════════════════════════
+let zhMap    = new Map();
+let isLoaded = false;
+
+const BR_TO_ASCII = {
+    '\u2801':'a','\u2802':'1','\u2803':'b','\u2804':'\'','\u2805':'k',
+    '\u2806':'2','\u2807':'l','\u2808':'`','\u2809':'c','\u280a':'i',
+    '\u280b':'f','\u280c':'/','\u280d':'m','\u280e':'s','\u280f':'p',
+    '\u2810':'"','\u2811':'e','\u2812':'3','\u2813':'h','\u2814':'9',
+    '\u2815':'o','\u2816':'6','\u2817':'r','\u2818':'~','\u2819':'d',
+    '\u281a':'j','\u281b':'g','\u281c':'>','\u281d':'n','\u281e':'t',
+    '\u281f':'q','\u2820':',','\u2821':'*','\u2822':'5','\u2823':'<',
+    '\u2824':'-','\u2825':'u','\u2826':'8','\u2827':'v','\u2828':'.',
+    '\u2829':'%','\u282a':'{','\u282b':'$','\u282c':'+','\u282d':'x',
+    '\u282e':'!','\u282f':'&','\u2830':';','\u2831':':','\u2832':'4',
+    '\u2833':'|','\u2834':'0','\u2835':'z','\u2836':'7','\u2837':'(',
+    '\u2838':'_','\u2839':'?','\u283a':'w','\u283b':'}','\u283c':'#',
+    '\u283d':'y','\u283e':')','\u283f':'=','\u2800':' '
+};
+
+function dotsToUnicode(s) {
+    if (/^[\u2800-\u28ff]+$/.test(s)) return s;
+    const c = s.replace(/(-0)+$/, '');
+    if (!c) return '\u2800';
+    return c.split('-').map(cell => {
+        if (cell==='0'||cell==='') return '\u2800';
+        let off=0;
+        for (const ch of cell){
+            const d=parseInt(ch);
+            if(d>=1&&d<=6) off+=(1<<(d-1)); // 只保留 dots 1-6，捨棄 7/8
+        }
+        return String.fromCharCode(0x2800+off);
+    }).join('');
+}
+
+const CHAR_OPS = new Set(['letter','lowercase','uppercase','punctuation','sign',
+                          'math','digit','base','litdigit','display']);
+// 跳過這些 include（英文字母/標點由內建表處理）
+const SKIP_INC = new Set([
+    'en-us-comp8.ctb','en-ueb-chardefs.uti','en-ueb-math.ctb',
+    'en-ueb-g1.ctb','en-ueb-g2.ctb','braille-patterns.cti',
+    'IPA-unicode-range.uti','spaces.uti',
+    'loweredDigits6Dots.uti','loweredDigits8Dots.uti'
+]);
+
+function parseCtb(text) {
+    const children = [];
+    for (let raw of text.split('\n')) {
+        const line = raw.replace(/#.*$/, '').trim();
+        if (!line) continue;
+        const parts = line.split(/\s+/);
+        let op = parts[0].toLowerCase();
+        if (op === 'include') {
+            if (parts[1] && !SKIP_INC.has(parts[1])) children.push(parts[1]);
+            continue;
+        }
+        let ci=1, di=2;
+        if (op==='noback'||op==='nofor') { op=(parts[1]||'').toLowerCase(); ci=2; di=3; }
+        if (!CHAR_OPS.has(op)||parts.length<=di) continue;
+        const tok=parts[ci], dotsTok=parts[di];
+        let char;
+        const esc=tok.match(/^\\x([0-9a-fA-F]{1,6})$/);
+        if (esc) char=String.fromCodePoint(parseInt(esc[1],16));
+        else if (tok.length===1) char=tok;
+        else continue;
+        // 跳過 ASCII 可見字元（由內建表處理）
+        const cp = char.codePointAt(0);
+        if (cp >= 0x20 && cp <= 0x7e) continue;
+        try { zhMap.set(char, dotsToUnicode(dotsTok)); } catch(e) {}
+    }
+    return children;
+}
+
+const _vis = new Set();
+const ZH_TABLE_DIR = 'table/';
+async function fetchAndParse(fn) {
+    if (_vis.has(fn)) return;
+    _vis.add(fn);
+    let text;
+    try {
+        // 若 fn 已含路徑前綴則直接用，否則加上 table/ 前綴
+        const url = fn.includes('/') ? fn : ZH_TABLE_DIR + fn;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status);
+        text = await r.text();
+    } catch(e) { console.warn('skip', fn, e.message); return; }
+    for (const c of parseCtb(text)) await fetchAndParse(c);
+}
+
+async function loadRules() {
+    _vis.clear(); zhMap.clear(); isLoaded=false;
+    const st = document.getElementById('rules-status');
+    st.className='rules-status loading'; st.textContent='正在載入規則...';
+    try {
+        // 並行載入：中文 CTB 解析 + liblouis 表格預載
+        await Promise.all([
+            fetchAndParse('zh-tw.ctb'),
+            LOU.preloadTables()
+        ]);
+
+        // ── PDF 規範覆蓋表 ────────────────────────────────────────
+        // CTB 部分值與《台灣注音點字規則整理 [標點符號]》不符，以 PDF 為準覆蓋
+        // ．(xFF0E) 全形句號：CTB=46=⠨，PDF 規範=36=⠤（與。相同）
+        zhMap.set('\uFF0E', '\u2824');  // ．→ ⠤ (36)
+        // ·(U+00B7) 間隔號：CTB=46=⠨，PDF 規範=36=⠤
+        zhMap.set('\u00B7', '\u2824');  // · → ⠤ (36)
+        // ‧(U+2027) 間隔號另一字型：同上
+        zhMap.set('\u2027', '\u2824');  // ‧ → ⠤ (36)
+        // ？(xFF1F) 問號：CTB=1456=⠹，PDF 規範=135=⠕
+        zhMap.set('\uFF1F', '\u2815');  // ？→ ⠕ (135)
+        // ！(xFF01) 驚嘆號：CTB=123=⠇，PDF 規範=123=⠇（一致，無需覆蓋，僅確認）
+
+        // ── PDF 有但 CTB 未收錄的標點，手動補入 ────────────────────
+        // 書名號甲式符號（～波浪線）：6-36 → ⠠⠤
+        zhMap.set('\uFF5E', '\u2820\u2824');  // ～ → ⠠⠤ (6-36)
+        // 星標記號 ※：4-3456 → ⠈⠼
+        zhMap.set('\u203B', '\u2808\u283C');  // ※ → ⠈⠼ (4-3456)
+        // 精讀記號 ◎：246-135 → ⠪⠕
+        zhMap.set('\u25CE', '\u282A\u2815');  // ◎ → ⠪⠕ (246-135)
+
+        isLoaded=true;
+        updateStatus();
+        render();
+    } catch(e) {
+        st.className='rules-status error'; st.textContent='載入失敗：'+e.message;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+//  英文點字轉換
+// ════════════════════════════════════════════════════════════
+
+// 中文語境下，與 UEB 衝突的標點應改用 CTB 值
+// 來源：zh-tw.ctb 解碼
+// U+2026 … → 5-5-5  = ⠐⠐⠐
+// U+2014 — → 2578-2578 = ⣒⣒  (8-dot braille)
+// U+2013 – → 3678-3678 = ⣤⣤  (8-dot braille)
+// 引號類（\u201c/\u201d/\u2018/\u2019）由 tokenizer 直接攔截處理，不在此表
+const ZH_CONFLICT_PUNCT = {
+    '\u2026': '\u2810\u2810\u2810',  // … ⠐⠐⠐ (5-5-5)
+    '\u2014': '\u2810\u2802',         // — ⠐⠂ (5-2)  PDF規範
+    '\u2013': '\u2810\u2802',         // – ⠐⠂ (5-2)  與破折號統一
+};
+
+// CJK 範圍：基本漢字、CJK相容、全形符號區
+const CJK_RE_PUNCT = /[\u2E80-\u9FFF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]/;
+
+// 判斷一個位置是否處於「中文語境」：
+// 前一個非空白字元是 CJK，或後一個非空白字元是 CJK
+function isCJKContext(text, pos) {
+    for (let j = pos - 1; j >= 0; j--) {
+        if (text[j] === ' ' || text[j] === '\u2800') continue;
+        if (CJK_RE_PUNCT.test(text[j])) return true;
+        break;
+    }
+    for (let j = pos + 1; j < text.length; j++) {
+        if (text[j] === ' ' || text[j] === '\u2800') continue;
+        if (CJK_RE_PUNCT.test(text[j])) return true;
+        break;
+    }
+    return false;
+}
+
+// pos：字元在原始 text 中的索引（用於語境判斷）；未傳入時退回純 UEB
+function getPunct(ch, text, pos) {
+    const mode = document.getElementById('en-mode').value;
+    if (mode === 'comp8') return COMP8_PUNCT[ch];
+    // 若此字元在 ZH_CONFLICT_PUNCT 中，且處於中文語境，改用 CTB 值
+    if (ch in ZH_CONFLICT_PUNCT && text != null && isCJKContext(text, pos)) {
+        return ZH_CONFLICT_PUNCT[ch];
+    }
+    return UEB_PUNCT[ch];
+}
+
+// UEB 大寫處理：在縮寫 braille 前插入正確的大寫指示符
+function wrapCaps(origWord, braille) {
+    const isAllCaps = origWord===origWord.toUpperCase() && /[A-Z]/.test(origWord) && origWord.length>1;
+    const isInitCap = /^[A-Z]/.test(origWord);
+    if (isAllCaps)  return CAP_WORD + braille;
+    if (isInitCap)  return CAP1 + braille;
+    return braille;
+}
+
+// G2 整詞轉換
+function translateG2Word(word, _tables) {
+    const lw = word.toLowerCase();
+    // UEB Lesson 25：單字母若有對應的 alphabetic wordsign，前需加 ⠰ grade1 indicator
+    // 但 a / i / o 三個字母沒有 wordsign（不在 UEB wordsign 表中），所以不需要 ⠰
+    // 需要 ⠰ 的單字母 wordsigns：b c d e f g h j k l m n p q r s t u v w y
+    const WS_LETTERS = new Set(['b','c','d','e','f','g','h','j','k','l','m','n','p','q','r','s','t','u','v','w','y']);
+    // a / i / o 明確排除：不加 ⠰，直接輸出字母點字（加大寫指示符如有需要）
+    if (lw.length === 1 && !WS_LETTERS.has(lw)) {
+        // 單字母但不是 wordsign（含 a/i/o 及其大寫）→ 直接輸出，不加 ⠰
+        if (lw === 'a' || lw === 'i' || lw === 'o') {
+            const capPfx = /[A-Z]/.test(word[0]) ? CAP1 : '';
+            return capPfx + UEB_ALPHA[lw];
+        }
+        // 其他單字母不在 WS_LETTERS → 走一般序列翻譯
+    }
+    if (lw.length === 1 && WS_LETTERS.has(lw)) {
+        const capPfx = /[A-Z]/.test(word[0]) ? CAP1 : '';
+        return G1_SYM + capPfx + UEB_ALPHA[lw];
+    }
+    const _t = _tables || { always: G2_ALWAYS, anywhere: G2_ANYWHERE, begword: G2_BEGWORD,
+        midword: G2_MIDWORD, midend: G2_MIDEND, lowword: G2_LOWWORD, sufword: G2_SUFWORD, word: G2_WORD };
+    // 1. lowword：整詞低位點字縮寫（were/was/his/enough）
+    if (_t.lowword[lw]) return wrapCaps(word, _t.lowword[lw]);
+    // 2. 一般整詞縮寫
+    if (_t.word[lw]) return wrapCaps(word, _t.word[lw]);
+    // 3. 逐字元，貪婪匹配 groupsigns
+    return translateG2Seq(word, _t);
+}
+
+// G2 字元序列轉換（修正優先序）
+function translateG2Seq(word, _tables) {
+    const lw = word.toLowerCase();
+    const total = lw.length;
+    const isAllCaps = word===word.toUpperCase() && /[A-Z]/.test(word) && total>1;
+    let result = isAllCaps ? CAP_WORD : '';
+    let i = 0;
+
+    function addCap(p) {
+        if (!isAllCaps && word[p] !== word[p].toLowerCase()) result += CAP1;
+    }
+
+    // 偵測從位置 p 開始的連續大寫字母數
+    function countCaps(p) {
+        let n = 0;
+        while (p + n < total && /[A-Z]/.test(word[p + n])) n++;
+        return n;
+    }
+
+    const _t = _tables || { always: G2_ALWAYS, anywhere: G2_ANYWHERE, begword: G2_BEGWORD,
+        midword: G2_MIDWORD, midend: G2_MIDEND, lowword: G2_LOWWORD, sufword: G2_SUFWORD, word: G2_WORD };
+
+    while (i < total) {
+        const isStart = (i === 0);
+
+        // 處理 intra-token 的連續大寫序列（如 GPs → ⠠⠠GP⠠⠄s）
+        if (!isAllCaps && /[A-Z]/.test(word[i])) {
+            const nCaps = countCaps(i);
+            if (nCaps >= 2) {
+                // 連續 2+ 大寫 → ⠠⠠ + 序列 (+ ⠠⠄ 若後面有小寫)
+                result += CAP_WORD;
+                for (let ci = i; ci < i + nCaps; ci++) {
+                    // 在 capsword 中，字母直接輸出（無 ⠠ 前綴）
+                    const aC2 = Object.keys(_t.always).filter(k => lw.startsWith(k, ci)).sort((a,b)=>b.length-a.length);
+                    if (aC2.length && ci + aC2[0].length <= i + nCaps) {
+                        result += _t.always[aC2[0]];
+                        ci += aC2[0].length - 1;
+                    } else {
+                        result += UEB_ALPHA[lw[ci]] || lw[ci];
+                    }
+                }
+                // 若後面緊接小寫字母，加 ⠠⠄
+                if (i + nCaps < total && /[a-z]/.test(word[i + nCaps])) {
+                    result += END_CAPS;
+                }
+                i += nCaps;
+                continue;
+            }
+        }
+
+        // ①⓪ Shortform 前綴（L15-L17）：字首使用，後面不接元音/y
+        // PDF 規則：good/little/first/friend/blind/quick/children 可在字首加後綴使用
+        // 注意：must 也有此規則，但 mustang/mustache 已在 G2_ALWAYS 有 st 處理，不列此
+        if (i === 0 && !isAllCaps && total > 2) {
+            const _SFXVOWELS = new Set(['a','e','i','o','u','y']);
+            const SFXMAP = {
+                'good': '⠛⠙',    // good: at start, not followed by vowel/y
+                'little': '⠇⠇',  // little: at start, not followed by vowel/y
+                'first': '⠋⠌',   // first: at start, not followed by vowel/y
+                'friend': '⠋⠗',  // friend: at start, not followed by vowel/y
+                'blind': '⠃⠇',   // blind: at start, not followed by vowel/y
+                'quick': '⠟⠅',   // quick: at start, not followed by vowel/y
+                'children': '⠡⠝',// children: at start, not followed by vowel/y
+            };
+            for (const [sf, br] of Object.entries(SFXMAP).sort((a,b) => b[0].length - a[0].length)) {
+                if (lw.startsWith(sf) && total > sf.length) {
+                    const nextCh = lw[sf.length];
+                    if (!_SFXVOWELS.has(nextCh)) {
+                        // Use shortform; translate rest with sequence logic
+                        addCap(0);
+                        result += br;
+                        i = sf.length;
+                        break;
+                    }
+                }
+            }
+            if (i > 0) continue; // shortform was used, continue main loop
+        }
+
+        // ① G2_ALWAYS：任何位置，最高優先，取最長
+        // 但部分縮寫有額外的位置條件（PDF Lessons 15–19）
+        const _VOWELS_SET = new Set(['a','e','i','o','u']);
+        const _prevCh2 = i > 0 ? lw[i - 1] : '';
+
+        const aAll = Object.keys(_t.always)
+            .filter(k => lw.startsWith(k, i))
+            .sort((a,b) => b.length - a.length);
+
+        let aBest = null;
+        for (const k of aAll) {
+            const afterPos = i + k.length;
+            const afterCh = lw[afterPos] || '';
+            const beforeCh = i > 0 ? lw[i - 1] : '';
+
+            // here (L15 / CTB): heresy/heretic → 不縮（here 後接 s+[iy] 或 ti+c）
+            if (k === 'here') {
+                const suf = lw.slice(i + k.length);
+                if (suf[0] === 's' && 'iy'.includes(suf[1] || '')) { continue; } // heresy
+                if (suf[0] === 't' && suf[1] === 'i' && suf[2] === 'c') { continue; } // heretic
+            }
+            // ever (L15): NOT preceded by e or i
+            if (k === 'ever') {
+                if (beforeCh === 'e' || beforeCh === 'i') { continue; }
+            }
+            // mother (L15): 不可嚴重歪曲發音，'e' 前的 mo 不縮（如 chemotherapy）
+            if (k === 'mother') {
+                if (beforeCh === 'e') { continue; }
+            }
+            // one (L16): NOT preceded by 'o'; NOT followed by d/n/r
+            if (k === 'one') {
+                if (beforeCh === 'o') { continue; }
+                if (afterCh === 'd' || afterCh === 'n' || afterCh === 'r') { continue; }
+            }
+            // under (L16): NOT preceded by a/o（如 launder, flounder）
+            // 凡含 under 一律縮寫（underwater, underpaid, underived 等均縮）
+            if (k === 'under') {
+                if (beforeCh === 'a' || beforeCh === 'o') { continue; }
+            }
+            // had (L19): only where 'a' is short; Hadrian-type (had+r at word start) → skip
+            if (k === 'had') {
+                if (i === 0 && afterCh === 'r') { continue; }
+            }
+            // ou vs ound/ount（L21優先）: 若 MIDEND 有更長的 ou* 匹配，跳過 ou
+            if (k === 'ou' && !isStart) {
+                const longerMidend = Object.keys(_t.midend || {}).find(
+                    m => lw.startsWith(m, i) && m.startsWith('ou') && m.length > 2
+                );
+                if (longerMidend) { continue; }
+            }
+            // st vs stion/tion（MIDEND 優先）: st 後若緊接 ion，讓 tion 縮寫優先
+            if (k === 'st' && lw.startsWith('ion', i + 2)) { continue; }
+
+            aBest = k;
+            break;
+        }
+
+        if (aBest) {
+            addCap(i);
+            result += _t.always[aBest];
+            i += aBest.length;
+            continue;
+        }
+
+        // ② 位置相關規則：全部候選放在一起，取最長（貪婪）
+        let best = null, bestLen = 0, bestBr = '', bestType = '';
+
+        // ANYWHERE（任何位置含字首）
+        for (const k of Object.keys(_t.anywhere)) {
+            if (lw.startsWith(k, i) && k.length > bestLen) {
+                bestType = 'anywhere'; bestLen = k.length; bestBr = _t.anywhere[k]; best = k;
+            }
+        }
+        // BEGWORD（字首，後面必須有字元）
+        if (isStart && !isAllCaps) {
+            for (const k of Object.keys(_t.begword)) {
+                if (lw.startsWith(k, i) && i + k.length < total && k.length > bestLen) {
+                    if (k === 'be') {
+                        const suf = lw.slice(i + k.length);
+                        const firstAfter = suf[0] || '';
+                        if (_VOWELS_SET.has(firstAfter) && firstAfter !== 'i') { continue; }
+                        if (!_VOWELS_SET.has(firstAfter)) {
+                            const hasVowelNear = (suf.length > 1 && _VOWELS_SET.has(suf[1]));
+                            if (!hasVowelNear) { continue; }
+                        }
+                    }
+                    bestType = 'beg'; bestLen = k.length; bestBr = _t.begword[k]; best = k;
+                }
+            }
+        }
+        // MIDWORD（非字首，後面必須有字元）
+        if (!isStart) {
+            for (const k of Object.keys(_t.midword)) {
+                if (lw.startsWith(k, i) && i + k.length < total && k.length > bestLen) {
+                    bestType = 'mid'; bestLen = k.length; bestBr = _t.midword[k]; best = k;
+                }
+            }
+        }
+        // MIDEND（非字首，可在字尾）
+        if (!isStart) {
+            for (const k of Object.keys(_t.midend)) {
+                if (lw.startsWith(k, i) && k.length > bestLen) {
+                    bestType = 'midend'; bestLen = k.length; bestBr = _t.midend[k]; best = k;
+                }
+            }
+        }
+        // SUFWORD（精確字尾）
+        for (const k of Object.keys(_t.sufword)) {
+            if (lw.startsWith(k, i) && i + k.length === total && k.length > bestLen) {
+                bestType = 'suf'; bestLen = k.length; bestBr = _t.sufword[k]; best = k;
+            }
+        }
+
+        if (best) {
+            if (bestType === 'anywhere' || bestType === 'beg') addCap(i);
+            result += bestBr;
+            i += bestLen;
+            continue;
+        }
+
+        // ③ 逐字元
+        addCap(i);
+        result += UEB_ALPHA[lw[i]] || lw[i];
+        i++;
+    }
+    return result;
+}
+
+// UEB G1 轉換（只有字母，無縮寫）
+function translateG1(word) {
+    const lw = word.toLowerCase();
+    const isAllCaps = word===word.toUpperCase() && /[A-Z]/.test(word) && word.length>1;
+    // UEB Lesson 25：a / i / o 沒有 wordsign，不需要 grade1 indicator
+    // 需要 ⠰ 的單字母：b c d e f g h j k l m n p q r s t u v w y
+    const WS_LETTERS = new Set(['b','c','d','e','f','g','h','j','k','l','m','n','p','q','r','s','t','u','v','w','y']);
+    if (lw.length === 1) {
+        const capPfx = /[A-Z]/.test(word[0]) ? CAP1 : '';
+        if (WS_LETTERS.has(lw)) {
+            // 有 wordsign → 需要 ⠰
+            return G1_SYM + capPfx + UEB_ALPHA[lw];
+        } else {
+            // a / i / o 及其他無 wordsign 字母 → 直接輸出，不加 ⠰
+            return capPfx + UEB_ALPHA[lw];
+        }
+    }
+    let result = isAllCaps ? CAP_WORD : '';
+    for (let i=0; i<lw.length; i++) {
+        const c=lw[i]; const orig=word[i];
+        if (!isAllCaps && orig!==orig.toLowerCase()) result += CAP1;
+        result += UEB_ALPHA[c] || c;
+    }
+    return result;
+}
+
+// comp8 轉換（字母部分，數字由 tokenizer 另處理）
+function translateComp8(word) {
+    let r='';
+    for (const c of word)
+        r += (/[A-Z]/.test(c) ? COMP8_UPPER[c] : UEB_ALPHA[c.toLowerCase()]) || c;
+    return r;
+}
+
+// 大寫後處理：處理 endcapsword 和 capsphrase
+// tokens：render 之後的 token 陣列（有 .braille 和 .isEnglish 標記）
+// enough 後處理：後接標點時展開為 en+ou+gh
+function postProcessEnough(tokens) {
+    const ENOUGH_SINGLE  = '⠢';           // ⠢ lowword
+    const ENOUGH_EXPANDED = '⠢⠳⠣'; // ⠢⠳⠣ always enough
+    for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i].text.toLowerCase() !== 'enough') continue;
+        if (tokens[i].braille !== ENOUGH_SINGLE) continue;
+        // 找下一個非空格 token
+        let next = i + 1;
+        while (next < tokens.length && tokens[next].isSpace) next++;
+        // 若後接標點（非英文、非空格、非行尾）→ 展開
+        if (next < tokens.length && !tokens[next].isEnglish && !tokens[next].isSpace) {
+            tokens[i].braille = ENOUGH_EXPANDED;
+        }
+    }
+    return tokens;
+}
+
+function postProcessCaps(tokens) {
+    // comp8 大寫靠 dot7，不用大寫指示符
+    if (document.getElementById('en-mode').value === 'comp8') return tokens;
+    const CAP_WORD_STR = CAP_WORD;       // ⠠⠠
+    const END_CAPS_STR = END_CAPS;       // ⠠⠄
+
+    // 判斷 token 是否為「整詞大寫」英文
+    function isAllCapsToken(t) {
+        if (!t.isEnglish) return false;
+        const w = t.text;
+        // 單字母（如 A）也算 allCaps token（可加入 capsphrase）
+        return w === w.toUpperCase() && /[A-Z]/.test(w);
+    }
+    // 判斷 token 是否為「小寫/混合」英文詞（需要在前面的大寫詞後加 endcapsword）
+    function isLowerEngToken(t) {
+        if (!t.isEnglish) return false;
+        if (!/[a-z]/.test(t.text)) return false;
+        // word-sign（單格縮寫）不觸發 endcapsword
+        const b = t.braille;
+        if (b.length <= 2 && b !== '⠀') return false;
+        return true;
+    }
+
+    // 找出連續全大寫英文 token 的分組
+    // （跳過空格/標點 token）
+    let i = 0;
+    while (i < tokens.length) {
+        if (!isAllCapsToken(tokens[i])) { i++; continue; }
+
+        // 找連續大寫詞（中間允許有空格 token）
+        let run = [i];
+        let j = i + 1;
+        while (j < tokens.length) {
+            if (tokens[j].braille === '\u2800' || tokens[j].isSpace) { j++; continue; }
+            if (isAllCapsToken(tokens[j])) { run.push(j); j++; }
+            else break;
+        }
+
+        const runLen = run.length;
+
+        // endcaps 附加位置：找最後一個大寫詞之後的位置
+        // 若緊接標點 → endcaps 附在標點 token 末尾（UEB規範）
+        // 否則附在最後一個大寫詞 token 末尾
+        function attachEndCaps(lastIdx) {
+            let p = lastIdx + 1;
+            while (p < tokens.length && tokens[p].isSpace) p++;
+            if (p < tokens.length && !tokens[p].isEnglish && !tokens[p].isSpace
+                && tokens[p].braille !== '\u2800') {
+                // 找所有連續標點的末尾（如 !! 兩個標點）
+                let lastPunct = p;
+                let q = p + 1;
+                while (q < tokens.length && !tokens[q].isEnglish
+                       && !tokens[q].isSpace && tokens[q].braille !== '\u2800') {
+                    lastPunct = q; q++;
+                }
+                tokens[lastPunct].braille += END_CAPS_STR;
+            } else {
+                tokens[lastIdx].braille += END_CAPS_STR;
+            }
+        }
+
+        if (runLen >= 3) {
+            // ── capsphrase（⠠⠠⠠）: 3+ 連續全大寫詞 ──
+            const first = run[0];
+            tokens[first].braille = '\u2820\u2820\u2820' +
+                tokens[first].braille
+                    .replace(CAP_WORD_STR, '')
+                    .replace(/^\u2820/, '');
+            for (let k = 1; k < runLen; k++) {
+                tokens[run[k]].braille = tokens[run[k]].braille
+                    .replace(CAP_WORD_STR, '')
+                    .replace(/^\u2820/, '');
+            }
+            const lastIdx = run[runLen - 1];
+            let after = lastIdx + 1;
+            while (after < tokens.length && tokens[after].isSpace) after++;
+            if (after >= tokens.length || !isAllCapsToken(tokens[after])) {
+                attachEndCaps(lastIdx);
+            }
+            i = j;
+        } else {
+            // ── capsword（⠠⠠）: 1~2 詞 ──
+            // Lesson 27: 若緊接小寫字母開頭的 token（如 GPs → ⠠⠠⠛⠏⠠⠄⠎），需要加 ⠠⠄
+            // capsword mode 遇到空格或非字母符號自動終止，不需要 ⠠⠄
+            // 但若緊接同一「詞」中的小寫字母（無空格）則需要 ⠠⠄
+            const lastIdx = run[runLen - 1];
+            let after = lastIdx + 1;
+            // 跳過空格，找下一個實質 token
+            while (after < tokens.length && tokens[after].isSpace) after++;
+            if (after < tokens.length) {
+                const nextTok = tokens[after];
+                // 若緊接的 token 是英文且以小寫字母開頭，且中間沒有空格
+                // （中間沒有空格 = after === lastIdx+1，因為空格已被跳過）
+                const noSpaceBetween = (after === lastIdx + 1);
+                if (noSpaceBetween && nextTok.isEnglish && /^[a-z]/.test(nextTok.text)) {
+                    attachEndCaps(lastIdx);
+                }
+            }
+            i = j;
+        }
+    }
+    return tokens;
+}
+
+function translateEnglish(word) {
+    const mode = document.getElementById('en-mode').value;
+    // 優先使用 liblouis（如果已就緒且表格已載入）
+    if (LOU.isReady()) {
+        const result = LOU.translateEnglish(word, mode);
+        if (result !== null) return result;
+        console.warn('liblouis fallback:', word, mode);
+    }
+    // fallback：內建邏輯
+    if (mode==='comp8')  return translateComp8(word);
+    if (mode==='ueb-g1') return translateG1(word);
+    return translateG2Word(word, getActiveG2Tables());
+}
+
+// ════════════════════════════════════════════════════════════
+//  分詞 & 渲染
+// ════════════════════════════════════════════════════════════
+const TERMINAL    = new Set(['。','？','！','?','!']);
+// 不可放在行首的字元（標點跟著前字一起換行）
+// 包含中文標點與英文標點
+const NO_LINE_BEGIN = new Set([
+    // 中文標點（閉合型）
+    '，','、','；','：','。','？','！','」','』','）','〉','》','．','…','—',
+    // 英文標點（不可孤立在行首）
+    ',', '.', '?', '!', ':', ';', '\'', '\u2019',
+    // 閉括號
+    ')', ']', '}',
+    '\u201d'  // 右雙引號（閉合）
+]);
+
+// ════════════════════════════════════════════════════════════
+//  自定義規則
+// ════════════════════════════════════════════════════════════
+// customRules: Array of { text: string, braille: string (unicode) }
+// text is the source string; braille is the replacement (unicode point chars)
+let customRules = [];
+
+function getCustomBraille(ch) {
+    // longest-match first (rules are sorted by text.length desc on add)
+    return null; // per-char lookup handled in tokenize via customRuleMatch
+}
+
+// Find longest custom rule match starting at position i in text
+function customRuleMatch(text, i) {
+    let best = null;
+    for (const rule of customRules) {
+        if (rule.text.length > (best ? best.text.length : 0) &&
+            text.startsWith(rule.text, i)) {
+            best = rule;
+        }
+    }
+    return best;
+}
+
+// ════════════════════════════════════════════════════════════
+//  整句英文翻譯（解決逐詞呼叫 context 問題的根本解）
+// ════════════════════════════════════════════════════════════
+// 把 tokenizer 產生的 token 陣列中，連續的英文 token 合併成一個字串，
+// 一次送進 liblouis，再用 outputPos 對應表把點字切回各 token。
+//
+// 適用 token 類型：isEnglish=true 的 token（字母詞）及 isSpace 在英文 span 中間的空格。
+// 不適用：自定義規則、數字、中文、標點、換行、Nemeth。
+//
+// 輸入 tokens（已過 postProcessCaps/Enough）
+// 輸出：tokens 的 braille 欄位被整句翻譯結果覆蓋，isContraction 重新計算
+
+function applySpanTranslation(tokens) {
+    const mode = document.getElementById('en-mode').value;
+    if (mode !== 'ueb-g2' && mode !== 'ueb-custom') return tokens;
+    if (!LOU.isReady()) return tokens;
+
+    const result = tokens.slice();
+    const n = tokens.length;
+
+    // 策略：對每個英文 token，送「前一詞 空格 目標詞 空格 後一詞」給 liblouis，
+    // 減去前綴和後綴的翻譯長度，取出中間段。
+    for (let i = 0; i < n; i++) {
+        const t = result[i];
+        if (!t.isEnglish || t.isCustom || t.isNemeth) continue;
+
+        const word = t.text;
+
+        // 找前一個英文 token
+        let prevWord = '';
+        for (let p = i - 1; p >= 0; p--) {
+            if (result[p].isSpace) continue;
+            if (result[p].isEnglish && !result[p].isCustom) prevWord = result[p].text;
+            break;
+        }
+
+        // 找後一個英文 token
+        let nextWord = '';
+        for (let p = i + 1; p < n; p++) {
+            if (result[p].isSpace) continue;
+            if (result[p].isEnglish && !result[p].isCustom) nextWord = result[p].text;
+            break;
+        }
+
+        // 組合 context 字串並送整句
+        const parts = [];
+        if (prevWord) parts.push(prevWord);
+        parts.push(word);
+        if (nextWord) parts.push(nextWord);
+        const fullText = parts.join(' ');
+
+        const fullBrl = LOU.translateSpan(fullText, mode);
+        if (!fullBrl) continue;
+
+        // 取前綴翻譯長度
+        let prefixLen = 0;
+        if (prevWord) {
+            const prefixBrl = LOU.translateSpan(prevWord + ' ', mode);
+            if (prefixBrl) prefixLen = Array.from(prefixBrl).length;
+        }
+
+        // 取後綴翻譯長度
+        let suffixLen = 0;
+        if (nextWord) {
+            const suffixBrl = LOU.translateSpan(' ' + nextWord, mode);
+            if (suffixBrl) suffixLen = Array.from(suffixBrl).length;
+        }
+
+        const fullArr = Array.from(fullBrl);
+        const wordBrl = fullArr.slice(prefixLen, suffixLen > 0 ? fullArr.length - suffixLen : undefined).join('');
+
+        if (wordBrl) {
+            t.braille = wordBrl;
+            const g1b = translateWordWithApos(word, 'ueb-g1');
+            t.isContraction = (wordBrl !== g1b);
+        }
+    }
+
+    return result;
+}
+
+
+// ── render ──────────────────────────────────────────────────
+function render() {
+    if (!isLoaded) return;
+    const input   = document.getElementById('input-text').value;
+    const max     = parseInt(document.getElementById('cell-limit').value)||40;
+    const isAscii = currentIsAscii();
+    const outArea = document.getElementById('output-text');
+
+    let tokens = tokenizeWithCustom(input);
+    tokens = postProcessCaps(tokens);
+    tokens = applySpanTranslation(tokens); // 整句翻譯覆蓋英文 span
+    tokens = postProcessEnough(tokens);    // 須在整句翻譯後執行
+
+    outArea.className = isAscii ? 'font-ascii' : 'font-unicode';
+
+    let resultUnicode = '', lineCells = 0;
+    const renderTokens = [];
+
+    tokens.forEach((t, idx) => {
+        // ── 明確換行（\n 在原文中）──
+        if (t.braille === '\n') {
+            resultUnicode += '\n'; lineCells = 0;
+            renderTokens.push({ ...t, isLineBreak: true, isExplicitBreak: true });
+            return;
+        }
+
+        const bArr = Array.from(t.braille || '');
+        const bLen = bArr.length;
+        if (bLen === 0) {
+            renderTokens.push({ ...t });
+            return;
+        }
+
+        // ── 計算「此 token 必須跟著走」的後繼長度 ──
+        // 標點不能在行首：找下一個非空格實質 token，若是不可行首標點，
+        // 則把中間所有空格 + 標點的長度都加入 extra
+        let extra = 0;
+        {
+            let ni = idx + 1;
+            let spaceLen = 0;
+            // 跳過空格，計算空格總長
+            while (ni < tokens.length && tokens[ni].isSpace) {
+                spaceLen += Array.from(tokens[ni].braille).length;
+                ni++;
+            }
+            if (ni < tokens.length && NO_LINE_BEGIN.has(tokens[ni].text)) {
+                extra = spaceLen + Array.from(tokens[ni].braille).length;
+            }
+        }
+
+        // ── 是否需要自動換行 ──
+        if (lineCells + bLen + extra > max && lineCells > 0) {
+            // Bug 1 修正：若上一個 token 是空格，行尾不留空格 → 回退掉它
+            if (resultUnicode.length > 0) {
+                const lastChar = resultUnicode[resultUnicode.length - 1];
+                if (lastChar === '\u2800') {
+                    resultUnicode = resultUnicode.slice(0, -1);
+                    // 也從 renderTokens 尾端移除那個空格 token（標記為已移除）
+                    for (let ri = renderTokens.length - 1; ri >= 0; ri--) {
+                        if (renderTokens[ri].isSpace && !renderTokens[ri].isLineBreak) {
+                            renderTokens[ri]._hiddenTrailingSpace = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            resultUnicode += '\n'; lineCells = 0;
+            renderTokens.push({ text:'', braille:'\n', isLineBreak:true, isAutoBreak:true });
+
+            // Bug 1 修正：若目前 token 是空格（行首），跳過它
+            if (t.isSpace) return;
+        }
+
+        renderTokens.push({ ...t });
+        resultUnicode += t.braille;
+        lineCells += bLen;
+    });
+
+    outArea.value = isAscii ? unicodeToAscii(resultUnicode) : resultUnicode;
+    renderParallelView(renderTokens);
+}
+
+// ════════════════════════════════════════════════════════════
+//  UEB 英數混合轉換（Lesson 24/25）
+// ════════════════════════════════════════════════════════════
+// 數字相關符號，在 numeric mode 中不終止 numeric mode
+const NUM_MODE_KEEP = new Set(['.', ',', '\u2800']); // 小數點、千位符、numeric space
+
+// 把一個英數混合 token（如 ready4work、activ8ing、row22b）翻譯成 UEB 點字
+// 規則：
+//   - 數字群：前加 ⠼（numsign），進入 numeric mode
+//   - numeric mode 被 space / hyphen / dash 終止；不被字母終止（若字母跟在數字後）
+//   - 數字後的 a-j 需要 ⠰ grade1 indicator（避免誤讀為數字）
+//   - 數字後的 k-z 和大寫字母不需要 grade1 indicator
+//   - 數字後的英文字母（k-z 或 A-Z）直接接續，不重新下 numsign
+function translateUEBMixed(str) {
+    // str: 連續的字母+數字字串（已知不含空格、連字號、斜線等終止符）
+    // 依模式逐字元輸出
+    const mode = document.getElementById('en-mode').value;
+    if (mode === 'comp8') return translateComp8Mixed(str);
+
+    const lw = str.toLowerCase();
+    const total = str.length;
+    let result = '';
+    let inNumericMode = false;
+    let i = 0;
+
+    while (i < total) {
+        const ch   = str[i];
+        const chl  = lw[i];
+        const isDigit = /[0-9]/.test(ch);
+        const isUpper = /[A-Z]/.test(ch);
+        const isLower = /[a-z]/.test(ch);
+
+        if (isDigit) {
+            if (!inNumericMode) {
+                result += UEB_NUMSIGN;
+                inNumericMode = true;
+            }
+            result += UEB_DIGIT[ch];
+            i++;
+            continue;
+        }
+
+        if (isLower || isUpper) {
+            if (inNumericMode) {
+                // numeric mode 後的字母
+                // a-j (lowercase) 需要 G1 indicator（避免誤讀為數字）
+                if (isLower && NUMERIC_AJ.has(chl)) {
+                    result += G1_SYM;
+                }
+                // uppercase A-J 不需要 G1，因為大寫在 numeric context 無歧義
+                // uppercase 加 ⠠
+                if (isUpper) result += CAP1;
+                result += UEB_ALPHA[chl] || ch;
+                // 字母不終止 numeric mode（UEB §3.11 — numeric mode 繼續到下一空格）
+                // 但字母之後若再遇數字，numeric mode 已被字母打斷，需重新 numsign
+                // 實作：進入字母後設 inNumericMode = false
+                inNumericMode = false;
+            } else {
+                // 一般字母（非 numeric mode 後）
+                if (isUpper) result += CAP1;
+                result += UEB_ALPHA[chl] || ch;
+            }
+            i++;
+            continue;
+        }
+
+        // 其他字元（不應到達這裡，由外層 tokenizer 分隔）
+        result += ch;
+        i++;
+    }
+    return result;
+}
+
+// comp8 英數混合：數字也是 ⠼ + a-j（comp8 不用 dot8），字母不加大寫 indicator（大寫靠 dot7）
+function translateComp8Mixed(str) {
+    let result = '';
+    let inNum = false;
+    for (const ch of str) {
+        if (/[0-9]/.test(ch)) {
+            if (!inNum) { result += UEB_NUMSIGN; inNum = true; }
+            result += COMP8_DIGIT[ch];
+        } else if (/[A-Z]/.test(ch)) {
+            inNum = false;
+            result += COMP8_UPPER[ch] || ch;
+        } else if (/[a-z]/.test(ch)) {
+            inNum = false;
+            result += UEB_ALPHA[ch] || ch;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+// 翻譯可能含撇號縮寫的詞（如 I'm、they've、don't）
+// run 中的撇號為原始字元（' / ' / '）
+function translateWordWithApos(run, modeVal) {
+    const APOS_RE = /['\u2018\u2019]/;
+    const aposIdx = run.search(APOS_RE);
+
+    if (aposIdx === -1) {
+        // 無撇號，正常翻譯
+        const hasDigit = /[0-9]/.test(run);
+        const hasAlpha = /[a-zA-Z]/.test(run);
+        if (!hasDigit) {
+            if (modeVal === 'comp8')  return translateComp8(run);
+            if (modeVal === 'ueb-g1') return translateG1(run);
+            return translateG2Word(run, getActiveG2Tables());
+        } else if (!hasAlpha) {
+            let b = UEB_NUMSIGN;
+            const digitMap = modeVal === 'comp8' ? COMP8_DIGIT : UEB_DIGIT;
+            for (const d of run) b += digitMap[d] || d;
+            return b;
+        } else {
+            return translateUEBMixed(run);
+        }
+    }
+
+    // 含撇號：分成「主詞」和「後綴」分別翻譯，中間插入撇號點字 ⠄
+    const main   = run.slice(0, aposIdx);
+    const suffix = run.slice(aposIdx + 1); // 撇號後的字母（如 m、re、ll 等）
+
+    let mainB = '';
+    if (main.length > 0) {
+        if (modeVal === 'comp8')  mainB = translateComp8(main);
+        else if (modeVal === 'ueb-g1') mainB = translateG1(main);
+        else {
+            // 特殊處理：main 可能是 shortform + 尾字母（如 couldn = could + n）
+            // 嘗試以 G2_WORD 鍵值作為前綴匹配，找到最長的 shortform 前綴
+            const _tables = getActiveG2Tables();
+            const mainLow = main.toLowerCase();
+            let sfPrefix = null, sfBraille = null;
+            for (const [k, v] of Object.entries(_tables.word || G2_WORD)) {
+                if (mainLow.startsWith(k) && k.length < main.length) {
+                    if (!sfPrefix || k.length > sfPrefix.length) {
+                        sfPrefix = k; sfBraille = v;
+                    }
+                }
+            }
+            if (sfPrefix) {
+                // 前綴是 shortform，其餘字母逐字輸出（不加縮寫，與 suffix 同邏輯）
+                const rest = main.slice(sfPrefix.length);
+                let restB = '';
+                for (const c of rest.toLowerCase()) restB += UEB_ALPHA[c] || c;
+                mainB = sfBraille + restB;
+            } else {
+                mainB = translateG2Word(main, _tables);
+            }
+        }
+    }
+
+    // 撇號 = ⠄ (UEB dots 3)
+    const apostropheB = '\u2804';
+
+    let suffixB = '';
+    if (suffix.length > 0) {
+        // UEB Lesson 25 Apostrophe 規則：
+        // 撇號後的字母（'d、's、't、'm、'n 等單字母，以及 're、'll、've 多字母後綴）
+        // 直接輸出字母點字，不加 grade 1 indicator、不加縮寫
+        // （撇號本身已起到分隔作用，不會被誤讀）
+        if (modeVal === 'comp8') {
+            suffixB = translateComp8(suffix);
+        } else {
+            // 逐字元輸出字母，不使用任何 wordsign 或 grade1 indicator
+            for (const c of suffix.toLowerCase()) {
+                suffixB += UEB_ALPHA[c] || c;
+            }
+        }
+    }
+
+    return mainB + apostropheB + suffixB;
+}
+
+// UEB 自定：取得目前使用的 G2 表格（mode=ueb-custom 時使用過濾版）
+function getActiveG2Tables() {
+    const modeVal = document.getElementById('en-mode').value;
+    if (modeVal === 'ueb-custom') return buildCustomG2Tables();
+    // ueb-g2：回傳完整表格
+    return {
+        always: G2_ALWAYS, anywhere: G2_ANYWHERE, begword: G2_BEGWORD,
+        midword: G2_MIDWORD, midend: G2_MIDEND, lowword: G2_LOWWORD,
+        sufword: G2_SUFWORD, word: G2_WORD
+    };
+}
+
+// tokenize with custom rules taking priority
+// ════════════════════════════════════════════════════════════
+//  Pre-pass：分類 U+0027 為引號或 apostrophe
+//  規則：
+//    空格/行首 + ' + 字母，且後方有對應的 ' + 空格/標點/行尾 → 配對引號
+//    否則 → apostrophe
+//  回傳 Set，內含「是引號」的位置索引
+// ════════════════════════════════════════════════════════════
+function classifyApostrophes(text) {
+    const quotePositions = new Set();
+    const n = text.length;
+    let i = 0;
+    while (i < n) {
+        if (text[i] !== "'") { i++; continue; }
+        const prevCh = i > 0 ? text[i - 1] : '';
+        const nextCh = i + 1 < n ? text[i + 1] : '';
+        // 開引號條件：前面是空格/行首/開括號，後面是字母
+        const isOpenCandidate = /[\s(]/.test(prevCh) || prevCh === ''
+            ? /[A-Za-z]/.test(nextCh)
+            : false;
+        if (isOpenCandidate) {
+            // 前瞻：找對應的閉引號（' 後接空格/標點/行尾）
+            let found = false;
+            for (let j = i + 1; j < n; j++) {
+                if (text[j] !== "'") continue;
+                const afterJ = j + 1 < n ? text[j + 1] : '';
+                const beforeJ = j > 0 ? text[j - 1] : '';
+                // 閉引號條件：前面是字母/數字/標點，後面是空格/標點/行尾/引號
+                if (/[A-Za-z0-9.,!?;:)]/.test(beforeJ) &&
+                    (/[\s.,!?;:)"']/.test(afterJ) || afterJ === '')) {
+                    // 確認中間沒有換行（同一段落內）
+                    const between = text.slice(i + 1, j);
+                    if (!between.includes('\n')) {
+                        quotePositions.add(i); // 開引號
+                        quotePositions.add(j); // 閉引號
+                        found = true;
+                    }
+                    break;
+                }
+            }
+            // found=false → apostrophe，不加入 quotePositions
+        }
+        i++;
+    }
+    return quotePositions;
+}
+
+function tokenizeWithCustom(text) {
+    const tokens = []; let i = 0;
+    const apoQuotes = classifyApostrophes(text); // pre-pass：標記哪些 ' 是引號
+    const mode = () => document.getElementById('en-mode').value;
+
+    // 每個 push 都自動帶上來源字元範圍
+    // srcStart = 迴圈頂記錄的 i；srcEnd 在下一個迴圈頂（或 i++ 後）由 finalizeSrc() 補上
+    let _srcStart = 0;
+    let _lastTok  = null;
+    function pushTok(tok) {
+        // 先補上一個 token 的 srcEnd（現在才知道 i 走到哪）
+        if (_lastTok) _lastTok.srcEnd = i;
+        tok.srcStart = _srcStart;
+        tok.srcEnd   = i; // 暫時值，下一個 pushTok 或 finalizeSrc 會修正
+        _lastTok = tok;
+        tokens.push(tok);
+    }
+    function finalizeSrc() {
+        if (_lastTok) _lastTok.srcEnd = i;
+    }
+
+    // 引號奇偶計數：奇數次 = 開，偶數次 = 閉
+    let dqCount = 0;  // 直雙引號 " (U+0022)
+    let sqCount = 0;  // 直單引號 ' (U+0027)
+    // 直引號的中文語境判斷：用整行（換行前）是否含 CJK 決定
+    // 比鄰字判斷更穩定，因引號常包住英文詞但整句是中文
+    const CJK_RE_LINE = /[\u2E80-\u9FFF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]/;
+    function lineHasCJK(text, pos) {
+        const start = text.lastIndexOf('\n', pos - 1) + 1;
+        const end   = text.indexOf('\n', pos);
+        const line  = text.slice(start, end === -1 ? undefined : end);
+        return CJK_RE_LINE.test(line);
+    }
+
+    while (i < text.length) {
+        if (_lastTok) _lastTok.srcEnd = i;  // 補上上一個 token 的真實 srcEnd
+        _srcStart = i;
+        const ch = text[i];
+
+        // 空白
+        if (ch === ' ' || ch === '\u2800') {
+            pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++; continue;
+        }
+        // 換行（重設引號計數，避免跨行污染）
+        if (ch === '\n') {
+            pushTok({ text:'↵', braille:'\n' }); i++;
+            dqCount = 0; sqCount = 0;
+            continue;
+        }
+
+        // ── 連續三個英文句號 → 省略號（中文語境用 CTB，英文語境用 UEB）──
+        if (ch === '.' && text[i+1] === '.' && text[i+2] === '.') {
+            const b = isCJKContext(text, i)
+                ? '\u2810\u2810\u2810'   // CTB: ⠐⠐⠐ (dot5×3)
+                : '\u2832\u2832\u2832';  // UEB: ⠲⠲⠲ (dots256×3)
+            pushTok({ text: '...', braille: b });
+            i += 3;
+            continue;
+        }
+
+        // ── 直雙引號 " → 奇數次=開⠦, 偶數次=閉⠴；中文行用雙格 ──
+        if (ch === '"') {
+            dqCount++;
+            const isOpen = (dqCount % 2 === 1);
+            const b = lineHasCJK(text, i)
+                ? (isOpen ? '\u2826\u2826' : '\u2834\u2834')  // CTB ⠦⠦/⠴⠴
+                : (isOpen ? '\u2826'        : '\u2834');         // UEB ⠦/⠴
+            pushTok({ text: ch, braille: b }); i++; continue;
+        }
+
+        // ── 彎曲雙引號 "/"“” → 字元本身已區分開/閉；中文行用雙格 ──
+        if (ch === '\u201c' || ch === '\u201d') {
+            const isOpen = (ch === '\u201c');
+            const b = lineHasCJK(text, i)
+                ? (isOpen ? '\u2826\u2826' : '\u2834\u2834')  // CTB ⠦⠦/⠴⠴
+                : (isOpen ? '\u2826'        : '\u2834');         // UEB ⠦/⠴
+            pushTok({ text: ch, braille: b }); i++; continue;
+        }
+
+        // ── 直單引號 ' → 縮寫撇號優先；否則奇=開⠠⠦ 偶=閉⠠⠴；中文行用 CTB ──
+        if (ch === "'") {
+            const prevCh = i > 0 ? text[i-1] : '';
+            const nextCh = i + 1 < text.length ? text[i+1] : '';
+            // 用 pre-pass 結果判斷：是引號位置就輸出引號，否則輸出 apostrophe
+            if (apoQuotes.has(i)) {
+                // pre-pass 判定為配對引號
+                const isOpen = apoQuotes._openSet ? apoQuotes._openSet.has(i) : true;
+                // 用索引奇偶判斷開閉（第一個出現的是開）
+                const positions = [...apoQuotes].sort((a,b)=>a-b);
+                const posIdx = positions.indexOf(i);
+                const isOpenQuote = (posIdx % 2 === 0);
+                const b = lineHasCJK(text, i)
+                    ? (isOpenQuote ? '\u2808' : '\u2804')
+                    : (isOpenQuote ? '\u2820\u2826' : '\u2820\u2834');
+                pushTok({ text: ch, braille: b }); i++; continue;
+            }
+            // 不在 apoQuotes → apostrophe（縮寫、所有格、詞首省略）
+            // 字母間：縮寫（don't）→ 讓後面 run 吸收；其他直接輸出 ⠄
+            if (/[a-zA-Z]/.test(prevCh) && /[a-zA-Z]/.test(nextCh)) {
+                // fall through 到 run 邏輯（run 會吸收撇號+後綴）
+            } else {
+                pushTok({ text: ch, braille: '\u2804' }); i++; continue; // ⠄
+            }
+        }
+
+        // ── 彎曲單引號 '/’ → 字元本身已區分開/閉；中文行用 CTB ──
+        // 例外：U+2019 在字母旁且前方沒有未閉合的 U+2018 時，視為 apostrophe，
+        // fall through 讓英文 run 吸收（couldn’t、students’ 等）
+        if (ch === '\u2018' || ch === '\u2019') {
+            const prevCh = i > 0 ? text[i - 1] : '';
+            const nextCh = i + 1 < text.length ? text[i + 1] : '';
+            // 計算目前位置之前未閉合的 U+2018 數量
+            // apostrophe 條件：
+            // 1. U+2019 在字母後（所有格、縮寫），且後面不是引號類
+            // 2. U+2019 前面是空格/行首，後面是字母（詞首省略，如 'twas）
+            const nextIsQuote = /[\u2018\u2019\u201c\u201d\u0022]/.test(nextCh);
+            const isWordInitialApos = ch === '\u2019'
+                && /[A-Za-z]/.test(nextCh)
+                && (/^\s$/.test(prevCh) || prevCh === '');
+            const isAposContext = ch === '\u2019'
+                && /[A-Za-z]/.test(prevCh)
+                && !nextIsQuote;
+            if (isWordInitialApos) {
+                // 詞首省略（'twas、'tis）→ apostrophe ⠄，不是引號
+                const b = lineHasCJK(text, i) ? '\u2804' : '\u2804'; // ⠄
+                pushTok({ text: ch, braille: b }); i++; continue;
+            }
+            if (!isAposContext) {
+                const isOpen = (ch === '\u2018');
+                const b = lineHasCJK(text, i)
+                    ? (isOpen ? '\u2808' : '\u2804')               // CTB ⠈/⠄
+                    : (isOpen ? '\u2820\u2826' : '\u2820\u2834'); // UEB ⠠⠦/⠠⠴
+                pushTok({ text: ch, braille: b }); i++; continue;
+            }
+            // isAposContext: fall through 到英文 run 判斷
+        }
+
+        // 自定義規則（最長優先）
+        const cr = customRuleMatch(text, i);
+        if (cr) {
+            pushTok({ text: cr.text, braille: cr.braille, isCustom: true });
+            i += cr.text.length;
+            continue;
+        }
+
+        // ── 英數混合串（含撇號縮寫 'd/'ll/'re/'s/'t/'ve/'m/'n 等）──
+        // 收集連續字母和數字（不含空格），並在其後貪婪地吸收 'suffix
+        if (/[a-zA-Z0-9]/.test(ch)) {
+            let run = '';
+            while (i < text.length && /[a-zA-Z0-9]/.test(text[i])) {
+                run += text[i]; i++;
+            }
+            // 嘗試吸收後接的撇號縮寫（如 's、'd、'll、're、've、't、'm、'n）
+            // 撇號可以是 ' (U+0027)、' (U+2019)、' (U+2018)
+            const APOS = new Set(["'", '\u2019', '\u2018']);
+            // 縮寫後綴（不含前置撇號）
+            const CONTRACTION_SFXS = ["ve","ll","re","d","s","t","m","n"];
+            if (i < text.length && APOS.has(text[i])) {
+                // 看後面接的字母串是不是縮寫後綴
+                let sfxLen = 0;
+                for (const sfx of CONTRACTION_SFXS.sort((a,b)=>b.length-a.length)) {
+                    if (text.slice(i+1, i+1+sfx.length).toLowerCase() === sfx
+                        && (i+1+sfx.length >= text.length || !/[a-zA-Z0-9]/.test(text[i+1+sfx.length]))) {
+                        sfxLen = sfx.length;
+                        break;
+                    }
+                }
+                if (sfxLen > 0) {
+                    // 吸收撇號 + 後綴到 run 中，以特殊分隔符記錄撇號位置
+                    const apostrophe = text[i];
+                    const suffix = text.slice(i+1, i+1+sfxLen);
+                    run = run + apostrophe + suffix;
+                    i += 1 + sfxLen;
+                } else {
+                    // 無縮寫後綴：可能是所有格尾（students'）
+                    // 排除條件：後面緊接引號類字元（表示這是引號內最後一詞，撇號是閉引號）
+                    const nextAfterApos = i + 1 < text.length ? text[i + 1] : '';
+                    const nextIsQuote = /[\u2018\u2019\u201c\u201d\u0022]/.test(nextAfterApos);
+                    if (!/[A-Za-z0-9]/.test(nextAfterApos) && !nextIsQuote) {
+                        run = run + text[i]; // 吸收 '/'/' 本身（所有格尾）
+                        i += 1;
+                    }
+                }
+            }
+
+        // 翻譯 run（可能含撇號）
+        // ── Nemeth 模式：純數字 run → 用 Nemeth 下位數字 ──
+        // 但題號格式（數字後接 . 再接空格/換行）例外：維持 UEB 上位格式
+        let b;
+        const hasAlnum = /[a-zA-Z0-9]/.test(run);
+        const hasDigit = /[0-9]/.test(run);
+        const hasAlpha = /[a-zA-Z]/.test(run);
+
+        // 偵測題號：run 全是數字，且後方緊接 '.' 再接空格/換行/行末
+        const isQNum = isNemethMode() && hasDigit && !hasAlpha &&
+            /^\d+$/.test(run) &&
+            text[i] === '.' &&
+            (i + 1 >= text.length || text[i + 1] === ' ' || text[i + 1] === '\u2800' || text[i + 1] === '\n');
+
+        if (isNemethMode() && hasDigit && !hasAlpha && !isQNum) {
+            // 純數字 → Nemeth
+            // 關鍵：檢查前一個非空格 token 是否為 Nemeth 運算符號
+            // 若是，則跳過數字號（§3.4.1：緊接運算符後不加⠼）
+            let prevNonSpaceTok = null;
+            for (let ti = tokens.length - 1; ti >= 0; ti--) {
+                if (!tokens[ti].isSpace && !tokens[ti].isLineBreak) {
+                    prevNonSpaceTok = tokens[ti]; break;
+                }
+            }
+            const skipNumsign = prevNonSpaceTok && prevNonSpaceTok.isNemethOp === true;
+            b = translateNemethInline(run, skipNumsign);
+        } else if (isNemethMode() && hasDigit && hasAlpha) {
+            // Nemeth 英數混合（如 3x、2y、3a）
+            // Nemeth 下位數字與字母字形不重疊，數字後的字母不需字母指示符 ⠰
+            let prevNonSpaceTok = null;
+            for (let ti = tokens.length - 1; ti >= 0; ti--) {
+                if (!tokens[ti].isSpace && !tokens[ti].isLineBreak) {
+                    prevNonSpaceTok = tokens[ti]; break;
+                }
+            }
+            const skipNumsign = prevNonSpaceTok && prevNonSpaceTok.isNemethOp === true;
+            b = '';
+            let inN = false;
+            for (let ci = 0; ci < run.length; ci++) {
+                const c = run[ci];
+                if (/[0-9]/.test(c)) {
+                    if (!inN) {
+                        if (!(ci === 0 && skipNumsign)) b += NEMETH_NUMSIGN;
+                        inN = true;
+                    }
+                    b += NEMETH_DIGIT[c];
+                } else if (/[a-zA-Z]/.test(c)) {
+                    inN = false;
+                    if (/[A-Z]/.test(c)) b += CAP1;
+                    b += UEB_ALPHA[c.toLowerCase()] || c;
+                } else {
+                    inN = false;
+                    b += c;
+                }
+            }
+        } else {
+            b = translateWordWithApos(run, mode());
+        }
+
+        // 偵測是否使用了縮寫（G2/自定模式下，與 G1 輸出不同即為縮寫）
+        let isContraction = false;
+        if (hasAlpha && (mode() === 'ueb-g2' || mode() === 'ueb-custom')) {
+            const g1b = translateWordWithApos(run, 'ueb-g1');
+            isContraction = (b !== g1b);
+        }
+            pushTok({
+                text: run,
+                braille: b,
+                isEnglish: hasAlpha,
+                isNumber: !hasAlpha && hasDigit,
+                isContraction: isContraction
+            });
+            continue;
+        }
+
+        // ── 標點 ────────────────────────────────────────────────
+        // Nemeth 模式：數學符號優先用 Nemeth 碼
+        if (isNemethMode() && NEMETH_MATH_PUNCT[ch]) {
+            // 標記是運算符號還是關係符號，供後面數字 token 判斷是否需要數字號
+            const isOp  = new Set(['+','-','−','×','÷','/','*','·','±','∓']).has(ch);
+            const isRel = new Set(['=','<','>','≤','≥','≠','≈','≡','∼','~']).has(ch);
+            // 關係符號前後強制空格（不管原文有無空格）
+            if (isRel) {
+                // 前空格：若前一個 token 不是空格，插入一個
+                if (tokens.length > 0 && !tokens[tokens.length - 1].isSpace && !tokens[tokens.length - 1].isLineBreak) {
+                    pushTok({ text:'空', braille:'\u2800', isSpace:true, isAutoSpace:true });
+                }
+            }
+            pushTok({
+                text: ch,
+                braille: NEMETH_MATH_PUNCT[ch],
+                isNemeth: true,
+                isNemethOp:  isOp,
+                isNemethRel: isRel,
+            });
+            i++;
+            // 關係符號後：跳過原文中的空格，並插入一個強制空格
+            if (isRel) {
+                while (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
+                pushTok({ text:'空', braille:'\u2800', isSpace:true, isAutoSpace:true });
+            }
+            continue;
+        }
+        // Nemeth 模式：特殊數學符號（多字元 Unicode）— 已含在上面的 NEMETH_MATH_PUNCT
+        if (isNemethMode()) {
+            const nmb = NEMETH_MATH_PUNCT[ch];
+            if (nmb) { pushTok({ text: ch, braille: nmb, isNemeth: true }); i++; continue; }
+        }
+
+        // ── Nemeth 模式：題號句點（數字後的 . 跟著空格/換行/行末）→ 用上位 UEB ⠲ ──
+        // 判斷方式：往前掃描跳過空格，找到前一個非空格 token，若為數字 token
+        // 且後面接空格或換行（題號格式 "1. " "10. "），則用 UEB 上位句號
+        if (isNemethMode() && ch === '.') {
+            // 往前找最近一個非空格 token
+            let prevNonSpace = null;
+            for (let ti = tokens.length - 1; ti >= 0; ti--) {
+                if (!tokens[ti].isSpace) { prevNonSpace = tokens[ti]; break; }
+            }
+            const nextCh = i + 1 < text.length ? text[i + 1] : '';
+            const isAfterNumber = prevNonSpace && prevNonSpace.isNumber;
+            const isFollowedByBreak = (nextCh === ' ' || nextCh === '\u2800' || nextCh === '\n' || i + 1 >= text.length);
+            if (isAfterNumber && isFollowedByBreak) {
+                // 題號句點：上位 UEB ⠲，不加終止空格（題號後空格由原文的空格處理）
+                pushTok({ text: ch, braille: '\u2832' }); // ⠲ dots 256
+                i++;
+                continue;
+            }
+        }
+
+        const p = getPunct(ch, text, i);
+        if (p) {
+            pushTok({ text: ch, braille: p }); i++;
+            if (TERMINAL.has(ch)) {
+                pushTok({ text:'空', braille:'\u2800', isSpace:true });
+                if (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
+            }
+            continue;
+        }
+
+        // 中文 / 其他字元
+        const b = zhMap.get(ch) || ch;
+        pushTok({ text: ch, braille: b }); i++;
+        if (TERMINAL.has(ch)) {
+            pushTok({ text:'空', braille:'\u2800', isSpace:true });
+            if (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
+        }
+    }
+    finalizeSrc(); // 補上最後一個 token 的 srcEnd
+
+    // ── 中英文邊界自動插入空格 ──────────────────────────────────
+    // 規則：CJK 字元和英數之間，若沒有空格則自動插入一個空格 token
+    const CJK_RE = /[\u2E80-\u9FFF\uF900-\uFAFF\uFE30-\uFE4F]/;
+    const spaced = [];
+    for (let ti = 0; ti < tokens.length; ti++) {
+        const cur  = tokens[ti];
+        const prev = spaced.length ? spaced[spaced.length - 1] : null;
+
+        // 只在 prev 和 cur 都不是空白/換行時才考慮插入
+        if (prev && !prev.isSpace && !prev.isLineBreak &&
+                    !cur.isSpace  && !cur.isLineBreak) {
+            const prevLastCh = prev.text ? prev.text[prev.text.length - 1] : '';
+            const curFirstCh = cur.text  ? cur.text[0]                     : '';
+            const prevIsCJK  = CJK_RE.test(prevLastCh);
+            const curIsCJK   = CJK_RE.test(curFirstCh);
+            const prevIsAlnum = !prevIsCJK && (prev.isEnglish || prev.isNumber);
+            const curIsAlnum  = !curIsCJK  && (cur.isEnglish  || cur.isNumber);
+            if ((prevIsCJK && curIsAlnum) || (prevIsAlnum && curIsCJK)) {
+                spaced.push({ text:'空', braille:'\u2800', isSpace:true, isAutoSpace:true });
+            }
+        }
+        spaced.push(cur);
+    }
+    return spaced;
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function currentIsAscii() {
+    return document.querySelector('input[name="output-format"]:checked').value === 'ascii';
+}
+function unicodeToAscii(str) {
+    return Array.from(str).map(c => BR_TO_ASCII[c] !== undefined ? BR_TO_ASCII[c] : c).join('');
+}
+
+// ── parallel view ────────────────────────────────────────────
+function renderParallelView(tokens) {
+    window._lastTokens = tokens;  // save for checkbox re-render
+    const isAscii = currentIsAscii();
+    const highlightCon = document.getElementById('highlight-contractions') &&
+                         document.getElementById('highlight-contractions').checked;
+    const legendEl = document.getElementById('contraction-legend');
+    if (legendEl) legendEl.style.display = highlightCon ? '' : 'none';
+    const view = document.getElementById('parallel-view');
+    view.innerHTML = '';
+
+    tokens.forEach(t => {
+        if (t.isAutoBreak) {
+            const br = document.createElement('div');
+            br.className = 'line-break'; view.appendChild(br);
+            return;
+        }
+        if (t._hiddenTrailingSpace) return;
+        if (t.isLineBreak) {
+            const br = document.createElement('div');
+            br.className = 'line-break'; view.appendChild(br);
+            return;
+        }
+        const dispB = isAscii ? unicodeToAscii(t.braille) : t.braille;
+        const g = document.createElement('div');
+        let cls = 'token-group';
+        if (t.isSpace)   cls += ' token-space';
+        if (t.isCustom)  cls += ' custom-rule';
+        if (highlightCon && t.isContraction) cls += ' is-contraction';
+        if (t.isNemeth || (isNemethMode() && t.isNumber)) cls += ' is-nemeth';
+        g.className = cls;
+        g.innerHTML = `<div class="token-text">${escHtml(t.text)}</div>`
+                    + `<div class="token-braille ${isAscii?'font-ascii':'font-unicode'}">${escHtml(dispB)}</div>`;
+
+        // 直接用 token 的來源字元範圍跳轉
+        if (t.srcStart !== undefined) {
+            const s = t.srcStart;
+            const e = (t.srcEnd > t.srcStart) ? t.srcEnd : t.srcStart + 1;
+            g.title  = '點擊跳至輸入區對應位置';
+            g.style.cursor = 'pointer';
+            g.addEventListener('click', function() {
+                parallelJumpToOffset(s, e);
+            });
+        }
+
+        view.appendChild(g);
+    });
+}
+
+// 點擊雙視 block → 選取對應文字
+function parallelJumpToOffset(selStart, selEnd) {
+    const ta = document.getElementById('input-text');
+    if (!ta) return;
+
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(selStart, selEnd);
+
+    const orig = ta.style.outline;
+    ta.style.outline = '3px solid #ff9800';
+    setTimeout(function() { ta.style.outline = orig; }, 600);
+}
+
+// ════════════════════════════════════════════════════════════
+//  自定義點字 textarea 六點輸入
+// ════════════════════════════════════════════════════════════
+const ruleBrailleTA = document.getElementById('rule-braille-input');
+let ruleComposerBits = 0;
+let ruleChordFired   = false;
+
+ruleBrailleTA.addEventListener('keydown', function(e) {
+    const code = e.keyCode;
+    if ([8, 46, 37, 38, 39, 40, 9, 13].includes(code)) {
+        ruleComposerBits = 0; ruleChordFired = false;
+        return;
+    }
+    if (code === 32) {
+        e.preventDefault();
+        insertRuleCell('\u2800');
+        ruleComposerBits = 0; ruleChordFired = false;
+        return;
+    }
+    const dotBit = { 83:4, 68:2, 70:1, 74:8, 75:16, 76:32 }[code];
+    if (dotBit !== undefined) { e.preventDefault(); ruleComposerBits |= dotBit; return; }
+    e.preventDefault();
+});
+
+ruleBrailleTA.addEventListener('keyup', function(e) {
+    const dotBit = { 83:4, 68:2, 70:1, 74:8, 75:16, 76:32 }[e.keyCode];
+    if (dotBit === undefined) return;
+    if (!ruleChordFired && ruleComposerBits > 0) {
+        insertRuleCell(String.fromCharCode(0x2800 + ruleComposerBits));
+        ruleChordFired = true;
+    }
+    ruleComposerBits &= ~dotBit;
+    if (ruleComposerBits === 0) ruleChordFired = false;
+});
+
+function insertRuleCell(unicodeCell) {
+    const isAscii = document.getElementById('rule-braille-ascii-mode').checked;
+    const ch = isAscii ? (BR_TO_ASCII[unicodeCell] || unicodeCell) : unicodeCell;
+    const pos = ruleBrailleTA.selectionStart;
+    const val = ruleBrailleTA.value;
+    ruleBrailleTA.value = val.slice(0, pos) + ch + val.slice(ruleBrailleTA.selectionEnd);
+    ruleBrailleTA.setSelectionRange(pos + 1, pos + 1);
+}
+
+function clearRuleBraille() {
+    ruleBrailleTA.value = '';
+    ruleBrailleTA.focus();
+}
+
+function toggleRuleAsciiMode() {
+    const isAscii = document.getElementById('rule-braille-ascii-mode').checked;
+    const current = ruleBrailleTA.value;
+    if (isAscii) {
+        ruleBrailleTA.value = unicodeToAscii(current);
+        ruleBrailleTA.classList.add('ascii-font');
+    } else {
+        if (!toggleRuleAsciiMode._rev) {
+            toggleRuleAsciiMode._rev = {};
+            for (const [u,a] of Object.entries(BR_TO_ASCII)) toggleRuleAsciiMode._rev[a] = u;
+        }
+        ruleBrailleTA.value = Array.from(current).map(c => toggleRuleAsciiMode._rev[c] || c).join('');
+        ruleBrailleTA.classList.remove('ascii-font');
+    }
+}
+
+function getRuleBrailleUnicode() {
+    const isAscii = document.getElementById('rule-braille-ascii-mode').checked;
+    if (!getRuleBrailleUnicode._rev) {
+        getRuleBrailleUnicode._rev = {};
+        for (const [u,a] of Object.entries(BR_TO_ASCII)) getRuleBrailleUnicode._rev[a] = u;
+    }
+    const val = ruleBrailleTA.value;
+    if (!isAscii) return val;
+    return Array.from(val).map(c => getRuleBrailleUnicode._rev[c] || c).join('');
+}
+
+// ── 點陣輔助（可收合） ───────────────────────────────────────
+let dotGridBits = 0;
+
+function toggleDotGrid() {
+    const panel  = document.getElementById('dot-grid-panel');
+    const btn    = document.getElementById('dot-grid-toggle');
+    const open   = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+}
+
+document.getElementById('dot-grid').addEventListener('click', function(e) {
+    const btn = e.target.closest('.dot-btn');
+    if (!btn) return;
+    const bit = 1 << (parseInt(btn.dataset.dot) - 1);
+    dotGridBits ^= bit;
+    const pressed = !!(dotGridBits & bit);
+    btn.classList.toggle('active', pressed);
+    btn.setAttribute('aria-pressed', String(pressed));
+    document.getElementById('dot-preview').textContent =
+        String.fromCharCode(0x2800 + dotGridBits);
+});
+
+function dotGridAddCell() {
+    const ch = String.fromCharCode(0x2800 + (dotGridBits || 0));
+    insertRuleCell(ch);
+    dotGridClearDots();
+    ruleBrailleTA.focus();
+}
+
+function dotGridClearDots() {
+    dotGridBits = 0;
+    document.querySelectorAll('#dot-grid .dot-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+    });
+    document.getElementById('dot-preview').textContent = '⠀';
+}
+
+// ════════════════════════════════════════════════════════════
+//  規則 CRUD
+// ════════════════════════════════════════════════════════════
+function addCustomRule() {
+    const textInput = document.getElementById('rule-text-input');
+    const ruleText  = textInput.value.trim();
+    if (!ruleText) { alert('請填入印刷字'); return; }
+    const ruleBraille = getRuleBrailleUnicode();
+    if (!ruleBraille) { alert('請在點字欄位輸入至少一個點字格'); return; }
+    // Prevent duplicates
+    if (customRules.some(r => r.text === ruleText)) {
+        if (!confirm(`「${ruleText}」已存在規則，要覆蓋嗎？`)) return;
+        customRules = customRules.filter(r => r.text !== ruleText);
+    }
+    customRules.push({ text: ruleText, braille: ruleBraille });
+    // Sort by length descending for longest-match
+    customRules.sort((a,b) => b.text.length - a.text.length);
+    // Reset form
+    textInput.value = '';
+    ruleBrailleTA.value = '';
+    ruleBrailleTA.focus();
+    renderRulesTable();
+    render();
+}
+
+function deleteRule(idx) {
+    customRules.splice(idx, 1);
+    renderRulesTable();
+    render();
+}
+
+function clearAllRules() {
+    if (customRules.length === 0) return;
+    if (!confirm('確定要清除所有自定義規則？')) return;
+    customRules = [];
+    renderRulesTable();
+    render();
+}
+
+function renderRulesTable() {
+    const tbody = document.getElementById('rules-tbody');
+    const countEl = document.getElementById('rules-count');
+    const badge   = document.getElementById('custom-count-badge');
+    countEl.textContent = `共 ${customRules.length} 條規則`;
+    badge.textContent   = customRules.length > 0 ? `（${customRules.length} 條）` : '';
+
+    if (customRules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="rules-empty">尚無自定義規則</td></tr>';
+        return;
+    }
+    const isAscii = currentIsAscii();
+    tbody.innerHTML = '';
+    customRules.forEach((rule, idx) => {
+        const asciiB = unicodeToAscii(rule.braille);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:#aaa;font-size:0.85em;">${idx+1}</td>
+            <td class="td-text">${escHtml(rule.text)}</td>
+            <td class="td-braille">${escHtml(rule.braille)}</td>
+            <td class="td-braille ascii-mode">${escHtml(asciiB)}</td>
+            <td class="td-del"><button onclick="deleteRule(${idx})">刪除</button></td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// ── Import / Export ──────────────────────────────────────────
+function exportRules() {
+    if (customRules.length === 0) { alert('目前無規則可匯出'); return; }
+    const json = JSON.stringify(customRules, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'custom_braille_rules.json';
+    a.click();
+}
+
+function importRules() {
+    document.getElementById('import-file-input').click();
+}
+
+function handleImportFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            const data = JSON.parse(ev.target.result);
+            if (!Array.isArray(data)) throw new Error('格式錯誤');
+            let added = 0, skipped = 0;
+            data.forEach(rule => {
+                if (!rule.text || !rule.braille) { skipped++; return; }
+                if (customRules.some(r => r.text === rule.text)) { skipped++; return; }
+                customRules.push({ text: rule.text, braille: rule.braille });
+                added++;
+            });
+            customRules.sort((a,b) => b.text.length - a.text.length);
+            renderRulesTable();
+            render();
+            alert(`匯入完成：新增 ${added} 條，略過 ${skipped} 條（重複）`);
+        } catch(err) {
+            alert('匯入失敗：' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+}
+
+// ── Collapsible panel ────────────────────────────────────────
+document.getElementById('custom-rules-toggle').addEventListener('click', function() {
+    const expanded = this.getAttribute('aria-expanded') === 'true';
+    this.setAttribute('aria-expanded', String(!expanded));
+    document.getElementById('custom-rules-body').classList.toggle('open', !expanded);
+});
+
+// ════════════════════════════════════════════════════════════
+//  匯出
+// ════════════════════════════════════════════════════════════
+function downloadTxt() {
+    const blob=new Blob([document.getElementById('output-text').value],{type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='braille_result.txt'; a.click();
+}
+function downloadParallelHtml() {
+    const fs=document.getElementById('font-size-slider').value;
+    const html=`<html><head><meta charset="UTF-8"><style>
+        @font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+        body{font-family:sans-serif;padding:20px}
+        .token-group{display:inline-flex;flex-direction:column;align-items:center;padding:5px;
+          border:1px solid #a5d6a7;background:#f1f8e9;border-radius:4px;margin:3px}
+        .token-text{font-size:${fs*.6}px;color:#388e3c;border-bottom:1px solid #c8e6c9;width:100%;text-align:center}
+        .token-braille{font-size:${fs*1.3}px;color:#2e7d32}
+        .token-space{background:#fffde7 !important;border-color:#fff176 !important}
+        .token-space .token-text{color:#f9a825 !important}
+        .token-space .token-braille{color:#f9a825 !important}
+        .custom-rule{background:#fff3e0 !important;border-color:#ffb74d !important}
+        .custom-rule .token-braille{color:#e65100}
+        .custom-rule .token-text{color:#ef6c00}
+        .font-ascii{font-family:'SimBraille'}
+        .line-break{display:block;width:100%;height:10px;border-top:2px solid #000;margin:10px 0}
+    <\/style><\/head><body>${document.getElementById('parallel-view').innerHTML}<script src="shared.js"><\/script>\n<\/body><\/html>`;
+    const blob=new Blob([html],{type:'text/html'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='parallel_check.html'; a.click();
+}
+
+// ════════════════════════════════════════════════════════════
+//  事件 & 初始化
+// ════════════════════════════════════════════════════════════
+function updateStatus() {
+    if (!isLoaded) return;
+    const modeVal = document.getElementById('en-mode').value;
+    const modeLabel = {'comp8':'電腦八點','ueb-g1':'UEB G1','ueb-g2':'UEB G2','ueb-custom':'UEB 自定'}[modeVal] || modeVal;
+    const louLabel = LOU.isReady() ? '｜liblouis ✓' : '｜liblouis ✗';
+    const st=document.getElementById('rules-status');
+    st.className='rules-status ok';
+    st.textContent=`規則載入完成（中文 ${zhMap.size} 字元，英文：${modeLabel}${louLabel}）`;
+}
+
+document.getElementById('font-size-slider').addEventListener('input', e=>{
+    document.documentElement.style.setProperty('--base-font-size',e.target.value+'px');
+    document.getElementById('font-size-val').textContent=e.target.value+'px';
+});
+document.getElementById('input-text').addEventListener('input', function() {
+    if (_suppressInput) return;
+    if (brailleInputMode) syncBrailleDirectOutput();
+    else render();
+});
+document.getElementById('cell-limit').addEventListener('input', render);
+
+// ════════════════════════════════════════════════════════════
+//  點字直接輸入模式（Ctrl+B）
+//  — 與自定義規則區共用同一套六點輸入邏輯（bit map、insertRuleCell）
+// ════════════════════════════════════════════════════════════
+let brailleInputMode = false;
+const inputTA = document.getElementById('input-text');
+const bmiPanel = document.getElementById('braille-mode-indicator');
+
+function setBrailleInputMode(active) {
+    brailleInputMode = active;
+    ruleComposerBits = 0;
+    ruleChordFired   = false;
+    bmiPanel.classList.toggle('active', active);
+    // 同步格式調整 modal 裡的按鈕狀態
+    var fmtBtn = document.getElementById('btn-ftb-braille');
+    if (fmtBtn) {
+        fmtBtn.style.background = active ? '#283593!important' : '#5c6bc0!important';
+        fmtBtn.textContent = active ? '⠿ 點字輸入中…' : '⠿ 點字輸入';
+    }
+    if (active) {
+        syncBrailleParallelView(); // 進入模式：只更新雙視區，輸出區保留原點字
+    } else {
+        render(); // 離開時重新翻譯
+    }
+}
+
+window.fmtToggleBrailleInput = function() {
+    setBrailleInputMode(!brailleInputMode);
+    // 焦點移到 fmt-textarea，讓六點輸入可直接在格式調整區使用
+    var fmtTa = document.getElementById('fmt-textarea');
+    if (fmtTa) fmtTa.focus();
+};
+
+// 把一個 Unicode 點字格插入主輸入框，並同步輸出區
+
+function syncBrailleDirectOutput() {
+    const outArea = document.getElementById('output-text');
+    const isAscii = currentIsAscii();
+    const val = inputTA.value;
+    outArea.value = isAscii
+        ? Array.from(val).map(c => BR_TO_ASCII[c] !== undefined ? BR_TO_ASCII[c] : c).join('')
+        : val;
+    outArea.className = isAscii ? 'font-ascii' : 'font-unicode';
+    syncBrailleParallelView();
+}
+
+// 只更新雙視區，不動輸出區（供進入點字模式時使用）
+function syncBrailleParallelView() {
+    const val = inputTA.value;
+    const tokens = [];
+    for (const c of val) {
+        if (c === '\n') {
+            tokens.push({ text:'↵', braille:'\n', isLineBreak:true });
+        } else if (c === '\u2800' || c === ' ') {
+            tokens.push({ text:'空', braille:'\u2800', isSpace:true });
+        } else if (c >= '\u2801' && c <= '\u28FF') {
+            const cp = c.charCodeAt(0) - 0x2800;
+            const dots = [1,2,3,4,5,6].filter(d => cp & (1 << (d-1))).join('');
+            tokens.push({ text: dots ? `點${dots}` : '⠀', braille: c });
+        } else {
+            tokens.push({ text: c, braille: c });
+        }
+    }
+    renderParallelView(tokens);
+}
+
+let _suppressInput = false;
+
+// 共用六點輸入處理：在任意 textarea 插入一個點字格
+function insertBrailleCellInto(ta, unicodeCell) {
+    const isAscii = currentIsAscii();
+    const ch = isAscii ? (BR_TO_ASCII[unicodeCell] || unicodeCell) : unicodeCell;
+    const pos = ta.selectionStart;
+    const val = ta.value;
+    _suppressInput = true;
+    ta.value = val.slice(0, pos) + ch + val.slice(ta.selectionEnd);
+    ta.setSelectionRange(pos + 1, pos + 1);
+    _suppressInput = false;
+    // 只有主輸入框才同步雙視區；格式調整區不需要
+    if (ta === inputTA) syncBrailleDirectOutput();
+}
+
+// 共用 keydown 處理邏輯
+function handleBrailleKeydown(e, ta) {
+    if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setBrailleInputMode(!brailleInputMode);
+        return;
+    }
+    if (!brailleInputMode) return;
+
+    const code = e.keyCode;
+
+    if (code === 27) { e.preventDefault(); setBrailleInputMode(false); return; }
+    if (e.ctrlKey || e.metaKey) { ruleComposerBits = 0; ruleChordFired = false; return; }
+    if ([8, 46, 35, 36, 33, 34, 37, 38, 39, 40, 9, 13].includes(code)) {
+        ruleComposerBits = 0; ruleChordFired = false; return;
+    }
+    if (code === 32) {
+        e.preventDefault();
+        insertBrailleCellInto(ta, '\u2800');
+        ruleComposerBits = 0; ruleChordFired = false;
+        return;
+    }
+    const dotBit = { 83:4, 68:2, 70:1, 74:8, 75:16, 76:32 }[code];
+    if (dotBit !== undefined) { e.preventDefault(); ruleComposerBits |= dotBit; return; }
+    e.preventDefault();
+}
+
+// 共用 keyup 處理邏輯
+function handleBrailleKeyup(e, ta) {
+    if (!brailleInputMode) return;
+    const dotBit = { 83:4, 68:2, 70:1, 74:8, 75:16, 76:32 }[e.keyCode];
+    if (dotBit === undefined) return;
+    if (!ruleChordFired && ruleComposerBits > 0) {
+        insertBrailleCellInto(ta, String.fromCharCode(0x2800 + ruleComposerBits));
+        ruleChordFired = true;
+    }
+    ruleComposerBits &= ~dotBit;
+    if (ruleComposerBits === 0) ruleChordFired = false;
+}
+
+// 主輸入框
+inputTA.addEventListener('keydown', function(e) { handleBrailleKeydown(e, inputTA); });
+inputTA.addEventListener('keyup',   function(e) { handleBrailleKeyup(e, inputTA); });
+
+// 格式調整 textarea（DOM 尚未建立，用事件委派掛在 document）
+document.addEventListener('keydown', function(e) {
+    if (e.target && e.target.id === 'fmt-textarea') handleBrailleKeydown(e, e.target);
+});
+document.addEventListener('keyup', function(e) {
+    if (e.target && e.target.id === 'fmt-textarea') handleBrailleKeyup(e, e.target);
+});
+document.getElementById('en-mode').addEventListener('change', ()=>{
+    const val = document.getElementById('en-mode').value;
+    const panel = document.getElementById('ueb-custom-panel');
+    panel.classList.toggle('visible', val === 'ueb-custom');
+    updateStatus();
+    render();
+});
+// Attach change listeners to UEB custom checkboxes
+document.querySelectorAll('#ueb-custom-panel input[name="ucp"]').forEach(cb => {
+    cb.addEventListener('change', () => { ucpUpdateGroupMaster(cb); render(); });
+});
+ucpUpdateSummary();
+document.querySelectorAll('input[name="output-format"]').forEach(r=>r.addEventListener('change', ()=>{
+    render();
+    renderRulesTable();
+}));
+
+
+// ════════════════════════════════════════════════════════════
+//  UEB 自定縮寫規則輔助
+// ════════════════════════════════════════════════════════════
+
+// 取得目前勾選的縮寫規則集合
+function ucpEnabled() {
+    const checked = new Set();
+    document.querySelectorAll('#ueb-custom-panel input[name="ucp"]:checked').forEach(cb => {
+        checked.add(cb.value);
+    });
+    return checked;
+}
+
+// 全選 / 全不選
+function ucpSetAll(state) {
+    document.querySelectorAll('#ueb-custom-panel input[name="ucp"], #ueb-custom-panel .ucp-group-cb').forEach(cb => {
+        cb.checked = state;
+        cb.indeterminate = false;
+    });
+    ucpUpdateSummary();
+    render();
+}
+
+// 折疊/展開
+function ucpTogglePanel() {
+    const btn = document.getElementById('ucp-toggle');
+    const body = document.getElementById('ucp-body');
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!expanded));
+    body.classList.toggle('collapsed', expanded);
+}
+
+// 更新標頭摘要（折疊時顯示各組狀態）
+function ucpUpdateSummary() {
+    const groups = [
+        { grp: 'grp_alpha',  label: 'ALPHA' },
+        { grp: 'grp_strong', label: 'STRONG' },
+        { grp: 'grp_lower',  label: 'LOWER' },
+        { grp: 'grp_suffix', label: 'FINAL' },
+        { grp: 'grp_word',   label: 'WORD' },
+    ];
+    const parts = groups.map(function(g) {
+        const master = document.querySelector('#ueb-custom-panel .ucp-group-cb[data-group="' + g.grp + '"]');
+        if (!master) return null;
+        const icon = master.indeterminate ? '◐' : (master.checked ? '✓' : '✗');
+        return icon + g.label;
+    }).filter(Boolean);
+    const el = document.getElementById('ucp-summary');
+    if (el) el.textContent = parts.join('  ');
+}
+function ucpToggleGroup(masterCb) {
+    const grp = masterCb.dataset.group;
+    const children = document.querySelectorAll('#ueb-custom-panel input[name="ucp"][data-group="' + grp + '"]');
+    children.forEach(function(cb) { cb.checked = masterCb.checked; });
+    masterCb.indeterminate = false;
+    ucpUpdateSummary();
+    render();
+}
+
+// 子項變更時更新類別總核取方塊狀態
+function ucpUpdateGroupMaster(childCb) {
+    const grp = childCb.dataset.group;
+    if (!grp) return;
+    const master = document.querySelector('#ueb-custom-panel .ucp-group-cb[data-group="' + grp + '"]');
+    if (!master) return;
+    const children = document.querySelectorAll('#ueb-custom-panel input[name="ucp"][data-group="' + grp + '"]');
+    const total = children.length;
+    const checked = Array.from(children).filter(function(c) { return c.checked; }).length;
+    master.checked = checked === total;
+    master.indeterminate = checked > 0 && checked < total;
+    ucpUpdateSummary();
+}
+
+// 根據 UCP 設定，過濾 G2 各縮寫表，回傳套用的動態版本
+function buildCustomG2Tables() {
+    const en = ucpEnabled();
+
+    // ── ALWAYS（強縮寫：ch/sh/th/wh/ou/st/gh/ed/er/ow/ar + 強組合）──
+    let always = {};
+    if (en.has('strong_contractions')) {
+        // and, for, of, the, with（G2_ALWAYS 中有）
+        for (const k of ['and','for','of','the','with']) {
+            if (G2_ALWAYS[k]) always[k] = G2_ALWAYS[k];
+        }
+    }
+    if (en.has('gs_ch_sh')) {
+        for (const k of ['ch','sh','th','wh','ou','st','gh']) {
+            if (G2_ALWAYS[k]) always[k] = G2_ALWAYS[k];
+        }
+    }
+    if (en.has('gs_ed_er')) {
+        for (const k of ['ed','er','ow','ar','ing']) {
+            if (G2_ALWAYS[k]) always[k] = G2_ALWAYS[k];
+        }
+    }
+    // 其餘 G2_ALWAYS 項目（複合詞的整詞縮寫，含 word_contractions）
+    if (en.has('word_contractions')) {
+        for (const [k,v] of Object.entries(G2_ALWAYS)) {
+            if (!always[k]) always[k] = v;
+        }
+    }
+
+    // ── ANYWHERE（in/en）──
+    let anywhere = {};
+    if (en.has('lg_en_in')) {
+        Object.assign(anywhere, G2_ANYWHERE);
+    }
+
+    // ── BEGWORD（con/dis/be）──
+    let begword = {};
+    if (en.has('lg_con_dis')) {
+        Object.assign(begword, G2_BEGWORD);
+    }
+
+    // ── MIDWORD（ea/bb/cc/ff/gg）──
+    let midword = {};
+    if (en.has('lg_ea_bb')) {
+        Object.assign(midword, G2_MIDWORD);
+    }
+
+    // ── MIDEND（Final-letter groupsigns split by indicator prefix）──
+    // ⠨ (dots 46): ance, ound, ount, less, sion  — and shared: ence (⠰⠑ not ⠨)
+    // ⠰ (dots 56): tion, ment, ness, ful, ity, ong
+    let midend = {};
+    if (en.has('suffix_dot46')) {
+        // ⠨-prefix groupsigns: sion ⠨⠝, ance ⠨⠑, ound ⠨⠙, ount ⠨⠞, less ⠨⠎
+        for (const k of ['sion','ance','ound','ount','less']) {
+            if (G2_MIDEND[k]) midend[k] = G2_MIDEND[k];
+        }
+        // ence is ⠰⠑ so belongs to dot56; but keep old suffix_tion compat here via dot46
+    }
+    if (en.has('suffix_dot56')) {
+        // ⠰-prefix groupsigns: tion ⠰⠝, ence ⠰⠑, ment ⠰⠞, ness ⠰⠎, ful ⠰⠇, ity ⠰⠽, ong ⠰⠛
+        for (const k of ['tion','ence','ment','ness','ful','ity','ong']) {
+            if (G2_MIDEND[k]) midend[k] = G2_MIDEND[k];
+        }
+    }
+    // ing is in G2_ALWAYS, handled above; but also appears in G2_MIDEND
+    if (en.has('gs_ed_er') && G2_MIDEND['ing']) {
+        midend['ing'] = G2_MIDEND['ing'];
+    }
+
+    // ── LOWWORD（his/was/were/enough）──
+    let lowword = {};
+    if (en.has('lw_words')) {
+        Object.assign(lowword, G2_LOWWORD);
+    }
+
+    // ── SUFWORD（be）──
+    let sufword = {};
+    if (en.has('lg_con_dis')) {
+        Object.assign(sufword, G2_SUFWORD);
+    }
+
+    // ── WORD（整詞縮寫，含字母 wordsigns、strong wordsigns、首字母縮寫、簡短字形）──
+    let word = {};
+
+    // Alphabetic wordsigns：b=but,c=can,d=do,e=every,f=from,g=go,h=have,j=just,
+    //   k=knowledge,l=like,m=more,n=not,p=people,q=quite,r=rather,s=so,t=that,
+    //   u=us,v=very,w=will,x=it,y=you
+    if (en.has('ws_alpha')) {
+        const WS_ALPHA_WORDS = ['but','can','do','every','from','go','have','just',
+            'knowledge','like','more','not','people','quite','rather','so','that',
+            'us','very','will','it','you','as'];
+        for (const w of WS_ALPHA_WORDS) {
+            if (G2_WORD[w]) word[w] = G2_WORD[w];
+        }
+    }
+    // Strong wordsigns：child,shall,this,which,out,still
+    if (en.has('ws_strong')) {
+        for (const w of ['child','shall','this','which','out','still']) {
+            if (G2_WORD[w]) word[w] = G2_WORD[w];
+        }
+    }
+
+    // Initial-letter contractions: dot-5 (⠐ U+2810), dot-45 (⠘ U+2818), dots-456 (⠸ U+2838)
+    if (en.has('init_con')) {
+        for (const [k, v] of Object.entries(G2_WORD)) {
+            if (v.startsWith('⠐') || v.startsWith('⠘') || v.startsWith('⠸')) word[k] = v;
+        }
+        for (const [k, v] of Object.entries(G2_ALWAYS)) {
+            if (v.startsWith('⠐') || v.startsWith('⠘') || v.startsWith('⠸')) always[k] = v;
+        }
+    }
+
+    // Shortform words: G2_WORD entries without indicator prefix,
+    // excluding words already owned by ws_alpha and ws_strong
+    const WS_ALPHA_SET = new Set(['but','can','do','every','from','go','have','just',
+        'knowledge','like','more','not','people','quite','rather','so','that',
+        'us','very','will','it','you','as']);
+    const WS_STRONG_SET = new Set(['child','shall','this','which','out','still']);
+    if (en.has('shortform')) {
+        for (const [k, v] of Object.entries(G2_WORD)) {
+            if (v.startsWith('⠐') || v.startsWith('⠘') || v.startsWith('⠸')) continue;
+            if (WS_ALPHA_SET.has(k) || WS_STRONG_SET.has(k)) continue;
+            word[k] = v;
+        }
+    }
+
+    return { always, anywhere, begword, midword, midend, lowword, sufword, word };
+}
+
+
+
+
+// ════════════════════════════════════════════════════════════
+//  開啟檔案（txt / docx / pdf）
+// ════════════════════════════════════════════════════════════
+function openFileDialog() { document.getElementById('open-file-input').click(); }
+
+function saveInputText() {
+    var text = document.getElementById('input-text').value;
+    if (!text.trim()) { alert('輸入區沒有文字可儲存'); return; }
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    // 用當前時間作為預設檔名
+    var now  = new Date();
+    var ts   = now.getFullYear() +
+               String(now.getMonth()+1).padStart(2,'0') +
+               String(now.getDate()).padStart(2,'0') + '_' +
+               String(now.getHours()).padStart(2,'0') +
+               String(now.getMinutes()).padStart(2,'0');
+    a.href     = url;
+    a.download = 'input_' + ts + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+
+
+
+// bt: show braille input button in format modal
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.shared-bt-only').forEach(function(el) {
+        el.style.removeProperty('display');
+        el.style.display = '';
+        el.classList.remove('shared-bt-only');
+    });
+});
+
+// ── 框架主題控制 ──
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'setTheme') {
+        document.documentElement.setAttribute('data-theme', e.data.theme);
+    }
+});
+
+loadRules();
+
+</script>
+<script src="shared.js"></script>
+</body>
+</html>

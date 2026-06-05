@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>視障輔助工具</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2e3350;
+    --accent: #4ade80;
+    --accent2: #22d3ee;
+    --accent3: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --tab-h: 48px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* ── Tab bar ── */
+  #tabbar {
+    display: flex;
+    align-items: stretch;
+    height: var(--tab-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    gap: 2px;
+    padding: 0 8px;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .icon { font-size: 1rem; }
+
+  /* ── iframe panels ── */
+  #panels {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - var(--tab-h));
+  }
+
+  .panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: none;
+  }
+  .panel.active { display: block; }
+
+  /* ── Home panel ── */
+  #home-panel {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 24px 64px;
+    background: var(--bg);
+  }
+  #home-panel.active { display: flex; }
+
+  .home-inner {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .home-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .home-subtitle {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+
+  .tool-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .tool-card:hover {
+    border-color: var(--card-accent, var(--accent));
+    transform: translateY(-1px);
+  }
+
+  .tool-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+  }
+
+  .tool-info { flex: 1; }
+  .tool-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tool-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--card-accent, var(--accent));
+    color: #000;
+    opacity: 0.85;
+  }
+  .tool-desc {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .tool-features {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .feat-tag {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .tool-arrow {
+    font-size: 1.2rem;
+    color: var(--muted);
+    flex-shrink: 0;
+    align-self: center;
+    transition: color 0.15s;
+  }
+  .tool-card:hover .tool-arrow { color: var(--card-accent, var(--accent)); }
+
+  .home-footer {
+    margin-top: 48px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<div id="tabbar">
+  <div class="tab active" data-target="home-panel">
+    <span class="icon">🏠</span> 主頁
+  </div>
+  <div class="tab" data-target="frame-bt">
+    <span class="icon">⠿</span> 點字翻譯
+  </div>
+  <div class="tab" data-target="frame-p2a">
+    <span class="icon">📄</span> PDF 友善文字
+  </div>
+  <div class="tab" data-target="frame-nc">
+    <span class="icon">⠼</span> Nemeth 轉換
+  </div>
+  <div class="tab" data-target="frame-g2">
+    <span class="icon">⠠</span> G2 反查
+  </div>
+  <div style="flex:1"></div>
+  <button id="theme-btn" onclick="toggleTheme()" style="
+    background:none;border:1px solid var(--border);color:var(--muted);
+    border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.82rem;
+    margin:auto 8px;white-space:nowrap;transition:color 0.15s,border-color 0.15s;
+  " title="切換深色/淺色">🌙 深色</button>
+</div>
+
+<div id="panels">
+
+  <div id="home-panel" class="active">
+    <div class="home-inner">
+      <div class="home-title">視障輔助工具集</div>
+      <div class="home-subtitle">
+        為視覺障礙教育設計的文字處理與點字轉換工具。<br>
+        所有工具均支援開啟檔案（TXT、DOCX、ODT、RTF、PDF）與格式整理功能。
+      </div>
+
+      <div class="tool-cards">
+
+        <div class="tool-card" style="--card-accent:#4ade80" onclick="switchTo('frame-bt')">
+          <div class="tool-icon">⠿</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              點字翻譯
+              <span class="tool-badge">UEB</span>
+            </div>
+            <div class="tool-desc">
+              將中文或英文文字即時轉換為 UEB 統一英文點字，支援 G1／G2 縮寫與 Comp8 電腦點字模式，
+              並提供雙視校對視圖，可逐字確認轉譯結果。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">UEB G1 / G2 / Comp8</span>
+              <span class="feat-tag">中英文混排</span>
+              <span class="feat-tag">雙視校對</span>
+              <span class="feat-tag">自定義縮寫規則</span>
+              <span class="feat-tag">六點鍵盤輸入</span>
+            </div>
+          </div>
+          <div class="tool-arrow">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')">
+          <div class="tool-icon">📄</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              PDF 轉視障友善文字
+              <span class="tool-badge" style="background:#22d3ee">TTS</span>
+            </div>
+            <div class="tool-desc">
+              將 PDF 或其他文件轉換為乾淨的純文字，去除頁首頁尾與排版雜訊，
+              適合語音報讀軟體使用。內建 TTS 語音預覽，可直接在瀏覽器中試聽。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">PDF 萃取</span>
+              <span class="feat-tag">頁首頁尾偵測</span>
+              <span class="feat-tag">格式自動整理</span>
+              <span class="feat-tag">TTS 語音預覽</span>
+              <span class="feat-tag">進階取代</span>
+            </div>
+          </div>
+          <div class="tool-arrow">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#f59e0b" onclick="switchTo('frame-nc')">
+          <div class="tool-icon">⠼</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              Nemeth 數學點字轉換
+              <span class="tool-badge" style="background:#f59e0b">Nemeth 2022</span>
+            </div>
+            <div class="tool-desc">
+              雙向轉換 LaTeX 數學式與 Nemeth 點字，支援分數、根號、上下標、矩陣等結構，
+              並提供即時 MathJax 預覽與數學式編輯器。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">LaTeX → Nemeth</span>
+              <span class="feat-tag">Nemeth → LaTeX</span>
+              <span class="feat-tag">MathJax 預覽</span>
+              <span class="feat-tag">數學式編輯器</span>
+              <span class="feat-tag">六點鍵盤輸入</span>
+            </div>
+          </div>
+          <div class="tool-arrow">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-g2')">
+          <div class="tool-icon">⠠</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              UEB G2 反向轉換
+              <span class="tool-badge" style="background:#a78bfa">G2 → 文字</span>
+            </div>
+            <div class="tool-desc">
+              將 UEB G2 縮寫點字反向還原為英文原文，並同步產生 Comp8 電腦點字對照。
+              支援 ASCII 點字與 Unicode 點字兩種輸入格式，預設六點鍵盤輸入。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">G2 → 英文原文</span>
+              <span class="feat-tag">Comp8 對照</span>
+              <span class="feat-tag">ASCII / Unicode 輸入</span>
+              <span class="feat-tag">逐格對照</span>
+              <span class="feat-tag">六點鍵盤預設開啟</span>
+            </div>
+          </div>
+          <div class="tool-arrow">›</div>
+        </div>
+
+      </div>
+
+      <div class="home-footer">
+        所有工具均可離線使用，不傳送任何資料至伺服器。<br>
+        適用於視障教育、輔具評估與點字教材製作。
+      </div>
+    </div>
+  </div>
+
+  <iframe id="frame-bt"  class="panel" src="braille-translate.htm"></iframe>
+  <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html"></iframe>
+  <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"></iframe>
+  <iframe id="frame-g2"  class="panel" src="g2-to-text.html"></iframe>
+
+</div>
+
+<script>
+  // ── Theme ──
+  let currentTheme = 'light';
+  function applyTheme(t) {
+    currentTheme = t;
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('site-theme', t); } catch(e) {}
+    document.getElementById('theme-btn').textContent = t === 'dark' ? '☀ 淺色' : '🌙 深色';
+    // Propagate to all loaded iframes
+    document.querySelectorAll('iframe').forEach(function(f) {
+      try { f.contentWindow.postMessage({type:'setTheme', theme:t}, '*'); } catch(e){}
+    });
+  }
+  function toggleTheme() { applyTheme(currentTheme === 'dark' ? 'light' : 'dark'); }
+
+  // When an iframe loads, send it the current theme
+  document.querySelectorAll('iframe').forEach(function(f) {
+    f.addEventListener('load', function() {
+      try { f.contentWindow.postMessage({type:'setTheme', theme:currentTheme}, '*'); } catch(e){}
+    });
+  });
+
+  // Apply default light theme to index itself
+  const indexTheme = {
+    light: { '--bg':'#f0f4f8', '--surface':'#ffffff', '--border':'#d1d9e6',
+             '--text':'#1a202c', '--muted':'#718096', '--accent':'#38a169',
+             '--accent2':'#3182ce', '--accent3':'#d69e2e' },
+    dark:  { '--bg':'#0f1117', '--surface':'#1a1d27', '--border':'#2e3350',
+             '--text':'#e2e8f0', '--muted':'#64748b', '--accent':'#4ade80',
+             '--accent2':'#22d3ee', '--accent3':'#f59e0b' }
+  };
+  function applyIndexTheme(t) {
+    const vars = indexTheme[t] || indexTheme.light;
+    for (const [k,v] of Object.entries(vars))
+      document.documentElement.style.setProperty(k, v);
+  }
+  const _origApplyTheme = applyTheme;
+  applyTheme = function(t) { applyIndexTheme(t); _origApplyTheme(t); };
+  var _saved = ''; try { _saved = localStorage.getItem('site-theme') || ''; } catch(e){}
+  applyTheme(_saved === 'dark' ? 'dark' : 'light');
+
+  const tabs   = document.querySelectorAll('.tab');
+  const panels = [...document.querySelectorAll('.panel'), document.getElementById('home-panel')];
+
+  function switchTo(targetId) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.target === targetId));
+    panels.forEach(p => p.classList.toggle('active', p.id === targetId));
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => switchTo(tab.dataset.target));
+  });
+</script>
+</body>
+</html>
