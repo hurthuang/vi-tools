@@ -212,6 +212,9 @@
   <div class="tab" data-target="frame-g2">
     <span class="icon">⠠</span> G2 反查
   </div>
+  <div class="tab" data-target="frame-gq">
+    <span class="icon">🔍</span> G2 查詢
+  </div>
   <div style="flex:1"></div>
   <button id="theme-btn" onclick="toggleTheme()" style="
     background:none;border:1px solid var(--border);color:var(--muted);
@@ -320,6 +323,28 @@
           <div class="tool-arrow">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')">
+          <div class="tool-icon">🔍</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              UEB G2 轉譯查詢
+              <span class="tool-badge" style="background:#f472b6">規則解析</span>
+            </div>
+            <div class="tool-desc">
+              輸入英文單字查詢 G2 點字並逐條說明套用了哪些縮寫規則；或輸入點字反查英文，
+              以動態規劃列出所有可能的切分方式。結果同步與 liblouis 比對，歧異可一鍵回報。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">英文 → G2 點字</span>
+              <span class="feat-tag">點字 → 英文</span>
+              <span class="feat-tag">規則逐條解析</span>
+              <span class="feat-tag">liblouis 比對</span>
+              <span class="feat-tag">歧異回報</span>
+            </div>
+          </div>
+          <div class="tool-arrow">›</div>
+        </div>
+
       </div>
 
       <div class="home-footer">
@@ -333,6 +358,7 @@
   <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html"></iframe>
   <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"></iframe>
   <iframe id="frame-g2"  class="panel" src="g2-to-text.html"></iframe>
+  <iframe id="frame-gq"  class="panel" src="UEB-g2-query.html"></iframe>
 
 </div>
 
