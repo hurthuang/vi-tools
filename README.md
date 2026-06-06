@@ -14,6 +14,18 @@
 | G2 反查 | [g2-to-text.html](https://hurthuang.github.io/vi-tools/g2-to-text.html) | UEB G2 點字還原為一般文字 |
 | G2 查詢 | [UEB-g2-query.html](https://hurthuang.github.io/vi-tools/UEB-g2-query.html) | UEB Grade 2 縮寫對照查詢 |
 
+## 相關 NVDA 附加元件
+
+以下為配合本工具集設計的 NVDA 螢幕閱讀器附加元件，需下載安裝於 Windows 桌面環境使用。
+
+| 附加元件 | 說明 |
+|----------|------|
+| [六點輸入法 (6d-IME)](https://github.com/hurthuang/6d-IME) | 六點點字鍵盤多模式輸入，支援注音點字、comp8、UEB、Nemeth |
+| [語音字典切換 (DictSwitcher)](https://github.com/hurthuang/NVDA-DictSwitcher) | 快速在一般修正、注音點字、數學點字字典間循環切換 |
+| [國語字典查詢 (zhDict)](https://github.com/hurthuang/zhDict) | 選字查詢中文辭典（萌典）或英文字典，自動判斷語言 |
+| [點字表切換 (brailleTableSwitcher)](https://github.com/hurthuang/NVDA-brailleTableSwitcher) | 快速切換注音點字、UEB G1／G2 輸出轉譯表 |
+| [點字輸出匯出 (brailleExport)](https://github.com/hurthuang/NVDA-brailleExport) | 擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案 |
+
 ## 技術說明
 
 - 純前端實作，所有運算在瀏覽器本地執行，不傳送任何資料至伺服器

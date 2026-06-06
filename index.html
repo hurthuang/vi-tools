@@ -192,6 +192,48 @@
     text-align: center;
     line-height: 1.8;
   }
+
+  .addon-section-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 40px 0 14px;
+  }
+
+  .addon-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .addon-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .addon-card:hover {
+    border-color: var(--muted);
+    transform: translateY(-1px);
+  }
+  .addon-card-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .addon-card-desc {
+    font-size: 0.76rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
 </style>
 </head>
 <body>
@@ -345,6 +387,30 @@
           <div class="tool-arrow">›</div>
         </div>
 
+      </div>
+
+      <div class="addon-section-title">NVDA 附加元件</div>
+      <div class="addon-cards">
+        <a class="addon-card" href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">
+          <div class="addon-card-name">六點輸入法 (6d-IME)</div>
+          <div class="addon-card-desc">六點點字鍵盤多模式輸入，支援注音點字、comp8、UEB、Nemeth</div>
+        </a>
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener">
+          <div class="addon-card-name">語音字典切換 (DictSwitcher)</div>
+          <div class="addon-card-desc">快速在一般修正、注音點字、數學點字字典間循環切換</div>
+        </a>
+        <a class="addon-card" href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener">
+          <div class="addon-card-name">國語字典查詢 (zhDict)</div>
+          <div class="addon-card-desc">選字查詢中文辭典（萌典）或英文字典，自動判斷語言</div>
+        </a>
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">
+          <div class="addon-card-name">點字表切換 (brailleTableSwitcher)</div>
+          <div class="addon-card-desc">快速切換注音點字、UEB G1／G2 輸出轉譯表</div>
+        </a>
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener">
+          <div class="addon-card-name">點字輸出匯出 (brailleExport)</div>
+          <div class="addon-card-desc">擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案</div>
+        </a>
       </div>
 
       <div class="home-footer">
