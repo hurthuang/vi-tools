@@ -1203,12 +1203,46 @@ function showAdvMsg(msg) {
   clearTimeout(el._t);
   el._t = setTimeout(() => el.textContent = '', 3000);
 }
+// ── Modal focus management ──────────────────────────────────
+const FOCUSABLE_SEL = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+let _modalTrap = null, _modalReturn = null;
+
+function _openFocusTrap(overlayEl, closeCallback, firstFocusEl) {
+  _modalReturn = document.activeElement;
+  setTimeout(function() {
+    var target = firstFocusEl || overlayEl.querySelector(FOCUSABLE_SEL);
+    if (target) target.focus();
+  }, 50);
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); closeCallback(); return; }
+    if (e.key !== 'Tab') return;
+    var els = Array.from(overlayEl.querySelectorAll(FOCUSABLE_SEL));
+    if (!els.length) return;
+    var first = els[0], last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  overlayEl.addEventListener('keydown', onKey);
+  _modalTrap = function() { overlayEl.removeEventListener('keydown', onKey); };
+}
+function _closeFocusTrap() {
+  if (_modalTrap) { _modalTrap(); _modalTrap = null; }
+  if (_modalReturn) { _modalReturn.focus(); _modalReturn = null; }
+}
+// ─────────────────────────────────────────────────────────────
+
 function openAdvReplace() {
   document.getElementById('adv-msg').textContent = '';
   document.getElementById('adv-overlay').classList.add('open');
+  _openFocusTrap(
+    document.getElementById('adv-overlay'),
+    closeAdvReplace,
+    document.getElementById('adv-find')
+  );
 }
 function closeAdvReplace() {
   document.getElementById('adv-overlay').classList.remove('open');
+  _closeFocusTrap();
 }
 document.getElementById('adv-overlay').addEventListener('click', function(e) {
   if (e.target === this) closeAdvReplace();
@@ -1766,10 +1800,12 @@ function openHfPanel() {
   }
 
   document.getElementById('hf-overlay').classList.add('open');
+  _openFocusTrap(document.getElementById('hf-overlay'), closeHfPanel);
 }
 
 function closeHfPanel() {
   document.getElementById('hf-overlay').classList.remove('open');
+  _closeFocusTrap();
 }
 
 function hfToggleAll() {

@@ -2722,21 +2722,38 @@ updateSyncPanels();
 // ======================================================================
 // 數學編輯器 modal 開關與套用
 // ======================================================================
+var _meModalReturn = null, _meModalTrap = null;
+var _ME_FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 function openMathEditor() {
   initMathEditor();
   var ta = document.getElementById('latexInput');
-  // 把 L2N 輸入框目前內容帶過去，方便繼續編輯
   var l2nIn = document.getElementById('l2n-in');
   if (ta && l2nIn) {
     ta.value = l2nIn.value;
     if (typeof updatePreview === 'function') updatePreview();
   }
-  document.getElementById('me-modal').classList.add('open');
-  // 把焦點移到 textarea
+  _meModalReturn = document.activeElement;
+  var modalEl = document.getElementById('me-modal');
+  modalEl.classList.add('open');
   setTimeout(function(){ if (ta) ta.focus(); }, 100);
+
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); closeMathEditor(); return; }
+    if (e.key !== 'Tab') return;
+    var els = Array.from(modalEl.querySelectorAll(_ME_FOCUSABLE));
+    if (!els.length) return;
+    var first = els[0], last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  modalEl.addEventListener('keydown', onKey);
+  _meModalTrap = function() { modalEl.removeEventListener('keydown', onKey); };
 }
 function closeMathEditor() {
   document.getElementById('me-modal').classList.remove('open');
+  if (_meModalTrap) { _meModalTrap(); _meModalTrap = null; }
+  if (_meModalReturn) { _meModalReturn.focus(); _meModalReturn = null; }
 }
 function applyMathEditor() {
   var ta = document.getElementById('latexInput');
