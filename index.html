@@ -415,7 +415,8 @@
 
       <div class="home-footer">
         所有工具均可離線使用，不傳送任何資料至伺服器。<br>
-        適用於視障教育、輔具評估與點字教材製作。
+        適用於視障教育、輔具評估與點字教材製作。<br>
+        <span id="gc-visit-count" style="margin-top:6px;display:inline-block"></span>
       </div>
     </div>
   </div>
@@ -504,5 +505,13 @@
 </script>
 
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+  var _gcT = setInterval(function() {
+    if (window.goatcounter && window.goatcounter.visit_count) {
+      clearInterval(_gcT);
+      window.goatcounter.visit_count({ append: '#gc-visit-count' });
+    }
+  }, 100);
+</script>
 </body>
 </html>
