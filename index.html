@@ -506,27 +506,13 @@
 
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script>
-  var _gcT = setInterval(function() {
-    if (window.goatcounter && window.goatcounter.visit_count) {
-      clearInterval(_gcT);
-      var tmp = document.createElement('span');
-      tmp.style.cssText = 'position:absolute;visibility:hidden';
-      document.body.appendChild(tmp);
-      window.goatcounter.visit_count({ append: tmp });
-      var _wait = setInterval(function() {
-        var text = tmp.textContent.trim();
-        if (text) {
-          clearInterval(_wait);
-          var n = text.match(/[\d,]+/);
-          if (n) {
-            var el = document.getElementById('gc-visit-count');
-            if (el) el.textContent = '累計瀏覽 ' + n[0] + ' 次';
-          }
-          document.body.removeChild(tmp);
-        }
-      }, 50);
-    }
-  }, 100);
+  fetch('https://vi-tools.goatcounter.com/counter' + location.pathname + '.json')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('gc-visit-count');
+      if (el && d.count) el.textContent = '累計瀏覽 ' + d.count + ' 次';
+    })
+    .catch(function() {});
 </script>
 </body>
 </html>
