@@ -469,17 +469,40 @@
   var _saved = ''; try { _saved = localStorage.getItem('site-theme') || ''; } catch(e){}
   applyTheme(_saved === 'dark' ? 'dark' : 'light');
 
+  // ── GoatCounter config (include hash in path) ──
+  window.goatcounter = { path: function(p) { return p + location.hash; } };
+
+  // ── Hash routing ──
+  const HASH_MAP = {
+    'home-panel': '', 'frame-bt': 'braille', 'frame-p2a': 'pdf',
+    'frame-nc': 'nemeth', 'frame-g2': 'g2', 'frame-gq': 'g2-query'
+  };
+  const HASH_TO_TARGET = {};
+  for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;
+
   const tabs   = document.querySelectorAll('.tab');
   const panels = [...document.querySelectorAll('.panel'), document.getElementById('home-panel')];
 
-  function switchTo(targetId) {
+  function applyTab(targetId) {
     tabs.forEach(t => t.classList.toggle('active', t.dataset.target === targetId));
     panels.forEach(p => p.classList.toggle('active', p.id === targetId));
   }
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => switchTo(tab.dataset.target));
+  function switchTo(targetId) {
+    applyTab(targetId);
+    const hash = HASH_MAP[targetId] ?? '';
+    history.pushState(null, '', location.pathname + (hash ? '#' + hash : ''));
+    if (window.goatcounter && window.goatcounter.count)
+      window.goatcounter.count({ path: location.pathname + (hash ? '#' + hash : '') });
+  }
+
+  applyTab(HASH_TO_TARGET[location.hash.slice(1)] || 'home-panel');
+  window.addEventListener('popstate', function() {
+    applyTab(HASH_TO_TARGET[location.hash.slice(1)] || 'home-panel');
   });
+  tabs.forEach(tab => tab.addEventListener('click', () => switchTo(tab.dataset.target)));
 </script>
+
+<script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
