@@ -29,7 +29,8 @@ body {
   font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -247,7 +248,7 @@ select.setting-select {
 /* Editor / Preview area */
 #view-raw, #view-preview, #view-tts {
   display: none;
-  flex: 1; overflow: auto;
+  flex: 1; overflow: auto; min-height: 0;
 }
 #view-raw.active, #view-preview.active { display: flex; }
 #view-tts.active { display: flex; flex-direction: column; }
@@ -267,6 +268,7 @@ select.setting-select {
 /* Preview */
 #preview-content {
   flex: 1;
+  min-height: 0;
   padding: 24px 32px;
   overflow-y: auto;
   font-size: var(--font-size);
@@ -318,7 +320,7 @@ select.setting-select {
   line-height: 2;
   overflow-y: auto;
   white-space: pre-wrap;
-  min-height: 200px;
+  min-height: 0;
 }
 #tts-text-display .tts-sent {
   border-radius: 3px;
