@@ -234,57 +234,88 @@
     color: var(--muted);
     line-height: 1.5;
   }
+
+  /* Skip navigation */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--accent);
+    color: #000;
+    padding: 8px 16px;
+    z-index: 9999;
+    border-radius: 0 0 4px 0;
+    font-size: .9rem;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .skip-link:focus { left: 0; }
+
+  /* Focus indicators */
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
+  .tool-card:focus-visible { outline: 2px solid var(--card-accent, var(--accent)); outline-offset: 2px; border-radius: 12px; }
+  .addon-card:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
+  #theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
+<a href="#main-content" class="skip-link">跳至主要內容</a>
 
-<div id="tabbar">
-  <div class="tab active" data-target="home-panel">
-    <span class="icon">🏠</span> 主頁
+<div id="tabbar" role="tablist" aria-label="工具頁籤">
+  <div class="tab active" role="tab" id="tab-home" data-target="home-panel"
+       tabindex="0" aria-selected="true" aria-controls="home-panel">
+    <span class="icon" aria-hidden="true">🏠</span> 主頁
   </div>
-  <div class="tab" data-target="frame-bt">
-    <span class="icon">⠿</span> 點字翻譯
+  <div class="tab" role="tab" id="tab-bt" data-target="frame-bt"
+       tabindex="-1" aria-selected="false" aria-controls="frame-bt">
+    <span class="icon" aria-hidden="true">⠿</span> 點字翻譯
   </div>
-  <div class="tab" data-target="frame-p2a">
-    <span class="icon">📄</span> PDF 友善文字
+  <div class="tab" role="tab" id="tab-p2a" data-target="frame-p2a"
+       tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
+    <span class="icon" aria-hidden="true">📄</span> PDF 友善文字
   </div>
-  <div class="tab" data-target="frame-nc">
-    <span class="icon">⠼</span> Nemeth 轉換
+  <div class="tab" role="tab" id="tab-nc" data-target="frame-nc"
+       tabindex="-1" aria-selected="false" aria-controls="frame-nc">
+    <span class="icon" aria-hidden="true">⠼</span> Nemeth 轉換
   </div>
-  <div class="tab" data-target="frame-g2">
-    <span class="icon">⠠</span> G2 反查
+  <div class="tab" role="tab" id="tab-g2" data-target="frame-g2"
+       tabindex="-1" aria-selected="false" aria-controls="frame-g2">
+    <span class="icon" aria-hidden="true">⠠</span> G2 反轉
   </div>
-  <div class="tab" data-target="frame-gq">
-    <span class="icon">🔍</span> G2 查詢
+  <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
+       tabindex="-1" aria-selected="false" aria-controls="frame-gq">
+    <span class="icon" aria-hidden="true">🔍</span> G2 查詢
   </div>
   <div style="flex:1"></div>
   <button id="theme-btn" onclick="toggleTheme()" style="
     background:none;border:1px solid var(--border);color:var(--muted);
     border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.82rem;
     margin:auto 8px;white-space:nowrap;transition:color 0.15s,border-color 0.15s;
-  " title="切換深色/淺色">🌙 深色</button>
+  " title="切換深色/淺色" aria-label="切換深色/淺色，目前：淺色">🌙 深色</button>
 </div>
 
-<div id="panels">
+<div id="panels" id="main-content">
 
-  <div id="home-panel" class="active">
+  <div id="home-panel" class="active" role="tabpanel" aria-labelledby="tab-home" tabindex="0">
     <div class="home-inner">
       <div class="home-title">視障輔助工具集</div>
       <div class="home-subtitle">
         為視覺障礙教育設計的文字處理與點字轉換工具。<br>
-        所有工具均支援開啟檔案（TXT、DOCX、ODT、RTF、PDF）與格式整理功能。
+        部份工具均支援開啟檔案（TXT、DOCX、ODT、RTF、PDF）與格式整理功能。
       </div>
 
       <div class="tool-cards">
 
-        <div class="tool-card" style="--card-accent:#4ade80" onclick="switchTo('frame-bt')">
-          <div class="tool-icon">⠿</div>
+        <div class="tool-card" style="--card-accent:#4ade80" onclick="switchTo('frame-bt')"
+             role="button" tabindex="0" aria-label="開啟點字翻譯工具" aria-describedby="desc-bt"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-bt')}">
+          <div class="tool-icon" aria-hidden="true">⠿</div>
           <div class="tool-info">
             <div class="tool-name">
               點字翻譯
               <span class="tool-badge">UEB</span>
             </div>
-            <div class="tool-desc">
+            <div class="tool-desc" id="desc-bt">
               將中文或英文文字即時轉換為 UEB 統一英文點字，支援 G1／G2 縮寫與 Comp8 電腦點字模式，
               並提供雙視校對視圖，可逐字確認轉譯結果。
             </div>
@@ -296,17 +327,19 @@
               <span class="feat-tag">六點鍵盤輸入</span>
             </div>
           </div>
-          <div class="tool-arrow">›</div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')">
-          <div class="tool-icon">📄</div>
+        <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')"
+             role="button" tabindex="0" aria-label="開啟 PDF 轉視障友善文字工具" aria-describedby="desc-p2a"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-p2a')}">
+          <div class="tool-icon" aria-hidden="true">📄</div>
           <div class="tool-info">
             <div class="tool-name">
               PDF 轉視障友善文字
               <span class="tool-badge" style="background:#22d3ee">TTS</span>
             </div>
-            <div class="tool-desc">
+            <div class="tool-desc" id="desc-p2a">
               將 PDF 或其他文件轉換為乾淨的純文字，去除頁首頁尾與排版雜訊，
               適合語音報讀軟體使用。內建 TTS 語音預覽，可直接在瀏覽器中試聽。
             </div>
@@ -318,17 +351,19 @@
               <span class="feat-tag">進階取代</span>
             </div>
           </div>
-          <div class="tool-arrow">›</div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#f59e0b" onclick="switchTo('frame-nc')">
-          <div class="tool-icon">⠼</div>
+        <div class="tool-card" style="--card-accent:#f59e0b" onclick="switchTo('frame-nc')"
+             role="button" tabindex="0" aria-label="開啟 Nemeth 數學點字轉換工具" aria-describedby="desc-nc"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-nc')}">
+          <div class="tool-icon" aria-hidden="true">⠼</div>
           <div class="tool-info">
             <div class="tool-name">
               Nemeth 數學點字轉換
               <span class="tool-badge" style="background:#f59e0b">Nemeth 2022</span>
             </div>
-            <div class="tool-desc">
+            <div class="tool-desc" id="desc-nc">
               雙向轉換 LaTeX 數學式與 Nemeth 點字，支援分數、根號、上下標、矩陣等結構，
               並提供即時 MathJax 預覽與數學式編輯器。
             </div>
@@ -340,17 +375,19 @@
               <span class="feat-tag">六點鍵盤輸入</span>
             </div>
           </div>
-          <div class="tool-arrow">›</div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-g2')">
-          <div class="tool-icon">⠠</div>
+        <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-g2')"
+             role="button" tabindex="0" aria-label="開啟 UEB G2 反向轉換工具" aria-describedby="desc-g2"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-g2')}">
+          <div class="tool-icon" aria-hidden="true">⠠</div>
           <div class="tool-info">
             <div class="tool-name">
               UEB G2 反向轉換
               <span class="tool-badge" style="background:#a78bfa">G2 → 文字</span>
             </div>
-            <div class="tool-desc">
+            <div class="tool-desc" id="desc-g2">
               將 UEB G2 縮寫點字反向還原為英文原文，並同步產生 Comp8 電腦點字對照。
               支援 ASCII 點字與 Unicode 點字兩種輸入格式，預設六點鍵盤輸入。
             </div>
@@ -362,17 +399,19 @@
               <span class="feat-tag">六點鍵盤預設開啟</span>
             </div>
           </div>
-          <div class="tool-arrow">›</div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')">
-          <div class="tool-icon">🔍</div>
+        <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
+             role="button" tabindex="0" aria-label="開啟 UEB G2 轉譯查詢工具" aria-describedby="desc-gq"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-gq')}">
+          <div class="tool-icon" aria-hidden="true">🔍</div>
           <div class="tool-info">
             <div class="tool-name">
               UEB G2 轉譯查詢
               <span class="tool-badge" style="background:#f472b6">規則解析</span>
             </div>
-            <div class="tool-desc">
+            <div class="tool-desc" id="desc-gq">
               輸入英文單字查詢 G2 點字並逐條說明套用了哪些縮寫規則；或輸入點字反查英文，
               以動態規劃列出所有可能的切分方式。結果同步與 liblouis 比對，歧異可一鍵回報。
             </div>
@@ -384,30 +423,35 @@
               <span class="feat-tag">歧異回報</span>
             </div>
           </div>
-          <div class="tool-arrow">›</div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
       </div>
 
       <div class="addon-section-title">NVDA 附加元件</div>
       <div class="addon-cards">
-        <a class="addon-card" href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">
+        <a class="addon-card" href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener"
+           aria-label="六點輸入法 (6d-IME)，在新視窗開啟">
           <div class="addon-card-name">六點輸入法 (6d-IME)</div>
           <div class="addon-card-desc">六點點字鍵盤多模式輸入，支援注音點字、comp8、UEB、Nemeth</div>
         </a>
-        <a class="addon-card" href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener">
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener"
+           aria-label="語音字典切換 (DictSwitcher)，在新視窗開啟">
           <div class="addon-card-name">語音字典切換 (DictSwitcher)</div>
           <div class="addon-card-desc">快速在一般修正、注音點字、數學點字字典間循環切換</div>
         </a>
-        <a class="addon-card" href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener">
+        <a class="addon-card" href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener"
+           aria-label="國語字典查詢 (zhDict)，在新視窗開啟">
           <div class="addon-card-name">國語字典查詢 (zhDict)</div>
           <div class="addon-card-desc">選字查詢中文辭典（萌典）或英文字典，自動判斷語言</div>
         </a>
-        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener"
+           aria-label="點字表切換 (brailleTableSwitcher)，在新視窗開啟">
           <div class="addon-card-name">點字表切換 (brailleTableSwitcher)</div>
           <div class="addon-card-desc">快速切換注音點字、UEB G1／G2 輸出轉譯表</div>
         </a>
-        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener">
+        <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener"
+           aria-label="點字輸出匯出 (brailleExport)，在新視窗開啟">
           <div class="addon-card-name">點字輸出匯出 (brailleExport)</div>
           <div class="addon-card-desc">擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案</div>
         </a>
@@ -415,17 +459,17 @@
 
       <div class="home-footer">
         文件內容在瀏覽器本機處理，不上傳至伺服器。<br>
-        適用於視障教育、輔具評估與點字教材製作。<br>
+        適用於視障教育教材製作與教學。<br>
         <span id="gc-visit-count"></span>
       </div>
     </div>
   </div>
 
-  <iframe id="frame-bt"  class="panel" src="braille-translate.htm"></iframe>
-  <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html"></iframe>
-  <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"></iframe>
-  <iframe id="frame-g2"  class="panel" src="g2-to-text.html"></iframe>
-  <iframe id="frame-gq"  class="panel" src="UEB-g2-query.html"></iframe>
+  <iframe id="frame-bt"  class="panel" src="braille-translate.htm"    role="tabpanel" aria-labelledby="tab-bt"  title="點字翻譯工具"></iframe>
+  <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a" title="PDF 轉視障友善文字工具"></iframe>
+  <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"  title="Nemeth 數學點字轉換工具"></iframe>
+  <iframe id="frame-g2"  class="panel" src="g2-to-text.html"         role="tabpanel" aria-labelledby="tab-g2"  title="UEB G2 反向轉換工具"></iframe>
+  <iframe id="frame-gq"  class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"  title="UEB G2 轉譯查詢工具"></iframe>
 
 </div>
 
@@ -485,7 +529,12 @@
   const panels = [...document.querySelectorAll('.panel'), document.getElementById('home-panel')];
 
   function applyTab(targetId) {
-    tabs.forEach(t => t.classList.toggle('active', t.dataset.target === targetId));
+    tabs.forEach(t => {
+      const isActive = t.dataset.target === targetId;
+      t.classList.toggle('active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      t.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
     panels.forEach(p => p.classList.toggle('active', p.id === targetId));
   }
 
@@ -502,6 +551,45 @@
     applyTab(HASH_TO_TARGET[location.hash.slice(1)] || 'home-panel');
   });
   tabs.forEach(tab => tab.addEventListener('click', () => switchTo(tab.dataset.target)));
+
+  // Arrow key navigation for tablist
+  document.getElementById('tabbar').addEventListener('keydown', function(e) {
+    if (!e.target.matches('.tab')) return;
+    const tabList = [...tabs];
+    const idx = tabList.indexOf(e.target);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = tabList[(idx + 1) % tabList.length];
+      next.focus();
+      switchTo(next.dataset.target);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = tabList[(idx - 1 + tabList.length) % tabList.length];
+      prev.focus();
+      switchTo(prev.dataset.target);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      tabList[0].focus();
+      switchTo(tabList[0].dataset.target);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      tabList[tabList.length - 1].focus();
+      switchTo(tabList[tabList.length - 1].dataset.target);
+    }
+  });
+
+  // Sync theme button aria-label on each call
+  (function() {
+    const _prev = applyTheme;
+    applyTheme = function(t) {
+      _prev(t);
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.setAttribute('aria-label', '切換深色/淺色，目前：' + (t === 'dark' ? '深色' : '淺色'));
+    };
+    // Also update once now to reflect whatever theme was applied at init
+    const btn = document.getElementById('theme-btn');
+    if (btn) btn.setAttribute('aria-label', '切換深色/淺色，目前：' + (currentTheme === 'dark' ? '深色' : '淺色'));
+  })();
 </script>
 
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

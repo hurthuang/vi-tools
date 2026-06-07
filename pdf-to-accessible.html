@@ -537,13 +537,24 @@ input[type=range] { accent-color: var(--accent2); }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a4a6a; }
+
+/* Screen-reader only */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Focus indicators */
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#drop-zone:focus-visible { outline: 3px solid var(--accent2); outline-offset: 2px; }
 </style>
 <script src="shared.js"></script>
 </head>
 <body>
 
 <header>
-  <span style="font-size:1.6rem;">📄</span>
+  <span style="font-size:1.6rem;" aria-hidden="true">📄</span>
   <div>
     <h1>PDF 轉視障友善文字</h1>
     <div class="subtitle">支援 PDF / TXT / DOCX，自動排版，螢幕報讀優化</div>
@@ -560,8 +571,9 @@ input[type=range] { accent-color: var(--accent2); }
     <!-- 開啟檔案 -->
     <div>
       <div class="section-label">開啟檔案</div>
-      <div id="drop-zone" role="button" tabindex="0" aria-label="拖曳或點選開啟 PDF、TXT、DOCX">
-        <div class="dz-icon">📂</div>
+      <div id="drop-zone" role="button" tabindex="0" aria-label="拖曳或點選開啟 PDF、TXT、DOCX"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+        <div class="dz-icon" aria-hidden="true">📂</div>
         <p>拖曳檔案至此，或點選開啟</p>
         <div class="dz-formats">支援：PDF · TXT · DOCX · RTF</div>
       </div>
@@ -729,43 +741,48 @@ input[type=range] { accent-color: var(--accent2); }
     </div>
 
     <!-- Tabs -->
-    <div id="tab-bar" role="tablist">
-      <div class="tab active" role="tab" tabindex="0" onclick="switchTab('raw')" id="tab-raw">編輯</div>
-      <div class="tab" role="tab" tabindex="0" onclick="switchTab('preview')" id="tab-preview">預覽</div>
-      <div class="tab" role="tab" tabindex="0" onclick="switchTab('tts')" id="tab-tts">朗讀</div>
+    <div id="tab-bar" role="tablist" aria-label="內容檢視">
+      <div class="tab active" role="tab" tabindex="0" onclick="switchTab('raw')" id="tab-raw"
+           aria-selected="true" aria-controls="view-raw">編輯</div>
+      <div class="tab" role="tab" tabindex="-1" onclick="switchTab('preview')" id="tab-preview"
+           aria-selected="false" aria-controls="view-preview">預覽</div>
+      <div class="tab" role="tab" tabindex="-1" onclick="switchTab('tts')" id="tab-tts"
+           aria-selected="false" aria-controls="view-tts">朗讀</div>
     </div>
 
     <!-- Raw editor -->
-    <div id="view-raw" class="active">
+    <div id="view-raw" class="active" role="tabpanel" aria-labelledby="tab-raw">
+      <label for="raw-editor" class="sr-only">文字編輯區</label>
       <textarea id="raw-editor" spellcheck="false" placeholder="在此貼上文字，或使用左側開啟檔案…" oninput="onEditorInput()" onkeydown="editorKeydown(event)"></textarea>
     </div>
 
     <!-- Preview -->
-    <div id="view-preview">
+    <div id="view-preview" role="tabpanel" aria-labelledby="tab-preview">
       <div id="preview-content" aria-live="polite"></div>
     </div>
 
     <!-- TTS -->
-    <div id="view-tts">
+    <div id="view-tts" role="tabpanel" aria-labelledby="tab-tts">
       <div id="tts-controls">
-        <button class="btn btn-green" id="btn-tts-play" onclick="ttsPlay()">▶ 播放</button>
-        <button class="btn btn-neutral" id="btn-tts-pause" onclick="ttsPause()" disabled>⏸ 暫停</button>
-        <button class="btn btn-neutral" onclick="ttsStop()">⏹ 停止</button>
+        <button class="btn btn-green" id="btn-tts-play" onclick="ttsPlay()"><span aria-hidden="true">▶</span> 播放</button>
+        <button class="btn btn-neutral" id="btn-tts-pause" onclick="ttsPause()" disabled><span aria-hidden="true">⏸</span> 暫停</button>
+        <button class="btn btn-neutral" onclick="ttsStop()"><span aria-hidden="true">⏹</span> 停止</button>
         <div class="tb-sep" style="display:inline-block;"></div>
         <div class="tts-rate-row">
-          <span>速度</span>
+          <label for="tts-rate">速度</label>
           <input type="range" id="tts-rate" min="0.5" max="4" step="0.1" value="1"
-            oninput="document.getElementById('tts-rate-val').textContent=parseFloat(this.value).toFixed(1)+'x'">
-          <span id="tts-rate-val">1.0x</span>
+            oninput="document.getElementById('tts-rate-val').textContent=parseFloat(this.value).toFixed(1)+'x'"
+            aria-valuetext="1.0x">
+          <span id="tts-rate-val" aria-live="polite">1.0x</span>
         </div>
         <div class="tts-rate-row">
-          <span>音量</span>
+          <label for="tts-vol">音量</label>
           <input type="range" id="tts-vol" min="0" max="1" step="0.05" value="1"
             oninput="document.getElementById('tts-vol-val').textContent=Math.round(this.value*100)+'%'">
-          <span id="tts-vol-val">100%</span>
+          <span id="tts-vol-val" aria-live="polite">100%</span>
         </div>
         <div class="tts-rate-row">
-          <span>語音</span>
+          <label for="tts-voice">語音</label>
           <select id="tts-voice" class="setting-select" style="max-width:200px;font-size:.82rem;">
             <option value="">載入中…</option>
           </select>
@@ -1338,9 +1355,13 @@ function esc(s) {
 // ════════════════════════════════════════════════════════════
 function switchTab(name) {
   ['raw','preview','tts'].forEach(n => {
-    document.getElementById('view-'+n).style.display = n===name ? 'flex' : 'none';
-    document.getElementById('view-'+n).classList.toggle('active', n===name);
-    document.getElementById('tab-'+n).classList.toggle('active', n===name);
+    const isActive = n === name;
+    document.getElementById('view-'+n).style.display = isActive ? 'flex' : 'none';
+    document.getElementById('view-'+n).classList.toggle('active', isActive);
+    const tabEl = document.getElementById('tab-'+n);
+    tabEl.classList.toggle('active', isActive);
+    tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tabEl.setAttribute('tabindex', isActive ? '0' : '-1');
   });
   if (name === 'preview') buildPreview();
   if (name === 'tts') buildTtsDisplay();

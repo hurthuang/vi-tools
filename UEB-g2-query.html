@@ -82,36 +82,43 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
 .alpha .ritag{background:var(--bd2);color:var(--tx2);}
 .altreading{padding:6px 10px;background:var(--sf2);border:1px dashed var(--bd2);border-radius:6px;font-size:.9rem;color:var(--tx2);margin-top:6px;margin-bottom:8px;}
 .altreading b{color:var(--tx);font-weight:500;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.tab:focus-visible{outline:2px solid var(--ac-md);outline-offset:2px;}
+.dbtn:focus-visible{outline:2px solid var(--ac-md);outline-offset:2px;}
+.mbtn:focus-visible{outline:2px solid var(--teal-md);outline-offset:2px;}
+.clr:focus-visible{outline:2px solid var(--ac-md);outline-offset:2px;}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>⠠⠥⠑⠃ UEB G2 轉譯查詢</h1>
 <p class="sub">輸入英文單字查 G2 點字；或切換輸入點字反查，底部列出所用縮寫規則</p>
-<div class="tabs">
-    <button class="tab active" id="tab-e2b" onclick="switchTab('e2b')">英文 → 點字</button>
-    <button class="tab" id="tab-b2e" onclick="switchTab('b2e')">點字 → 英文</button>
-    <button class="tab" id="tab-reg" onclick="switchTab('reg')">⚙ Regression</button>
+<div class="tabs" role="tablist" aria-label="查詢模式">
+    <button class="tab active" id="tab-e2b" role="tab" aria-selected="true" aria-controls="panel-e2b" onclick="switchTab('e2b')">英文 → 點字</button>
+    <button class="tab" id="tab-b2e" role="tab" aria-selected="false" aria-controls="panel-b2e" onclick="switchTab('b2e')">點字 → 英文</button>
+    <button class="tab" id="tab-reg" role="tab" aria-selected="false" aria-controls="panel-reg" onclick="switchTab('reg')"><span aria-hidden="true">⚙</span> Regression</button>
 </div>
 <div class="scard">
-    <div id="panel-e2b">
+    <div id="panel-e2b" role="tabpanel" aria-labelledby="tab-e2b">
+        <label for="e2b-in" class="sr-only">輸入英文單字查詢 G2 點字</label>
         <div class="srow">
             <div class="iwrap">
                 <input type="text" id="e2b-in" placeholder="輸入英文單字，例如：power, hour, because…" oninput="onE2B()" onkeydown="if(event.key==='Enter')onE2B()">
-                <button class="clr" onclick="clearE2B()">✕</button>
+                <button class="clr" onclick="clearE2B()" aria-label="清除英文輸入">✕</button>
             </div>
         </div>
     </div>
-    <div id="panel-b2e" style="display:none">
+    <div id="panel-b2e" style="display:none" role="tabpanel" aria-labelledby="tab-b2e">
         <div class="modesw">
-            <span class="mlbl">輸入方式：</span>
-            <button class="mbtn active" id="mode-chord" onclick="setMode('chord')">六鍵點字</button>
-            <button class="mbtn" id="mode-ascii" onclick="setMode('ascii')">ASCII 鍵盤</button>
+            <span class="mlbl" id="mode-lbl">輸入方式：</span>
+            <button class="mbtn active" id="mode-chord" role="radio" aria-checked="true" aria-describedby="mode-lbl" onclick="setMode('chord')">六鍵點字</button>
+            <button class="mbtn" id="mode-ascii" role="radio" aria-checked="false" aria-describedby="mode-lbl" onclick="setMode('ascii')">ASCII 鍵盤</button>
         </div>
+        <label for="b2e-in" class="sr-only">輸入點字反查英文</label>
         <div class="srow">
             <div class="iwrap">
                 <input type="text" id="b2e-in" placeholder="⠀" oninput="onB2E()" onkeydown="handleBKD(event)" onkeyup="handleBKU(event)">
-                <button class="clr" onclick="clearB2E()">✕</button>
+                <button class="clr" onclick="clearB2E()" aria-label="清除點字輸入">✕</button>
             </div>
         </div>
         <div class="br-panel">
@@ -136,8 +143,8 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
         </div>
     </div>
 </div>
-<div id="result-area"></div>
-<div id="panel-reg" style="display:none;margin-top:.8rem">
+<div id="result-area" aria-live="polite" aria-label="查詢結果"></div>
+<div id="panel-reg" style="display:none;margin-top:.8rem" role="tabpanel" aria-labelledby="tab-reg">
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
         <button onclick="runRegression()" style="padding:7px 20px;border-radius:8px;border:1px solid var(--teal-md);background:var(--teal-bg);color:var(--teal);font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:500">▶ 執行 Regression Test</button>
         <span id="reg-status" style="font-size:.85rem;color:var(--tx3)">共 428 筆 liblouis ground truth</span>
@@ -2266,9 +2273,12 @@ ${altReadings.length?`<div class="stitle">替代解讀</div>${altReadings.map(a=
 let ctab='e2b';
 function switchTab(t){
     ctab=t;
-    document.getElementById('tab-e2b').classList.toggle('active',t==='e2b');
-    document.getElementById('tab-b2e').classList.toggle('active',t==='b2e');
-    document.getElementById('tab-reg').classList.toggle('active',t==='reg');
+    ['e2b','b2e','reg'].forEach(n=>{
+        const isActive=n===t;
+        const tabEl=document.getElementById('tab-'+n);
+        tabEl.classList.toggle('active',isActive);
+        tabEl.setAttribute('aria-selected',isActive?'true':'false');
+    });
     document.getElementById('panel-e2b').style.display=t==='e2b'?'block':'none';
     document.getElementById('panel-b2e').style.display=t==='b2e'?'block':'none';
     document.getElementById('panel-reg').style.display=t==='reg'?'block':'none';
@@ -2336,8 +2346,12 @@ function autoConvertToBraille(s){
 let inputMode='chord';
 function setMode(m){
     inputMode=m;
-    document.getElementById('mode-chord').classList.toggle('active',m==='chord');
-    document.getElementById('mode-ascii').classList.toggle('active',m==='ascii');
+    ['chord','ascii'].forEach(n=>{
+        const isActive=n===m;
+        const el=document.getElementById('mode-'+n);
+        el.classList.toggle('active',isActive);
+        el.setAttribute('aria-checked',isActive?'true':'false');
+    });
     document.getElementById('kbhint-chord').style.display=m==='chord'?'':'none';
     document.getElementById('kbhint-ascii').style.display=m==='ascii'?'':'none';
     document.getElementById('mhint-text').textContent=

@@ -145,9 +145,10 @@ textarea:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 2px rgb
     </div>
     <div class="btn-group">
         <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf" style="display:none"
+               aria-hidden="true" tabindex="-1"
                onchange="handleOpenFile(event,'input-text',doConvert)">
-        <button onclick="document.getElementById('open-file-input').click()" style="background:#795548;color:white;border-color:#5d4037;">📂 開啟檔案</button>
-        <button onclick="openFormatModal('input-text', doConvert)" style="background:#546e7a;color:white;border-color:#37474f;">📋 格式調整</button>
+        <button onclick="document.getElementById('open-file-input').click()" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
+        <button onclick="openFormatModal('input-text', doConvert)" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="格式調整"><span aria-hidden="true">📋</span> 格式調整</button>
         <button onclick="copyOutput()" style="background:#1565c0;color:white;border-color:#0d47a1;">複製輸出</button>
     </div>
 </div>
@@ -162,23 +163,23 @@ textarea:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 2px rgb
 <div class="container">
     <div class="input-area">
         <div class="area-label">
-            <label>點字輸入（UEB G2）：</label>
+            <label for="input-text">點字輸入（UEB G2）：</label>
         </div>
         <textarea id="input-text" autofocus
             placeholder="輸入 ASCII 點字（,k is p{}4）&#10;或 Unicode 點字（⠠⠅ ⠊⠎ ⠏⠪⠻⠲）&#10;Ctrl+B 開啟六點輸入"></textarea>
     </div>
     <div class="output-area">
         <div class="area-label">
-            <label>英文輸出：</label>
+            <label for="output-text">英文輸出：</label>
         </div>
-        <textarea id="output-text" readonly spellcheck="false" placeholder="轉換結果將顯示於此…"></textarea>
+        <textarea id="output-text" readonly spellcheck="false" placeholder="轉換結果將顯示於此…" aria-label="英文輸出結果"></textarea>
     </div>
 </div>
 <div id="status-bar"></div>
 
 <!-- Parallel view -->
 <div class="parallel-container">
-    <div class="parallel-title">🔍 逐格對照</div>
+    <div class="parallel-title"><span aria-hidden="true">🔍</span> 逐格對照</div>
     <div id="parallel-view">
         <span style="color:#999;font-size:0.9em;">轉換後顯示對照</span>
     </div>

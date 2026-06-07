@@ -450,12 +450,12 @@
 
     <div class="control-panel">
         <div class="control-item">
-            <strong>每行方數：</strong><input type="number" id="cell-limit" value="40" style="width: 50px;">
+            <label for="cell-limit" style="margin:0;display:inline;font-weight:bold;">每行方數：</label><input type="number" id="cell-limit" value="40" style="width: 50px;">
         </div>
         <div class="control-item">
-            <strong>字體大小：</strong>
+            <label for="font-size-slider" style="margin:0;display:inline;font-weight:bold;">字體大小：</label>
             <input type="range" id="font-size-slider" min="16" max="48" value="22" style="vertical-align: middle;">
-            <span id="font-size-val">22px</span>
+            <span id="font-size-val" aria-live="polite">22px</span>
         </div>
         <div class="control-item">
             <strong>格式：</strong>
@@ -463,7 +463,7 @@
             <label style="display:inline; margin:0;"><input type="radio" name="output-format" value="ascii"> ASCII</label>
         </div>
         <div class="control-item">
-            <strong>英文點字：</strong>
+            <label for="en-mode" style="margin:0;display:inline;font-weight:bold;">英文點字：</label>
             <select id="en-mode">
                 <option value="ueb-g1">UEB Grade 1（不縮寫）</option>
                 <option value="ueb-g2">UEB Grade 2（縮寫）</option>
@@ -478,10 +478,10 @@
             </label>
         </div>
         <div class="btn-group">
-            <button onclick="openFileDialog()" style="background:#795548;">📂 開啟檔案</button>
-            <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;">💾 儲存原文</button>
-            <button onclick="downloadTxt()">💾 儲存點字</button>
-            <button class="secondary" onclick="downloadParallelHtml()">📄 匯出雙視</button>
+            <button onclick="openFileDialog()" style="background:#795548;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
+            <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;" aria-label="儲存原文"><span aria-hidden="true">💾</span> 儲存原文</button>
+            <button onclick="downloadTxt()" aria-label="儲存點字"><span aria-hidden="true">💾</span> 儲存點字</button>
+            <button class="secondary" onclick="downloadParallelHtml()" aria-label="匯出雙視 HTML"><span aria-hidden="true">📄</span> 匯出雙視</button>
         </div>
     </div>
     <!-- 隱藏的檔案輸入 -->
@@ -560,15 +560,15 @@
     <div class="container">
         <div class="input-area">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <label style="margin:0;">輸入文字：</label>
+                <label for="input-text" style="margin:0;">輸入文字：</label>
                 <button onclick="openFormatModal('input-text', render)" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
                 <div id="braille-mode-indicator" role="status" aria-live="polite">點字輸入</div>
             </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
         </div>
         <div class="output-area">
-            <label>點字輸出：</label>
-            <textarea id="output-text" readonly spellcheck="false"></textarea>
+            <label for="output-text">點字輸出：</label>
+            <textarea id="output-text" readonly spellcheck="false" aria-label="點字輸出結果"></textarea>
         </div>
     </div>
 
