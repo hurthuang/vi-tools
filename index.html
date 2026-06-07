@@ -416,7 +416,7 @@
       <div class="home-footer">
         所有工具均可離線使用，不傳送任何資料至伺服器。<br>
         適用於視障教育、輔具評估與點字教材製作。<br>
-        <span id="gc-visit-count" style="margin-top:6px;display:inline-block"></span>
+        <span id="gc-visit-count"></span>
       </div>
     </div>
   </div>
@@ -509,7 +509,22 @@
   var _gcT = setInterval(function() {
     if (window.goatcounter && window.goatcounter.visit_count) {
       clearInterval(_gcT);
-      window.goatcounter.visit_count({ append: '#gc-visit-count' });
+      var tmp = document.createElement('span');
+      tmp.style.cssText = 'position:absolute;visibility:hidden';
+      document.body.appendChild(tmp);
+      window.goatcounter.visit_count({ append: tmp });
+      var _wait = setInterval(function() {
+        var text = tmp.textContent.trim();
+        if (text) {
+          clearInterval(_wait);
+          var n = text.match(/[\d,]+/);
+          if (n) {
+            var el = document.getElementById('gc-visit-count');
+            if (el) el.textContent = '累計瀏覽 ' + n[0] + ' 次';
+          }
+          document.body.removeChild(tmp);
+        }
+      }, 50);
     }
   }, 100);
 </script>
