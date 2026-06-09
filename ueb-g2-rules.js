@@ -372,9 +372,103 @@ const _SH_BLOCKED_STEMS = new Set(['trans']);
 // k = 縮寫鍵（'th'/'wh'/'sh'）, pos = 在整詞中的起始 index
 function blocksCrossCompound(k, word, pos) {
     const lw = word.toLowerCase();
-    if (k === 'th') return _TH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    if (k === 'th') {
+        // 通用：th 後接 ood/ouse（adulthood, boathouse, knighthood…）
+        const after = lw.slice(pos + 2);
+        if (after.startsWith('ood') || after.startsWith('ouse')) return true;
+        // 明確詞幹：pot/bolt/flat/rat/coat + hole/head…
+        return _TH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    }
     if (k === 'wh') return _WH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
     if (k === 'sh') return _SH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  七B、各 always 縮寫阻止函式（gh / here / ever / mother /
+//       one / under / had / st）
+//  來源：liblouis en-ueb-g2.ctb + query inline logic
+//  pos  = 縮寫在整詞中的起始位置
+//  isProper = 是否為專有名詞（預設 false，bt 不偵測此值）
+// ════════════════════════════════════════════════════════════
+
+function blocksGhAlways(word, pos) {
+    const lw = word.toLowerCase();
+    const bc = pos > 0 ? lw[pos - 1] : '';
+    if (bc === 'n') return true;                         // ng+h: bunghole, longhaired
+    const after = lw.slice(pos + 2);
+    return after.startsWith('ood') || after.startsWith('ouse'); // doghood, bughouse
+}
+
+function blocksHereAlways(word, pos) {
+    const lw = word.toLowerCase();
+    const bc = pos > 0 ? lw[pos - 1] : '';
+    const suf = lw.slice(pos + 4);
+    if (suf[0] === 's' && 'iy'.includes(suf[1] || '')) return true; // heresy, heresies
+    if (suf.startsWith('tic')) return true;                          // heretic, heretical
+    // here 夾在字中（非字頭、非字尾）且前接子音 → 跨音節（atmosphere, hemisphere）
+    if (pos > 0 && pos + 4 < lw.length && bc && !'aeiouy'.includes(bc)) return true;
+    return false;
+}
+
+function blocksEverAlways(word, pos, isProper) {
+    const lw = word.toLowerCase();
+    const bc = pos > 0 ? lw[pos - 1] : '';
+    const ac = lw[pos + 4] || '';
+    if (bc === 'e' || bc === 'i') return true;           // lever, river, fever
+    if (ac === 'e' && !isProper) return true;            // severe, revere（非專有名詞）
+    return false;
+}
+
+function blocksMotherAlways(word, pos) {
+    const bc = pos > 0 ? word.toLowerCase()[pos - 1] : '';
+    return bc === 'e';                                   // chemotherapy
+}
+
+function blocksOneAlways(word, pos, isProper) {
+    const lw = word.toLowerCase();
+    const bc = pos > 0 ? lw[pos - 1] : '';
+    const ac  = lw[pos + 3] || '';
+    const ac2 = lw[pos + 4] || '';
+    if (bc === 'o') return true;                                             // moone, boone
+    if (ac === 'd' || ac === 'r') return true;                               // boned, donor
+    if (ac === 'n' && lw.includes('oness')) return true;                     // baroness
+    if (ac && 'aeiou'.includes(ac)) return true;                             // pioneer, ionetic
+    if (ac === 's' && ac2 && 'aeiou'.includes(ac2)) return true;             // Cantonese
+    if (ac && 'gltc'.includes(ac) && (!ac2 || 'aeiou'.includes(ac2))) return true; // Conestoga
+    if (isProper && pos > 0 && !ac) {
+        if (bc && 'aeiouy'.includes(bc)) return true;                        // Dione, Alcyone
+        const bc2 = pos >= 2 ? lw[pos - 2] : '';
+        if (bc === 'h' && 'psct'.includes(bc2)) return true;                 // Persephone, Shoshone
+    }
+    return false;
+}
+
+function blocksUnderAlways(word, pos) {
+    const bc = pos > 0 ? word.toLowerCase()[pos - 1] : '';
+    return bc === 'a' || bc === 'o';                     // launder, flounder
+}
+
+function blocksHadAlways(word, pos) {
+    const ac = word.toLowerCase()[pos + 3] || '';
+    return pos === 0 && ac === 'r';                      // Hadrian
+}
+
+function blocksStAlways(word, pos, isProper) {
+    const lw = word.toLowerCase();
+    // 希臘字根 aesth/anesth/asthm → 優先縮 th，不縮 st
+    if (lw[pos + 2] === 'h') {
+        if (lw.startsWith('aesth')  && pos === 1) return true;
+        if (lw.startsWith('anesth') && pos === 2) return true;
+        if (lw.startsWith('asthm')  && pos === 1) return true;
+    }
+    // st 後接 ion → 讓 tion 縮寫優先（MIDEND）
+    if (lw.startsWith('ion', pos + 2)) return true;
+    // 專有名詞：stown（Cookstown）、stag（Bundestag）字尾
+    if (isProper && pos > 0) {
+        if (lw.slice(pos, pos + 5) === 'stown') return true;
+        if (lw.slice(pos, pos + 5) === 'stag')  return true;
+    }
     return false;
 }
 

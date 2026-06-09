@@ -727,7 +727,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             }
         }else{
             stemBr=r.brl;
-            stemSegs=[{en:r.stem,br:r.brl,cat:'dict'}];
+            stemSegs=[{en:r.stem,br:r.brl,cat:'always'}];
         }
         const rSuf=suffix?translateWord(suffix,false,isAllUpper,true):{br:'',segs:[]};
         return{br:rPre.br+stemBr+rSuf.br,segs:[...rPre.segs,...stemSegs,...rSuf.segs]};
@@ -755,7 +755,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 }
                 return{br,segs};
             }else{
-                segs.push({en:stem,br:val,cat:'dict'});
+                segs.push({en:stem,br:val,cat:'word'});
                 if(rest){
                     const rSuf=translateWord(rest,false,isAllUpper,true);
                     return{br:val+rSuf.br,segs:[...segs,...rSuf.segs]};
@@ -854,9 +854,9 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             }else{
                 stemBr=bestM.b;
                 // LL_MATCH_SUF 規則（sion/tion/ance/ence 等後綴）→ midend
-                // LL_MATCH 規則（stem pattern）→ dict
+                // LL_MATCH 規則（stem pattern）→ always（字群符號層級）
                 const isFinalLetter=new Set(['tion','sion','ance','ence','ful','ity','less','ment','ness','ong','ound','ount']).has(bestM.s);
-                stemSegs=[{en:bestM.s,br:bestM.b,cat:isFinalLetter?'midend':'dict'}];
+                stemSegs=[{en:bestM.s,br:bestM.b,cat:isFinalLetter?'midend':'always'}];
             }
             const rSuf=suffix?translateWord(suffix,false,isAllUpper,true):{br:'',segs:[]};
             return{br:rPre.br+stemBr+rSuf.br,segs:[...rPre.segs,...stemSegs,...rSuf.segs]};
@@ -898,7 +898,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             return{br,segs};
         }else{
             // 用字典指定的 brl，整詞當作一個 shortform-like 段
-            segs.push({en:lw,br:val,cat:'dict'});
+            segs.push({en:lw,br:val,cat:'word'});
             return{br:val,segs};
         }
     }
@@ -928,7 +928,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             return{br,segs};
         }else{
             // stem 用字典 brl + rest 用字母拼
-            segs.push({en:stem,br:val,cat:'dict'});
+            segs.push({en:stem,br:val,cat:'word'});
             let br=val;
             for(const ch of rest){
                 const b=UA[ch]||ch;
@@ -1071,113 +1071,25 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             // 但 wordsigns (THE, AND, FOR, OF, WITH) 在全大寫時仍縮
             const STRONG_2L=new Set(['ar','ch','sh','th','gh','st','wh']);
             if(isAllUpper&&i===0&&k===lw&&STRONG_2L.has(k))continue;
-            if(k==='here'){
-                const s=lw.slice(i+k.length);
-                if(s[0]==='s'&&'iy'.includes(s[1]||''))continue;
-                if(s.startsWith('tic'))continue;
-                // here 在字中（非字頭非字尾）且前是子音 → 跨字根，不縮
-                // 例：adherence (a-d-h-er-ence) here 不縮；但 adhere (字尾) 縮
-                //     atmosphere (字尾) 縮；但 atmospheric? — 看下面
-                if(i>0&&i+k.length<total&&bc&&!'aeiouy'.includes(bc))continue;
+            // 各縮寫阻止條件統一呼叫 ueb-g2-rules.js 共用函式
+            if(k==='gh'    &&blocksGhAlways(lw,i))           continue;
+            if(k==='here'  &&blocksHereAlways(lw,i))         continue;
+            if(k==='ever'  &&blocksEverAlways(lw,i,isProper))continue;
+            if(k==='mother'&&blocksMotherAlways(lw,i))       continue;
+            if(k==='one'   &&blocksOneAlways(lw,i,isProper)) continue;
+            if(k==='under' &&blocksUnderAlways(lw,i))        continue;
+            if(k==='had'   &&blocksHadAlways(lw,i))          continue;
+            if(k==='of'    &&blocksOfAlways(lw,i))           continue;
+            if(k==='st'    &&blocksStAlways(lw,i,isProper))  continue;
+            // th/wh/sh：複合詞跨形態邊界 → 不縮（blocksCrossCompound 含 ood/ouse 通用檢查）
+            if((k==='th'||k==='wh'||k==='sh')&&blocksCrossCompound(k,lw,i))continue;
+            // th 前是 s 時優先 st + h；希臘字根 aesth/anesth/asthm 例外允許縮 th
+            if(k==='th'&&bc==='s'){
+                const isGreek=(lw.startsWith('aesth')&&i===2)
+                            ||(lw.startsWith('anesth')&&i===3)
+                            ||(lw.startsWith('asthm')&&i===2);
+                if(!isGreek)continue;
             }
-            if(k==='ever'){
-                if(bc==='e'||bc==='i')continue;
-                // ever 後接 'e' 在普通字（非 proper noun）中不縮（severe, revere, reverberate, believer）
-                // 但 proper noun 中 ever+e 仍縮（Devereux, Everett, Beverley）
-                if(ac==='e'&&!isProper)continue;
-            }
-            if(k==='mother'&&bc==='e')continue;
-            if(k==='gh'){
-                if(bc==='n')continue; // ng+h：ong 不縮時 g 屬於 ong，gh 不應縮
-                const ghAfter=lw.slice(i+2);
-                if(ghAfter.startsWith('ood')||ghAfter.startsWith('ouse'))continue; // g+hood/g+house 複合詞邊界
-            }
-            if(k==='st'){
-                // sth 模式：UEB 規則優先 s + th，而非 st + h（特定字根）
-                // 希臘字根 aesth/anesth/asthm → 縮 th 而非 st
-                // 例：aesthete, anesthesia, asthma, asthmatic
-                // 但 asthenia/asthenosphere (希臘 ἀσθένεια 不同字根) 縮 st
-                if(lw[i+2]==='h'){
-                    // 檢查字頭是否為這三個希臘字根
-                    if(lw.startsWith('aesth')&&i===1)continue;
-                    if(lw.startsWith('anesth')&&i===2)continue;
-                    if(lw.startsWith('asthm')&&i===1)continue;
-                }
-                // Proper noun + st 後接 town 系列 (Cookstown, Cooperstown) → 不縮（複合詞）
-                if(isProper&&i>0&&lw.slice(i,i+5)==='stown')continue;
-                if(isProper&&i>0&&lw.slice(i,i+5)==='stag')continue;  // Bundestag
-            }
-            if(k==='th'){
-                // th 前是 s 時，正常情況優先 st + h（s 走 alpha + th 走縮寫）
-                // 但希臘字根 aesth/anesth/asthm → th 縮，st 不縮（i.e. s+th 路徑）
-                if(bc==='s'){
-                    // 例外：aesth/anesth/asthm 系列允許 th 縮
-                    const isGreek=(lw.startsWith('aesth')&&i===2)
-                                ||(lw.startsWith('anesth')&&i===3)
-                                ||(lw.startsWith('asthm')&&i===2);
-                    if(!isGreek)continue;
-                }
-                // -thood/-thouse 等複合詞：t-h 跨字根邊界，不縮 th
-                // 例：adulthood (adult+hood), boathouse (boat+house), boyhood, motherhood
-                const after=lw.slice(i+k.length);
-                if(after.startsWith('ood')||after.startsWith('ouse'))continue;
-            }
-            if(k==='one'){
-                if(bc==='o')continue;
-                if(ac==='d'||ac==='r')continue;
-                // one+n 規則：要看後面是不是構成 oness 字尾(baroness 系列) 
-                // 或 token 中含 oness 子串
-                if(ac==='n'){
-                    // 看 token 後續是否會形成 oness pattern (b-a-r-oness)
-                    // 即 one + n + e + s + s 子序列
-                    const after=lw.slice(i+k.length);  // 'one' 之後的部分
-                    // 'one' + 'ness' 字串 → oness 模式（baroness）
-                    // 但 'one' + 'nes' + 其他 → 不算 (aloneness 是 one+n+ess - 不對等等)
-                    // aloneness 中 'one' at i=2, 之後是 'ness' — 也是 'ness' 結尾
-                    // 但 oracle 對 aloneness 縮 one，對 baroness 不縮 one
-                    // 差別：i+k.length 後接 'ness' 的位置 — baroness: i=3, 之後 'ness'；aloneness: i=2, 之後 'ness'
-                    // 兩者都是 one+ness 結構... 但 oracle 行為不同。實際上：
-                    // baroness 含 oness 子串 (從 i=3 開始：oness)
-                    // aloneness 含 'one' 子串 (從 i=2)，但沒有 oness 子串(因為 i+3='n', i+4='e', i+5='s', i+6='s' — 等等)
-                    // a-l-o-n-e-n-e-s-s: 從 i=2 取 5 字 = o-n-e-n-e ≠ oness
-                    // 從 i=3 取 5 字 = n-e-n-e-s ≠ oness
-                    // 所以 aloneness 不含 oness! 那為什麼前面 lookup 沒匹配？
-                    // baroness 含 oness 子串: 從 i=3 取 = o-n-e-s-s = oness ✓
-                    // 結論：要看 i+5 是否為 's'，也就是 lw[i+3]='n' lw[i+4]='e' lw[i+5]='s'
-                    // 對 aloneness: i=2, lw[5]='n', lw[6]='e' — 不是 'e'+'s' 結構
-                    // 對 baroness: i=3, lw[6]='s' (i+3=6=s)
-                    // 改寫條件：one + n 且 token 中含 oness 子串才不縮
-                    if(lw.includes('oness'))continue;
-                    // 否則 one+n 通常仍縮 (aloneness, oneness, etc)
-                }
-                // 從 liblouis oracle 學到：one 後接元音 (a/e/i/o/u) 表示跨音節，不縮
-                if(ac&&'aeiou'.includes(ac))continue;
-                // one + s + 元音 → 跨音節 (Cantonese, Aragonese, Indonesian)
-                const ac2=lw[i+k.length+1]||'';
-                if(ac==='s'&&ac2&&'aeiou'.includes(ac2))continue;
-                // one 後接 g/l/t/c + 元音/字尾 也常跨音節（Conestoga, Colonel）
-                if(ac&&(ac==='g'||ac==='l'||ac==='t'||ac==='c')&&(!ac2||'aeiou'.includes(ac2)))continue;
-                // Proper noun + one 字中且後接元音 → 跨音節，不縮（已有上面元音規則處理）
-                // 但若後接子音(m/k/c/g/l/r/n/d/t) → 通常 one 是穩固音節，仍可縮 (Atonement, Ballymoney)
-                // 故不在這加額外條件
-                // Proper noun + one 字尾規則：
-                // - 縮：one 前是普通子音（Capone, Malone, Corleone, Tyrone, Simone）
-                // - 不縮：one 前是元音字母（Alcyone=y, Dione=i, Antigone=g 但前 i）
-                //         或 one 前是 ph/sh/ch/th 雙字音（Persephone, Shoshone）
-                if(isProper&&i>0&&!ac){
-                    const bc2=i>=2?lw[i-2]:'';
-                    // 前一字是元音字母 → 不縮（跨音節）
-                    if(bc&&'aeiouy'.includes(bc))continue;
-                    // 前一字是 h，且前兩字是 ph/sh/ch/th → 不縮（雙字音 ph-one）
-                    if(bc==='h'&&['p','s','c','t'].includes(bc2))continue;
-                    // 其他：one 前是穩固子音 → 縮（Capone, Malone）
-                }
-            }
-            if(k==='under'){
-                if(bc==='a'||bc==='o')continue;
-                if(i===0&&lw.startsWith('un')&&total>5&&!lw.startsWith('under'))continue;
-            }
-            if(k==='had'&&i===0&&ac==='r')continue;
             // there: Theresa/Theremin → there+s+母音 或 there+m 不縮（ctb 1418–1419）
             if(k==='there'&&ac==='s'&&/[aeiou]/i.test(lw[i+k.length+1]||''))continue;
             if(k==='there'&&ac==='m')continue;
