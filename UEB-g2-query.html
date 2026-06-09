@@ -1260,6 +1260,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                     if(k==='ea'&&lw[i+2]==='r'){
                         continue;
                     }
+                    if(k==='ea'&&typeof blocksEaGroupsign!=='undefined'&&blocksEaGroupsign(lw))continue;
                     // 其他 lower groupsigns: lookahead 若下一格能形成 always 縮寫則放棄
                     if(k!=='ea'){
                         let yieldToAlways=false;

@@ -263,7 +263,54 @@ function buildFilteredTables(enabledSet) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  四、getCategoryLabel — 供 query 規則說明顯示使用
+//  四、blocksEaGroupsign — re-/pre- 前綴阻止 ea lower groupsign
+//  來源：liblouis en-ueb-g2.ctb lines 928–980 match 規則翻譯
+//  邏輯：整詞以特定前綴起頭 → ea 跨形態邊界 → 不縮
+// ════════════════════════════════════════════════════════════
+
+const _BLOCKED_EA = [
+    // pre- prefix（不用 'prea' 整批：會破壞 preach/preachable 等根詞）
+    'preadm',                  // preadmit, preadmission
+    'preapp','preap',          // preapprove, preappoint, preapplication
+    // re- prefix
+    'reab',                    // line 929: reabsorb
+    'reacc','reack','reacq',   // line 930: reaccustom, reacknowledge
+    'reacid',                  // line 933: reacidify
+    'react',                   // line 934: react ALL derivatives（最重要）
+    'readap','readd','readj',  // lines 935-938: readapt, readdress, readjust
+    'readm',                   // line 941: readmit（readme/readmes 在例外表）
+    'reado',                   // line 944: readopt（readonly/readout 在例外表）
+    'readv',                   // line 945: readvance
+    'reaer',                   // line 946: reaerate
+    'reaff',                   // line 947: reaffirm
+    'reagen','reagg',          // lines 949-950: reagent, reaggregate
+    'realig','reall',          // lines 956-957: realign, realloc（really 在例外表）
+    'rean',                    // line 964: reanimate, reanalyze
+    'reapp',                   // line 966: reappear
+    'reass','reasc','reast',   // line 967: reassure, reascend（reasty 在例外表）
+    'reatt',                   // line 969: reattach
+    'reaw',                    // line 977: reawaken
+    'reav',                    // line 976: reavail（reave/reaved/reaves/reaving 在例外表）
+];
+
+// 前綴命中但保留 ea 的整詞（對應 liblouis sufword/word 覆寫）
+const _EA_UNBLOCKED = new Set([
+    'really',
+    'reasty',
+    'reave','reaved','reaves','reaving',
+    'readme','readmes',
+    'readonly','readout',
+]);
+
+function blocksEaGroupsign(word) {
+    const lw = word.toLowerCase();
+    if (_EA_UNBLOCKED.has(lw)) return false;
+    for (const p of _BLOCKED_EA) { if (lw.startsWith(p)) return true; }
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  五、getCategoryLabel — 供 query 規則說明顯示使用
 //  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
 // ════════════════════════════════════════════════════════════
 

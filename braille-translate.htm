@@ -1611,6 +1611,7 @@ function translateG2Seq(word, _tables) {
         if (!isStart) {
             for (const k of Object.keys(_t.midword)) {
                 if (lw.startsWith(k, i) && i + k.length < total && k.length > bestLen) {
+                    if (k === 'ea' && typeof blocksEaGroupsign !== 'undefined' && blocksEaGroupsign(lw)) continue;
                     bestType = 'mid'; bestLen = k.length; bestBr = _t.midword[k]; best = k;
                 }
             }
