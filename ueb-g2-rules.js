@@ -493,7 +493,27 @@ function blocksThoseAlways(word, pos) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  八、getCategoryLabel — 供 query 規則說明顯示使用
+//  八、computePrefixEnd — 計算已知前綴邊界位置
+//  回傳前綴長度（0-based 切換點），若無已知前綴則回傳 -1
+//  用於 translateG2Seq 避免 strong groupsign 跨前綴邊界縮寫
+// ════════════════════════════════════════════════════════════
+
+const _PREFIX_VOWELY = new Set(['a','e','i','o','u','y']);
+const _KNOWN_PREFIXES = ['under','over','non','off','out','mis','un','re','up'];
+
+function computePrefixEnd(word) {
+    const lw = word.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(G2_ALWAYS, lw)) return -1;
+    for (const p of _KNOWN_PREFIXES) {
+        if (lw.startsWith(p) && lw.length > p.length + 1 && !_PREFIX_VOWELY.has(lw[p.length])) {
+            return p.length;
+        }
+    }
+    return -1;
+}
+
+// ════════════════════════════════════════════════════════════
+//  九、getCategoryLabel — 供 query 規則說明顯示使用
 //  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
 // ════════════════════════════════════════════════════════════
 

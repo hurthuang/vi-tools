@@ -1460,6 +1460,9 @@ function translateG2Seq(word, _tables) {
     const _t = _tables || { always: G2_ALWAYS, anywhere: G2_ANYWHERE, begword: G2_BEGWORD,
         midword: G2_MIDWORD, midend: G2_MIDEND, lowword: G2_LOWWORD, sufword: G2_SUFWORD, word: G2_WORD };
 
+    const prefixEnd = typeof computePrefixEnd === 'function' ? computePrefixEnd(lw) : -1;
+    const _ALLOW_CROSS = new Set(['st','sh','th','wh','gh','ch','ar','er','ed']);
+
     while (i < total) {
         const isStart = (i === 0);
 
@@ -1554,6 +1557,10 @@ function translateG2Seq(word, _tables) {
                 );
                 if (longerMidend) { continue; }
             }
+            // 跨前綴邊界禁用：strong groupsign 不可從前綴內跨入主幹（2字母類除外）
+            if (prefixEnd > 0 && i < prefixEnd && i + k.length > prefixEnd && !_ALLOW_CROSS.has(k)) { continue; }
+            // ou 跨前綴邊界：若 o 是前綴末字母（如 pro-union）→ 不縮
+            if (k === 'ou' && prefixEnd > 0 && i === prefixEnd - 1 && lw[prefixEnd - 1] === 'o') { continue; }
 
             aBest = k;
             break;

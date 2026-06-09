@@ -868,19 +868,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
         }
     }
 
-    // 常見複合/前綴邊界（單詞前 N 個字母為已知前綴）— 用於避免 strong groupsigns 跨界誤用
-    // 按長度從長到短排序：避免 'un' 在 'underpaid' 中搶先匹配（應該整段是 'under'+ 'paid'）
-    const PREFIXES=['under','over','non','off','out','mis','un','re','up'];
-    let prefixEnd=-1;
-    // 若整詞本身就是 GA shortword（如 'under'）→ 跳過 prefix 拆解
-    const wholeIsGA=Object.keys(GA).some(k=>k===lw);
-    if(!wholeIsGA){
-        for(const p of PREFIXES){
-            if(lw.startsWith(p)&&lw.length>p.length+1&&!VOWELY.has(lw[p.length])){
-                prefixEnd=p.length;break;
-            }
-        }
-    }
+    const prefixEnd=computePrefixEnd(lw);
 
     if(!isContinuation&&!suppressWordsign){
         if(Object.prototype.hasOwnProperty.call(GL,lw)){segs.push({en:lw,br:GL[lw],cat:'lowword'});return{br:GL[lw],segs};}
@@ -992,6 +980,8 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             if(used)continue;
         }
 
+        const STRONG_2L=new Set(['ar','ch','sh','th','gh','st','wh']);
+        const ALLOW_CROSS_PREFIX=new Set(['st','sh','th','wh','gh','ch','ar','er','ed']);
         const aAll=Object.keys(GA).filter(k=>lw.startsWith(k,i)).sort((a,b)=>b.length-a.length);
         let aBest=null;
         for(const k of aAll){
@@ -999,7 +989,6 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             // 全大寫 + token 本身 = always strong groupsign (AR, CH, SH, TH, GH, ST, WH)
             // → 不縮（UEB §10.7.5）；保留為字母拼字
             // 但 wordsigns (THE, AND, FOR, OF, WITH) 在全大寫時仍縮
-            const STRONG_2L=new Set(['ar','ch','sh','th','gh','st','wh']);
             if(isAllUpper&&i===0&&k===lw&&STRONG_2L.has(k))continue;
             // 各縮寫阻止條件統一呼叫 ueb-g2-rules.js 共用函式
             if(k==='gh'    &&blocksGhAlways(lw,i))           continue;
@@ -1022,12 +1011,9 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             }
             if(k==='there'&&blocksThereAlways(lw,i))continue;
             if(k==='those'&&blocksThoseAlways(lw,i))continue;
-            // 跨前綴邊界禁用：strong groupsign 不可從前綴內跨入主幹
-            // 例外：st/sh/th/wh/gh/ch/ar/er/ou/ow 等雙字母 always groupsign liblouis 允許跨界
-            const ALLOW_CROSS_PREFIX=new Set(['st','sh','th','wh','gh','ch','ar','er','ed']);
+            // 跨前綴邊界禁用：strong groupsign 不可從前綴內跨入主幹（2字母類除外）
             if(prefixEnd>0&&i<prefixEnd&&i+k.length>prefixEnd&&!ALLOW_CROSS_PREFIX.has(k))continue;
-            // ou 跨前綴邊界：若 o 是前綴最後一字（pro-union: pro 以 o 結尾）→ 不縮
-            // 但 re-outfit: e 結尾，ou 整個在詞根 → 縮
+            // ou 跨前綴邊界：若 o 是前綴末字母（如 pro-union）→ 不縮
             if(k==='ou'&&prefixEnd>0&&i===prefixEnd-1&&lw[prefixEnd-1]==='o')continue;
             if(k==='ou'&&!isS){
                 const lm=Object.keys(G2_MIDEND).find(m=>lw.startsWith(m,i)&&m.startsWith('ou')&&m.length>2);
