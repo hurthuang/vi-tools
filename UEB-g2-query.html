@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -96,7 +96,6 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
 <div class="tabs" role="tablist" aria-label="查詢模式">
     <button class="tab active" id="tab-e2b" role="tab" aria-selected="true" aria-controls="panel-e2b" onclick="switchTab('e2b')">英文 → 點字</button>
     <button class="tab" id="tab-b2e" role="tab" aria-selected="false" aria-controls="panel-b2e" onclick="switchTab('b2e')">點字 → 英文</button>
-    <button class="tab" id="tab-reg" role="tab" aria-selected="false" aria-controls="panel-reg" onclick="switchTab('reg')"><span aria-hidden="true">⚙</span> Regression</button>
 </div>
 <div class="scard">
     <div id="panel-e2b" role="tabpanel" aria-labelledby="tab-e2b">
@@ -152,6 +151,7 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
     <div id="reg-result"></div>
 </div>
 </div>
+    <script src="ueb-g2-rules.js"></script>
 <script src="build-no-tables-utf32.js"></script>
 <script>
 // ════════════════════════════════════════════════════════════
@@ -2273,18 +2273,19 @@ ${altReadings.length?`<div class="stitle">替代解讀</div>${altReadings.map(a=
 let ctab='e2b';
 function switchTab(t){
     ctab=t;
-    ['e2b','b2e','reg'].forEach(n=>{
+    ['e2b','b2e'].forEach(n=>{
         const isActive=n===t;
         const tabEl=document.getElementById('tab-'+n);
-        tabEl.classList.toggle('active',isActive);
-        tabEl.setAttribute('aria-selected',isActive?'true':'false');
+        if(tabEl){ tabEl.classList.toggle('active',isActive); tabEl.setAttribute('aria-selected',isActive?'true':'false'); }
     });
     document.getElementById('panel-e2b').style.display=t==='e2b'?'block':'none';
     document.getElementById('panel-b2e').style.display=t==='b2e'?'block':'none';
     document.getElementById('panel-reg').style.display=t==='reg'?'block':'none';
     document.getElementById('result-area').innerHTML='';
-    setTimeout(()=>document.getElementById(t==='e2b'?'e2b-in':t==='b2e'?'b2e-in':'reg-result').focus(),50);
+    const focusId=t==='e2b'?'e2b-in':t==='b2e'?'b2e-in':'reg-result';
+    setTimeout(()=>document.getElementById(focusId)?.focus(),50);
 }
+if(location.hash==='#reg') switchTab('reg');
 async function onE2B(){
     const raw=document.getElementById('e2b-in').value;
     document.getElementById('result-area').innerHTML=renderE2B(raw,null);
