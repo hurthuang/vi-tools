@@ -1538,6 +1538,11 @@ function translateG2Seq(word, _tables) {
                 if (suf[0] === 's' && 'iy'.includes(suf[1] || '')) { continue; } // heresy
                 if (suf[0] === 't' && suf[1] === 'i' && suf[2] === 'c') { continue; } // heretic
             }
+            // there: Theresa/Therese → there + s + 母音 不縮（liblouis ctb 1419–1422）
+            if (k === 'there') {
+                const suf = lw.slice(i + k.length);
+                if (suf[0] === 's' && _VOWELS_SET.has(suf[1] || '')) { continue; }
+            }
             // ever (L15): NOT preceded by e or i
             if (k === 'ever') {
                 if (beforeCh === 'e' || beforeCh === 'i') { continue; }
@@ -1603,6 +1608,8 @@ function translateG2Seq(word, _tables) {
                             if (!hasVowelNear) { continue; }
                         }
                     }
+                    if (k === 'con' && typeof blocksConBegword !== 'undefined' && blocksConBegword(lw)) continue;
+                    if (k === 'dis' && typeof blocksDisBegword !== 'undefined' && blocksDisBegword(lw)) continue;
                     bestType = 'beg'; bestLen = k.length; bestBr = _t.begword[k]; best = k;
                 }
             }

@@ -310,7 +310,33 @@ function blocksEaGroupsign(word) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  五、getCategoryLabel — 供 query 規則說明顯示使用
+//  五、blocksConBegword / blocksDisBegword
+//  來源：liblouis en-ueb-g2.ctb lines 852–875 match 規則翻譯
+// ════════════════════════════════════════════════════════════
+
+function blocksConBegword(word) {
+    const lw = word.toLowerCase();
+    if (lw.length <= 3) return false;
+    const ch = lw[3];
+    if (ch === 'e' && !(lw[4] === 's' && lw[5] === 't')) return true; // cone → block; contest → allow
+    if (ch === 'k') return true;                                        // conk
+    if (ch === 'c' && lw[4] === 'h') return true;                      // conch
+    if (ch === 's' && !/[a-z]/.test(lw[4] || '')) return true;         // cons (無後綴音節) → block
+    return false;
+}
+
+function blocksDisBegword(word) {
+    const lw = word.toLowerCase();
+    if (lw.length <= 3) return false;
+    const ch = lw[3];
+    if (ch === 'k') return true;                                                // disk, diskette
+    if (ch === 'h' && 'bcdfghiklmnprtw'.includes(lw[4] || '')) return true;    // dishwasher, dishcloth…
+    if (ch === 'p' && lw[4] === 'i') return true;                               // dispirited
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  六、getCategoryLabel — 供 query 規則說明顯示使用
 //  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
 // ════════════════════════════════════════════════════════════
 

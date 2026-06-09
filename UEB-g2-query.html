@@ -1178,6 +1178,8 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 if(i===0&&lw.startsWith('un')&&total>5&&!lw.startsWith('under'))continue;
             }
             if(k==='had'&&i===0&&ac==='r')continue;
+            // there: Theresa/Therese → there+s+母音 不縮（liblouis ctb 1419–1422）
+            if(k==='there'&&ac==='s'&&/[aeiou]/i.test(lw[i+k.length+1]||''))continue;
             // strong-shortform 'there'/'those' 在 token 內部（i>0）需前接非字母。
             // ctb: `nofor always there/those` 表示在 e2b 中間不適用 anywhere；
             // 改由 match 規則 `^|!%a there - ` 處理（前面非字母才縮）。
