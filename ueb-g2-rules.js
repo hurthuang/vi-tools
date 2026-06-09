@@ -261,3 +261,22 @@ function buildFilteredTables(enabledSet) {
 
     return { always, anywhere, begword, midword, midend, lowword, sufword, word };
 }
+
+// ════════════════════════════════════════════════════════════
+//  四、getCategoryLabel — 供 query 規則說明顯示使用
+//  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
+// ════════════════════════════════════════════════════════════
+
+const _ITEM_LABEL = (() => {
+    const m = {};
+    for (const g of UEB_GROUPS) {
+        for (const item of g.items) {
+            m[item.key] = { label: item.label, group: g.label };
+        }
+    }
+    return m;
+})();
+
+function getCategoryLabel(itemKey) {
+    return _ITEM_LABEL[itemKey] ?? null;  // { label, group } or null
+}

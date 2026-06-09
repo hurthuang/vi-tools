@@ -74,6 +74,7 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
 .rien{font-size:.9rem;font-weight:500;color:var(--tx);}
 .ridts{font-size:.7rem;color:var(--tx3);margin-top:1px;}
 .ritag{display:inline-block;font-size:.63rem;padding:2px 7px;border-radius:8px;font-weight:500;margin-top:3px;}
+.rigrp{display:inline-block;font-size:.6rem;padding:1px 6px;border-radius:8px;font-weight:400;margin-top:3px;margin-left:4px;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx2);}
 .always .ritag,.anywhere .ritag{background:var(--ac);color:#fff;}
 .begword .ritag{background:var(--cor-md);color:#fff;}
 .midword .ritag,.midend .ritag{background:var(--amb-md);color:#fff;}
@@ -2175,9 +2176,29 @@ function escapeHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// query 規則說明的 (en, cat) → UEB_GROUPS item key
+function getItemKey(en,cat){
+    if(cat==='anywhere')return 'lg_en_in';
+    if(cat==='begword')return 'lg_con_dis';
+    if(cat==='midword')return 'lg_ea_bb';
+    if(cat==='lowword')return 'lw_words';
+    if(cat==='shortform')return 'shortform';
+    if(cat==='always'||cat==='midend')return typeof getCategoryKey!=='undefined'?getCategoryKey(en):null;
+    if(cat==='word'){
+        if(WS_ALPHA_SET.has(en))return 'ws_alpha';
+        if(WS_STRONG_SET.has(en))return 'ws_strong';
+        const v=G2_WORD[en];
+        if(v&&(v.startsWith('⠐')||v.startsWith('⠘')||v.startsWith('⠸')))return 'init_con';
+        return 'shortform';
+    }
+    return null;
+}
 function riHTML(en,br,cat){
     const ci=CLABEL[cat]||CLABEL.alpha;
-    return`<div class="ri ${cat}"><div class="ribr">${br}</div><div class="ribody"><div class="rien">${escapeHtml(en)}</div><div class="ridts">${dots(br)}</div><span class="ritag">${ci.l}　${ci.d}</span></div></div>`;
+    const itemKey=getItemKey(en,cat);
+    const grpInfo=itemKey&&typeof getCategoryLabel!=='undefined'?getCategoryLabel(itemKey):null;
+    const grpTag=grpInfo?`<span class="rigrp">${grpInfo.label}</span>`:'';
+    return`<div class="ri ${cat}"><div class="ribr">${br}</div><div class="ribody"><div class="rien">${escapeHtml(en)}${grpTag}</div><div class="ridts">${dots(br)}</div><span class="ritag">${ci.l}　${ci.d}</span></div></div>`;
 }
 
 function renderE2B(raw, llBr){
