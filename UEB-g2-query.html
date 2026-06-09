@@ -464,17 +464,7 @@ function llJudgeBegword(prefix, lwToken, isProper){
 }
 
 const GM={'ea':'\u2802','bb':'\u2806','cc':'\u2812','ff':'\u2816','gg':'\u2836'};
-const GME={
-    'ing':'\u282c','tion':'\u2830\u281d','ence':'\u2830\u2811',
-    'ance':'\u2828\u2811','ment':'\u2830\u281e','ness':'\u2830\u280e',
-    'ful':'\u2830\u2807','ity':'\u2830\u283d','ound':'\u2828\u2819',
-    'ount':'\u2828\u281e','sion':'\u2828\u281d','less':'\u2828\u280e',
-    'ong':'\u2830\u281b'
-};
-const GL={
-    'be':'\u2806','his':'\u2826','was':'\u2834','were':'\u2836',
-    'enough':'\u2822','in':'\u2814'
-};
+const GL={...G2_LOWWORD, be:G2_SUFWORD['be'], in:G2_ANYWHERE['in']};
 const GS={};
 // SFXP_STRICT: 嚴格 shortforms（必須字首或字尾，且字首後不接母音/y）
 // 7 個：blind, first, friend, good, letter, little, quick
@@ -632,7 +622,7 @@ function addCell(en,br,cat,pri){
     if(!arr.find(x=>x.en===en&&x.cat===cat))arr.push({en,cat,pri});
 }
 for(const[k,v]of Object.entries(UA)) addCell(k,v,'alpha',10);
-for(const[k,v]of Object.entries(GME))addCell(k,v,'midend',3);
+for(const[k,v]of Object.entries(G2_MIDEND))addCell(k,v,'midend',3);
 for(const[k,v]of Object.entries(GM)) addCell(k,v,'midword',5);
 for(const[k,v]of Object.entries(G2_BEGWORD)) addCell(k,v,'begword',4);
 for(const[k,v]of Object.entries(G2_ANYWHERE)) addCell(k,v,'anywhere',2);
@@ -780,7 +770,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
     // ctb 順序：這些 match 規則在 always th/st/gh/sh/wh/ed 之前
     // 規則語意：token 中含 STEM（前面至少一字母） + 後接 AFTER pattern → stem 段用該 brl
     // r.t: 'any' (after 無限制) | 'boundary' (必須 token 邊界) | 'pattern' (字母 regex)
-    // 排除：與 GME 重複的單獨 final-letter 字母組（ness/ment 等，已由 GME 處理）
+    // 排除：與 G2_MIDEND 重複的單獨 final-letter 字母組（ness/ment 等，已由 G2_MIDEND 處理）
     // 但保留 tion/sion 等：它們需要在 one* 規則之前優先處理（auctioneer/bastion）
     // 排除：GM 規則 (bb/cc/ff/gg/ea) 已由 GM 處理
     const FINAL_LETTER_RULES=new Set(['ance','ence','ful','ity','less','ment','ness','ong','ound','ount']);
@@ -1098,7 +1088,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             // 但 re-outfit: e 結尾，ou 整個在詞根 → 縮
             if(k==='ou'&&prefixEnd>0&&i===prefixEnd-1&&lw[prefixEnd-1]==='o')continue;
             if(k==='ou'&&!isS){
-                const lm=Object.keys(GME).find(m=>lw.startsWith(m,i)&&m.startsWith('ou')&&m.length>2);
+                const lm=Object.keys(G2_MIDEND).find(m=>lw.startsWith(m,i)&&m.startsWith('ou')&&m.length>2);
                 if(lm)continue;
             }
             aBest=k;break;
@@ -1108,17 +1098,17 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
         let best=null,bLen=0,bBr='',bCat='';
         for(const k of Object.keys(G2_ANYWHERE)){
             if(lw.startsWith(k,i)&&k.length>bLen){
-                // lookahead：若從 i 起 GME 縮寫（如 ing）更長更好，讓位
-                // 例：bobbing 應走 b+o+bb+ing (GME)，不走 b+o+bb+in+g (GN)
-                let yieldToGME=false;
-                for(const mk of Object.keys(GME)){
+                // lookahead：若從 i 起 G2_MIDEND 縮寫（如 ing）更長更好，讓位
+                // 例：bobbing 應走 b+o+bb+ing (G2_MIDEND)，不走 b+o+bb+in+g (GN)
+                let yieldToG2_MIDEND=false;
+                for(const mk of Object.keys(G2_MIDEND)){
                     if(lw.startsWith(mk,i)&&mk.length>k.length){
-                        // GME 只在字尾才強制讓位（ing/tion 等後綴）
+                        // G2_MIDEND 只在字尾才強制讓位（ing/tion 等後綴）
                         // 字中出現（如 ingest 的 ing）不讓位，讓 in 正常縮
-                        if(i+mk.length===total){yieldToGME=true;break;}
+                        if(i+mk.length===total){yieldToG2_MIDEND=true;break;}
                     }
                 }
-                if(yieldToGME)continue;
+                if(yieldToG2_MIDEND)continue;
                 // lookahead：若保留 lw[i] 為字母、從 i+1 起能形成 GA 縮寫，則讓位
                 let yieldToAlways=false;
                 for(const ak of Object.keys(GA)){
@@ -1128,7 +1118,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                     }
                 }
                 if(yieldToAlways)continue;
-                // lookahead：若保留 lw[i] 為字母、從 i+1 起能形成 GME 字尾縮寫，則讓位
+                // lookahead：若保留 lw[i] 為字母、從 i+1 起能形成 G2_MIDEND 字尾縮寫，則讓位
                 // 例：abrasiveness → 不縮 en，保留 e 後接 ness
                 // 例：station → 不縮 anywhere `at`，保留 a 後接 tion
                 // ctb 規則：ness/ment/tion 等 final-letter contractions 即使中段也適用
@@ -1136,11 +1126,11 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 // 但 GA 縮寫 (>=2 cells) 仍只在字尾 yield
                 let yieldToFinal=false;
                 const FINAL_MIDEND=new Set(['ness','ment','tion','sion','ence','ance','ound','ount','less','ful','ity','ong']);
-                for(const mk of Object.keys(GME)){
+                for(const mk of Object.keys(G2_MIDEND)){
                     if(lw.startsWith(mk,i+1)){
                         // 'ness' 等 final-letter 允許中段
                         if(FINAL_MIDEND.has(mk)){yieldToFinal=true;break;}
-                        // 其他 GME (ing) 仍只在字尾
+                        // 其他 G2_MIDEND (ing) 仍只在字尾
                         if(i+1+mk.length===total){yieldToFinal=true;break;}
                     }
                 }
@@ -1179,9 +1169,9 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                     bCat='midword';bLen=k.length;bBr=GM[k];best=k;
                 }
             }
-            for(const k of Object.keys(GME)){
+            for(const k of Object.keys(G2_MIDEND)){
                 if(lw.startsWith(k,i)&&k.length>bLen){
-                    bCat='midend';bLen=k.length;bBr=GME[k];best=k;
+                    bCat='midend';bLen=k.length;bBr=G2_MIDEND[k];best=k;
                 }
             }
         }
