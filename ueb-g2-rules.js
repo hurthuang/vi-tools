@@ -336,7 +336,50 @@ function blocksDisBegword(word) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  六、getCategoryLabel — 供 query 規則說明顯示使用
+//  六、blocksOfAlways — 科學前綴 + f/w 阻止 of 縮寫
+//  來源：liblouis en-ueb-g2.ctb lines 311–348 match 規則
+//  例：autofocus/microfilm/photofluorography → of 不縮
+// ════════════════════════════════════════════════════════════
+
+const _OF_BLOCKED_PREFIXES = new Set([
+    'aero','antero','auto','benzo','bio','chloro','deutero',
+    'electro','fibro','fluoro','galvano','griseo','hetero','homo',
+    'hydro','hypo','kilo','luteo','macro','micro','mono','myelo',
+    'myo','nano','nitro','octo','photo','pico','proto','pseudo',
+    'psycho','retro','sulfo','sulpho','synchro','thermo','ventro'
+]);
+
+// pos = 'of' 的起始位置（即 'o' 的 index）
+function blocksOfAlways(word, pos) {
+    const lw = word.toLowerCase();
+    if (lw[pos] !== 'o') return false;
+    const next = lw[pos + 1] || '';
+    if (next !== 'f' && next !== 'w') return false;
+    return _OF_BLOCKED_PREFIXES.has(lw.slice(0, pos + 1));
+}
+
+// ════════════════════════════════════════════════════════════
+//  七、blocksCrossCompound — 複合詞跨形態邊界阻止 th/wh/sh
+//  來源：liblouis LL_MATCH 中 isAlpha:true 的 sufword/match 條目
+//  例：pothole(th)、rawhide(wh)、transhuman(sh)
+// ════════════════════════════════════════════════════════════
+
+// 以「contraction 的 't'/'w'/'s' 位置（含）前的詞幹」為索引鍵
+const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat']);
+const _WH_BLOCKED_STEMS = new Set(['raw']);
+const _SH_BLOCKED_STEMS = new Set(['trans']);
+
+// k = 縮寫鍵（'th'/'wh'/'sh'）, pos = 在整詞中的起始 index
+function blocksCrossCompound(k, word, pos) {
+    const lw = word.toLowerCase();
+    if (k === 'th') return _TH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    if (k === 'wh') return _WH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    if (k === 'sh') return _SH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  八、getCategoryLabel — 供 query 規則說明顯示使用
 //  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
 // ════════════════════════════════════════════════════════════
 

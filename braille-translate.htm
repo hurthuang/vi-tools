@@ -1538,11 +1538,17 @@ function translateG2Seq(word, _tables) {
                 if (suf[0] === 's' && 'iy'.includes(suf[1] || '')) { continue; } // heresy
                 if (suf[0] === 't' && suf[1] === 'i' && suf[2] === 'c') { continue; } // heretic
             }
-            // there: Theresa/Therese → there + s + 母音 不縮（liblouis ctb 1419–1422）
+            // there: Theresa/Theremin → there+s+母音 或 there+m 不縮（ctb 1418–1419）
             if (k === 'there') {
                 const suf = lw.slice(i + k.length);
                 if (suf[0] === 's' && _VOWELS_SET.has(suf[1] || '')) { continue; }
+                if (suf[0] === 'm') { continue; }
             }
+            // of：科學前綴 + f/w → 阻止 of 縮寫（ctb 311–348）
+            if (k === 'of' && typeof blocksOfAlways !== 'undefined' && blocksOfAlways(lw, i)) { continue; }
+            // th/wh/sh：複合詞跨形態邊界 → 不縮（ctb LL_MATCH isAlpha）
+            if ((k === 'th' || k === 'wh' || k === 'sh') &&
+                    typeof blocksCrossCompound !== 'undefined' && blocksCrossCompound(k, lw, i)) { continue; }
             // ever (L15): NOT preceded by e or i
             if (k === 'ever') {
                 if (beforeCh === 'e' || beforeCh === 'i') { continue; }
@@ -1603,6 +1609,8 @@ function translateG2Seq(word, _tables) {
                         const suf = lw.slice(i + k.length);
                         const firstAfter = suf[0] || '';
                         if (_VOWELS_SET.has(firstAfter) && firstAfter !== 'i') { continue; }
+                        // be+i：只有 be+in 可縮（being, bein'）；beige/beirut 等不縮
+                        if (firstAfter === 'i' && suf[1] !== 'n') { continue; }
                         if (!_VOWELS_SET.has(firstAfter)) {
                             const hasVowelNear = (suf.length > 1 && _VOWELS_SET.has(suf[1]));
                             if (!hasVowelNear) { continue; }
