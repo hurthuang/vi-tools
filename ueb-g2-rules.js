@@ -473,6 +473,26 @@ function blocksStAlways(word, pos, isProper) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  七C、blocksThereAlways / blocksThoseAlways
+//  there: Theresa(s+母音)、Theremin(m) 及 token 內部前接字母時不縮
+//  those: token 內部前接字母時不縮（dithose 等合成詞防誤縮）
+// ════════════════════════════════════════════════════════════
+
+function blocksThereAlways(word, pos) {
+    const lw = word.toLowerCase();
+    const ac = lw[pos + 5] || '';
+    if (ac === 's' && /[aeiou]/.test(lw[pos + 6] || '')) return true; // Theresa
+    if (ac === 'm') return true;                                        // Theremin
+    if (pos > 0 && /[a-z]/.test(lw[pos - 1])) return true;            // ditherer, bothered
+    return false;
+}
+
+function blocksThoseAlways(word, pos) {
+    if (pos > 0 && /[a-z]/.test(word.toLowerCase()[pos - 1])) return true;
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════
 //  八、getCategoryLabel — 供 query 規則說明顯示使用
 //  輸入 item key（如 'gs_ch_sh'），回傳可顯示的類別名稱
 // ════════════════════════════════════════════════════════════

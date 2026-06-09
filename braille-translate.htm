@@ -1532,12 +1532,8 @@ function translateG2Seq(word, _tables) {
             const afterCh = lw[afterPos] || '';
             const beforeCh = i > 0 ? lw[i - 1] : '';
 
-            // there: Theresa/Theremin → there+s+母音 或 there+m 不縮（ctb 1418–1419）
-            if (k === 'there') {
-                const suf = lw.slice(i + k.length);
-                if (suf[0] === 's' && _VOWELS_SET.has(suf[1] || '')) { continue; }
-                if (suf[0] === 'm') { continue; }
-            }
+            if (k === 'there' && blocksThereAlways(lw, i)) { continue; }
+            if (k === 'those' && blocksThoseAlways(lw, i)) { continue; }
             // of：科學前綴 + f/w → 阻止 of 縮寫（ctb 311–348）
             if (k === 'of'     && blocksOfAlways(lw, i))         { continue; }
             // th/wh/sh：複合詞跨形態邊界 → 不縮（ctb LL_MATCH isAlpha）

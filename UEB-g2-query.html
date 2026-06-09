@@ -272,8 +272,6 @@ const GA={
     'word':'\u2818\u283a','work':'\u2810\u283a','world':'\u2838\u283a',
     'young':'\u2810\u283d'
 };
-const GN={'in':'\u2814','en':'\u2822'};
-const GB={'con':'\u2812','dis':'\u2832','be':'\u2806'};
 
 // === liblouis en-ueb-g2.ctb 規則模擬 ===
 // 從 liblouis-3.29.0/tables/en-ueb-g2.ctb 抽取
@@ -636,8 +634,8 @@ function addCell(en,br,cat,pri){
 for(const[k,v]of Object.entries(UA)) addCell(k,v,'alpha',10);
 for(const[k,v]of Object.entries(GME))addCell(k,v,'midend',3);
 for(const[k,v]of Object.entries(GM)) addCell(k,v,'midword',5);
-for(const[k,v]of Object.entries(GB)) addCell(k,v,'begword',4);
-for(const[k,v]of Object.entries(GN)) addCell(k,v,'anywhere',2);
+for(const[k,v]of Object.entries(G2_BEGWORD)) addCell(k,v,'begword',4);
+for(const[k,v]of Object.entries(G2_ANYWHERE)) addCell(k,v,'anywhere',2);
 for(const[k,v]of Object.entries(GA)) addCell(k,v,'always',1);
 // SFXP shortforms 都加進 CELL_REV，標 shortform_pos —
 // dp 會限制「只在 token 開頭或結尾位置」使用，且依 atEnd/atStart 檢查前後字母不為母音
@@ -1090,14 +1088,8 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                             ||(lw.startsWith('asthm')&&i===2);
                 if(!isGreek)continue;
             }
-            // there: Theresa/Theremin → there+s+母音 或 there+m 不縮（ctb 1418–1419）
-            if(k==='there'&&ac==='s'&&/[aeiou]/i.test(lw[i+k.length+1]||''))continue;
-            if(k==='there'&&ac==='m')continue;
-            // strong-shortform 'there'/'those' 在 token 內部（i>0）需前接非字母。
-            // ctb: `nofor always there/those` 表示在 e2b 中間不適用 anywhere；
-            // 改由 match 規則 `^|!%a there - ` 處理（前面非字母才縮）。
-            // 防 ditherer/bothered/gatherer 等被誤縮 there。
-            if((k==='there'||k==='those')&&i>0&&bc&&/[a-z]/i.test(bc))continue;
+            if(k==='there'&&blocksThereAlways(lw,i))continue;
+            if(k==='those'&&blocksThoseAlways(lw,i))continue;
             // 跨前綴邊界禁用：strong groupsign 不可從前綴內跨入主幹
             // 例外：st/sh/th/wh/gh/ch/ar/er/ou/ow 等雙字母 always groupsign liblouis 允許跨界
             const ALLOW_CROSS_PREFIX=new Set(['st','sh','th','wh','gh','ch','ar','er','ed']);
@@ -1114,7 +1106,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
         if(aBest){segs.push({en:aBest,br:GA[aBest],cat:'always'});result+=GA[aBest];i+=aBest.length;continue;}
 
         let best=null,bLen=0,bBr='',bCat='';
-        for(const k of Object.keys(GN)){
+        for(const k of Object.keys(G2_ANYWHERE)){
             if(lw.startsWith(k,i)&&k.length>bLen){
                 // lookahead：若從 i 起 GME 縮寫（如 ing）更長更好，讓位
                 // 例：bobbing 應走 b+o+bb+ing (GME)，不走 b+o+bb+in+g (GN)
@@ -1153,16 +1145,16 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                     }
                 }
                 if(yieldToFinal)continue;
-                bCat='anywhere';bLen=k.length;bBr=GN[k];best=k;
+                bCat='anywhere';bLen=k.length;bBr=G2_ANYWHERE[k];best=k;
             }
         }
 
         if(isS&&!isContinuation){
-            for(const k of Object.keys(GB)){
+            for(const k of Object.keys(G2_BEGWORD)){
                 if(lw.startsWith(k,i)&&i+k.length<total&&k.length>bLen){
                     const rest=lw.slice(i+k.length);
                     if(!canBegword(k,rest,isProper))continue;
-                    bCat='begword';bLen=k.length;bBr=GB[k];best=k;
+                    bCat='begword';bLen=k.length;bBr=G2_BEGWORD[k];best=k;
                 }
             }
         }
