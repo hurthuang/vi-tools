@@ -550,48 +550,7 @@ const SFXP_VOWEL_OK=SFXP_EXTENSIONS;
 // SFXP_SUFFIX_OK: 嚴格 shortform 在「字尾位置」允許的詞 whitelist
 const SFXP_SUFFIX_OK=SFXP_EXTENSIONS;
 const SFXP_VOWEL=new Set(['a','e','i','o','u','y']);
-const GW={
-    'but':'\u2803','can':'\u2809','do':'\u2819','every':'\u2811',
-    'from':'\u280b','go':'\u281b','have':'\u2813','just':'\u281a',
-    'knowledge':'\u2805','like':'\u2807','more':'\u280d','not':'\u281d',
-    'people':'\u280f','quite':'\u281f','rather':'\u2817','so':'\u280e',
-    'still':'\u280c','that':'\u281e','us':'\u2825','very':'\u2827',
-    'will':'\u283a','it':'\u282d','you':'\u283d','as':'\u2835',
-    'child':'\u2821','shall':'\u2829','this':'\u2839','which':'\u2831',
-    'about':'\u2801\u2803','above':'\u2801\u2803\u2827',
-    'according':'\u2801\u2809','across':'\u2801\u2809\u2817',
-    'after':'\u2801\u280b','afternoon':'\u2801\u280b\u281d',
-    'afterward':'\u2801\u280b\u283a','again':'\u2801\u281b','against':'\u2801\u281b\u280c',
-    'almost':'\u2801\u2807\u280d','already':'\u2801\u2807\u2817','also':'\u2801\u2807',
-    'although':'\u2801\u2807\u2839','altogether':'\u2801\u2807\u281e','always':'\u2801\u2807\u283a',
-    'because':'\u2806\u2809','before':'\u2806\u280b','behind':'\u2806\u2813',
-    'below':'\u2806\u2807','beneath':'\u2806\u281d','beside':'\u2806\u280e',
-    'between':'\u2806\u281e','beyond':'\u2806\u283d','blind':'\u2803\u2807',
-    'braille':'\u2803\u2817\u2807','children':'\u2821\u281d','conceive':'\u2812\u2809\u2827',
-    'conceiving':'\u2812\u2809\u2827\u281b','could':'\u2809\u2819','deceive':'\u2819\u2809\u2827',
-    'deceiving':'\u2819\u2809\u2827\u281b','declare':'\u2819\u2809\u2807','declaring':'\u2819\u2809\u2807\u281b',
-    'either':'\u2811\u280a','first':'\u280b\u280c','friend':'\u280b\u2817',
-    'good':'\u281b\u2819','great':'\u281b\u2817\u281e','herself':'\u2813\u283b\u280b',
-    'him':'\u2813\u280d','himself':'\u2813\u280d\u280b','immediate':'\u280a\u280d\u280d',
-    'its':'\u282d\u280e','itself':'\u282d\u280b','letter':'\u2807\u2817',
-    'little':'\u2807\u2807','much':'\u280d\u2821','must':'\u280d\u280c',
-    'myself':'\u280d\u283d\u280b','necessary':'\u281d\u2811\u2809','neither':'\u281d\u2811\u280a',
-    'oneself':'\u2810\u2815\u280b','ourselves':'\u2833\u2817\u2827\u280e','paid':'\u280f\u2819',
-    'perceive':'\u280f\u283b\u2809\u2827','perceiving':'\u280f\u283b\u2809\u2827\u281b',
-    'perhaps':'\u280f\u283b\u2813','quick':'\u281f\u2805','receive':'\u2817\u2809\u2827',
-    'receiving':'\u2817\u2809\u2827\u281b','rejoice':'\u2817\u281a\u2809','rejoicing':'\u2817\u281a\u2809\u281b',
-    'said':'\u280e\u2819','should':'\u2829\u2819','such':'\u280e\u2821',
-    'themselves':'\u282e\u280d\u2827\u280e','thyself':'\u2839\u283d\u280b',
-    'today':'\u281e\u2819','together':'\u281e\u281b\u2817','tomorrow':'\u281e\u280d',
-    'tonight':'\u281e\u281d','would':'\u283a\u2819','your':'\u283d\u2817',
-    'yourself':'\u283d\u2817\u280b','yourselves':'\u283d\u2817\u2827\u280e',
-    'beforehand':'\u2806\u280b\u2813\u282f','belittle':'\u2806\u2807\u2807',
-    'goodwill':'\u281b\u2819\u283a\u280a\u2807\u2807',
-    'inasmuch':'\u2814\u2801\u280e\u280d\u2821','insomuch':'\u2814\u280e\u2815\u280d\u2821',
-    'nevertheless':'\u281d\u2811\u2827\u283b\u282e\u2828\u280e',
-    'understand':'\u2810\u2825\u280c\u282f','understanding':'\u2810\u2825\u280c\u282f\u282c',
-    'understood':'\u2810\u2825\u280c\u280d'
-};
+const GW=G2_WORD;
 
 const GW_REV=new Map();
 for(const[en,br]of Object.entries(GW))GW_REV.set(br,en);
