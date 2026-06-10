@@ -9,9 +9,9 @@
 | 工具 | 連結 | 說明 |
 |------|------|------|
 | 點字翻譯 | [braille-translate.htm](https://hurthuang.github.io/vi-tools/braille-translate.htm) | 中英文即時轉點字，支援 SimBraille 字型顯示 |
+| 點字轉文字 | [braille-to-text.html](https://hurthuang.github.io/vi-tools/braille-to-text.html) | UEB / 注音點字自動辨識反向轉換，含逐格對照與中文手動校訂；手機平板可用點字輸入板 |
 | PDF 友善文字 | [pdf-to-accessible.html](https://hurthuang.github.io/vi-tools/pdf-to-accessible.html) | PDF 擷取並整理為適合點顯器閱讀的純文字 |
 | Nemeth 轉換 | [nemeth_converter.html](https://hurthuang.github.io/vi-tools/nemeth_converter.html) | 數學式 ↔ Nemeth 點字雙向轉換，含 MathJax 預覽 |
-| G2 反查 | [g2-to-text.html](https://hurthuang.github.io/vi-tools/g2-to-text.html) | UEB G2 點字還原為一般文字 |
 | G2 查詢 | [UEB-g2-query.html](https://hurthuang.github.io/vi-tools/UEB-g2-query.html) | UEB Grade 2 縮寫對照查詢 |
 
 ## 相關 NVDA 附加元件
@@ -31,6 +31,7 @@
 - 純前端實作，所有運算在瀏覽器本地執行，不傳送任何資料至伺服器
 - 點字字型使用內附的 `SIMBRL.TTF`（SimBraille）
 - 點字轉換規則表採用 [liblouis](https://github.com/liblouis/liblouis) 格式，存放於 `table/` 目錄
+- 注音點字轉換使用 [McBopomofoWeb](https://github.com/openvanilla/McBopomofoWeb) 引擎（MIT 授權）
 
 ## 授權
 
