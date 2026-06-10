@@ -144,13 +144,6 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
     </div>
 </div>
 <div id="result-area" aria-live="polite" aria-label="查詢結果"></div>
-<div id="panel-reg" style="display:none;margin-top:.8rem" role="tabpanel" aria-labelledby="tab-reg">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:.8rem">
-        <button onclick="runRegression()" style="padding:7px 20px;border-radius:8px;border:1px solid var(--teal-md);background:var(--teal-bg);color:var(--teal);font-size:.9rem;cursor:pointer;font-family:inherit;font-weight:500">▶ 執行 Regression Test</button>
-        <span id="reg-status" style="font-size:.85rem;color:var(--tx3)">共 428 筆 liblouis ground truth</span>
-    </div>
-    <div id="reg-result"></div>
-</div>
 </div>
     <script src="ueb-g2-rules.js"></script>
 <script src="build-no-tables-utf32.js"></script>
@@ -2127,12 +2120,10 @@ function switchTab(t){
     });
     document.getElementById('panel-e2b').style.display=t==='e2b'?'block':'none';
     document.getElementById('panel-b2e').style.display=t==='b2e'?'block':'none';
-    document.getElementById('panel-reg').style.display=t==='reg'?'block':'none';
     document.getElementById('result-area').innerHTML='';
-    const focusId=t==='e2b'?'e2b-in':t==='b2e'?'b2e-in':'reg-result';
+    const focusId=t==='e2b'?'e2b-in':'b2e-in';
     setTimeout(()=>document.getElementById(focusId)?.focus(),50);
 }
-if(location.hash==='#reg') switchTab('reg');
 async function onE2B(){
     const raw=document.getElementById('e2b-in').value;
     document.getElementById('result-area').innerHTML=renderE2B(raw,null);
@@ -2297,8 +2288,6 @@ function handleBKU(e){
     if(cbits===0)cfired=false;
 }
 
-const REGRESSION_CASES={"but":"⠃","can":"⠉","do":"⠙","every":"⠑","from":"⠋","go":"⠛","have":"⠓","just":"⠚","knowledge":"⠅","like":"⠇","more":"⠍","not":"⠝","people":"⠏","quite":"⠟","rather":"⠗","so":"⠎","that":"⠞","us":"⠥","very":"⠧","will":"⠺","it":"⠭","you":"⠽","as":"⠵","and":"⠯","for":"⠿","of":"⠷","the":"⠮","with":"⠾","child":"⠡","shall":"⠩","about":"⠁⠃","above":"⠁⠃⠧","according":"⠁⠉","across":"⠁⠉⠗","after":"⠁⠋","afternoon":"⠁⠋⠝","afterward":"⠁⠋⠺","again":"⠁⠛","against":"⠁⠛⠌","already":"⠁⠇⠗","also":"⠁⠇","although":"⠁⠇⠹","altogether":"⠁⠇⠞","always":"⠁⠇⠺","because":"⠆⠉","before":"⠆⠋","behind":"⠆⠓","below":"⠆⠇","beneath":"⠆⠝","beside":"⠆⠎","between":"⠆⠞","beyond":"⠆⠽","blind":"⠃⠇","braille":"⠃⠗⠇","children":"⠡⠝","could":"⠉⠙","declare":"⠙⠉⠇","declaring":"⠙⠉⠇⠛","either":"⠑⠊","first":"⠋⠌","friend":"⠋⠗","good":"⠛⠙","great":"⠛⠗⠞","him":"⠓⠍","himself":"⠓⠍⠋","immediate":"⠊⠍⠍","its":"⠭⠎","itself":"⠭⠋","letter":"⠇⠗","little":"⠇⠇","much":"⠍⠡","must":"⠍⠌","myself":"⠍⠽⠋","necessary":"⠝⠑⠉","neither":"⠝⠑⠊","ourselves":"⠳⠗⠧⠎","paid":"⠏⠙","perhaps":"⠏⠻⠓","quick":"⠟⠅","receive":"⠗⠉⠧","receiving":"⠗⠉⠧⠛","rejoice":"⠗⠚⠉","rejoicing":"⠗⠚⠉⠛","said":"⠎⠙","should":"⠩⠙","such":"⠎⠡","their":"⠸⠮","themselves":"⠮⠍⠧⠎","through":"⠐⠹","thyself":"⠹⠽⠋","today":"⠞⠙","together":"⠞⠛⠗","tomorrow":"⠞⠍","tonight":"⠞⠝","would":"⠺⠙","your":"⠽⠗","yourself":"⠽⠗⠋","yourselves":"⠽⠗⠧⠎","discharge":"⠲⠡⠜⠛⠑","dislike":"⠲⠇⠊⠅⠑","discover":"⠲⠉⠕⠧⠻","dismay":"⠲⠍⠁⠽","concert":"⠒⠉⠻⠞","condition":"⠒⠙⠊⠰⠝","connect":"⠒⠝⠑⠉⠞","consider":"⠒⠎⠊⠙⠻","begin":"⠆⠛⠔","belief":"⠆⠇⠊⠑⠋","belong":"⠆⠇⠰⠛","running":"⠗⠥⠝⠝⠬","going":"⠛⠕⠬","playing":"⠏⠇⠁⠽⠬","working":"⠐⠺⠬","nation":"⠝⠁⠰⠝","motion":"⠍⠕⠰⠝","station":"⠌⠁⠰⠝","ration":"⠗⠁⠰⠝","science":"⠎⠉⠊⠰⠑","licence":"⠇⠊⠉⠰⠑","patience":"⠏⠁⠞⠊⠰⠑","distance":"⠲⠞⠨⠑","rance":"⠗⠨⠑","advance":"⠁⠙⠧⠨⠑","movement":"⠍⠕⠧⠑⠰⠞","payment":"⠏⠁⠽⠰⠞","kindness":"⠅⠔⠙⠰⠎","darkness":"⠙⠜⠅⠰⠎","goodness":"⠛⠙⠰⠎","careful":"⠉⠜⠑⠰⠇","useful":"⠥⠎⠑⠰⠇","hopeful":"⠓⠕⠏⠑⠰⠇","ability":"⠁⠃⠊⠇⠰⠽","safety":"⠎⠁⠋⠑⠞⠽","quality":"⠟⠥⠁⠇⠰⠽","aground":"⠁⠛⠗⠨⠙","around":"⠜⠨⠙","bound":"⠃⠨⠙","found":"⠋⠨⠙","mound":"⠍⠨⠙","sound":"⠎⠨⠙","wound":"⠺⠨⠙","account":"⠁⠒⠨⠞","amount":"⠁⠍⠨⠞","count":"⠉⠨⠞","mount":"⠍⠨⠞","fount":"⠋⠨⠞","mission":"⠍⠊⠎⠨⠝","passion":"⠏⠁⠎⠨⠝","session":"⠎⠑⠎⠨⠝","vision":"⠧⠊⠨⠝","lesson":"⠇⠑⠎⠎⠕⠝","blossom":"⠃⠇⠕⠎⠎⠕⠍","along":"⠁⠇⠰⠛","long":"⠇⠰⠛","song":"⠎⠰⠛","strong":"⠌⠗⠰⠛","wrong":"⠺⠗⠰⠛","thin":"⠹⠔","three":"⠹⠗⠑⠑","thunder":"⠹⠐⠥","threw":"⠹⠗⠑⠺","short":"⠩⠕⠗⠞","ship":"⠩⠊⠏","show":"⠩⠪","sheet":"⠩⠑⠑⠞","white":"⠱⠊⠞⠑","where":"⠐⠱","when":"⠱⠢","whether":"⠱⠑⠮⠗","which":"⠱","ghost":"⠣⠕⠌","aghast":"⠁⠣⠁⠌","high":"⠓⠊⠣","night":"⠝⠊⠣⠞","right":"⠐⠗","sight":"⠎⠊⠣⠞","fight":"⠋⠊⠣⠞","might":"⠍⠊⠣⠞","stamp":"⠌⠁⠍⠏","step":"⠌⠑⠏","still":"⠌","stop":"⠌⠕⠏","street":"⠌⠗⠑⠑⠞","string":"⠌⠗⠬","strict":"⠌⠗⠊⠉⠞","each":"⠑⠁⠡","peach":"⠏⠂⠡","reach":"⠗⠂⠡","teach":"⠞⠂⠡","beach":"⠃⠂⠡","out":"⠳","outer":"⠳⠞⠻","outline":"⠳⠞⠇⠔⠑","output":"⠳⠞⠏⠥⠞","outrage":"⠳⠞⠗⠁⠛⠑","enough":"⠢","ought":"⠐⠳","be":"⠆","his":"⠦","was":"⠴","were":"⠶","couldn't":"⠉⠙⠝⠄⠞","shouldn't":"⠩⠙⠝⠄⠞","wouldn't":"⠺⠙⠝⠄⠞","don't":"⠙⠕⠝⠄⠞","isn't":"⠊⠎⠝⠄⠞","aren't":"⠜⠢⠄⠞","haven't":"⠓⠁⠧⠢⠄⠞","Hello":"⠠⠓⠑⠇⠇⠕","HELLO":"⠠⠠⠓⠑⠇⠇⠕","World":"⠠⠸⠺","TODAY":"⠠⠠⠞⠙","beat":"⠃⠂⠞","bean":"⠃⠂⠝","bear":"⠃⠑⠜","beam":"⠃⠂⠍","bead":"⠃⠂⠙","beak":"⠃⠂⠅","beef":"⠃⠑⠑⠋","beer":"⠃⠑⠻","beet":"⠃⠑⠑⠞","beast":"⠃⠂⠌","beige":"⠃⠑⠊⠛⠑","being":"⠆⠬","become":"⠆⠉⠕⠍⠑","beautiful":"⠃⠂⠥⠞⠊⠰⠇","label":"⠇⠁⠃⠑⠇","table":"⠞⠁⠃⠇⠑","able":"⠁⠃⠇⠑","cable":"⠉⠁⠃⠇⠑","fable":"⠋⠁⠃⠇⠑","stable":"⠌⠁⠃⠇⠑","sable":"⠎⠁⠃⠇⠑","tribe":"⠞⠗⠊⠃⠑","scribe":"⠎⠉⠗⠊⠃⠑","describe":"⠙⠑⠎⠉⠗⠊⠃⠑","subscribe":"⠎⠥⠃⠎⠉⠗⠊⠃⠑","concern":"⠒⠉⠻⠝","concrete":"⠒⠉⠗⠑⠞⠑","confirm":"⠒⠋⠊⠗⠍","cone":"⠉⠐⠕","coin":"⠉⠕⠔","coil":"⠉⠕⠊⠇","coat":"⠉⠕⠁⠞","coal":"⠉⠕⠁⠇","cool":"⠉⠕⠕⠇","cook":"⠉⠕⠕⠅","copy":"⠉⠕⠏⠽","come":"⠉⠕⠍⠑","core":"⠉⠕⠗⠑","bacon":"⠃⠁⠉⠕⠝","falcon":"⠋⠁⠇⠉⠕⠝","icon":"⠊⠉⠕⠝","second":"⠎⠑⠉⠕⠝⠙","display":"⠲⠏⠇⠁⠽","dispute":"⠲⠏⠥⠞⠑","dish":"⠙⠊⠩","disk":"⠙⠊⠎⠅","disc":"⠙⠊⠎⠉","diss":"⠙⠊⠎⠎","distinct":"⠲⠞⠔⠉⠞","radius":"⠗⠁⠙⠊⠥⠎","studio":"⠌⠥⠙⠊⠕","medium":"⠍⠫⠊⠥⠍","tedious":"⠞⠫⠊⠳⠎","idiot":"⠊⠙⠊⠕⠞","understand":"⠐⠥⠌⠯","underline":"⠐⠥⠇⠔⠑","undergo":"⠐⠥⠛⠕","undermine":"⠐⠥⠍⠔⠑","underway":"⠐⠥⠺⠁⠽","blunder":"⠃⠇⠐⠥","wonder":"⠺⠕⠝⠙⠻","ponder":"⠏⠕⠝⠙⠻","under":"⠐⠥","sundered":"⠎⠐⠥⠫","question":"⠐⠟","suggestion":"⠎⠥⠶⠑⠎⠰⠝","digestion":"⠙⠊⠛⠑⠎⠰⠝","congestion":"⠒⠛⠑⠎⠰⠝","exhaustion":"⠑⠭⠓⠁⠥⠎⠰⠝","bastion":"⠃⠁⠎⠰⠝","estion":"⠑⠎⠰⠝","combustion":"⠉⠕⠍⠃⠥⠎⠰⠝","quickly":"⠟⠅⠇⠽","firstly":"⠋⠌⠇⠽","greatly":"⠛⠗⠞⠇⠽","littleness":"⠇⠇⠰⠎","goose":"⠛⠕⠕⠎⠑","quiver":"⠟⠥⠊⠧⠻","goods":"⠛⠙⠎","greet":"⠛⠗⠑⠑⠞","govern":"⠛⠕⠧⠻⠝","in":"⠔","by":"⠃⠽","to":"⠞⠕","inch":"⠔⠡","inner":"⠔⠝⠻","into":"⠔⠞⠕","insight":"⠔⠎⠊⠣⠞","inward":"⠔⠺⠜⠙","byway":"⠃⠽⠺⠁⠽","bypass":"⠃⠽⠏⠁⠎⠎","bygone":"⠃⠽⠛⠐⠕","enoughness":"⠢⠳⠣⠰⠎","bought":"⠃⠐⠳","brought":"⠃⠗⠐⠳","fought":"⠋⠐⠳","sought":"⠎⠐⠳","thought":"⠹⠐⠳","nought":"⠝⠐⠳","wrought":"⠺⠗⠐⠳","drought":"⠙⠗⠐⠳","Mr":"⠠⠍⠗","Mrs":"⠠⠍⠗⠎","Dr":"⠠⠙⠗","PE":"⠠⠠⠏⠑","OK":"⠠⠠⠕⠅","TV":"⠠⠠⠞⠧","iPhone":"⠊⠠⠏⠓⠐⠕","McDonald":"⠠⠍⠉⠠⠙⠕⠝⠁⠇⠙","doesn't":"⠙⠕⠑⠎⠝⠄⠞","didn't":"⠙⠊⠙⠝⠄⠞","hadn't":"⠸⠓⠝⠄⠞","hasn't":"⠓⠁⠎⠝⠄⠞","weren't":"⠺⠻⠢⠄⠞","that's":"⠞⠄⠎","it's":"⠭⠄⠎","he's":"⠓⠑⠄⠎","she's":"⠩⠑⠄⠎","I'm":"⠠⠊⠄⠍","we're":"⠺⠑⠄⠗⠑","they're":"⠮⠽⠄⠗⠑","I've":"⠠⠊⠄⠧⠑","you've":"⠽⠄⠧⠑","we've":"⠺⠑⠄⠧⠑","they've":"⠮⠽⠄⠧⠑","I'll":"⠠⠊⠄⠇⠇","you'll":"⠽⠄⠇⠇","he'll":"⠓⠑⠄⠇⠇","she'll":"⠩⠑⠄⠇⠇","we'll":"⠺⠑⠄⠇⠇","they'll":"⠮⠽⠄⠇⠇","I'd":"⠠⠊⠄⠙","you'd":"⠽⠄⠙","he'd":"⠓⠑⠄⠙","she'd":"⠩⠑⠄⠙","we'd":"⠺⠑⠄⠙","they'd":"⠮⠽⠄⠙","singing":"⠎⠬⠬","bring":"⠃⠗⠬","ring":"⠗⠬","king":"⠅⠬","thing":"⠹⠬","spring":"⠎⠏⠗⠬","swing":"⠎⠺⠬","among":"⠁⠍⠰⠛","belonging":"⠆⠇⠰⠛⠬","longing":"⠇⠰⠛⠬","round":"⠗⠨⠙","ground":"⠛⠗⠨⠙","discount":"⠲⠉⠨⠞","recount":"⠗⠑⠉⠨⠞","mention":"⠍⠢⠰⠝","tension":"⠞⠢⠨⠝","mansion":"⠍⠁⠝⠨⠝","expansion":"⠑⠭⠏⠁⠝⠨⠝","pension":"⠏⠢⠨⠝","action":"⠁⠉⠰⠝","fraction":"⠋⠗⠁⠉⠰⠝","traction":"⠞⠗⠁⠉⠰⠝","attraction":"⠁⠞⠞⠗⠁⠉⠰⠝","transaction":"⠞⠗⠁⠝⠎⠁⠉⠰⠝","blindness":"⠃⠇⠰⠎","sadness":"⠎⠁⠙⠰⠎","treatment":"⠞⠗⠂⠞⠰⠞","agreement":"⠁⠛⠗⠑⠑⠰⠞","statement":"⠌⠁⠞⠑⠰⠞","handful":"⠓⠯⠰⠇","faithful":"⠋⠁⠊⠹⠰⠇","really":"⠗⠂⠇⠇⠽","finally":"⠋⠔⠁⠇⠇⠽","totally":"⠞⠕⠞⠁⠇⠇⠽","generally":"⠛⠢⠻⠁⠇⠇⠽","reality":"⠗⠂⠇⠰⠽","possibility":"⠏⠕⠎⠎⠊⠃⠊⠇⠰⠽","romance":"⠗⠕⠍⠨⠑","balance":"⠃⠁⠇⠨⠑","presence":"⠏⠗⠑⠎⠰⠑","silence":"⠎⠊⠇⠰⠑","light":"⠇⠊⠣⠞","tight":"⠞⠊⠣⠞","sigh":"⠎⠊⠣","thigh":"⠹⠊⠣","nigh":"⠝⠊⠣","bright":"⠃⠐⠗","flight":"⠋⠇⠊⠣⠞","slight":"⠎⠇⠊⠣⠞","blight":"⠃⠇⠊⠣⠞","plight":"⠏⠇⠊⠣⠞","eight":"⠑⠊⠣⠞","weight":"⠺⠑⠊⠣⠞","freight":"⠋⠗⠑⠊⠣⠞","sleight":"⠎⠇⠑⠊⠣⠞","fish":"⠋⠊⠩","wish":"⠺⠊⠩","brush":"⠃⠗⠥⠩","breath":"⠃⠗⠂⠹","cloth":"⠉⠇⠕⠹","math":"⠍⠁⠹","wheel":"⠱⠑⠑⠇","whale":"⠱⠁⠇⠑","arm":"⠜⠍","art":"⠜⠞","farm":"⠋⠜⠍","hard":"⠓⠜⠙","park":"⠏⠜⠅","star":"⠌⠜","yard":"⠽⠜⠙","card":"⠉⠜⠙","her":"⠓⠻","term":"⠞⠻⠍","verb":"⠧⠻⠃","fern":"⠋⠻⠝","stern":"⠌⠻⠝","clerk":"⠉⠇⠻⠅","merge":"⠍⠻⠛⠑","throughout":"⠐⠹⠳⠞"};
-
 function reportDiscrepancy(word, ourBr, llBr){
     const title=`G2 轉譯歧異：${word}`;
     const body=[
@@ -2315,50 +2304,6 @@ function reportDiscrepancy(word, ourBr, llBr){
         '_blank'
     );
 }
-
-function runRegression(){
-    const out=document.getElementById('reg-result');
-    const st=document.getElementById('reg-status');
-    out.innerHTML='<div style="color:var(--tx3);font-size:.85rem">執行中…</div>';
-    setTimeout(()=>{
-        let ok=0,fail=0;
-        const fails=[];
-        for(const[w,exp] of Object.entries(REGRESSION_CASES)){
-            try{
-                const got=traceE2B(w).br;
-                if(got===exp){ok++;}
-                else{fail++;fails.push({w,exp,got});}
-            }catch(e){
-                fail++;fails.push({w,exp,got:'ERR:'+e.message});
-            }
-        }
-        const total=ok+fail;
-        const pct=Math.round(ok/total*100);
-        const color=fail===0?'var(--grn)':fail<5?'var(--amb)':'var(--cor)';
-        st.textContent=`共 ${total} 筆`;
-        let html=`<div style="margin-bottom:.8rem;padding:.8rem 1rem;border-radius:8px;background:var(--sf);border:1px solid var(--bd)">
-<div style="font-size:1.1rem;font-weight:600;color:${color}">
-  ${fail===0?'✓ 全部通過':'❌ 有差異'} — ${ok}/${total} (${pct}%)
-</div>`;
-        if(fail>0)html+=`<div style="font-size:.8rem;color:var(--tx3);margin-top:4px">發現 ${fail} 筆與 liblouis ground truth 不符</div>`;
-        html+='</div>';
-        if(fails.length){
-            html+='<div style="font-size:.8rem;font-weight:600;color:var(--tx2);margin-bottom:.4rem">差異明細</div>';
-            html+='<div style="display:flex;flex-direction:column;gap:6px">';
-            for(const{w,exp,got} of fails){
-                html+=`<div style="padding:.6rem .9rem;border-radius:6px;background:var(--cor-bg);border:1px solid var(--cor-md);font-size:.82rem">
-<div style="font-weight:600;color:var(--cor)">${escapeHtml(w)}</div>
-<div style="display:flex;gap:1rem;margin-top:3px">
-  <span><span style="color:var(--tx3)">LL：</span><span style="font-family:monospace">${exp}</span></span>
-  <span><span style="color:var(--tx3)">工具：</span><span style="font-family:monospace">${got}</span></span>
-</div></div>`;
-            }
-            html+='</div>';
-        }
-        out.innerHTML=html;
-    },10);
-}
-
 </script>
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
