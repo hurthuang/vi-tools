@@ -5,3 +5,6 @@ desktop.ini
 # Editor
 .vscode/
 .idea/
+
+# McBopomofoWeb source repo (build source for mcbopomofo-service.js)
+McBopomofoWeb/

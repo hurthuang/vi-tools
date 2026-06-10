@@ -280,7 +280,7 @@
   </div>
   <div class="tab" role="tab" id="tab-g2" data-target="frame-g2"
        tabindex="-1" aria-selected="false" aria-controls="frame-g2">
-    <span class="icon" aria-hidden="true">⠠</span> G2 反轉
+    <span class="icon" aria-hidden="true">⠠</span> 點字轉文字
   </div>
   <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
        tabindex="-1" aria-selected="false" aria-controls="frame-gq">
@@ -379,24 +379,25 @@
         </div>
 
         <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-g2')"
-             role="button" tabindex="0" aria-label="開啟 UEB G2 反向轉換工具" aria-describedby="desc-g2"
+             role="button" tabindex="0" aria-label="開啟點字轉文字工具" aria-describedby="desc-g2"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-g2')}">
           <div class="tool-icon" aria-hidden="true">⠠</div>
           <div class="tool-info">
             <div class="tool-name">
-              UEB G2 反向轉換
-              <span class="tool-badge" style="background:#a78bfa">G2 → 文字</span>
+              點字轉文字
+              <span class="tool-badge" style="background:#a78bfa">UEB + 注音</span>
             </div>
             <div class="tool-desc" id="desc-g2">
-              將 UEB G2 縮寫點字反向還原為英文原文，並同步產生 Comp8 電腦點字對照。
-              支援 ASCII 點字與 Unicode 點字兩種輸入格式，預設六點鍵盤輸入。
+              輸入 UEB G2 縮寫點字或台灣注音點字，即時還原為英文或中文，
+              並提供逐格對照視圖，可直接在格子上手動修正同音異字。
+              注音點字引擎使用 McBopomofoWeb。
             </div>
             <div class="tool-features">
-              <span class="feat-tag">G2 → 英文原文</span>
-              <span class="feat-tag">Comp8 對照</span>
-              <span class="feat-tag">ASCII / Unicode 輸入</span>
+              <span class="feat-tag">UEB G2 → 英文</span>
+              <span class="feat-tag">注音點字 → 中文</span>
               <span class="feat-tag">逐格對照</span>
-              <span class="feat-tag">六點鍵盤預設開啟</span>
+              <span class="feat-tag">手動修正同音異字</span>
+              <span class="feat-tag">McBopomofoWeb</span>
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -468,7 +469,7 @@
   <iframe id="frame-bt"  class="panel" src="braille-translate.htm"    role="tabpanel" aria-labelledby="tab-bt"  title="點字翻譯工具"></iframe>
   <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a" title="PDF 轉視障友善文字工具"></iframe>
   <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"  title="Nemeth 數學點字轉換工具"></iframe>
-  <iframe id="frame-g2"  class="panel" src="g2-to-text.html"         role="tabpanel" aria-labelledby="tab-g2"  title="UEB G2 反向轉換工具"></iframe>
+  <iframe id="frame-g2"  class="panel" src="braille-to-text.html"    role="tabpanel" aria-labelledby="tab-g2"  title="點字轉文字工具"></iframe>
   <iframe id="frame-gq"  class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"  title="UEB G2 轉譯查詢工具"></iframe>
 
 </div>

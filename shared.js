@@ -524,6 +524,12 @@ function initBrailleInput(opts) {
     document.addEventListener('keyup', function(e) {
         if (!isOn) return;
         if (!(e.keyCode in KEY_BITS)) return;
+        if (document.activeElement !== ta()) {
+            // 焦點不在輸入框：清除殘留狀態，不干擾其他元素（如對照區 contenteditable）
+            delete held[e.keyCode];
+            if (Object.keys(held).length === 0) brlCode = 0;
+            return;
+        }
         delete held[e.keyCode];
         if (Object.keys(held).length === 0 && brlCode !== 0) {
             insertCell(brlCode);
@@ -1158,6 +1164,7 @@ function initBrailleInput(opts) {
             }
         }
         ta.value = out;
+        window._fwpLastDecisions = _fwpDecisions.slice(); // 供呼叫端反推輸入
         showFtbMsg('已套用合併');
         closeWrapPanel();
     };
@@ -1217,10 +1224,11 @@ function initBrailleInput(opts) {
     }
 
     // ── 主 Modal 開關 ──
-    window.openFormatModal = function(taId, onApply, getOpts) {
+    window.openFormatModal = function(taId, onApply, getOpts, modalOpts) {
         _targetTA = taId || 'input-text';
         _onApply  = onApply  || null;
         _getOpts  = getOpts  || null;
+        window._fwpLastDecisions = null;
         var src = (document.getElementById(_targetTA) || {}).value || '';
         var fmtTA = document.getElementById('fmt-textarea');
         if (!fmtTA) return;
@@ -1237,6 +1245,8 @@ function initBrailleInput(opts) {
         if (fr) fr.value = '';
         if (fm) fm.textContent = '';
         closeWrapPanel();
+        var btnAuto = document.querySelector('.btn-fmt-run');
+        if (btnAuto) btnAuto.style.display = (modalOpts && modalOpts.noAutoClean) ? 'none' : '';
         var overlay = document.getElementById('fmt-modal-overlay');
         if (overlay) overlay.classList.add('open');
         setTimeout(function() { if (fmtTA) fmtTA.focus(); }, 80);
@@ -1245,6 +1255,8 @@ function initBrailleInput(opts) {
     function _doClose() {
         var overlay = document.getElementById('fmt-modal-overlay');
         if (overlay) overlay.classList.remove('open');
+        var btnAuto = document.querySelector('.btn-fmt-run');
+        if (btnAuto) btnAuto.style.display = ''; // 還原，不影響其他工具
         closeWrapPanel();
     }
 
