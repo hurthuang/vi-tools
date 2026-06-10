@@ -57,6 +57,8 @@ const G2_EXCEPTIONS = {
 'understand':'⠐⠥⠌⠯','understands':'⠐⠥⠌⠯⠎','understood':'⠐⠥⠌⠕⠕⠙',
 'understanding':'⠐⠥⠌⠯⠬','understandings':'⠐⠥⠌⠯⠬⠎','understandable':'⠐⠥⠌⠯⠁⠃⠇⠑',
 'misunderstand':'⠍⠊⠎⠐⠥⠌⠯','misunderstood':'⠍⠊⠎⠐⠥⠌⠕⠕⠙',
+'diss':'⠙⠊⠎⠎',
+'be':'⠆',
 };
 
 // 整詞縮寫表：shortforms + wordsigns + initial-letter contractions
@@ -332,6 +334,14 @@ function blocksDisBegword(word) {
     if (ch === 'k') return true;                                                // disk, diskette
     if (ch === 'h' && 'bcdfghiklmnprtw'.includes(lw[4] || '')) return true;    // dishwasher, dishcloth…
     if (ch === 'p' && lw[4] === 'i') return true;                               // dispirited
+    // dis+c：liblouis 規則需要 c 後接母音（或 h/l/r + 母音），disco/discern 可縮
+    if (ch === 'c') {
+        const a1 = lw[4] || '';
+        const VOWEL = new Set(['a','e','i','o','u']);
+        if (VOWEL.has(a1)) return false;                                        // disco, discern → 縮
+        if ('hlr'.includes(a1) && a1 && VOWEL.has(lw[5] || '')) return false;  // disclaim → 縮
+        return true;                                                             // disc（字尾）→ 不縮
+    }
     return false;
 }
 

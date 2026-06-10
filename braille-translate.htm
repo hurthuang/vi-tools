@@ -1623,6 +1623,7 @@ function translateG2Seq(word, _tables) {
         // SUFWORD（精確字尾）
         for (const k of Object.keys(_t.sufword)) {
             if (lw.startsWith(k, i) && i + k.length === total && k.length > bestLen) {
+                if (k === 'be') continue;  // 'be' 只是 begword，不在字尾縮寫
                 bestType = 'suf'; bestLen = k.length; bestBr = _t.sufword[k]; best = k;
             }
         }
@@ -2151,7 +2152,9 @@ function translateWordWithApos(run, modeVal) {
             const mainLow = main.toLowerCase();
             let sfPrefix = null, sfBraille = null;
             for (const [k, v] of Object.entries(_tables.word || G2_WORD)) {
-                if (mainLow.startsWith(k) && k.length < main.length) {
+                // 只有多格縮寫（could/should/would/had 等）才能作前綴
+                // 單格 wordsigns（do/have/go/be 等）不縮前綴，避免 don't→⠙⠝ 誤譯
+                if (mainLow.startsWith(k) && k.length < main.length && v.length > 1) {
                     if (!sfPrefix || k.length > sfPrefix.length) {
                         sfPrefix = k; sfBraille = v;
                     }
