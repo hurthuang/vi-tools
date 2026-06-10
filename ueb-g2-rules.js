@@ -57,7 +57,6 @@ const G2_EXCEPTIONS = {
 'understand':'⠐⠥⠌⠯','understands':'⠐⠥⠌⠯⠎','understood':'⠐⠥⠌⠕⠕⠙',
 'understanding':'⠐⠥⠌⠯⠬','understandings':'⠐⠥⠌⠯⠬⠎','understandable':'⠐⠥⠌⠯⠁⠃⠇⠑',
 'misunderstand':'⠍⠊⠎⠐⠥⠌⠯','misunderstood':'⠍⠊⠎⠐⠥⠌⠕⠕⠙',
-'diss':'⠙⠊⠎⠎',
 'be':'⠆',
 };
 
@@ -334,6 +333,7 @@ function blocksDisBegword(word) {
     if (ch === 'k') return true;                                                // disk, diskette
     if (ch === 'h' && 'bcdfghiklmnprtw'.includes(lw[4] || '')) return true;    // dishwasher, dishcloth…
     if (ch === 'p' && lw[4] === 'i') return true;                               // dispirited
+    if (lw === 'diss') return true;                                             // diss 本身不是縮寫
     // dis+c：liblouis 規則需要 c 後接母音（或 h/l/r + 母音），disco/discern 可縮
     if (ch === 'c') {
         const a1 = lw[4] || '';

@@ -2035,6 +2035,8 @@ function renderE2B(raw, llBr){
     let llBadge='';
     if(llBr===null){
         llBadge=`<span style="font-size:.7rem;padding:2px 8px;border-radius:8px;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx3);margin-left:8px;">liblouis 載入中…</span>`;
+    } else if(llBr===false){
+        // liblouis 無法使用（file:// 或 wasm 未就緒），不顯示比對徽章
     } else if(llBr===br){
         llBadge=`<span style="font-size:.7rem;padding:2px 8px;border-radius:8px;background:var(--grn-bg);border:1px solid var(--grn-md);color:var(--grn);margin-left:8px;">✓ 與 liblouis 一致</span>`;
     } else {
@@ -2128,7 +2130,8 @@ async function onE2B(){
     const raw=document.getElementById('e2b-in').value;
     document.getElementById('result-area').innerHTML=renderE2B(raw,null);
     const llBr=await LOU.translateG2(raw.trim());
-    document.getElementById('result-area').innerHTML=renderE2B(raw,llBr);
+    // null=未就緒, false=嘗試後失敗（file://或網路問題）, string=有結果
+    document.getElementById('result-area').innerHTML=renderE2B(raw,llBr??false);
 }
 function clearE2B(){document.getElementById('e2b-in').value='';document.getElementById('result-area').innerHTML='';document.getElementById('e2b-in').focus();}
 
