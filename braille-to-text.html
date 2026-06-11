@@ -489,7 +489,7 @@ function doConvert() {
         outLines.push(lineParts.join(' '));
     }
 
-    document.getElementById('output-text').value = outLines.join('\n');
+    document.getElementById('output-text').value = _buildOutputFromTokens();
     renderParallel();
     setStatus('✓ 轉換完成', 'ok');
 }
