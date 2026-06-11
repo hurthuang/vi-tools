@@ -53,14 +53,6 @@ button.primary:hover { background: #388e3c; }
 select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; }
 input[type="radio"] { cursor: pointer; }
 
-/* ── Braille mode indicator ── */
-.bmi-panel {
-    display: none; background: #e8f5e9; border: 1px solid #a5d6a7;
-    border-radius: 4px; padding: 4px 10px; font-size: 0.82em; color: #2e7d32;
-    align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.bmi-panel.active { display: flex; }
-#brl-label { font-weight: 700; }
 
 /* ── Main container ── */
 .container { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
@@ -139,37 +131,6 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
 #status-bar.err { color: #c62828; }
 #status-bar.ok  { color: #2e7d32; }
 
-/* ── 點字輸入板 ── */
-.dot-pad-panel {
-    background: white; border: 1px solid #ddd; border-radius: 6px;
-    padding: 10px 14px; margin-bottom: 10px;
-}
-.pad-label { font-size: .75rem; color: #888; margin-bottom: .5rem; }
-.pad-body { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.dot-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
-    padding: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;
-}
-.dot-btn {
-    width: 40px; height: 40px; border-radius: 50%;
-    border: 1.5px solid #aaa; background: white;
-    cursor: pointer; font-size: .85rem; font-weight: 700;
-    color: #555; display: flex; align-items: center; justify-content: center;
-    transition: all .12s; line-height: 1;
-}
-.dot-btn.on { background: #1565c0; border-color: #1565c0; color: white; }
-.dot-btn:hover:not(.on) { background: #e3f2fd; border-color: #1565c0; color: #1565c0; }
-.pad-preview {
-    font-family: "Apple Braille", "Segoe UI Symbol", monospace;
-    font-size: 3rem; color: #1565c0; min-width: 48px; text-align: center; line-height: 1;
-}
-.pad-acts { display: flex; flex-direction: column; gap: 6px; }
-html[data-theme="dark"] .dot-pad-panel { background: #1a1d27 !important; border-color: #2e3350 !important; }
-html[data-theme="dark"] .dot-grid { background: #11131e !important; border-color: #2e3350 !important; }
-html[data-theme="dark"] .dot-btn { background: #1a1d27 !important; border-color: #4a4d6a !important; color: #b0bec5 !important; }
-html[data-theme="dark"] .dot-btn.on { background: #1565c0 !important; border-color: #1565c0 !important; color: white !important; }
-html[data-theme="dark"] .dot-btn:hover:not(.on) { background: #0d2137 !important; border-color: #1565c0 !important; color: #90caf9 !important; }
-html[data-theme="dark"] .pad-preview { color: #90caf9 !important; }
 
 @media (max-width: 700px) {
     .container { flex-direction: column; }
@@ -197,39 +158,16 @@ html[data-theme="dark"] .pad-preview { color: #90caf9 !important; }
                aria-hidden="true" tabindex="-1"
                onchange="handleOpenFile(event,'input-text',doConvert)">
         <button onclick="document.getElementById('open-file-input').click()" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
-        <button onclick="_padTogglePanel()" id="dot-pad-btn" style="background:#558b2f;color:white;border-color:#33691e;" aria-label="點字輸入板">⠿ 點位輸入</button>
         <button onclick="copyOutput()" style="background:#1565c0;color:white;border-color:#0d47a1;">複製輸出</button>
     </div>
 </div>
 
-<div class="bmi-panel" id="bmi-panel">
-    六點輸入 <span id="brl-label">關</span>
-    <span style="color:#888;font-size:0.9em;">S=1 D=2 F=3 ｜ J=4 K=5 L=6 ｜ Space=空白格</span>
-</div>
-
-<div class="dot-pad-panel" id="dot-pad-panel" style="display:none;">
-    <div class="pad-label">點字輸入板 — 點選點位，按「插入」加入輸入區</div>
-    <div class="pad-body">
-        <div class="dot-grid" id="dot-grid">
-            <button class="dot-btn" data-dot="1" onclick="_padToggle(1)">1</button>
-            <button class="dot-btn" data-dot="4" onclick="_padToggle(4)">4</button>
-            <button class="dot-btn" data-dot="2" onclick="_padToggle(2)">2</button>
-            <button class="dot-btn" data-dot="5" onclick="_padToggle(5)">5</button>
-            <button class="dot-btn" data-dot="3" onclick="_padToggle(3)">3</button>
-            <button class="dot-btn" data-dot="6" onclick="_padToggle(6)">6</button>
-        </div>
-        <div id="pad-preview" class="pad-preview">⠀</div>
-        <div class="pad-acts">
-            <button onclick="_padInsert()">插入</button>
-            <button onclick="_padClear()">清點</button>
-        </div>
-    </div>
-</div>
 
 <div class="container">
     <div class="input-area">
         <div class="area-label">
-            <label for="input-text">點字輸入（UEB G2 / 注音點字）：</label>
+            <label for="input-text">點字輸入（UEB/注音點字）：</label>
+            <button id="dot-pad-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
         </div>
         <textarea id="input-text" autofocus
             placeholder="輸入 ASCII 點字（,k is p{}4）&#10;或 Unicode 點字（⠠⠅ ⠊⠎ ⠏⠪⠻⠲）&#10;或注音點字（⠋⠞⠄⠚⠡⠐⠗⠩⠈）&#10;Ctrl+B 開啟六點輸入"></textarea>
@@ -258,40 +196,6 @@ html[data-theme="dark"] .pad-preview { color: #90caf9 !important; }
 <script>
 'use strict';
 
-// ── 點字輸入板 ────────────────────────────────────────────────
-const _PAD_BITS = { 1:0x01, 2:0x02, 3:0x04, 4:0x08, 5:0x10, 6:0x20 };
-const _padDots = new Set();
-
-function _padTogglePanel() {
-    const p = document.getElementById('dot-pad-panel');
-    const btn = document.getElementById('dot-pad-btn');
-    const showing = p.style.display !== 'none';
-    p.style.display = showing ? 'none' : '';
-    btn.textContent = showing ? '⠿ 點位輸入' : '⠿ 關閉輸入板';
-}
-function _padToggle(n) {
-    const btn = document.querySelector(`#dot-grid .dot-btn[data-dot="${n}"]`);
-    if (_padDots.has(n)) { _padDots.delete(n); btn.classList.remove('on'); }
-    else { _padDots.add(n); btn.classList.add('on'); }
-    const bits = [..._padDots].reduce((b, d) => b | _PAD_BITS[d], 0);
-    document.getElementById('pad-preview').textContent = String.fromCodePoint(0x2800 + bits);
-}
-function _padInsert() {
-    const bits = [..._padDots].reduce((b, d) => b | _PAD_BITS[d], 0);
-    const ch = String.fromCodePoint(0x2800 + bits);
-    const ta = document.getElementById('input-text');
-    const s = ta.selectionStart, e = ta.selectionEnd;
-    ta.value = ta.value.slice(0, s) + ch + ta.value.slice(e);
-    ta.selectionStart = ta.selectionEnd = s + 1;
-    ta.focus();
-    ta.dispatchEvent(new Event('input'));
-    _padClear();
-}
-function _padClear() {
-    _padDots.clear();
-    document.querySelectorAll('#dot-grid .dot-btn').forEach(b => b.classList.remove('on'));
-    document.getElementById('pad-preview').textContent = '⠀';
-}
 
 // ── NABCC / BR_TO_ASCII ──────────────────────────────────────
 const BR_TO_ASCII = {
@@ -784,11 +688,9 @@ window.addEventListener('message', function(e) {
 <script src="shared.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initBrailleInput({
-        taId:         'input-text',
-        badgeId:      'bmi-panel',
-        labelId:      'brl-label',
-        hintId:       null,
+    initBraillePanel({
+        triggerId:    'dot-pad-btn',
+        targetId:     'input-text',
         globalToggle:  true,
         onInsert:      function() {
             if (_inputDisp !== 'unicode') {

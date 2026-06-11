@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
-//  shared.js — bt / p2a / nc 共用模組
+//  shared.js — bt / b2t / p2a / nc 共用模組
 //  包含：cleanExamText、loadScript、handleOpenFile、
-//        格式調整 Modal（CSS + HTML 動態注入）、六點輸入
+//        格式調整 Modal（CSS + HTML 動態注入）、六點輸入浮動面板
 // ════════════════════════════════════════════════════════════
 'use strict';
 
@@ -455,91 +455,259 @@ async function handleOpenFile(event, taId, onLoad) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  initBrailleInput — 六點鍵盤輸入（bt 主輸入框 / nc n2l）
-//  opts: { taId, badgeId, labelId, hintId, onInsert,
-//          checkActive }
-//  checkActive(): 判斷目前是否應啟用（如 nc 只在 n2l tab）
+//  initBraillePanel — 六點輸入統一浮動面板（bt / b2t / nc）
+//  opts: {
+//    triggerId,     觸發按鈕 id
+//    targetId,      目標 textarea id
+//    onInsert?,     插入後 callback
+//    checkActive?,  () => bool（tab 頁面用）
+//    globalToggle?, Ctrl+B 不需要 textarea 有焦點
+//    insertFn?,     (bits:number)=>void 覆寫插入邏輯（bt ASCII 模式）
+//    externalKbd?,  { toggle(bool), getState:()=>bool }（bt 保留原鍵盤邏輯）
+//  }
+//  return: { syncKbdState(bool), openPanel, closePanel }
 // ════════════════════════════════════════════════════════════
-function initBrailleInput(opts) {
-    const KEY_BITS  = {83:4, 68:2, 70:1, 74:8, 75:16, 76:32};
-    let isOn = false, brlCode = 0, held = {};
+function initBraillePanel(opts) {
+    const DOT_BITS = { 1:0x01, 2:0x02, 3:0x04, 4:0x08, 5:0x10, 6:0x20 };
+    const KEY_BITS = { 83:0x04, 68:0x02, 70:0x01, 74:0x08, 75:0x10, 76:0x20 };
+    const dots = new Set();
+    let kbdOn = false, brlCode = 0, held = {};
 
-    const ta      = () => document.getElementById(opts.taId);
-    const badge   = () => opts.badgeId ? document.getElementById(opts.badgeId) : null;
-    const label   = () => opts.labelId ? document.getElementById(opts.labelId) : null;
-    const hint    = () => opts.hintId  ? document.getElementById(opts.hintId)  : null;
-
-    function setMode(active) {
-        isOn = active;
-        const l = label(), b = badge(), h = hint();
-        if (l) l.textContent = isOn ? '開' : '關';
-        if (b) b.className = 'badge' + (isOn ? ' on' : '');
-        if (h) h.style.display = (isOn && (!opts.checkActive || opts.checkActive())) ? '' : 'none';
+    // ── CSS 注入（只注一次）───────────────────────────────
+    if (!document.getElementById('shared-brlpanel-css')) {
+        const st = document.createElement('style');
+        st.id = 'shared-brlpanel-css';
+        st.textContent = `
+            .brlp-trigger:not(.btn){
+                padding:3px 10px;font-size:.82em;border-radius:4px;
+                border:1px solid #9aa5bc;background:#fff;color:#444;
+                cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+            }
+            .brlp-trigger:not(.btn):hover{border-color:#1565c0;color:#1565c0}
+            html[data-theme="dark"] .brlp-trigger:not(.btn){background:#1a1d27;border-color:#343b56;color:#b0bec5}
+            html[data-theme="dark"] .brlp-trigger:not(.btn):hover{border-color:#5a99ff;color:#5a99ff}
+            .brlp-trigger.kbd-on{background:#1565c0!important;color:#fff!important;border-color:#1565c0!important}
+            .brlp-panel{
+                display:none;position:fixed;z-index:9200;
+                background:#fff;border:1px solid #ccc;border-radius:8px;
+                box-shadow:0 4px 20px rgba(0,0,0,.18);
+                padding:12px 14px;min-width:210px;
+                font-size:.88rem;font-family:inherit;
+            }
+            .brlp-panel.open{display:block}
+            .brlp-kbd-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+            .brlp-kbd-label{flex:1;font-weight:600;font-size:.85rem}
+            .brlp-kbd-btn{
+                padding:2px 10px;border-radius:4px;
+                border:1px solid #aaa;background:#f5f5f5;
+                cursor:pointer;font-size:.82em;
+            }
+            .brlp-kbd-btn.on{background:#1565c0;color:#fff;border-color:#1565c0}
+            .brlp-kbd-hint{font-size:.75rem;color:#888;line-height:1.6;margin-bottom:8px}
+            .brlp-divider{border:none;border-top:1px solid #eee;margin:8px 0}
+            .brlp-dot-label{font-weight:600;font-size:.85rem;margin-bottom:6px}
+            .brlp-body{display:flex;align-items:center;gap:10px}
+            .brlp-grid{
+                display:grid;grid-template-columns:1fr 1fr;gap:5px;
+                padding:7px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;
+            }
+            .brlp-dot{
+                width:36px;height:36px;border-radius:50%;
+                border:1.5px solid #aaa;background:white;
+                cursor:pointer;font-size:.85rem;font-weight:700;color:#555;
+                display:flex;align-items:center;justify-content:center;
+                transition:all .12s;line-height:1;
+            }
+            .brlp-dot.on{background:#1565c0;border-color:#1565c0;color:white}
+            .brlp-dot:hover:not(.on){background:#e3f2fd;border-color:#1565c0;color:#1565c0}
+            .brlp-prev{
+                font-family:"Apple Braille","Segoe UI Symbol",monospace;
+                font-size:2.6rem;color:#1565c0;min-width:42px;text-align:center;line-height:1;
+            }
+            .brlp-acts{display:flex;flex-direction:column;gap:5px}
+            .brlp-acts button{
+                padding:4px 10px;border-radius:4px;cursor:pointer;
+                font-size:.8em;border:1px solid #aaa;background:#f5f5f5;
+            }
+            .brlp-insert{background:#1565c0!important;color:#fff!important;border-color:#1565c0!important}
+            html[data-theme="dark"] .brlp-panel{background:#1a1d27;border-color:#2e3350;color:#cdd6f4}
+            html[data-theme="dark"] .brlp-kbd-btn{background:#1e2133;border-color:#3a3f58;color:#b0bec5}
+            html[data-theme="dark"] .brlp-kbd-btn.on{background:#1565c0;color:#fff;border-color:#1565c0}
+            html[data-theme="dark"] .brlp-kbd-hint{color:#6b7a99}
+            html[data-theme="dark"] .brlp-divider{border-color:#2e3350}
+            html[data-theme="dark"] .brlp-grid{background:#11131e;border-color:#2e3350}
+            html[data-theme="dark"] .brlp-dot{background:#1a1d27;border-color:#4a4d6a;color:#b0bec5}
+            html[data-theme="dark"] .brlp-dot.on{background:#1565c0;border-color:#1565c0;color:white}
+            html[data-theme="dark"] .brlp-dot:hover:not(.on){background:#0d2137;border-color:#1565c0;color:#90caf9}
+            html[data-theme="dark"] .brlp-prev{color:#90caf9}
+            html[data-theme="dark"] .brlp-acts button{background:#1e2133;border-color:#3a3f58;color:#b0bec5}
+            @media(max-width:540px){
+                .brlp-panel.open{
+                    left:8px!important;right:8px!important;
+                    bottom:8px!important;top:auto!important;width:auto!important;
+                }
+            }
+        `;
+        document.head.appendChild(st);
     }
 
-    function insertCell(code) {
-        const el = ta();
-        if (!el) return;
-        const c = String.fromCharCode(0x2800 + code);
-        const s = el.selectionStart, ep = el.selectionEnd;
-        el.value = el.value.slice(0, s) + c + el.value.slice(ep);
-        el.selectionStart = el.selectionEnd = s + 1;
+    // ── 建立浮動面板 ─────────────────────────────────────
+    const panel = document.createElement('div');
+    panel.className = 'brlp-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'false');
+    panel.innerHTML = `
+        <div class="brlp-kbd-row">
+            <span class="brlp-kbd-label">六點鍵盤</span>
+            <button type="button" class="brlp-kbd-btn">關</button>
+        </div>
+        <div class="brlp-kbd-hint">S=1 D=2 F=3 ｜ J=4 K=5 L=6<br>Space=空白格 ｜ Ctrl+B 切換</div>
+        <hr class="brlp-divider">
+        <div class="brlp-dot-label">點陣輸入</div>
+        <div class="brlp-body">
+            <div class="brlp-grid">
+                <button type="button" class="brlp-dot" data-dot="1">1</button>
+                <button type="button" class="brlp-dot" data-dot="4">4</button>
+                <button type="button" class="brlp-dot" data-dot="2">2</button>
+                <button type="button" class="brlp-dot" data-dot="5">5</button>
+                <button type="button" class="brlp-dot" data-dot="3">3</button>
+                <button type="button" class="brlp-dot" data-dot="6">6</button>
+            </div>
+            <div class="brlp-prev" aria-live="polite">⠀</div>
+            <div class="brlp-acts">
+                <button type="button" class="brlp-insert">插入</button>
+                <button type="button" class="brlp-clear">清點</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(panel);
+
+    const preview = panel.querySelector('.brlp-prev');
+    const kbdBtn  = panel.querySelector('.brlp-kbd-btn');
+
+    // ── 面板定位與開關 ───────────────────────────────────
+    function positionPanel() {
+        if (window.innerWidth <= 540) return;
+        const tb = document.getElementById(opts.triggerId);
+        if (!tb) return;
+        const r = tb.getBoundingClientRect();
+        panel.style.top    = (r.bottom + 6) + 'px';
+        panel.style.left   = Math.min(r.left, window.innerWidth - 230) + 'px';
+        panel.style.right  = '';
+        panel.style.bottom = '';
+    }
+    function openPanel() {
+        positionPanel();
+        panel.classList.add('open');
+        const tb = document.getElementById(opts.triggerId);
+        if (tb) tb.setAttribute('aria-expanded', 'true');
+    }
+    function closePanel() {
+        panel.classList.remove('open');
+        const tb = document.getElementById(opts.triggerId);
+        if (tb) tb.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', e => {
+        const tb = document.getElementById(opts.triggerId);
+        if (tb && tb.contains(e.target)) {
+            panel.classList.contains('open') ? closePanel() : openPanel();
+            return;
+        }
+        if (!panel.contains(e.target)) closePanel();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+    window.addEventListener('resize', () => { if (panel.classList.contains('open')) positionPanel(); });
+
+    // ── 鍵盤模式 ────────────────────────────────────────
+    function syncKbdState(on) {
+        kbdOn = on;
+        kbdBtn.textContent = on ? '開' : '關';
+        kbdBtn.classList.toggle('on', on);
+        const tb = document.getElementById(opts.triggerId);
+        if (tb) tb.classList.toggle('kbd-on', on);
+    }
+
+    if (opts.externalKbd) {
+        // bt 模式：panel 鍵盤按鈕呼叫外部 toggle，不自行管理 Ctrl+B
+        kbdBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            opts.externalKbd.toggle(!opts.externalKbd.getState());
+        });
+    } else {
+        kbdBtn.addEventListener('click', e => { e.stopPropagation(); syncKbdState(!kbdOn); });
+
+        document.addEventListener('keydown', e => {
+            if (!(e.ctrlKey && e.key === 'b')) return;
+            const el = document.getElementById(opts.targetId);
+            if (!el) return;
+            if (!opts.globalToggle && document.activeElement !== el) return;
+            if (opts.checkActive && !opts.checkActive()) return;
+            syncKbdState(!kbdOn);
+            e.preventDefault();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (!kbdOn) return;
+            if (opts.checkActive && !opts.checkActive()) return;
+            if (document.activeElement !== document.getElementById(opts.targetId)) return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+            const PASS = [8,9,13,27,33,34,35,36,37,38,39,40,45,46];
+            if (PASS.includes(e.keyCode) || (e.keyCode >= 112 && e.keyCode <= 123)) return;
+            if (e.keyCode in KEY_BITS) {
+                held[e.keyCode] = true; brlCode |= KEY_BITS[e.keyCode];
+                e.preventDefault(); return;
+            }
+            if (e.keyCode === 32) { doInsert(0); e.preventDefault(); }
+        });
+        document.addEventListener('keyup', e => {
+            if (!kbdOn || !(e.keyCode in KEY_BITS)) return;
+            if (document.activeElement !== document.getElementById(opts.targetId)) {
+                delete held[e.keyCode];
+                if (Object.keys(held).length === 0) brlCode = 0;
+                return;
+            }
+            delete held[e.keyCode];
+            if (Object.keys(held).length === 0 && brlCode !== 0) { doInsert(brlCode); brlCode = 0; }
+            e.preventDefault();
+        });
+    }
+
+    // ── 點陣 ────────────────────────────────────────────
+    panel.querySelector('.brlp-grid').addEventListener('click', e => {
+        const btn = e.target.closest('.brlp-dot');
+        if (!btn) return;
+        const d = +btn.dataset.dot;
+        if (dots.has(d)) { dots.delete(d); btn.classList.remove('on'); }
+        else             { dots.add(d);    btn.classList.add('on'); }
+        preview.textContent = String.fromCodePoint(0x2800 + [...dots].reduce((b, x) => b | DOT_BITS[x], 0));
+    });
+    panel.querySelector('.brlp-insert').addEventListener('click', () => {
+        doInsert([...dots].reduce((b, x) => b | DOT_BITS[x], 0));
+        clearDots();
+    });
+    panel.querySelector('.brlp-clear').addEventListener('click', clearDots);
+
+    function clearDots() {
+        dots.clear();
+        panel.querySelectorAll('.brlp-dot').forEach(b => b.classList.remove('on'));
+        preview.textContent = '⠀';
+    }
+    function doInsert(bits) {
+        if (typeof opts.insertFn === 'function') {
+            opts.insertFn(bits);
+        } else {
+            const ta = document.getElementById(opts.targetId);
+            if (!ta) return;
+            const c = String.fromCodePoint(0x2800 + bits);
+            const s = ta.selectionStart, ep = ta.selectionEnd;
+            ta.value = ta.value.slice(0, s) + c + ta.value.slice(ep);
+            ta.selectionStart = ta.selectionEnd = s + 1;
+            ta.focus();
+        }
         if (typeof opts.onInsert === 'function') opts.onInsert();
     }
 
-    // Ctrl+B 全域切換
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 'b') {
-            // 只在對應 textarea 有焦點，或強制全域（bt 主輸入）
-            const el = ta();
-            if (!el) return;
-            const isFocused = (document.activeElement === el);
-            if (!opts.globalToggle && !isFocused) return;
-            setMode(!isOn);
-            e.preventDefault();
-        }
-    });
-
-    // keydown on textarea
-    document.addEventListener('keydown', function(e) {
-        if (!isOn) return;
-        if (document.activeElement !== ta()) return;
-        if (e.ctrlKey || e.altKey || e.metaKey) return;
-        const PASS = [8,9,13,27,33,34,35,36,37,38,39,40,45,46];
-        if (PASS.includes(e.keyCode)) return;
-        if (e.keyCode >= 112 && e.keyCode <= 123) return;
-        if (e.keyCode in KEY_BITS) {
-            held[e.keyCode] = true;
-            brlCode |= KEY_BITS[e.keyCode];
-            e.preventDefault();
-            return;
-        }
-        if (e.keyCode === 32) {
-            insertCell(0);
-            e.preventDefault();
-        }
-    });
-
-    // keyup on textarea
-    document.addEventListener('keyup', function(e) {
-        if (!isOn) return;
-        if (!(e.keyCode in KEY_BITS)) return;
-        if (document.activeElement !== ta()) {
-            // 焦點不在輸入框：清除殘留狀態，不干擾其他元素（如對照區 contenteditable）
-            delete held[e.keyCode];
-            if (Object.keys(held).length === 0) brlCode = 0;
-            return;
-        }
-        delete held[e.keyCode];
-        if (Object.keys(held).length === 0 && brlCode !== 0) {
-            insertCell(brlCode);
-            brlCode = 0;
-        }
-        e.preventDefault();
-    });
-
-    // 回傳控制介面（供工具呼叫 toggle 等）
-    return { setMode, getMode: () => isOn };
+    return { syncKbdState, openPanel, closePanel };
 }
 
 // ════════════════════════════════════════════════════════════

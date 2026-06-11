@@ -302,10 +302,6 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
     <span id="themeIcon" aria-hidden="true">&#x263D;</span>
     <span id="themeLabel">&#x9ED1;&#x5E95;</span>
   </button>
-  <div id="brlBadge" class="badge" style="display:none" aria-live="polite">
-    &#x9EDE;&#x5B57;&#x9375;&#x76E4;&#xFF1A;<span id="brlLabel">&#x95DC;</span>
-    <span style="opacity:.5;margin-left:4px">(Ctrl+B)</span>
-  </div>
 </div>
 
 <!-- LaTeX → Nemeth panel -->
@@ -366,18 +362,11 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
 
 <!-- Nemeth → LaTeX panel -->
 <main id="p-n2l" style="display:none" role="tabpanel" aria-labelledby="t-n2l">
-  <div class="keyhint" id="keyHint" style="display:none" role="note"
-    aria-label="&#x516D;&#x9EDE;&#x9375;&#x76E4;&#x8AAA;&#x660E;">
-    <span>&#x516D;&#x9EDE;&#x9375;&#xFF08;Perkins&#xFF09;&#xFF1A;
-      <kbd>F</kbd>&#x9EDE;3 <kbd>D</kbd>&#x9EDE;2 <kbd>S</kbd>&#x9EDE;1
-      <kbd>J</kbd>&#x9EDE;4 <kbd>K</kbd>&#x9EDE;5 <kbd>L</kbd>&#x9EDE;6</span>
-    <span><kbd>Space</kbd>&#x7A7A;&#x767D;&#x683C; &#xFF5C; &#x5176;&#x9918;&#x6309;&#x9215;&#x6B63;&#x5E38;&#x904B;&#x4F5C;</span>
-    <span><kbd>Ctrl+B</kbd>&#x5207;&#x63DB;</span>
-  </div>
   <div class="grid">
     <div class="pane">
       <div class="ph" id="n2l-in-label">
         <span class="dot" aria-hidden="true"></span>Nemeth &#x9EDE;&#x5B57;&#x8F38;&#x5165;
+        <button class="btn brlp-trigger" id="n2l-dot-btn" style="margin-left:auto;" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
       </div>
       <textarea id="n2l-in"
         aria-labelledby="n2l-in-label"
@@ -2054,14 +2043,12 @@ function n2lConvert(){
 // S=dot1(4) D=dot2(2) F=dot3(1) J=dot4(8) K=dot5(16) L=dot6(32)
 // =====================================================================
 // ── 六點輸入（via shared.js initBrailleInput）──
-var _ncBrlCtrl = initBrailleInput({
-    taId:        'n2l-in',
-    badgeId:     'brlBadge',
-    labelId:     'brlLabel',
-    hintId:      'keyHint',
-    globalToggle: true,
-    onInsert:    function() { n2lConvert(); },
-    checkActive: function() { return typeof curMode !== 'undefined' && curMode === 'n2l'; },
+initBraillePanel({
+    triggerId:    'n2l-dot-btn',
+    targetId:     'n2l-in',
+    globalToggle:  true,
+    checkActive:   function() { return typeof curMode !== 'undefined' && curMode === 'n2l'; },
+    onInsert:      function() { n2lConvert(); },
 });
 
 // =====================================================================
@@ -2313,8 +2300,6 @@ function setMode(m){
   document.getElementById('t-n2l').className='tab'+(m==='n2l'?' on':'');
   document.getElementById('t-l2n').setAttribute('aria-selected',m==='l2n');
   document.getElementById('t-n2l').setAttribute('aria-selected',m==='n2l');
-  document.getElementById('brlBadge').style.display=(m==='n2l')?'':'none';
-    document.getElementById('keyHint').style.display=((typeof _ncBrlCtrl!=='undefined'&&_ncBrlCtrl.getMode())&&m==='n2l')?'':'none';
 }
 function setFs(v){
   document.getElementById('fsVal').textContent=v+'px';

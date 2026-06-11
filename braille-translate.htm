@@ -358,24 +358,6 @@
         .token-group.is-contraction .token-braille { color: #283593; }
         .token-group.is-contraction .token-text { color: #3949ab; border-color: #c5cae9; }
 
-        /* ── 點字直接輸入模式 ── */
-        #braille-mode-indicator {
-            display: none;
-            align-items: center;
-            gap: 6px;
-            background: #b71c1c;
-            color: white;
-            border-radius: 4px;
-            padding: 3px 10px;
-            font-size: 0.82em;
-            font-weight: bold;
-        }
-        #braille-mode-indicator.active { display: flex; }
-        #braille-mode-indicator .bmi-hint {
-            font-weight: normal;
-            font-size: 0.88em;
-            opacity: 0.88;
-        }
 
         /* modal CSS → shared.js */
 
@@ -563,7 +545,7 @@
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                 <label for="input-text" style="margin:0;">輸入文字：</label>
                 <button onclick="openFormatModal('input-text', render)" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
-                <div id="braille-mode-indicator" role="status" aria-live="polite">點字輸入</div>
+                <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
         </div>
@@ -2972,14 +2954,14 @@ document.getElementById('cell-limit').addEventListener('input', render);
 //  — 與自定義規則區共用同一套六點輸入邏輯（bit map、insertRuleCell）
 // ════════════════════════════════════════════════════════════
 let brailleInputMode = false;
+var brlPanelCtrl; // 由 shared.js 載入後賦值
 const inputTA = document.getElementById('input-text');
-const bmiPanel = document.getElementById('braille-mode-indicator');
 
 function setBrailleInputMode(active) {
     brailleInputMode = active;
     ruleComposerBits = 0;
     ruleChordFired   = false;
-    bmiPanel.classList.toggle('active', active);
+    if (brlPanelCtrl) brlPanelCtrl.syncKbdState(active);
     // 同步格式調整 modal 裡的按鈕狀態
     var fmtBtn = document.getElementById('btn-ftb-braille');
     if (fmtBtn) {
@@ -3241,6 +3223,19 @@ loadRules();
 
 </script>
 <script src="shared.js"></script>
+<script>
+brlPanelCtrl = initBraillePanel({
+    triggerId:   'bt-brl-btn',
+    targetId:    'input-text',
+    insertFn:    function(bits) {
+        insertBrailleCellInto(inputTA, String.fromCodePoint(0x2800 + bits));
+    },
+    externalKbd: {
+        toggle:   setBrailleInputMode,
+        getState: function() { return brailleInputMode; },
+    },
+});
+</script>
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
