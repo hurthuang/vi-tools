@@ -59,3 +59,27 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 
 ### 注意事項
 - `UEB-g2-query.html`（query）為小量文字查詢模式，點陣輸入保留原有 inline 實作，不納入 initBraillePanel
+
+## 工具命名、圖示與導覽整合（已完成，2026-06-11）
+
+### 工具正式名稱與符號
+| 檔案 | 正式名稱 | 符號 | 頁面標題 |
+|------|----------|------|---------|
+| `braille-translate.htm` | 文字轉點字 | → | → 文字轉點字 |
+| `braille-to-text.html` | 點字轉文字 | ← | ← 點字轉文字 |
+| `nemeth_converter.html` | 數學點字 | π | π 數學點字 |
+| `pdf-to-accessible.html` | 文件整理 | 📄 | 📄 文件整理 |
+| `UEB-g2-query.html` | UEB 查詢 | 🔍 | 🔍 UEB 查詢 |
+
+- 內部 codename（bt/b2t/nc/p2a/query）僅保留於 HTML id（`tab-bt`、`frame-bt` 等），不出現在 UI 文字
+- 📄 🔍 為 emoji，字型渲染比 → ← π 略大，使用者確認「維持現狀」
+
+### 導覽列順序（index.html）
+主頁 → →文字轉點字 → ←點字轉文字 → π數學點字 → 📄文件整理 → 🔍UEB查詢 → 📖說明
+
+### 說明頁（guide.html）
+- 新增 `guide.html`，以 iframe 嵌入 index.html 的「說明」tab（`frame-guide`，hash `guide`）
+- `window.self !== window.top` 偵測：iframe 內自動加 `.in-frame` class，隱藏 topbar，sidebar top 調為 0
+- postMessage 主題同步（與其他工具頁相同協定）：父頁 `querySelectorAll('iframe')` 廣播，guide.html 監聽 `{type:'setTheme'}`
+- 側邊欄區段：→文字轉點字、←點字轉文字、π數學點字、📄文件整理、🔍UEB查詢，含共同功能子節
+- HASH_MAP 新增 `'frame-guide': 'guide'`

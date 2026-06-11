@@ -268,23 +268,27 @@
   </div>
   <div class="tab" role="tab" id="tab-bt" data-target="frame-bt"
        tabindex="-1" aria-selected="false" aria-controls="frame-bt">
-    <span class="icon" aria-hidden="true">⠿</span> 點字翻譯
-  </div>
-  <div class="tab" role="tab" id="tab-p2a" data-target="frame-p2a"
-       tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
-    <span class="icon" aria-hidden="true">📄</span> PDF 友善文字
-  </div>
-  <div class="tab" role="tab" id="tab-nc" data-target="frame-nc"
-       tabindex="-1" aria-selected="false" aria-controls="frame-nc">
-    <span class="icon" aria-hidden="true">⠼</span> Nemeth 轉換
+    <span class="icon" aria-hidden="true">→</span> 文字轉點字
   </div>
   <div class="tab" role="tab" id="tab-g2" data-target="frame-g2"
        tabindex="-1" aria-selected="false" aria-controls="frame-g2">
-    <span class="icon" aria-hidden="true">⠠</span> 點字轉文字
+    <span class="icon" aria-hidden="true">←</span> 點字轉文字
+  </div>
+  <div class="tab" role="tab" id="tab-nc" data-target="frame-nc"
+       tabindex="-1" aria-selected="false" aria-controls="frame-nc">
+    <span class="icon" aria-hidden="true">π</span> 數學點字
+  </div>
+  <div class="tab" role="tab" id="tab-p2a" data-target="frame-p2a"
+       tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
+    <span class="icon" aria-hidden="true">📄</span> 文件整理
   </div>
   <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
        tabindex="-1" aria-selected="false" aria-controls="frame-gq">
-    <span class="icon" aria-hidden="true">🔍</span> G2 查詢
+    <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
+  </div>
+  <div class="tab" role="tab" id="tab-guide" data-target="frame-guide"
+       tabindex="-1" aria-selected="false" aria-controls="frame-guide">
+    <span class="icon" aria-hidden="true">📖</span> 說明
   </div>
   <div style="flex:1"></div>
   <button id="theme-btn" onclick="toggleTheme()" style="
@@ -307,12 +311,12 @@
       <div class="tool-cards">
 
         <div class="tool-card" style="--card-accent:#4ade80" onclick="switchTo('frame-bt')"
-             role="button" tabindex="0" aria-label="開啟點字翻譯工具" aria-describedby="desc-bt"
+             role="button" tabindex="0" aria-label="開啟文字轉點字工具" aria-describedby="desc-bt"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-bt')}">
-          <div class="tool-icon" aria-hidden="true">⠿</div>
+          <div class="tool-icon" aria-hidden="true">→</div>
           <div class="tool-info">
             <div class="tool-name">
-              點字翻譯
+              文字轉點字
               <span class="tool-badge">UEB</span>
             </div>
             <div class="tool-desc" id="desc-bt">
@@ -330,58 +334,10 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')"
-             role="button" tabindex="0" aria-label="開啟 PDF 轉視障友善文字工具" aria-describedby="desc-p2a"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-p2a')}">
-          <div class="tool-icon" aria-hidden="true">📄</div>
-          <div class="tool-info">
-            <div class="tool-name">
-              PDF 轉視障友善文字
-              <span class="tool-badge" style="background:#22d3ee">TTS</span>
-            </div>
-            <div class="tool-desc" id="desc-p2a">
-              將 PDF 或其他文件轉換為乾淨的純文字，去除頁首頁尾與排版雜訊，
-              適合語音報讀軟體使用。內建 TTS 語音預覽，可直接在瀏覽器中試聽。
-            </div>
-            <div class="tool-features">
-              <span class="feat-tag">PDF 萃取</span>
-              <span class="feat-tag">頁首頁尾偵測</span>
-              <span class="feat-tag">格式自動整理</span>
-              <span class="feat-tag">TTS 語音預覽</span>
-              <span class="feat-tag">進階取代</span>
-            </div>
-          </div>
-          <div class="tool-arrow" aria-hidden="true">›</div>
-        </div>
-
-        <div class="tool-card" style="--card-accent:#f59e0b" onclick="switchTo('frame-nc')"
-             role="button" tabindex="0" aria-label="開啟 Nemeth 數學點字轉換工具" aria-describedby="desc-nc"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-nc')}">
-          <div class="tool-icon" aria-hidden="true">⠼</div>
-          <div class="tool-info">
-            <div class="tool-name">
-              Nemeth 數學點字轉換
-              <span class="tool-badge" style="background:#f59e0b">Nemeth 2022</span>
-            </div>
-            <div class="tool-desc" id="desc-nc">
-              雙向轉換 LaTeX 數學式與 Nemeth 點字，支援分數、根號、上下標、矩陣等結構，
-              並提供即時 MathJax 預覽與數學式編輯器。
-            </div>
-            <div class="tool-features">
-              <span class="feat-tag">LaTeX → Nemeth</span>
-              <span class="feat-tag">Nemeth → LaTeX</span>
-              <span class="feat-tag">MathJax 預覽</span>
-              <span class="feat-tag">數學式編輯器</span>
-              <span class="feat-tag">六點鍵盤輸入</span>
-            </div>
-          </div>
-          <div class="tool-arrow" aria-hidden="true">›</div>
-        </div>
-
         <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-g2')"
              role="button" tabindex="0" aria-label="開啟點字轉文字工具" aria-describedby="desc-g2"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-g2')}">
-          <div class="tool-icon" aria-hidden="true">⠠</div>
+          <div class="tool-icon" aria-hidden="true">←</div>
           <div class="tool-info">
             <div class="tool-name">
               點字轉文字
@@ -403,13 +359,61 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#f59e0b" onclick="switchTo('frame-nc')"
+             role="button" tabindex="0" aria-label="開啟數學點字工具" aria-describedby="desc-nc"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-nc')}">
+          <div class="tool-icon" aria-hidden="true">π</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              數學點字
+              <span class="tool-badge" style="background:#f59e0b">Nemeth 2022</span>
+            </div>
+            <div class="tool-desc" id="desc-nc">
+              雙向轉換 LaTeX 數學式與 Nemeth 點字，支援分數、根號、上下標、矩陣等結構，
+              並提供即時 MathJax 預覽與數學式編輯器。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">LaTeX → Nemeth</span>
+              <span class="feat-tag">Nemeth → LaTeX</span>
+              <span class="feat-tag">MathJax 預覽</span>
+              <span class="feat-tag">數學式編輯器</span>
+              <span class="feat-tag">六點鍵盤輸入</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')"
+             role="button" tabindex="0" aria-label="開啟文件整理工具" aria-describedby="desc-p2a"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-p2a')}">
+          <div class="tool-icon" aria-hidden="true">📄</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              文件整理
+              <span class="tool-badge" style="background:#22d3ee">TTS</span>
+            </div>
+            <div class="tool-desc" id="desc-p2a">
+              將 PDF 或其他文件轉換為乾淨的純文字，去除頁首頁尾與排版雜訊，
+              適合語音報讀軟體使用。內建 TTS 語音預覽，可直接在瀏覽器中試聽。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">PDF 萃取</span>
+              <span class="feat-tag">頁首頁尾偵測</span>
+              <span class="feat-tag">格式自動整理</span>
+              <span class="feat-tag">TTS 語音預覽</span>
+              <span class="feat-tag">進階取代</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
         <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
-             role="button" tabindex="0" aria-label="開啟 UEB G2 轉譯查詢工具" aria-describedby="desc-gq"
+             role="button" tabindex="0" aria-label="開啟 UEB 查詢工具" aria-describedby="desc-gq"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-gq')}">
           <div class="tool-icon" aria-hidden="true">🔍</div>
           <div class="tool-info">
             <div class="tool-name">
-              UEB G2 轉譯查詢
+              UEB 查詢
               <span class="tool-badge" style="background:#f472b6">規則解析</span>
             </div>
             <div class="tool-desc" id="desc-gq">
@@ -466,11 +470,12 @@
     </div>
   </div>
 
-  <iframe id="frame-bt"  class="panel" src="braille-translate.htm"    role="tabpanel" aria-labelledby="tab-bt"  title="點字翻譯工具"></iframe>
-  <iframe id="frame-p2a" class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a" title="PDF 轉視障友善文字工具"></iframe>
-  <iframe id="frame-nc"  class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"  title="Nemeth 數學點字轉換工具"></iframe>
-  <iframe id="frame-g2"  class="panel" src="braille-to-text.html"    role="tabpanel" aria-labelledby="tab-g2"  title="點字轉文字工具"></iframe>
-  <iframe id="frame-gq"  class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"  title="UEB G2 轉譯查詢工具"></iframe>
+  <iframe id="frame-bt"    class="panel" src="braille-translate.htm"  role="tabpanel" aria-labelledby="tab-bt"    title="文字轉點字"></iframe>
+  <iframe id="frame-g2"    class="panel" src="braille-to-text.html"   role="tabpanel" aria-labelledby="tab-g2"    title="點字轉文字"></iframe>
+  <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
+  <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="文件整理"></iframe>
+  <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"    title="UEB 查詢"></iframe>
+  <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
 
 </div>
 
@@ -520,8 +525,9 @@
 
   // ── Hash routing ──
   const HASH_MAP = {
-    'home-panel': '', 'frame-bt': 'braille', 'frame-p2a': 'pdf',
-    'frame-nc': 'nemeth', 'frame-g2': 'g2', 'frame-gq': 'g2-query'
+    'home-panel': '', 'frame-bt': 'braille', 'frame-g2': 'g2',
+    'frame-p2a': 'pdf', 'frame-nc': 'nemeth', 'frame-gq': 'ueb-query',
+    'frame-guide': 'guide'
   };
   const HASH_TO_TARGET = {};
   for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;
