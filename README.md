@@ -42,6 +42,10 @@
 - 注音點字轉換使用 [McBopomofoWeb](https://github.com/openvanilla/McBopomofoWeb) 引擎（MIT 授權）
 - UEB G2 自訂縮寫引擎（`ueb-g2-rules.js`）與 liblouis 比對驗證，428 組測試全部通過
 
+## 作者
+
+黃偉豪 ／ [視覺障礙輔助科技筆記本](https://class.kh.edu.tw/19061) ／ [GitHub](https://github.com/hurthuang) ／ [Facebook 粉專](https://www.facebook.com/vi.tech.tw/)
+
 ## 授權
 
 點字轉換規則表版權歸屬原始 liblouis 專案（LGPL）。
