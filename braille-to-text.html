@@ -562,8 +562,8 @@ function renderParallel() {
             const origText = t.text || '';
             const editedText = _zhEdits.get(brlKey);
             g.className = 'token-group token-zh' + (editedText !== undefined ? ' token-edited' : '');
-            bDiv.className = 'token-braille font-unicode';
-            bDiv.textContent = brlKey;
+            bDiv.className = 'token-braille ' + (isSim ? 'font-ascii' : 'font-unicode');
+            bDiv.textContent = isAscii ? unicodeToAscii(brlKey) : brlKey;
             tDiv.textContent = editedText !== undefined ? editedText : origText;
             tDiv.contentEditable = 'true';
             let _composing = false;
