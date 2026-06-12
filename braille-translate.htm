@@ -369,6 +369,11 @@
         html[data-theme="dark"] .token-group.is-nemeth .token-text { color: #4dd0e1; }
         .zh-clickable { cursor: pointer !important; }
         .zh-clickable:hover { background: rgba(255,152,0,.25) !important; border-radius: 2px; }
+        .token-group.lg-punct { border-style: dashed !important; cursor: pointer; }
+        .token-group.lg-punct:hover { border-color: #4caf50 !important; }
+        .token-group.lg-nospace { opacity: .65; }
+        .lg-punct-badge { font-size: .6em; color: #4caf50; text-align: center; line-height: 1.4; user-select: none; }
+        .token-group.lg-nospace .lg-punct-badge { color: #bdbdbd; }
         /* 點字修正編輯器 */
         #zh-brl-ed {
             display: none; position: fixed; z-index: 9999;
@@ -1979,6 +1984,40 @@ let _customRulesVersion = 0;
 let _btZhEditsVersion = 0;
 let _parallelViewTimer = null;
 
+// ── 低年級空行空方 ──────────────────────────────────────────────
+const ZH_PUNCT_SPACE = new Set([...'。，、？！：；）」』】〕〉》（「『【〔〈《…—·']);
+const _lgNoSpaceSet  = new Set();   // raw offset of punct where space is toggled OFF
+let   _lgCurrentRawMap  = null;     // preprocessed-pos → raw-pos mapping
+let   _lgPunctPositions = null;     // Set of raw offsets eligible for toggle
+
+function _lgPreprocess(rawText, noSpaceSet) {
+    const chars = Array.from(rawText);
+    const out = [], rawMap = [];
+    const punctPos = new Set();
+    for (let ri = 0; ri < chars.length; ri++) {
+        const ch = chars[ri];
+        if (ch === '\n') {
+            let trailing = 0;
+            for (let k = out.length - 1; k >= 0 && out[k] === '\n'; k--) trailing++;
+            if (trailing < 3) {
+                out.push('\n'); rawMap.push(ri);
+                if (trailing < 2) { out.push('\n'); rawMap.push(-1); }
+            }
+            continue;
+        }
+        out.push(ch); rawMap.push(ri);
+        const next = chars[ri + 1];
+        if (!next || next === '\n') continue;
+        if (ZH_PUNCT_SPACE.has(ch)) {
+            punctPos.add(ri);
+            if (!noSpaceSet.has(ri)) { out.push(' '); rawMap.push(-1); }
+        } else if (_isZhChar(ch) && (_isZhChar(next) || ZH_PUNCT_SPACE.has(next))) {
+            out.push(' '); rawMap.push(-1);
+        }
+    }
+    return { text: out.join(''), rawMap, punctPos };
+}
+
 // ── 多音字點字修正 ─────────────────────────────────────────────
 const _btZhEdits = new Map(); // ctxKey → 修正後的 Unicode 點字字串（可多格）
 
@@ -2230,9 +2269,15 @@ function render() {
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
 
-    if (document.getElementById('low-grade-mode').checked) {
-        input = input.replace(/(?<=[一-鿿㐀-䶿])(?=[一-鿿㐀-䶿])/g, ' ');
-        input = input.split('\n').join('\n\n');
+    const lgMode = document.getElementById('low-grade-mode').checked;
+    if (lgMode) {
+        const prep = _lgPreprocess(input, _lgNoSpaceSet);
+        input = prep.text;
+        _lgCurrentRawMap  = prep.rawMap;
+        _lgPunctPositions = prep.punctPos;
+    } else {
+        _lgCurrentRawMap  = null;
+        _lgPunctPositions = null;
     }
 
     const modeKey = _getLineModeKey();
@@ -2306,6 +2351,10 @@ function render() {
             }
             resultUnicode += '\n'; lineCells = 0;
             renderTokens.push({ text:'', braille:'\n', isLineBreak:true, isAutoBreak:true });
+            if (lgMode) {
+                resultUnicode += '\n';
+                renderTokens.push({ text:'', braille:'\n', isLineBreak:true, isAutoBreak:true });
+            }
 
             // Bug 1 修正：若目前 token 是空格（行首），跳過它
             if (t.isSpace) return;
@@ -2315,6 +2364,19 @@ function render() {
         resultUnicode += t.braille;
         lineCells += bLen;
     });
+
+    // 標記低年級可切換標點
+    if (lgMode && _lgCurrentRawMap && _lgPunctPositions) {
+        for (const rt of renderTokens) {
+            if (rt.srcStart !== undefined && rt.braille !== '\n') {
+                const rawOff = _lgCurrentRawMap[rt.srcStart];
+                if (rawOff !== undefined && rawOff >= 0 && _lgPunctPositions.has(rawOff)) {
+                    rt.isLgPunct = true;
+                    rt.lgRawOffset = rawOff;
+                }
+            }
+        }
+    }
 
     outArea.value = isAscii ? unicodeToAscii(resultUnicode) : resultUnicode;
     clearTimeout(_parallelViewTimer);
@@ -2985,8 +3047,23 @@ function renderParallelView(tokens) {
             });
         }
 
-        // 直接用 token 的來源字元範圍跳轉
-        if (t.srcStart !== undefined) {
+        if (t.isLgPunct) {
+            const spaceOn = !_lgNoSpaceSet.has(t.lgRawOffset);
+            g.classList.add('lg-punct');
+            if (!spaceOn) g.classList.add('lg-nospace');
+            g.title = spaceOn ? '點擊取消此標點後的空格' : '點擊恢復此標點後的空格';
+            g.style.cursor = 'pointer';
+            const badge = document.createElement('div');
+            badge.className = 'lg-punct-badge';
+            badge.textContent = spaceOn ? '⎵' : '⊘';
+            g.appendChild(badge);
+            g.addEventListener('click', function() {
+                if (_lgNoSpaceSet.has(t.lgRawOffset)) _lgNoSpaceSet.delete(t.lgRawOffset);
+                else _lgNoSpaceSet.add(t.lgRawOffset);
+                render();
+            });
+        } else if (t.srcStart !== undefined) {
+            // 直接用 token 的來源字元範圍跳轉
             const s = t.srcStart;
             const e = (t.srcEnd > t.srcStart) ? t.srcEnd : t.srcStart + 1;
             g.title  = '點擊跳至輸入區對應位置';
@@ -3295,6 +3372,7 @@ document.getElementById('font-size-slider').addEventListener('input', e=>{
 });
 document.getElementById('input-text').addEventListener('input', function() {
     if (_suppressInput) return;
+    if (_lgNoSpaceSet.size) _lgNoSpaceSet.clear();
     if (brailleInputMode) syncBrailleDirectOutput();
     else {
         clearTimeout(window._renderTimer);
