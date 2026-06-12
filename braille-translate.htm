@@ -505,6 +505,12 @@
                 <strong style="color:#e65100;">⟨N⟩ Nemeth 數學</strong>
             </label>
         </div>
+        <div class="control-item" title="低年級空行空方：每個國字間插入空格（空方），每行之間插入空行，適合製作低年級點字摸讀教材">
+            <label style="display:inline; margin:0; cursor:pointer;">
+                <input type="checkbox" id="low-grade-mode" onchange="render()" style="cursor:pointer; accent-color:#795548;">
+                <span style="color:#795548; font-size:.85em;">低年級空行空方</span>
+            </label>
+        </div>
         <div class="btn-group">
             <button onclick="openFileDialog()" style="background:#795548;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
             <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;" aria-label="儲存原文"><span aria-hidden="true">💾</span> 儲存原文</button>
@@ -2200,7 +2206,8 @@ function _getLineModeKey() {
         groups = Array.from(document.querySelectorAll('.ucp-group-cb'))
                       .map(cb => cb.checked ? '1' : '0').join('');
     }
-    return mode + '|' + nemeth + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion;
+    const lowGrade = document.getElementById('low-grade-mode').checked ? '1' : '0';
+    return mode + '|' + nemeth + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade;
 }
 
 function _getLineTokens(line, modeKey) {
@@ -2218,10 +2225,15 @@ function _getLineTokens(line, modeKey) {
 // ── render ──────────────────────────────────────────────────
 function render() {
     if (!isLoaded) return;
-    const input   = document.getElementById('input-text').value;
+    let input     = document.getElementById('input-text').value;
     const max     = parseInt(document.getElementById('cell-limit').value)||40;
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
+
+    if (document.getElementById('low-grade-mode').checked) {
+        input = input.replace(/(?<=[一-鿿㐀-䶿])(?=[一-鿿㐀-䶿])/g, ' ');
+        input = input.split('\n').join('\n\n');
+    }
 
     const modeKey = _getLineModeKey();
     if (modeKey !== _lineCacheModeKey) { _lineCache.clear(); _lineCacheModeKey = modeKey; }
