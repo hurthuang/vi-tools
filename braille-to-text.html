@@ -436,6 +436,51 @@ const _zhEdits = new Map(); // braille格值 → 手動修改後的中文字
 let _inputDisp = 'unicode';
 let _canonical = '';
 
+// ── Line token cache ──────────────────────────────────────────
+const _b2tLineCache = new Map();
+let _b2tCacheModeKey = null;
+
+function _getB2tModeKey() { return svcMcB ? 'mcb' : 'no-mcb'; }
+
+function _convertLine(line) {
+    const modeKey = _getB2tModeKey();
+    if (modeKey !== _b2tCacheModeKey) { _b2tLineCache.clear(); _b2tCacheModeKey = modeKey; }
+    const cached = _b2tLineCache.get(line);
+    if (cached) return cached;
+
+    const tokens = [];
+    const segments = svcMcB ? _segmentLine(line) : [{ type: 'ueb', braille: line }];
+    const lineParts = [];
+    let firstSeg = true;
+
+    for (const seg of segments) {
+        if (!firstSeg) tokens.push({ isSpace: true, braille: '⠀' });
+        firstSeg = false;
+        if (seg.type === 'zh') {
+            const text = svcMcB.convertBrailleToText(seg.braille);
+            lineParts.push(text);
+            for (const ct of _buildChineseCharTokens(seg.braille)) {
+                tokens.push(ct.isSpace
+                    ? { isSpace: true, braille: '⠀' }
+                    : { type: 'zh', braille: ct.braille, text: ct.text, isSpace: false });
+            }
+        } else {
+            const text = _louBackTranslate('en-ueb-g2.ctb', seg.braille) ?? '';
+            lineParts.push(text);
+            const brlWords = seg.braille.split('⠀').filter(w => w.length > 0);
+            const txtWords = text.split(/\s+/).filter(w => w.length > 0);
+            for (let i = 0; i < brlWords.length; i++) {
+                if (i > 0) tokens.push({ isSpace: true, braille: '⠀' });
+                tokens.push({ type: 'ueb', braille: brlWords[i], text: txtWords[i] || '', isSpace: false });
+            }
+        }
+    }
+    const result = { tokens, text: lineParts.join(' ') };
+    if (_b2tLineCache.size >= 500) _b2tLineCache.delete(_b2tLineCache.keys().next().value);
+    _b2tLineCache.set(line, result);
+    return result;
+}
+
 function doConvert() {
     if (!_isReady()) { setStatus('liblouis 尚未就緒', 'err'); return; }
     _canonical = _taRead();
@@ -455,42 +500,14 @@ function doConvert() {
     for (const line of uni.split('\n')) {
         if (_lastTokens.length > 0) _lastTokens.push({ isLineBreak: true });
         if (!line.trim()) { outLines.push(''); continue; }
-
-        const segments = svcMcB ? _segmentLine(line) : [{ type: 'ueb', braille: line }];
-        const lineParts = [];
-        let firstSeg = true;
-
-        for (const seg of segments) {
-            // 不同段之間加空格 token
-            if (!firstSeg) _lastTokens.push({ isSpace: true, braille: '⠀' });
-            firstSeg = false;
-
-            if (seg.type === 'zh') {
-                // 注音點字：交給 McBopomofo，逐字展開
-                const text = svcMcB.convertBrailleToText(seg.braille);
-                lineParts.push(text);
-                for (const ct of _buildChineseCharTokens(seg.braille)) {
-                    _lastTokens.push(ct.isSpace
-                        ? { isSpace: true, braille: '⠀' }
-                        : { type: 'zh', braille: ct.braille, text: ct.text, isSpace: false });
-                }
-            } else {
-                // UEB：交給 liblouis，按空格切詞
-                const text = _louBackTranslate('en-ueb-g2.ctb', seg.braille) ?? '';
-                lineParts.push(text);
-                const brlWords = seg.braille.split('⠀').filter(w => w.length > 0);
-                const txtWords = text.split(/\s+/).filter(w => w.length > 0);
-                for (let i = 0; i < brlWords.length; i++) {
-                    if (i > 0) _lastTokens.push({ isSpace: true, braille: '⠀' });
-                    _lastTokens.push({ type: 'ueb', braille: brlWords[i], text: txtWords[i] || '', isSpace: false });
-                }
-            }
-        }
-        outLines.push(lineParts.join(' '));
+        const { tokens: lineTokens, text: lineText } = _convertLine(line);
+        for (const t of lineTokens) _lastTokens.push(t);
+        outLines.push(lineText);
     }
 
     document.getElementById('output-text').value = _buildOutputFromTokens();
-    renderParallel();
+    clearTimeout(window._parallelTimer);
+    window._parallelTimer = setTimeout(renderParallel, 600);
     setStatus('✓ 轉換完成', 'ok');
 }
 

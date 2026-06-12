@@ -10,7 +10,7 @@
 
 | 工具 | 連結 | 說明 |
 |------|------|------|
-| 文字轉點字 | [braille-translate.htm](https://hurthuang.github.io/vi-tools/braille-translate.htm) | 文字→點字即時轉換，支援 UEB G1／G2／自定／Comp8；可分批啟用 G2 縮寫規則；Nemeth 數學模式；自訂規則；匯出雙視校對 HTML |
+| 文字轉點字 | [braille-translate.htm](https://hurthuang.github.io/vi-tools/braille-translate.htm) | 文字→點字即時轉換，支援 UEB G1／G2／自定／Comp8；可分批啟用 G2 縮寫規則；Nemeth 數學模式；自訂規則；匯出雙視校對 HTML；點擊雙視區注音點字格可手動修正多音字讀音 |
 | 點字轉文字 | [braille-to-text.html](https://hurthuang.github.io/vi-tools/braille-to-text.html) | UEB G2 與台灣注音點字混排自動辨識，還原為英文／中文；逐格對照視圖可點擊修正同音異字；McBopomofoWeb 引擎 |
 | 數學點字 | [nemeth_converter.html](https://hurthuang.github.io/vi-tools/nemeth_converter.html) | LaTeX 數學式↔Nemeth 點字雙向轉換；MathJax 即時預覽；108 課綱符號對照；數學編輯器 |
 | 文件整理 | [pdf-to-accessible.html](https://hurthuang.github.io/vi-tools/pdf-to-accessible.html) | 開啟 PDF／DOCX／TXT，自動整理版面雜訊（頁首頁尾、選項斷行、連字號等）；內建語音朗讀（TTS）試聽；高對比與黃底黑字主題 |

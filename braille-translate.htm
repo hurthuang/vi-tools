@@ -270,10 +270,10 @@
         .token-group.custom-rule { background-color: #fff3e0 !important; border-color: #ffb74d !important; }
         .token-group.custom-rule .token-braille { color: #e65100; }
         .token-group.custom-rule .token-text { color: #ef6c00; border-color: #ffe0b2; }
-        /* Nemeth 數學 → 深橘紅色 */
-        .token-group.is-nemeth { background-color: #fbe9e7 !important; border-color: #ff5722 !important; border-width: 2px !important; }
-        .token-group.is-nemeth .token-braille { color: #bf360c; }
-        .token-group.is-nemeth .token-text { color: #e64a19; border-color: #ffccbc; }
+        /* Nemeth 數學 → 青色 */
+        .token-group.is-nemeth { background-color: #e0f7fa !important; border-color: #4dd0e1 !important; border-width: 2px !important; }
+        .token-group.is-nemeth .token-braille { color: #006064; }
+        .token-group.is-nemeth .token-text { color: #00838f; border-color: #b2ebf2; }
         /* 空格保持黃色 */
         .token-space { background-color: #fffde7 !important; border-color: #fff176 !important; }
         .token-space .token-text { color: #f9a825 !important; border-color: #fff9c4 !important; }
@@ -357,6 +357,51 @@
         .token-group.is-contraction { background-color: #e8eaf6 !important; border-color: #9fa8da !important; }
         .token-group.is-contraction .token-braille { color: #283593; }
         .token-group.is-contraction .token-text { color: #3949ab; border-color: #c5cae9; }
+        /* 多音字修正 */
+        /* 手動修正 → 橘紅色（與 Nemeth 互換） */
+        .token-group.zh-edited { background-color: #fbe9e7 !important; border-color: #ff5722 !important; }
+        .token-group.zh-edited .token-braille { color: #bf360c !important; border-color: #ff5722 !important; }
+        .token-group.zh-edited .token-text { color: #e64a19; border-color: #ffccbc; }
+        html[data-theme="dark"] .token-group.zh-edited { background-color: rgba(191,54,12,.18) !important; border-color: #e64a19 !important; }
+        html[data-theme="dark"] .token-group.zh-edited .token-braille { color: #ff8a65 !important; border-color: #e64a19 !important; }
+        html[data-theme="dark"] .token-group.is-nemeth { background-color: rgba(0,96,100,.2) !important; border-color: #00838f !important; }
+        html[data-theme="dark"] .token-group.is-nemeth .token-braille { color: #4dd0e1 !important; }
+        html[data-theme="dark"] .token-group.is-nemeth .token-text { color: #4dd0e1; }
+        .zh-clickable { cursor: pointer !important; }
+        .zh-clickable:hover { background: rgba(255,152,0,.25) !important; border-radius: 2px; }
+        /* 點字修正編輯器 */
+        #zh-brl-ed {
+            display: none; position: fixed; z-index: 9999;
+            background: var(--card-bg, #fff); border: 1px solid var(--border, #ccc);
+            border-radius: 8px; padding: 12px; min-width: 190px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.3);
+        }
+        .zh-ed-hdr { font-size: .82em; color: var(--muted, #666); margin-bottom: 6px; }
+        .zh-ed-seq { font-size: 2.2em; font-family: "Apple Braille","Segoe UI Symbol",monospace;
+                     letter-spacing: 4px; text-align: center; min-height: 1.3em;
+                     background: var(--input-bg, #f8f8f8); border: 1px solid var(--border, #ddd);
+                     border-radius: 4px; padding: 2px 10px; margin-bottom: 8px; }
+        .zh-ed-body { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .zh-ed-dots { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .zh-ed-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border, #aaa); background: var(--input-bg, #f0f0f0); cursor: pointer; padding: 0; }
+        .zh-ed-dot.on { background: #1565c0; border-color: #1565c0; }
+        html[data-theme="dark"] .zh-ed-dot { background: #333; border-color: #555; }
+        html[data-theme="dark"] .zh-ed-dot.on { background: #1976d2; border-color: #42a5f5; }
+        .zh-ed-cur-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .zh-ed-cur { font-size: 2.2em; font-family: "Apple Braille","Segoe UI Symbol",monospace;
+                     width: 36px; height: 36px; line-height: 36px; text-align: center;
+                     border: 2px dashed var(--border, #aaa); border-radius: 4px; cursor: pointer;
+                     background: var(--input-bg, #f0f0f0); user-select: none; }
+        .zh-ed-cur:hover { border-color: #1565c0; }
+        .zh-ed-cur-lbl { font-size: .68em; color: var(--muted, #888); }
+        .zh-ed-hint { font-size: .72em; color: var(--muted, #888); margin-bottom: 8px; line-height: 1.4; }
+        .zh-ed-cursor { color: #1565c0; font-size: .55em; vertical-align: middle; user-select: none;
+                        animation: zh-blink 1s step-end infinite; }
+        html[data-theme="dark"] .zh-ed-cursor { color: #42a5f5; }
+        @keyframes zh-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .zh-ed-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+        .zh-ed-btns button { font-size: .8em; padding: 4px 10px; cursor: pointer; border-radius: 4px; border: 1px solid var(--border, #ccc); background: var(--card-bg, #fff); color: var(--text, #333); }
+        .zh-ed-btns button:hover { background: var(--hover, #f0f0f0); }
 
 
         /* modal CSS → shared.js */
@@ -661,6 +706,8 @@
             <span><span class="legend-dot" style="background:#fff3e0;border:1px solid #ffb74d;"></span> 自定義規則</span>
             <span><span class="legend-dot" style="background:#fffde7;border:1px solid #fff176;"></span> 空格</span>
             <span id="contraction-legend" style="display:none"><span class="legend-dot" style="background:#e8eaf6;border:1px solid #9fa8da;"></span> 縮寫字</span>
+            <span id="nemeth-legend" style="display:none"><span class="legend-dot" style="background:#e0f7fa;border:1px solid #4dd0e1;"></span> Nemeth 數學</span>
+            <span id="zh-edited-legend" style="display:none"><span class="legend-dot" style="background:#fbe9e7;border:1px solid #ff5722;"></span> 手動修正</span>
             <label style="display:flex;align-items:center;gap:5px;font-size:0.82em;cursor:pointer;margin-left:8px;">
                 <input type="checkbox" id="highlight-contractions" onchange="renderParallelView(window._lastTokens||[])" style="cursor:pointer;accent-color:#3949ab;">
                 標示縮寫字
@@ -1919,6 +1966,255 @@ function applySpanTranslation(tokens) {
 }
 
 
+// ── Line token cache ──────────────────────────────────────────
+const _lineCache = new Map();
+let _lineCacheModeKey = null;
+let _customRulesVersion = 0;
+let _btZhEditsVersion = 0;
+let _parallelViewTimer = null;
+
+// ── 多音字點字修正 ─────────────────────────────────────────────
+const _btZhEdits = new Map(); // ctxKey → 修正後的 Unicode 點字字串（可多格）
+
+function _isZhChar(c) {
+    const cp = c.codePointAt(0);
+    return (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3400 && cp <= 0x4DBF);
+}
+
+function _zhCtxKey(text, i) {
+    let prev = '';
+    for (let j = i - 1; j >= 0 && prev.length < 2; j--) {
+        if (_isZhChar(text[j])) prev = text[j] + prev;
+    }
+    let next = '';
+    for (let j = i + 1; j < text.length && next.length < 1; j++) {
+        if (_isZhChar(text[j])) { next = text[j]; break; }
+    }
+    return prev + '|' + text[i] + '|' + next; // '|' 分隔避免前後文碰撞
+}
+
+// ── 點字修正浮動編輯器（多格累積輸入）────────────────────────
+let _zhEdBraille = '';    // 已累積的點字格序列
+let _zhEdCursor  = 0;     // 游標位置（格數）
+let _zhEdComposer = 0;    // 目前正在組合的格（bits 0-63）
+let _zhEdChordFired = false;
+let _zhEdCtxKey = null, _zhEdKd = null, _zhEdKu = null;
+
+function _zhEdEnsureDOM() {
+    if (document.getElementById('zh-brl-ed')) return;
+    const el = document.createElement('div');
+    el.id = 'zh-brl-ed';
+    el.innerHTML =
+        `<div class="zh-ed-hdr"></div>
+         <div class="zh-ed-seq"></div>
+         <div class="zh-ed-body">
+           <div class="zh-ed-dots">
+             <button class="zh-ed-dot" data-bit="1"  title="點1 (F)"></button>
+             <button class="zh-ed-dot" data-bit="8"  title="點4 (J)"></button>
+             <button class="zh-ed-dot" data-bit="2"  title="點2 (D)"></button>
+             <button class="zh-ed-dot" data-bit="16" title="點5 (K)"></button>
+             <button class="zh-ed-dot" data-bit="4"  title="點3 (S)"></button>
+             <button class="zh-ed-dot" data-bit="32" title="點6 (L)"></button>
+           </div>
+           <div class="zh-ed-cur-wrap">
+             <div class="zh-ed-cur" title="插入此格至游標位置">⠀</div>
+             <div class="zh-ed-cur-lbl">插入</div>
+           </div>
+         </div>
+         <div class="zh-ed-hint">F/D/S·J/K/L 六點輸入自動插入；點「插入」以滑鼠插入<br>←→ 移游標；Backspace 刪前格；Enter 確認；Esc 取消</div>
+         <div class="zh-ed-btns">
+           <button id="zh-ed-ok">確認</button>
+           <button id="zh-ed-bksp" style="background:#e53935!important;color:#fff!important;border-color:#e53935!important">倒退</button>
+           <button id="zh-ed-rst">還原原始</button>
+           <button id="zh-ed-cl">取消</button>
+         </div>`;
+    document.body.appendChild(el);
+    el.querySelectorAll('.zh-ed-dot').forEach(btn => {
+        btn.addEventListener('mousedown', e => {
+            e.preventDefault();
+            _zhEdComposer ^= +btn.dataset.bit;
+            _zhEdRefresh();
+        });
+    });
+    el.querySelector('.zh-ed-cur').addEventListener('mousedown', e => {
+        e.preventDefault();
+        _zhEdDoInsert(String.fromCharCode(0x2800 + _zhEdComposer));
+        _zhEdComposer = 0;
+        _zhEdRefresh();
+    });
+    document.getElementById('zh-ed-ok').addEventListener('click', _zhEdConfirm);
+    document.getElementById('zh-ed-bksp').addEventListener('click', () => {
+        if (_zhEdComposer) { _zhEdComposer = 0; _zhEdRefresh(); return; }
+        if (_zhEdCursor > 0) {
+            const cells = Array.from(_zhEdBraille);
+            cells.splice(_zhEdCursor - 1, 1);
+            _zhEdBraille = cells.join('');
+            _zhEdCursor--;
+            _zhEdRefresh();
+        }
+    });
+    document.getElementById('zh-ed-rst').addEventListener('click', _zhEdReset);
+    document.getElementById('zh-ed-cl').addEventListener('click', _zhEdClose);
+    document.addEventListener('mousedown', e => {
+        const el2 = document.getElementById('zh-brl-ed');
+        if (el2 && el2.style.display !== 'none' &&
+            !el2.contains(e.target) && !e.target.classList.contains('zh-clickable'))
+            _zhEdClose();
+    }, true);
+}
+
+function _zhEdDoInsert(ch) {
+    const cells = Array.from(_zhEdBraille);
+    cells.splice(_zhEdCursor, 0, ch);
+    _zhEdBraille = cells.join('');
+    _zhEdCursor++;
+}
+
+function _zhEdRefresh() {
+    const el = document.getElementById('zh-brl-ed');
+    if (!el) return;
+    el.querySelectorAll('.zh-ed-dot').forEach(btn => {
+        btn.classList.toggle('on', (_zhEdComposer & +btn.dataset.bit) !== 0);
+    });
+    el.querySelector('.zh-ed-cur').textContent = String.fromCharCode(0x2800 + _zhEdComposer);
+    const cells = Array.from(_zhEdBraille);
+    let html = '';
+    for (let i = 0; i <= cells.length; i++) {
+        if (i === _zhEdCursor) html += '<span class="zh-ed-cursor">│</span>';
+        if (i < cells.length) html += cells[i]; // braille chars are safe, no HTML escaping needed
+    }
+    el.querySelector('.zh-ed-seq').innerHTML = html;
+}
+
+function _openZhBrailleEditor(brlCell) {
+    _zhEdEnsureDOM();
+    const el = document.getElementById('zh-brl-ed');
+    _zhEdCtxKey  = brlCell.dataset.ctxkey;
+    const orig   = brlCell.dataset.orig || '';
+    const ch     = brlCell.dataset.char || '';
+    const override = _btZhEdits.get(_zhEdCtxKey);
+    _zhEdBraille = override !== undefined ? override : orig;
+    _zhEdCursor  = Array.from(_zhEdBraille).length; // 游標預設在末尾
+    _zhEdComposer = 0; _zhEdChordFired = false;
+
+    el.querySelector('.zh-ed-hdr').textContent =
+        `修正「${ch}」點字（前後文：${_zhEdCtxKey.replace(/\|/g, '')}）`;
+    _zhEdRefresh();
+
+    const r = brlCell.getBoundingClientRect();
+    let top = r.bottom + 6, left = r.left;
+    el.style.top  = top  + 'px';
+    el.style.left = left + 'px';
+    el.style.display = 'block';
+
+    requestAnimationFrame(() => {
+        const er = el.getBoundingClientRect();
+        if (left + er.width  > window.innerWidth  - 8) left = window.innerWidth  - er.width  - 8;
+        if (top  + er.height > window.innerHeight - 8) top  = r.top - er.height - 6;
+        el.style.top  = top  + 'px';
+        el.style.left = left + 'px';
+    });
+
+    _zhEdKd && document.removeEventListener('keydown', _zhEdKd);
+    _zhEdKu && document.removeEventListener('keyup',   _zhEdKu);
+    const KEY_BIT = { f:1, d:2, s:4, j:8, k:16, l:32 };
+    _zhEdKd = e => {
+        if (!document.getElementById('zh-brl-ed') ||
+            document.getElementById('zh-brl-ed').style.display === 'none') return;
+        const k = e.key.toLowerCase();
+        if (k in KEY_BIT) {
+            e.preventDefault();
+            if (_zhEdChordFired) { _zhEdComposer = 0; _zhEdChordFired = false; }
+            _zhEdComposer |= KEY_BIT[k];
+            _zhEdRefresh();
+        } else if (k === 'arrowleft') {
+            e.preventDefault();
+            if (_zhEdComposer) { _zhEdComposer = 0; }
+            _zhEdCursor = Math.max(0, _zhEdCursor - 1);
+            _zhEdRefresh();
+        } else if (k === 'arrowright') {
+            e.preventDefault();
+            _zhEdCursor = Math.min(Array.from(_zhEdBraille).length, _zhEdCursor + 1);
+            _zhEdRefresh();
+        } else if (k === 'backspace') {
+            e.preventDefault();
+            if (_zhEdComposer) { _zhEdComposer = 0; _zhEdRefresh(); }
+            else if (_zhEdCursor > 0) {
+                const cells = Array.from(_zhEdBraille);
+                cells.splice(_zhEdCursor - 1, 1);
+                _zhEdBraille = cells.join('');
+                _zhEdCursor--;
+                _zhEdRefresh();
+            }
+        } else if (k === ' ') {
+            e.preventDefault();
+            if (_zhEdComposer) { _zhEdDoInsert(String.fromCharCode(0x2800 + _zhEdComposer)); _zhEdComposer = 0; }
+            else { _zhEdDoInsert('⠀'); }
+            _zhEdChordFired = false;
+            _zhEdRefresh();
+        } else if (k === 'enter') { e.preventDefault(); _zhEdConfirm(); }
+        else if (k === 'escape') { e.preventDefault(); _zhEdClose(); }
+    };
+    _zhEdKu = e => {
+        const k = e.key.toLowerCase();
+        if ((k in KEY_BIT) && _zhEdComposer && !_zhEdChordFired) {
+            _zhEdDoInsert(String.fromCharCode(0x2800 + _zhEdComposer));
+            _zhEdComposer = 0;
+            _zhEdChordFired = true;
+            _zhEdRefresh();
+        }
+    };
+    document.addEventListener('keydown', _zhEdKd);
+    document.addEventListener('keyup',   _zhEdKu);
+}
+
+function _zhEdConfirm() {
+    if (_zhEdCtxKey !== null) {
+        if (_zhEdComposer) {
+            _zhEdDoInsert(String.fromCharCode(0x2800 + _zhEdComposer));
+            _zhEdComposer = 0;
+        }
+        if (_zhEdBraille) _btZhEdits.set(_zhEdCtxKey, _zhEdBraille);
+        else              _btZhEdits.delete(_zhEdCtxKey);
+        _btZhEditsVersion++;
+    }
+    _zhEdClose(); render();
+}
+function _zhEdReset() {
+    if (_zhEdCtxKey !== null) { _btZhEdits.delete(_zhEdCtxKey); _btZhEditsVersion++; }
+    _zhEdClose(); render();
+}
+function _zhEdClose() {
+    const el = document.getElementById('zh-brl-ed');
+    if (el) el.style.display = 'none';
+    _zhEdKd && document.removeEventListener('keydown', _zhEdKd);
+    _zhEdKu && document.removeEventListener('keyup',   _zhEdKu);
+    _zhEdKd = null; _zhEdKu = null; _zhEdCtxKey = null;
+}
+
+function _getLineModeKey() {
+    const mode = document.getElementById('en-mode').value;
+    const nemeth = document.getElementById('nemeth-mode').checked ? '1' : '0';
+    let groups = '';
+    if (mode === 'ueb-g2' || mode === 'ueb-custom') {
+        groups = Array.from(document.querySelectorAll('.ucp-group-cb'))
+                      .map(cb => cb.checked ? '1' : '0').join('');
+    }
+    return mode + '|' + nemeth + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion;
+}
+
+function _getLineTokens(line, modeKey) {
+    const cached = _lineCache.get(line);
+    if (cached && cached.key === modeKey) return cached.tokens;
+    let tokens = tokenizeWithCustom(line);
+    tokens = postProcessCaps(tokens);
+    tokens = applySpanTranslation(tokens);
+    tokens = postProcessEnough(tokens);
+    if (_lineCache.size >= 500) _lineCache.delete(_lineCache.keys().next().value);
+    _lineCache.set(line, { key: modeKey, tokens });
+    return tokens;
+}
+
 // ── render ──────────────────────────────────────────────────
 function render() {
     if (!isLoaded) return;
@@ -1927,10 +2223,21 @@ function render() {
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
 
-    let tokens = tokenizeWithCustom(input);
-    tokens = postProcessCaps(tokens);
-    tokens = applySpanTranslation(tokens); // 整句翻譯覆蓋英文 span
-    tokens = postProcessEnough(tokens);    // 須在整句翻譯後執行
+    const modeKey = _getLineModeKey();
+    if (modeKey !== _lineCacheModeKey) { _lineCache.clear(); _lineCacheModeKey = modeKey; }
+
+    const inputLines = input.split('\n');
+    let tokens = [];
+    let charOffset = 0;
+    for (let li = 0; li < inputLines.length; li++) {
+        if (li > 0) { tokens.push({ braille: '\n', text: '\n' }); charOffset++; }
+        for (const t of _getLineTokens(inputLines[li], modeKey)) {
+            tokens.push(t.srcStart !== undefined
+                ? { ...t, srcStart: t.srcStart + charOffset, srcEnd: t.srcEnd + charOffset }
+                : { ...t });
+        }
+        charOffset += inputLines[li].length;
+    }
 
     outArea.className = isAscii ? 'font-ascii' : 'font-unicode';
 
@@ -1998,7 +2305,8 @@ function render() {
     });
 
     outArea.value = isAscii ? unicodeToAscii(resultUnicode) : resultUnicode;
-    renderParallelView(renderTokens);
+    clearTimeout(_parallelViewTimer);
+    _parallelViewTimer = setTimeout(() => { if (!brailleInputMode) renderParallelView(renderTokens); }, 600);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2561,7 +2869,14 @@ function tokenizeWithCustom(text) {
 
         // 中文 / 其他字元
         const b = zhMap.get(ch) || ch;
-        pushTok({ text: ch, braille: b }); i++;
+        if (_isZhChar(ch)) {
+            const ctxKey = _zhCtxKey(text, i);
+            const override = _btZhEdits.get(ctxKey);
+            pushTok({ text: ch, braille: override !== undefined ? override : b,
+                      isZhChar: true, ctxKey, _origBraille: b }); i++;
+        } else {
+            pushTok({ text: ch, braille: b }); i++;
+        }
         if (TERMINAL.has(ch)) {
             pushTok({ text:'空', braille:'\u2800', isSpace:true });
             if (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
@@ -2612,6 +2927,13 @@ function renderParallelView(tokens) {
                          document.getElementById('highlight-contractions').checked;
     const legendEl = document.getElementById('contraction-legend');
     if (legendEl) legendEl.style.display = highlightCon ? '' : 'none';
+    // 動態顯示 Nemeth / 手動修正 legend（有對應 token 時顯示）
+    const hasNemeth   = tokens.some(t => t.isNemeth || (isNemethMode() && t.isNumber));
+    const hasZhEdited = tokens.some(t => t.isZhChar && t.ctxKey && _btZhEdits.has(t.ctxKey));
+    const nemethLeg = document.getElementById('nemeth-legend');
+    const zhEdLeg   = document.getElementById('zh-edited-legend');
+    if (nemethLeg)  nemethLeg.style.display  = hasNemeth   ? '' : 'none';
+    if (zhEdLeg)    zhEdLeg.style.display    = hasZhEdited ? '' : 'none';
     const view = document.getElementById('parallel-view');
     view.innerHTML = '';
 
@@ -2634,9 +2956,22 @@ function renderParallelView(tokens) {
         if (t.isCustom)  cls += ' custom-rule';
         if (highlightCon && t.isContraction) cls += ' is-contraction';
         if (t.isNemeth || (isNemethMode() && t.isNumber)) cls += ' is-nemeth';
+        if (t.isZhChar && t.ctxKey && _btZhEdits.has(t.ctxKey)) cls += ' zh-edited';
         g.className = cls;
+        const brlCls = 'token-braille ' + (isAscii ? 'font-ascii' : 'font-unicode')
+                     + (t.isZhChar ? ' zh-clickable' : '');
+        const brlAttrs = t.isZhChar
+            ? ` data-ctxkey="${escHtml(t.ctxKey)}" data-orig="${escHtml(t._origBraille||t.braille)}" data-char="${escHtml(t.text)}" title="點擊修正「${escHtml(t.text)}」點字"`
+            : '';
         g.innerHTML = `<div class="token-text">${escHtml(t.text)}</div>`
-                    + `<div class="token-braille ${isAscii?'font-ascii':'font-unicode'}">${escHtml(dispB)}</div>`;
+                    + `<div class="${brlCls}"${brlAttrs}>${escHtml(dispB)}</div>`;
+
+        if (t.isZhChar) {
+            g.querySelector('.zh-clickable').addEventListener('click', function(e) {
+                e.stopPropagation();
+                _openZhBrailleEditor(this);
+            });
+        }
 
         // 直接用 token 的來源字元範圍跳轉
         if (t.srcStart !== undefined) {
@@ -2802,12 +3137,14 @@ function addCustomRule() {
     ruleBrailleTA.value = '';
     ruleBrailleTA.focus();
     renderRulesTable();
+    _customRulesVersion++;
     render();
 }
 
 function deleteRule(idx) {
     customRules.splice(idx, 1);
     renderRulesTable();
+    _customRulesVersion++;
     render();
 }
 
@@ -2816,6 +3153,7 @@ function clearAllRules() {
     if (!confirm('確定要清除所有自定義規則？')) return;
     customRules = [];
     renderRulesTable();
+    _customRulesVersion++;
     render();
 }
 
@@ -2877,6 +3215,7 @@ function handleImportFile(e) {
             });
             customRules.sort((a,b) => b.text.length - a.text.length);
             renderRulesTable();
+            _customRulesVersion++;
             render();
             alert(`匯入完成：新增 ${added} 條，略過 ${skipped} 條（重複）`);
         } catch(err) {
@@ -2945,7 +3284,10 @@ document.getElementById('font-size-slider').addEventListener('input', e=>{
 document.getElementById('input-text').addEventListener('input', function() {
     if (_suppressInput) return;
     if (brailleInputMode) syncBrailleDirectOutput();
-    else render();
+    else {
+        clearTimeout(window._renderTimer);
+        window._renderTimer = setTimeout(render, 200);
+    }
 });
 document.getElementById('cell-limit').addEventListener('input', render);
 
@@ -2969,7 +3311,10 @@ function setBrailleInputMode(active) {
         fmtBtn.textContent = active ? '⠿ 點字輸入中…' : '⠿ 點字輸入';
     }
     if (active) {
-        syncBrailleParallelView(); // 進入模式：只更新雙視區，輸出區保留原點字
+        clearTimeout(window._renderTimer);
+        clearTimeout(_parallelViewTimer);
+        // 進入點字輸入模式：校對區保留上一次 render 的點字，不主動跳到國字視圖
+        // （等使用者實際輸入點字時，syncBrailleDirectOutput 才更新校對區）
     } else {
         render(); // 離開時重新翻譯
     }
@@ -2992,7 +3337,6 @@ function syncBrailleDirectOutput() {
         ? Array.from(val).map(c => BR_TO_ASCII[c] !== undefined ? BR_TO_ASCII[c] : c).join('')
         : val;
     outArea.className = isAscii ? 'font-ascii' : 'font-unicode';
-    syncBrailleParallelView();
 }
 
 // 只更新雙視區，不動輸出區（供進入點字模式時使用）
@@ -3012,6 +3356,7 @@ function syncBrailleParallelView() {
             tokens.push({ text: c, braille: c });
         }
     }
+    clearTimeout(_parallelViewTimer);
     renderParallelView(tokens);
 }
 

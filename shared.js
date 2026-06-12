@@ -530,6 +530,7 @@ function initBraillePanel(opts) {
                 font-size:.8em;border:1px solid #aaa;background:#f5f5f5;
             }
             .brlp-insert{background:#1565c0!important;color:#fff!important;border-color:#1565c0!important}
+            .brlp-bksp{background:#e53935!important;color:#fff!important;border-color:#e53935!important}
             html[data-theme="dark"] .brlp-panel{background:#1a1d27;border-color:#2e3350;color:#cdd6f4}
             html[data-theme="dark"] .brlp-kbd-btn{background:#1e2133;border-color:#3a3f58;color:#b0bec5}
             html[data-theme="dark"] .brlp-kbd-btn.on{background:#1565c0;color:#fff;border-color:#1565c0}
@@ -576,6 +577,7 @@ function initBraillePanel(opts) {
             <div class="brlp-prev" aria-live="polite">⠀</div>
             <div class="brlp-acts">
                 <button type="button" class="brlp-insert">插入</button>
+                <button type="button" class="brlp-bksp">倒退</button>
                 <button type="button" class="brlp-clear">清點</button>
             </div>
         </div>
@@ -686,6 +688,23 @@ function initBraillePanel(opts) {
         clearDots();
     });
     panel.querySelector('.brlp-clear').addEventListener('click', clearDots);
+    panel.querySelector('.brlp-bksp').addEventListener('click', () => {
+        const ta = document.getElementById(opts.targetId);
+        if (!ta) return;
+        const s = ta.selectionStart, ep = ta.selectionEnd;
+        if (s !== ep) {
+            ta.value = ta.value.slice(0, s) + ta.value.slice(ep);
+            ta.selectionStart = ta.selectionEnd = s;
+        } else if (s > 0) {
+            const before = Array.from(ta.value.slice(0, s));
+            before.pop();
+            const newBefore = before.join('');
+            ta.value = newBefore + ta.value.slice(s);
+            ta.selectionStart = ta.selectionEnd = newBefore.length;
+        }
+        ta.focus();
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    });
 
     function clearDots() {
         dots.clear();
