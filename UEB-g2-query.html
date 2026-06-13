@@ -88,6 +88,7 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
 .dbtn:focus-visible{outline:2px solid var(--ac-md);outline-offset:2px;}
 .mbtn:focus-visible{outline:2px solid var(--teal-md);outline-offset:2px;}
 .clr:focus-visible{outline:2px solid var(--ac-md);outline-offset:2px;}
+.ascii-brl-mode .tbr,.ascii-brl-mode .sbr,.ascii-brl-mode .ribr,.ascii-brl-mode .braille-span{font-family:'Courier New',Consolas,monospace!important;letter-spacing:2px;}
 </style>
 </head>
 <body>
@@ -109,44 +110,26 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
         </div>
     </div>
     <div id="panel-b2e" style="display:none" role="tabpanel" aria-labelledby="tab-b2e">
-        <div class="modesw">
-            <span class="mlbl" id="mode-lbl">輸入方式：</span>
-            <button class="mbtn active" id="mode-chord" role="radio" aria-checked="true" aria-describedby="mode-lbl" onclick="setMode('chord')">六鍵點字</button>
-            <button class="mbtn" id="mode-ascii" role="radio" aria-checked="false" aria-describedby="mode-lbl" onclick="setMode('ascii')">ASCII 鍵盤</button>
-        </div>
         <label for="b2e-in" class="sr-only">輸入點字反查英文</label>
-        <div class="srow">
+        <div class="srow" style="align-items:center;">
             <div class="iwrap">
-                <input type="text" id="b2e-in" placeholder="⠀" oninput="onB2E()" onkeydown="handleBKD(event)" onkeyup="handleBKU(event)">
+                <input type="text" id="b2e-in" placeholder="⠀" oninput="onB2E()">
                 <button class="clr" onclick="clearB2E()" aria-label="清除點字輸入">✕</button>
             </div>
-        </div>
-        <div class="br-panel">
-            <div class="mhint" id="mhint-text">六鍵點字輸入，或點選下方點陣按鈕</div>
-            <div class="dwrap">
-                <div class="dgrid" id="dgrid">
-                    <button class="dbtn" data-dot="1" aria-pressed="false">1</button>
-                    <button class="dbtn" data-dot="4" aria-pressed="false">4</button>
-                    <button class="dbtn" data-dot="2" aria-pressed="false">2</button>
-                    <button class="dbtn" data-dot="5" aria-pressed="false">5</button>
-                    <button class="dbtn" data-dot="3" aria-pressed="false">3</button>
-                    <button class="dbtn" data-dot="6" aria-pressed="false">6</button>
-                </div>
-                <div class="dprev" id="dprev">⠀</div>
-                <div class="dacts">
-                    <button class="add" onclick="dotAdd()">加入此格</button>
-                    <button onclick="dotClr()">清除</button>
-                </div>
-            </div>
-            <div class="kbhint" id="kbhint-chord"><kbd>F</kbd>=點1　<kbd>D</kbd>=點2　<kbd>S</kbd>=點3　<kbd>J</kbd>=點4　<kbd>K</kbd>=點5　<kbd>L</kbd>=點6　<kbd>Space</kbd>=空格　<kbd>Esc</kbd>=清除</div>
-            <div class="kbhint" id="kbhint-ascii" style="display:none">ASCII 對照例：<kbd>,</kbd>=⠠ 大寫　<kbd>'</kbd>=⠄ 撇號　<kbd>-</kbd>=⠤ 連字號　<kbd>/</kbd>=⠌ st　<kbd>"</kbd>=⠐ dot5　大小寫對應同一格</div>
+            <button class="brlp-trigger" id="b2e-brl-btn" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」" style="white-space:nowrap;margin-left:6px;flex-shrink:0">⠿ 點字輸入</button>
         </div>
     </div>
+</div>
+<div id="disp-toggle-row" style="margin-bottom:.5rem;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:.75rem;color:var(--tx3)">點字顯示：</span>
+    <button class="mbtn active" id="disp-unicode" onclick="setDispMode('unicode')">Unicode ⠃</button>
+    <button class="mbtn" id="disp-ascii" onclick="setDispMode('ascii')">ASCII b</button>
 </div>
 <div id="result-area" aria-live="polite" aria-label="查詢結果"></div>
 </div>
     <script src="ueb-g2-rules.js"></script>
 <script src="build-no-tables-utf32.js"></script>
+<script src="shared.js"></script>
 <script>
 // ════════════════════════════════════════════════════════════
 //  liblouis 包裝層（僅 UEB G2 正向翻譯，供比對用）
@@ -2017,7 +2000,7 @@ function riHTML(en,br,cat){
     const itemKey=getItemKey(en,cat);
     const grpInfo=itemKey&&typeof getCategoryLabel!=='undefined'?getCategoryLabel(itemKey):null;
     const grpTag=grpInfo?`<span class="rigrp">${grpInfo.label}</span>`:'';
-    return`<div class="ri ${cat}"><div class="ribr">${br}</div><div class="ribody"><div class="rien">${escapeHtml(en)}${grpTag}</div><div class="ridts">${dots(br)}</div><span class="ritag">${ci.l}　${ci.d}</span></div></div>`;
+    return`<div class="ri ${cat}"><div class="ribr">${dBrl(br)}</div><div class="ribody"><div class="rien">${escapeHtml(en)}${grpTag}</div><div class="ridts">${dots(br)}</div><span class="ritag">${ci.l}　${ci.d}</span></div></div>`;
 }
 
 function renderE2B(raw, llBr){
@@ -2043,8 +2026,8 @@ function renderE2B(raw, llBr){
         const rawEsc=escapeHtml(raw.trim());
         llBadge=`<span style="font-size:.7rem;padding:2px 8px;border-radius:8px;background:var(--amb-bg);border:1px solid var(--amb-md);color:var(--amb);margin-left:8px;">⚠ liblouis 結果不同</span>
 <div style="margin-top:.5rem;padding:.5rem .8rem;border-radius:6px;background:var(--amb-bg);border:1px dashed var(--amb-md);font-size:.82rem;color:var(--tx2);display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
-  <span><span style="color:var(--tx3)">本工具：</span><span style="font-family:'Apple Braille','Segoe UI Symbol',monospace;font-size:1.1rem;color:var(--ac)">${br}</span>
-  　<span style="color:var(--tx3)">liblouis：</span><span style="font-family:'Apple Braille','Segoe UI Symbol',monospace;font-size:1.1rem;color:var(--amb-md)">${llBr}</span></span>
+  <span><span style="color:var(--tx3)">本工具：</span><span class="braille-span" style="font-family:'Apple Braille','Segoe UI Symbol',monospace;font-size:1.1rem;color:var(--ac)">${dBrl(br)}</span>
+  　<span style="color:var(--tx3)">liblouis：</span><span class="braille-span" style="font-family:'Apple Braille','Segoe UI Symbol',monospace;font-size:1.1rem;color:var(--amb-md)">${dBrl(llBr)}</span></span>
   <button onclick="reportDiscrepancy(${JSON.stringify(raw.trim())},${JSON.stringify(br)},${JSON.stringify(llBr)})" style="padding:3px 10px;border-radius:6px;border:1px solid var(--amb-md);background:var(--sf);color:var(--amb);font-size:.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">↗ 回報歧異</button>
 </div>`;
     }
@@ -2053,13 +2036,13 @@ function renderE2B(raw, llBr){
 <div class="trow">
   <div class="tcol"><div class="tlbl">英文</div><div class="ten">${escapeHtml(raw.trim())}</div></div>
   <div class="tarr">→</div>
-  <div class="tcol"><div class="tlbl">UEB G2 點字</div><div class="tbr">${br}${llBadge}</div></div>
+  <div class="tcol"><div class="tlbl">UEB G2 點字</div><div class="tbr">${dBrl(br)}${llBadge}</div></div>
 </div>
 ${showSeg?`<div class="stitle">分段拆解</div><div class="srow2">${segs.filter(s=>s.cat!=='caps').map((s,idx,arr)=>{
     if(s.cat==='space')return`<div class="seg"><div class="sbr" style="font-size:.85rem;color:var(--tx3)">⠀</div><div class="sen" style="font-size:.7rem;color:var(--tx3)">空格</div></div>`;
     const prev=arr[idx-1];
     const plus=(idx>0&&prev&&prev.cat!=='space')?'<div class="splus">+</div>':'';
-    return plus+`<div class="seg"><div class="sen">${escapeHtml(s.en)}</div><div class="sbr">${s.br}</div></div>`;
+    return plus+`<div class="seg"><div class="sen">${escapeHtml(s.en)}</div><div class="sbr">${dBrl(s.br)}</div></div>`;
 }).join('')}</div>`:''}
 <div class="rtitle">使用縮寫規則</div>
 <div class="rlist">${rules.map(s=>riHTML(s.en,s.br,s.cat)).join('')}</div>
@@ -2090,18 +2073,18 @@ function renderB2E(brStr){
     const hasSpace=segs.some(s=>s.isSpace);
     return`<div class="rbox">
 <div class="trow">
-  <div class="tcol"><div class="tlbl">點字輸入</div><div class="tbr">${brStr.trim()}</div></div>
+  <div class="tcol"><div class="tlbl">點字輸入</div><div class="tbr">${dBrl(brStr.trim())}</div></div>
   <div class="tarr">→</div>
   <div class="tcol"><div class="tlbl">對應英文</div><div style="font-size:1.6rem;font-weight:500;margin-top:3px">${escapeHtml(reading||'—')}</div></div>
 </div>
 <div class="stitle">逐格解析${hasSpace?' （⠀=空格斷字）':''}</div>
 <div class="srow2">${segs.map((s,idx)=>{
     if(s.isSpace)return`<div class="seg"><div class="sbr" style="font-size:.85rem;color:var(--tx3)">⠀</div><div class="sen" style="font-size:.7rem;color:var(--tx3)">空格</div></div>`;
-    if(s.cat==='caps'||s.cat==='g1')return`<div class="seg"><div class="sbr" style="font-size:.95rem">${s.br}</div><div class="sen" style="font-size:.65rem;color:var(--tx3)">${escapeHtml(s.en)}</div></div>`;
-    if(s.cat==='punct')return`<div class="seg"><div class="sbr">${s.br}</div><div class="sen" style="color:var(--tx3)">標點</div></div>`;
+    if(s.cat==='caps'||s.cat==='g1')return`<div class="seg"><div class="sbr" style="font-size:.95rem">${dBrl(s.br)}</div><div class="sen" style="font-size:.65rem;color:var(--tx3)">${escapeHtml(s.en)}</div></div>`;
+    if(s.cat==='punct')return`<div class="seg"><div class="sbr">${dBrl(s.br)}</div><div class="sen" style="color:var(--tx3)">標點</div></div>`;
     const prev=segs[idx-1];
     const plus=(idx>0&&prev&&!prev.isSpace&&prev.cat!=='caps'&&prev.cat!=='g1')?'<div class="splus">+</div>':'';
-    return plus+`<div class="seg"><div class="sbr">${s.br}</div><div class="sen">${escapeHtml(s.en)}</div></div>`;
+    return plus+`<div class="seg"><div class="sbr">${dBrl(s.br)}</div><div class="sen">${escapeHtml(s.en)}</div></div>`;
 }).join('')}</div>
 ${altReadings.length?`<div class="stitle">替代解讀</div>${altReadings.map(a=>`<div class="altreading">最佳：<b>${escapeHtml(a.best)}</b>　其他可能：${a.alts.map(x=>escapeHtml(x)).join('、')}</div>`).join('')}`:''}
 <div class="rtitle">相關縮寫規則</div>
@@ -2123,6 +2106,10 @@ function switchTab(t){
     document.getElementById('panel-e2b').style.display=t==='e2b'?'block':'none';
     document.getElementById('panel-b2e').style.display=t==='b2e'?'block':'none';
     document.getElementById('result-area').innerHTML='';
+    if(typeof _brlPanel!=='undefined'){
+        if(t==='b2e'){_brlPanel.openPanel();_brlPanel.syncKbdState(true);}
+        else{_brlPanel.closePanel();}
+    }
     const focusId=t==='e2b'?'e2b-in':'b2e-in';
     setTimeout(()=>document.getElementById(focusId)?.focus(),50);
 }
@@ -2135,160 +2122,49 @@ async function onE2B(){
 }
 function clearE2B(){document.getElementById('e2b-in').value='';document.getElementById('result-area').innerHTML='';document.getElementById('e2b-in').focus();}
 
-// North American Braille ASCII 對照表（6-dot 標準）
-// 大小寫一致對應同一 dot pattern
-const ASCII_BRL={
-    ' ':0,
-    'a':1,'b':3,'c':9,'d':25,'e':17,'f':11,'g':27,'h':19,'i':10,'j':26,
-    'k':5,'l':7,'m':13,'n':29,'o':21,'p':15,'q':31,'r':23,'s':14,'t':30,
-    'u':37,'v':39,'w':58,'x':45,'y':61,'z':53,
-    '1':2,'2':6,'3':18,'4':50,'5':34,'6':22,'7':54,'8':38,'9':20,'0':52,
-    ',':32,           // ⠠ dots 6 (caps indicator)
-    ';':6,            // ⠆ dots 23
-    ':':18,           // ⠒ dots 25
-    '.':50,           // ⠲ dots 256
-    '!':46,           // ⠖ dots 235
-    '?':38,           // ⠦ dots 236
-    "'":4,            // ⠄ dot 3 (apostrophe)
-    '-':36,           // ⠤ dots 36 (hyphen)
-    '/':12,           // ⠌ dots 34 (st groupsign)
-    '#':60,           // ⠼ dots 3456 (number indicator)
-    '@':8,            // ⠈ dot 4
-    '^':24,           // ⠘ dots 45
-    '"':16,           // ⠐ dot 5
-    '_':56,           // ⠸ dots 456
-    '%':40,           // ⠨ dots 46
-    '*':48,           // ⠰ dots 56
-    '<':35,
-    '>':45,
-    '[':47,
-    ']':61,
-    '&':47,
-    '+':22,
-    '$':28
+// ════════════════════════════════════════════════════════════
+//  點字顯示模式（Unicode ⇄ ASCII NABCC）
+// ════════════════════════════════════════════════════════════
+const BR_TO_ASCII_Q={
+    '⠁':'a','⠂':'1','⠃':'b','⠄':'\'','⠅':'k',
+    '⠆':'2','⠇':'l','⠈':'`','⠉':'c','⠊':'i',
+    '⠋':'f','⠌':'/','⠍':'m','⠎':'s','⠏':'p',
+    '⠐':'"','⠑':'e','⠒':'3','⠓':'h','⠔':'9',
+    '⠕':'o','⠖':'6','⠗':'r','⠘':'~','⠙':'d',
+    '⠚':'j','⠛':'g','⠜':'>','⠝':'n','⠞':'t',
+    '⠟':'q','⠠':',','⠡':'*','⠢':'5','⠣':'<',
+    '⠤':'-','⠥':'u','⠦':'8','⠧':'v','⠨':'.',
+    '⠩':'%','⠪':'{','⠫':'$','⠬':'+','⠭':'x',
+    '⠮':'!','⠯':'&','⠰':';','⠱':':','⠲':'4',
+    '⠳':'|','⠴':'0','⠵':'z','⠶':'7','⠷':'(',
+    '⠸':'_','⠹':'?','⠺':'w','⠻':'}','⠼':'#',
+    '⠽':'y','⠾':')','⠿':'=','⠀':' '
 };
-
-// 逐字符轉換：Unicode 點字保留、ASCII Braille 字符轉成 Unicode 點字、其他保留
-function autoConvertToBraille(s){
-    let out='';
-    for(const ch of s){
-        // 已是 Unicode 點字
-        if(ch>='\u2800'&&ch<='\u28FF'){out+=ch;continue;}
-        // 是 ASCII Braille 對照表中的字元
-        const low=ch.toLowerCase();
-        const bits=ASCII_BRL[low];
-        if(bits!==undefined){out+=String.fromCharCode(0x2800+bits);continue;}
-        // 其他字元保留原樣（如換行、tab）
-        out+=ch;
+let _displayAscii=false;
+function dBrl(str){
+    if(!_displayAscii)return str;
+    return Array.from(str).map(c=>BR_TO_ASCII_Q[c]!==undefined?BR_TO_ASCII_Q[c]:c).join('');
+}
+function setDispMode(m){
+    _displayAscii=(m==='ascii');
+    document.getElementById('disp-unicode').classList.toggle('active',!_displayAscii);
+    document.getElementById('disp-ascii').classList.toggle('active',_displayAscii);
+    document.body.classList.toggle('ascii-brl-mode',_displayAscii);
+    const ra=document.getElementById('result-area');
+    if(ra.innerHTML.trim()){
+        if(ctab==='e2b') onE2B();
+        else onB2E();
     }
-    return out;
 }
 
-// 輸入模式：'chord' = 六鍵點字（預設，老師習慣），'ascii' = ASCII 鍵盤（直接打字母）
-let inputMode='chord';
-function setMode(m){
-    inputMode=m;
-    ['chord','ascii'].forEach(n=>{
-        const isActive=n===m;
-        const el=document.getElementById('mode-'+n);
-        el.classList.toggle('active',isActive);
-        el.setAttribute('aria-checked',isActive?'true':'false');
-    });
-    document.getElementById('kbhint-chord').style.display=m==='chord'?'':'none';
-    document.getElementById('kbhint-ascii').style.display=m==='ascii'?'':'none';
-    document.getElementById('mhint-text').textContent=
-        m==='chord'?'六鍵點字輸入，或點選下方點陣按鈕':
-                    'ASCII 鍵盤輸入（自動轉點字）。例：cdn\'t 會轉為 ⠉⠙⠝⠄⠞';
-    // 切到 ASCII 模式時：把現有 input 內容做 ASCII → Unicode 轉換（如果它已經是 ASCII）
-    // 切到 chord 模式時：保留現有 Unicode 內容
-    const ta=document.getElementById('b2e-in');
-    if(m==='ascii'){
-        // 不主動轉換現有內容，等 oninput 處理
-        ta.placeholder='輸入 ASCII，例：,hello （= ⠠⠓⠑⠇⠇⠕）';
-    }else{
-        ta.placeholder='⠀';
-    }
-    ta.focus();
-}
 
 function onB2E(){
-    const ta=document.getElementById('b2e-in');
-    const raw=ta.value;
-    let val=raw;
-    // ASCII 模式：自動把 ASCII 字符轉成 Unicode 點字
-    if(inputMode==='ascii'){
-        // 偵測是否需轉換
-        let needConvert=false;
-        for(const ch of raw){
-            if(ch>='\u2800'&&ch<='\u28FF')continue;
-            if(ch==='\n'||ch==='\r'||ch==='\t')continue;
-            if(ASCII_BRL[ch.toLowerCase()]!==undefined){needConvert=true;break;}
-        }
-        if(needConvert){
-            const converted=autoConvertToBraille(raw);
-            if(converted!==raw){
-                const caret=ta.selectionStart;
-                ta.value=converted;
-                try{ta.setSelectionRange(caret,caret);}catch(e){}
-                val=converted;
-            }
-        }
-    }
-    document.getElementById('result-area').innerHTML=renderB2E(val);
+    document.getElementById("result-area").innerHTML=renderB2E(document.getElementById("b2e-in").value);
 }
-function clearB2E(){document.getElementById('b2e-in').value='';document.getElementById('result-area').innerHTML='';dotClr();document.getElementById('b2e-in').focus();}
-
-let dbits=0;
-document.getElementById('dgrid').addEventListener('click',e=>{
-    const btn=e.target.closest('.dbtn');if(!btn)return;
-    const bit=1<<(parseInt(btn.dataset.dot)-1);dbits^=bit;
-    const on=!!(dbits&bit);btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',String(on));
-    document.getElementById('dprev').textContent=String.fromCharCode(0x2800+dbits);
-});
-function dotAdd(){
-    const ch=String.fromCharCode(0x2800+(dbits||0));
-    const ta=document.getElementById('b2e-in');
-    const p=ta.selectionStart;ta.value=ta.value.slice(0,p)+ch+ta.value.slice(ta.selectionEnd);ta.setSelectionRange(p+1,p+1);
-    dotClr();ta.focus();onB2E();
-}
-function dotClr(){
-    dbits=0;document.querySelectorAll('.dbtn').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-pressed','false');});
-    document.getElementById('dprev').textContent='\u2800';
-}
-
-let cbits=0,cfired=false;
-const DMAP={83:4,68:2,70:1,74:8,75:16,76:32};
-function handleBKD(e){
-    const ta=document.getElementById('b2e-in'),c=e.keyCode;
-    if(c===27){e.preventDefault();clearB2E();return;}
-    // ASCII 模式：完全放行，讓使用者自由打字（除了 Esc）
-    if(inputMode==='ascii')return;
-    // 六鍵模式：
-    if([8,46,37,38,39,40,9,13].includes(c)){cbits=0;cfired=false;return;}
-    if(c===32){
-        e.preventDefault();
-        const p=ta.selectionStart;
-        ta.value=ta.value.slice(0,p)+'\u2800'+ta.value.slice(ta.selectionEnd);
-        ta.setSelectionRange(p+1,p+1);
-        cbits=0;cfired=false;onB2E();return;
-    }
-    const bit=DMAP[c];
-    if(bit!==undefined){e.preventDefault();cbits|=bit;return;}
-    e.preventDefault();
-}
-function handleBKU(e){
-    if(inputMode==='ascii')return;
-    const ta=document.getElementById('b2e-in'),bit=DMAP[e.keyCode];
-    if(bit===undefined)return;
-    if(!cfired&&cbits>0){
-        const ch=String.fromCharCode(0x2800+cbits);
-        const p=ta.selectionStart;
-        ta.value=ta.value.slice(0,p)+ch+ta.value.slice(ta.selectionEnd);
-        ta.setSelectionRange(p+1,p+1);
-        cfired=true;onB2E();
-    }
-    cbits&=~bit;
-    if(cbits===0)cfired=false;
+function clearB2E(){
+    document.getElementById("b2e-in").value="";
+    document.getElementById("result-area").innerHTML="";
+    document.getElementById("b2e-in").focus();
 }
 
 function reportDiscrepancy(word, ourBr, llBr){
@@ -2307,6 +2183,14 @@ function reportDiscrepancy(word, ourBr, llBr){
         '_blank'
     );
 }
+
+const _brlPanel=initBraillePanel({
+    triggerId:'b2e-brl-btn',
+    targetId:'b2e-in',
+    onInsert:onB2E,
+    checkActive:()=>ctab==='b2e',
+    globalToggle:false
+});
 </script>
 <script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
