@@ -1905,6 +1905,44 @@ function parseToken(brStr){
     return{best:best.segs,alts,segs:best.segs,bestReading:best.reading,allReadings:uniq};
 }
 
+// ════════════════════════════════════════════════════════════
+//  b2e 數字模式解析
+// ════════════════════════════════════════════════════════════
+const NUM_IND_CELL='⠼'; // ⠼ dots 3456
+const DIGIT_CELL={
+    '⠁':'1','⠃':'2','⠉':'3','⠙':'4','⠑':'5',
+    '⠋':'6','⠛':'7','⠓':'8','⠊':'9','⠚':'0',
+    '⠲':'.'  // dots 256 = decimal point
+};
+function parseNumericToken(brStr){
+    const chs=Array.from(brStr);
+    if(chs[0]!==NUM_IND_CELL)return null;
+    const segs=[];
+    let reading='',i=1;
+    segs.push({br:NUM_IND_CELL,en:'# 數字指示符',cat:'g1'});
+    while(i<chs.length&&chs[i]!==G1SYM){
+        const d=DIGIT_CELL[chs[i]];
+        if(d===undefined)break;
+        segs.push({br:chs[i],en:d,cat:'alpha'});
+        reading+=d;
+        i++;
+    }
+    if(i<chs.length&&chs[i]===G1SYM){
+        segs.push({br:G1SYM,en:'⠰ 字母符號',cat:'g1'});
+        i++;
+    }
+    if(i<chs.length){
+        const rem=chs.slice(i).join('');
+        const aInfo=parseToken(rem);
+        for(const s of aInfo.segs)segs.push(s);
+        reading+=aInfo.bestReading||'';
+    }
+    return{segs,bestReading:reading,allReadings:[{reading,score:0,segs}]};
+}
+function _parseAny(brStr){
+    return brStr.startsWith(NUM_IND_CELL)?parseNumericToken(brStr)||parseToken(brStr):parseToken(brStr);
+}
+
 function traceB2E(brStr){
     const allSegs=[];
     const tokenInfos=[];
@@ -1936,7 +1974,7 @@ function traceB2E(brStr){
                     allSegs.push(hyphSeg);
                 }
                 if(parts[pi]===''){continue;}
-                const subInfo=parseToken(parts[pi]);
+                const subInfo=_parseAny(parts[pi]);
                 subInfos.push(subInfo);
                 for(const seg of subInfo.segs){
                     combinedSegs.push(seg);
@@ -1953,7 +1991,7 @@ function traceB2E(brStr){
             });
             continue;
         }
-        const info=parseToken(tok.s);
+        const info=_parseAny(tok.s);
         for(const seg of info.segs){
             allSegs.push(seg);
         }
