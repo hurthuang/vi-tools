@@ -58,11 +58,6 @@ header{background:var(--surf);border-bottom:1px solid var(--bd);padding:9px 18px
 .tab:focus-visible{outline:none;box-shadow:var(--focus-ring);}
 .tab.on{background:var(--blue);color:#fff}
 .tab[aria-selected="true"]{background:var(--blue);color:#fff}
-.topbar{background:var(--surf);border-bottom:1px solid var(--bd);padding:6px 18px;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.ctrl{display:flex;align-items:center;gap:6px;font-size:.77rem;color:var(--dim)}
-.ctrl input[type=range]{accent-color:var(--blue);width:88px}
-.ctrl label{cursor:pointer}
 .badge{padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700;
   letter-spacing:.06em;background:var(--surf2);border:1px solid var(--bd);color:var(--dim)}
 .badge.on{background:rgba(77,142,248,.15);border-color:var(--blue);color:var(--blue)}
@@ -289,20 +284,6 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   </div>
 </header>
 
-<div class="topbar" role="toolbar" aria-label="&#x5DE5;&#x5177;&#x5217;">
-  <div class="ctrl">
-    <label for="fsSlider">&#x5B57;&#x7D1A;</label>
-    <input type="range" id="fsSlider" min="10" max="28" value="15"
-      aria-label="&#x5B57;&#x9AD4;&#x5927;&#x5C0F;" oninput="setFs(this.value)">
-    <span id="fsVal" aria-live="polite">15px</span>
-  </div>
-  <button id="themeBtn" class="btn" onclick="toggleTheme()"
-    aria-label="&#x5207;&#x63DB;&#x6DF1;&#x6DFA;&#x8272;&#x4E3B;&#x984C;"
-    title="&#x5207;&#x63DB;&#x9ED1;&#x5E95;&#x767D;&#x5B57; / &#x767D;&#x5E95;&#x9ED1;&#x5B57;">
-    <span id="themeIcon" aria-hidden="true">&#x263D;</span>
-    <span id="themeLabel">&#x9ED1;&#x5E95;</span>
-  </button>
-</div>
 
 <!-- LaTeX → Nemeth panel -->
 <main id="p-l2n" id="main-content" role="tabpanel" aria-labelledby="t-l2n">
@@ -2301,11 +2282,6 @@ function setMode(m){
   document.getElementById('t-l2n').setAttribute('aria-selected',m==='l2n');
   document.getElementById('t-n2l').setAttribute('aria-selected',m==='n2l');
 }
-function setFs(v){
-  document.getElementById('fsVal').textContent=v+'px';
-  var ids=['l2n-in','l2n-out','n2l-in','n2l-out'];
-  for(var i=0;i<ids.length;i++)document.getElementById(ids[i]).style.fontSize=v+'px';
-}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setStatus(id,msg,cls,ms){
   var el=document.getElementById(id);
@@ -2433,24 +2409,6 @@ function applyTheme(t){
   }else{
     root.removeAttribute('data-theme');
   }
-  var btn=document.getElementById('themeBtn');
-  var icon=document.getElementById('themeIcon');
-  var label=document.getElementById('themeLabel');
-  if(t==='light'){
-    if(icon)icon.textContent='\u2600'; // ☀
-    if(label)label.textContent='\u767D\u5E95'; // 白底
-    if(btn)btn.setAttribute('aria-label','\u5207\u63DB\u70BA\u9ED1\u5E95\u767D\u5B57');
-  }else{
-    if(icon)icon.textContent='\u263D'; // ☽
-    if(label)label.textContent='\u9ED1\u5E95'; // 黑底
-    if(btn)btn.setAttribute('aria-label','\u5207\u63DB\u70BA\u767D\u5E95\u9ED1\u5B57');
-  }
-}
-function toggleTheme(){
-  var cur=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
-  var next=cur==='light'?'dark':'light';
-  applyTheme(next);
-  try{localStorage.setItem('nemeth-theme',next);}catch(e){}
 }
 // Initial theme: check saved preference, else system preference, else dark.
 (function initTheme(){
