@@ -1098,7 +1098,50 @@ function capWrap(orig,innerBr){
     return innerBr;
 }
 
+function translateMixed(token){
+    const NUM='⠼',LS=G1SYM;
+    const D={'1':'⠁','2':'⠃','3':'⠉','4':'⠙','5':'⠑',
+             '6':'⠋','7':'⠛','8':'⠓','9':'⠊','0':'⠚','.':'⠲'};
+    // cells shared with digits a-j; letter sign needed before these after a digit run
+    const DIGIT_CELLS=new Set(['⠁','⠃','⠉','⠙','⠑','⠋','⠛','⠓','⠊','⠚']);
+    const segs=[],ba=[];
+    let i=0,numCtx=false;
+    while(i<token.length){
+        const ch=token[i];
+        if(/[0-9]/.test(ch)){
+            if(!numCtx){ba.push(NUM);segs.push({en:'#',br:NUM,cat:'g1'});numCtx=true;}
+            ba.push(D[ch]);segs.push({en:ch,br:D[ch],cat:'alpha'});i++;
+        }else if(ch==='.'&&numCtx&&i+1<token.length&&/[0-9]/.test(token[i+1])){
+            ba.push(D['.']);segs.push({en:'.',br:D['.'],cat:'alpha'});i++;
+        }else if(/[a-zA-Z]/.test(ch)){
+            if(numCtx){
+                // letter sign only when first post-digit letter overlaps a digit cell
+                const lcBr=UA[ch.toLowerCase()]||ch.toLowerCase();
+                if(DIGIT_CELLS.has(lcBr)){ba.push(LS);segs.push({en:'LS',br:LS,cat:'g1'});}
+                numCtx=false;
+                // spell out letters without G2 contractions (UEB numeric-context rule)
+                while(i<token.length&&/[a-zA-Z]/.test(token[i])){
+                    const lc=token[i].toLowerCase(),lb=UA[lc]||lc;
+                    if(token[i]!==lc){ba.push(CAP1,lb);segs.push({en:'⠠',br:CAP1,cat:'caps'},{en:lc,br:lb,cat:'alpha'});}
+                    else{ba.push(lb);segs.push({en:token[i],br:lb,cat:'alpha'});}
+                    i++;
+                }
+            }else{
+                // letters before any digit: normal G2 translation
+                let j=i;while(j<token.length&&/[a-zA-Z]/.test(token[j]))j++;
+                const r=translateWithApos(token.slice(i,j));ba.push(r.br);segs.push(...r.segs);i=j;
+            }
+        }else{
+            const PM={'-':'⠤','/':'⠠⠒'};
+            const cb=PM[ch]||ch;ba.push(cb);segs.push({en:ch,br:cb,cat:'alpha'});i++;
+            numCtx=false;
+        }
+    }
+    return{br:ba.join(''),segs};
+}
+
 function translateWithApos(token){
+    if(/[0-9]/.test(token))return translateMixed(token);
     const apostRe=/['\u2019]/;
     const ai=token.search(apostRe);
     if(ai<=0){
@@ -1931,11 +1974,12 @@ function parseNumericToken(brStr){
         segs.push({br:G1SYM,en:'⠰ 字母符號',cat:'g1'});
         i++;
     }
-    if(i<chs.length){
-        const rem=chs.slice(i).join('');
-        const aInfo=parseToken(rem);
-        for(const s of aInfo.segs)segs.push(s);
-        reading+=aInfo.bestReading||'';
+    // letters after digits: decode cell-by-cell, no G2 contractions
+    while(i<chs.length){
+        const cell=chs[i],letter=UA_REV[cell];
+        if(letter){segs.push({br:cell,en:letter,cat:'alpha'});reading+=letter;}
+        else{segs.push({br:cell,en:cell,cat:'alpha'});}
+        i++;
     }
     return{segs,bestReading:reading,allReadings:[{reading,score:0,segs}]};
 }
@@ -2046,7 +2090,7 @@ function renderE2B(raw, llBr){
     const{br,segs}=traceE2B(raw);
     const uniq=new Set(),rules=[];
     for(const s of segs){
-        if(['space','caps','apos','neg'].includes(s.cat))continue;
+        if(['space','caps','apos','neg','g1'].includes(s.cat))continue;
         const k=s.cat==='alpha'?null:s.en+'|'+s.cat;
         if(k===null||!uniq.has(k)){if(k)uniq.add(k);rules.push(s);}
     }
