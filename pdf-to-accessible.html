@@ -654,26 +654,6 @@ input[type=range] { accent-color: var(--accent2); }
           <input type="range" id="line-height-slider" min="1.2" max="3" value="2" step="0.1"
             oninput="setLineHeight(this.value)" style="width:100px;">
         </div>
-        <div class="setting-row">
-          <label for="theme-select">主題</label>
-          <select id="theme-select" class="setting-select" onchange="setTheme(this.value)">
-            <option value="dark">深色</option>
-            <option value="light" selected>淺色</option>
-            <option value="high">高對比</option>
-            <option value="yellow">黃底黑字</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- 匯出 -->
-    <div>
-      <div class="section-label">匯出</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-neutral" onclick="exportTxt()" disabled id="btn-export-txt">⬇ TXT</button>
-        <button class="btn btn-neutral" onclick="exportHtml()" disabled id="btn-export-html">⬇ HTML</button>
       </div>
     </div>
 
@@ -696,6 +676,8 @@ input[type=range] { accent-color: var(--accent2); }
       <div class="tb-group" id="find-bar-toggle-wrap">
         <button class="btn-tb" onclick="toggleFindBar()">🔍 取代</button>
         <button class="btn-tb" onclick="openAdvReplace()" id="btn-adv-replace" disabled>✦ 進階取代</button>
+        <button class="btn-tb" onclick="exportTxt()" disabled id="btn-export-txt">⬇ TXT</button>
+        <button class="btn-tb" onclick="exportHtml()" disabled id="btn-export-html">⬇ HTML</button>
       </div>
       <span id="char-count"></span>
     </div>
@@ -2059,16 +2041,12 @@ document.addEventListener('DOMContentLoaded', function(){
   var t='light';
   try{ t=localStorage.getItem('site-theme')||'light'; }catch(e){}
   setTheme(t);
-  var sel=document.getElementById('theme-select');
-  if(sel) sel.value=(t==='dark'?'dark':'light');
 });
 
 // ── 框架主題控制 ──
 window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'setTheme') {
         setTheme(e.data.theme === 'dark' ? 'dark' : 'light');
-        var sel = document.getElementById('theme-select');
-        if (sel) sel.value = e.data.theme === 'dark' ? 'dark' : 'light';
     }
 });
 

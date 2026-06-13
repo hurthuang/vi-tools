@@ -291,15 +291,13 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
     <div class="pane">
       <div class="ph" id="l2n-in-label">
         <span class="dot" aria-hidden="true"></span>LaTeX &#x8F38;&#x5165;
+        <button class="btn" onclick="openFormatModal('l2n-in', l2nConvert)" style="margin-left:auto;text-transform:none;font-size:.75rem">📋 格式</button>
+        <button class="me-open-btn" onclick="openMathEditor()" aria-label="&#x958B;&#x555F;&#x6578;&#x5B78;&#x7DE8;&#x8F2F;&#x5668;" style="text-transform:none;font-size:.75rem">📝 數學編輯器</button>
       </div>
       <textarea id="l2n-in"
         aria-labelledby="l2n-in-label"
-        aria-describedby="l2n-hint"
         placeholder="&#x6578;&#x5B78;&#x5F0F;&#x4EE5; \( \) &#x5305;&#x4F4F;&#10;&#x4F8B;&#xFF1A;&#x8A2D; \(\overline{AB}\perp\overline{CD}\)&#xFF0C;&#x5247; \(\angle ABC=90^\circ\)&#x3002;"
         oninput="l2nConvert()"></textarea>
-      <div id="l2n-hint" class="info" style="font-size:.68rem;margin-top:2px">
-        &#x6BCF;&#x884C;&#x5C0D;&#x61C9;&#x9810;&#x89BD;&#x4E00;&#x884C;&#xFF0C;&#x652F;&#x6301;&#x591A;&#x884C;&#x8F38;&#x5165;
-      </div>
     </div>
     <div class="pane">
       <div class="ph" id="l2n-prev-label">
@@ -319,7 +317,6 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
         
       </span>
     </div>
-    <div class="info">&#x6578;&#x5B78;&#x5340;&#x584A;&#x4EE5;&#x7A7A;&#x683C;&#x8207;&#x6587;&#x5B57;&#x5340;&#x9694;&#x3002;</div>
     <div class="box mono" id="l2n-out"
       role="region" aria-labelledby="l2n-out-label"
       aria-live="polite"></div>
@@ -327,8 +324,6 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   <div class="acts" role="group" aria-label="&#x64CD;&#x4F5C;&#x6309;&#x9215;">
     <input type="file" id="nc-l2n-file" accept=".txt,.docx,.odt,.rtf,.pdf" style="display:none" onchange="handleOpenFile(event,'l2n-in',l2nConvert)">
     <button class="btn" onclick="document.getElementById('nc-l2n-file').click()">📂 開啟</button>
-    <button class="btn" onclick="openFormatModal('l2n-in', l2nConvert)">📋 格式</button>
-    <button class="me-open-btn" onclick="openMathEditor()" aria-label="&#x958B;&#x555F;&#x6578;&#x5B78;&#x7DE8;&#x8F2F;&#x5668;">&#x1F4DD; &#x6578;&#x5B78;&#x7DE8;&#x8F2F;&#x5668;</button>
     <button class="btn pri" onclick="l2nCopy()" aria-label="&#x8907;&#x88FD; Nemeth &#x8F38;&#x51FA;&#x5230;&#x526A;&#x8CBC;&#x7C3F;">&#x8907;&#x88FD;</button>
     <button class="btn" onclick="l2nSave()">存 Nemeth</button>
     <button class="btn" onclick="l2nSaveInput()">存 LaTeX</button>
