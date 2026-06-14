@@ -17,8 +17,7 @@ GitHub：https://github.com/hurthuang/vi-tools
 - `ueb-g2-rules.js`：共用規則模組（G2_ALWAYS/WORD/…、blocking predicates、buildFilteredTables）
 - `braille-translate.htm`：bt，已移除 inline G2_* 表，改用 ueb-g2-rules.js
 - `UEB-g2-query.html`：query，GA/GN/GB/GME/GL/GW 已遷移至共用常數；Regression tab 已移除
-- `reg-bt.html`：BT engine regression（428 liblouis ground truth，全部通過）
-- `reg-test.html`：reg-bt.html 的 iframe 包裝（後台頁面，不在主導覽列）
+- `reg-bt.html`：BT engine regression（446 liblouis ground truth，全部通過；後台頁面，不在主導覽列）
 
 ### blocking predicates（ueb-g2-rules.js）
 con/dis begword、ea groupsign、of/gh/here/there/those/ever/mother/one/under/had/st always、
