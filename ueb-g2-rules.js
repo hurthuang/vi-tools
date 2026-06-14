@@ -383,14 +383,11 @@ function blocksOfAlways(word, pos) {
 // ════════════════════════════════════════════════════════════
 
 // 以「contraction 的首字母位置（含）前的詞幹」為索引鍵
-// ow/ed 例外：其末字母才是形態邊界，所以用 pos+2（含兩字母）取詞幹
 const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat','cart','sweet','goat']);
-const _WH_BLOCKED_STEMS = new Set(['raw','cow']);
+const _WH_BLOCKED_STEMS = new Set(['raw']);
 const _SH_BLOCKED_STEMS = new Set(['trans','mis']);
 const _GH_BLOCKED_STEMS = new Set(['fog','pig']);
 const _ER_BLOCKED_STEMS = new Set(['state']);
-const _OW_BLOCKED_STEMS = new Set(['cow']);
-const _ED_BLOCKED_STEMS = new Set(['red']);
 
 // k = 縮寫鍵, pos = 在整詞中的起始 index
 function blocksCrossCompound(k, word, pos) {
@@ -406,11 +403,6 @@ function blocksCrossCompound(k, word, pos) {
     if (k === 'sh') return _SH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
     if (k === 'gh') return _GH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
     if (k === 'er') return _ER_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
-    // ow/ed：末字母（第 2 字母）才是形態邊界，取 pos+2
-    if (k === 'ow') return _OW_BLOCKED_STEMS.has(lw.slice(0, pos + 2));
-    if (k === 'ed') return _ED_BLOCKED_STEMS.has(lw.slice(0, pos + 2));
-    // ou：outhouse 型態，out 前綴後 h 開頭的成分內不再縮 ou
-    if (k === 'ou') return lw.startsWith('out') && pos >= 4 && lw[pos - 1] === 'h';
     return false;
 }
 
