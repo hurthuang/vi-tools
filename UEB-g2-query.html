@@ -976,8 +976,10 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             if(k==='had'   &&blocksHadAlways(lw,i))          continue;
             if(k==='of'    &&blocksOfAlways(lw,i))           continue;
             if(k==='st'    &&blocksStAlways(lw,i,isProper))  continue;
-            // th/wh/sh：複合詞跨形態邊界 → 不縮（blocksCrossCompound 含 ood/ouse 通用檢查）
-            if((k==='th'||k==='wh'||k==='sh')&&blocksCrossCompound(k,lw,i))continue;
+            // th/wh/sh/gh/er/ow/ed/ou：複合詞跨形態邊界 → 不縮
+            if((k==='th'||k==='wh'||k==='sh'||k==='gh'||k==='er'||k==='ow'||k==='ed'||k==='ou')&&blocksCrossCompound(k,lw,i))continue;
+            if(k==='the'&&blocksCrossCompound('th',lw,i))continue;
+            if(k==='ear'&&(i+k.length<total||prefixEnd>0||blocksEaGroupsign(lw)))continue;
             // th 前是 s 時優先 st + h；希臘字根 aesth/anesth/asthm 例外允許縮 th
             if(k==='th'&&bc==='s'){
                 const isGreek=(lw.startsWith('aesth')&&i===2)
