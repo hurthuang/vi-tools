@@ -1579,8 +1579,11 @@ function translateG2Seq(word, _tables) {
             if (k === 'those' && blocksThoseAlways(lw, i)) { continue; }
             // of：科學前綴 + f/w → 阻止 of 縮寫（ctb 311–348）
             if (k === 'of'     && blocksOfAlways(lw, i))         { continue; }
-            // th/wh/sh：複合詞跨形態邊界 → 不縮（ctb LL_MATCH isAlpha）
-            if ((k === 'th' || k === 'wh' || k === 'sh') && blocksCrossCompound(k, lw, i)) { continue; }
+            // 複合詞跨形態邊界 → 不縮
+            if ((k==='th'||k==='wh'||k==='sh'||k==='gh'||k==='er'||k==='ow'||k==='ed'||k==='ou') && blocksCrossCompound(k,lw,i)) { continue; }
+            if (k==='the' && blocksCrossCompound('th',lw,i)) { continue; }
+            // ear → e+ar 僅在字尾（後無字母）且非 re-/pre-/re+vowel 詞；否則讓 ea groupsign 優先
+            if (k==='ear' && (i + k.length < total || prefixEnd > 0 || (typeof blocksEaGroupsign !== 'undefined' && blocksEaGroupsign(lw)))) { continue; }
             // 以下各縮寫阻止條件統一呼叫 ueb-g2-rules.js 共用函式
             if (k === 'gh'     && blocksGhAlways(lw, i))         { continue; }
             if (k === 'here'   && blocksHereAlways(lw, i))       { continue; }
@@ -1647,7 +1650,7 @@ function translateG2Seq(word, _tables) {
         if (!isStart) {
             for (const k of Object.keys(_t.midword)) {
                 if (lw.startsWith(k, i) && i + k.length < total && k.length > bestLen) {
-                    if (k === 'ea' && typeof blocksEaGroupsign !== 'undefined' && blocksEaGroupsign(lw)) continue;
+                    if (k === 'ea' && typeof blocksEaGroupsign !== 'undefined' && blocksEaGroupsign(lw, i)) continue;
                     bestType = 'mid'; bestLen = k.length; bestBr = _t.midword[k]; best = k;
                 }
             }

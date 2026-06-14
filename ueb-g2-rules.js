@@ -273,6 +273,7 @@ const _BLOCKED_EA = [
     // pre- prefix（不用 'prea' 整批：會破壞 preach/preachable 等根詞）
     'preadm',                  // preadmit, preadmission
     'preapp','preap',          // preapprove, preappoint, preapplication
+    'prear',                   // prearrange, prearrest（不含 preach：ch 不匹配）
     // re- prefix
     'reab',                    // line 929: reabsorb
     'reacc','reack','reacq',   // line 930: reaccustom, reacknowledge
@@ -303,10 +304,17 @@ const _EA_UNBLOCKED = new Set([
     'readonly','readout',
 ]);
 
-function blocksEaGroupsign(word) {
+function blocksEaGroupsign(word, pos) {
     const lw = word.toLowerCase();
     if (_EA_UNBLOCKED.has(lw)) return false;
-    for (const p of _BLOCKED_EA) { if (lw.startsWith(p)) return true; }
+    for (const p of _BLOCKED_EA) {
+        if (!lw.startsWith(p)) continue;
+        // pos omitted (backward compat): blanket block
+        if (pos === undefined) return true;
+        // block only if 'ea' starts before the prefix boundary
+        const pfxLen = lw.startsWith('pre') ? 3 : 2; // pre-=3, re-=2
+        return pos < pfxLen;
+    }
     return false;
 }
 
@@ -374,23 +382,35 @@ function blocksOfAlways(word, pos) {
 //  例：pothole(th)、rawhide(wh)、transhuman(sh)
 // ════════════════════════════════════════════════════════════
 
-// 以「contraction 的 't'/'w'/'s' 位置（含）前的詞幹」為索引鍵
-const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat']);
-const _WH_BLOCKED_STEMS = new Set(['raw']);
-const _SH_BLOCKED_STEMS = new Set(['trans']);
+// 以「contraction 的首字母位置（含）前的詞幹」為索引鍵
+// ow/ed 例外：其末字母才是形態邊界，所以用 pos+2（含兩字母）取詞幹
+const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat','cart','sweet','goat']);
+const _WH_BLOCKED_STEMS = new Set(['raw','cow']);
+const _SH_BLOCKED_STEMS = new Set(['trans','mis']);
+const _GH_BLOCKED_STEMS = new Set(['fog','pig']);
+const _ER_BLOCKED_STEMS = new Set(['state']);
+const _OW_BLOCKED_STEMS = new Set(['cow']);
+const _ED_BLOCKED_STEMS = new Set(['red']);
 
-// k = 縮寫鍵（'th'/'wh'/'sh'）, pos = 在整詞中的起始 index
+// k = 縮寫鍵, pos = 在整詞中的起始 index
 function blocksCrossCompound(k, word, pos) {
     const lw = word.toLowerCase();
     if (k === 'th') {
         // 通用：th 後接 ood/ouse（adulthood, boathouse, knighthood…）
         const after = lw.slice(pos + 2);
         if (after.startsWith('ood') || after.startsWith('ouse')) return true;
-        // 明確詞幹：pot/bolt/flat/rat/coat + hole/head…
+        // 明確詞幹：pot/cart/sweet/goat…
         return _TH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
     }
     if (k === 'wh') return _WH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
     if (k === 'sh') return _SH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    if (k === 'gh') return _GH_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    if (k === 'er') return _ER_BLOCKED_STEMS.has(lw.slice(0, pos + 1));
+    // ow/ed：末字母（第 2 字母）才是形態邊界，取 pos+2
+    if (k === 'ow') return _OW_BLOCKED_STEMS.has(lw.slice(0, pos + 2));
+    if (k === 'ed') return _ED_BLOCKED_STEMS.has(lw.slice(0, pos + 2));
+    // ou：outhouse 型態，out 前綴後 h 開頭的成分內不再縮 ou
+    if (k === 'ou') return lw.startsWith('out') && pos >= 4 && lw[pos - 1] === 'h';
     return false;
 }
 
