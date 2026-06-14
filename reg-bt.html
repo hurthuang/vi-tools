@@ -89,9 +89,9 @@ const LOU = (() => {
     const _tableCache = new Set();
     const TABLE_DIR = 'table/';
     const TABLE_DEPS = {
-        'en-ueb-g2.ctb':      ['en-ueb-math.ctb','en-ueb-chardefs.uti','en-ueb-g1.ctb','spaces.uti'],
-        'en-ueb-g1.ctb':      ['text_nabcc.dis','en-ueb-chardefs.uti','spaces.uti'],
-        'en-ueb-chardefs.uti':['en-chardefs.cti','latinLetterDef6Dots.uti','litdigits6Dots.uti','loweredDigits6Dots.uti'],
+        'en-ueb-g2.ctb':      ['en-ueb-g1.ctb'],
+        'en-ueb-g1.ctb':      ['en-ueb-chardefs.uti','en-ueb-math.ctb','braille-patterns.cti'],
+        'en-ueb-chardefs.uti':['text_nabcc.dis','spaces.uti','latinLetterDef6Dots.uti','latinUppercaseComp6.uti'],
     };
 
     function isReady() { return !!(M && M.calledRun); }
