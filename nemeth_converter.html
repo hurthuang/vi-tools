@@ -302,7 +302,7 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
     <div class="pane">
       <div class="ph" id="l2n-prev-label">
         <span class="dot p" aria-hidden="true"></span>MathJax &#x9810;&#x89BD;
-        <label class="sync-chk" title="同步捲動"><input type="checkbox" id="sync-l2n-prev" checked onchange="updateSyncPanels()"> 同步</label>
+        <label class="sync-chk" title="同步捲動"><input type="checkbox" id="sync-l2n-prev" checked> 同步</label>
       </div>
       <div class="box prev" id="l2n-prev"
         role="region" aria-labelledby="l2n-prev-label"
@@ -352,6 +352,7 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
     <div class="pane">
       <div class="ph" id="n2l-prev-label">
         <span class="dot p" aria-hidden="true"></span>MathJax &#x9810;&#x89BD;
+        <label class="sync-chk" title="同步捲動"><input type="checkbox" id="sync-n2l-prev" checked> 同步</label>
       </div>
       <div class="box prev" id="n2l-prev"
         role="region" aria-labelledby="n2l-prev-label"
@@ -1490,58 +1491,53 @@ var MATH_RE=/\\\(([\s\S]*?)\\\)|\$([^$\n]+?)\$/g;
 // =====================================================================
 // Scroll synchronisation for the three main panels
 //
-// Design: Input is always the MASTER. When the user scrolls the input
-// textarea, any follower whose checkbox is checked scrolls proportionally.
-// Preview and Output are FOLLOWERS only — scrolling them does NOT drive
-// any other panel. The checkboxes are on Preview and Output only.
-//
-//   L2N:  l2n-in (master) → l2n-prev (chk: sync-l2n-prev)
-//                         → l2n-out  (chk: sync-l2n-out)
-//   N2L:  n2l-in (master) → n2l-prev (chk: sync-n2l-prev)
-//                         → n2l-out  (chk: sync-n2l-out)
+// Line-number-based preview sync.
+// Both l2n and n2l build a lineMap[] during convert():
+//   lineMap[inputLineIdx] = previewDivIdx (data-line attribute)
+// On textarea scroll or after convert(), preview is scrolled to
+// the div corresponding to the cursor / top-visible line.
 // =====================================================================
-var SYNC_MASTERS = [
-  { masterId: 'l2n-in',
-    followers: [
-      { elId: 'l2n-prev', chkId: 'sync-l2n-prev' },
-      { elId: 'l2n-out',  chkId: 'sync-l2n-out'  },
-    ]
-  },
-  { masterId: 'n2l-in',
-    followers: [
-      { elId: 'n2l-prev', chkId: 'sync-n2l-prev' },
-      { elId: 'n2l-out',  chkId: 'sync-n2l-out'  },
-    ]
-  },
-];
-var _syncLock = false;
+var _syncLineMap = {};  // { 'l2n': [...], 'n2l': [...] }
 
-function updateSyncPanels() {
-  for (var i = 0; i < SYNC_MASTERS.length; i++) {
-    var grp = SYNC_MASTERS[i];
-    var master = document.getElementById(grp.masterId);
-    if (!master || master._syncBound) continue;
-    (function(masterEl, followers) {
-      masterEl.addEventListener('scroll', function () {
-        if (_syncLock) return;
-        var srcH = masterEl.scrollHeight - masterEl.clientHeight;
-        if (srcH <= 0) return;
-        var ratio = masterEl.scrollTop / srcH;
-        _syncLock = true;
-        for (var j = 0; j < followers.length; j++) {
-          var f = followers[j];
-          var chk = document.getElementById(f.chkId);
-          if (!chk || !chk.checked) continue;
-          var el = document.getElementById(f.elId);
-          if (!el) continue;
-          var h = el.scrollHeight - el.clientHeight;
-          if (h > 0) el.scrollTop = ratio * h;
-        }
-        _syncLock = false;
-      });
-    })(master, grp.followers);
-    master._syncBound = true;
-  }
+function _syncScrollPreview(prevEl, lineMap, inputLine) {
+  if (!lineMap || !lineMap.length) return;
+  var idx = lineMap[Math.min(Math.max(inputLine, 0), lineMap.length - 1)];
+  if (idx === undefined) return;
+  var el = prevEl.querySelector('[data-line="' + idx + '"]');
+  if (!el) return;
+  var diff = el.getBoundingClientRect().top - prevEl.getBoundingClientRect().top;
+  prevEl.scrollTop = Math.max(0, prevEl.scrollTop + diff);
+}
+
+function _syncToCursor(mode) {
+  var chk = document.getElementById('sync-' + mode + '-prev');
+  if (!chk || !chk.checked) return;
+  var ta = document.getElementById(mode + '-in');
+  var prevEl = document.getElementById(mode + '-prev');
+  var lineMap = _syncLineMap[mode];
+  if (!ta || !prevEl || !lineMap || !lineMap.length) return;
+  var cursorLine = ta.value.substr(0, ta.selectionStart).split('\n').length - 1;
+  _syncScrollPreview(prevEl, lineMap, cursorLine);
+}
+
+function updateSyncPanels() {}  // kept for onchange compatibility
+
+function _attachSyncScrollListeners() {
+  ['l2n', 'n2l'].forEach(function(mode) {
+    var ta = document.getElementById(mode + '-in');
+    if (!ta || ta._lineSyncBound) return;
+    ta._lineSyncBound = true;
+    ta.addEventListener('scroll', function() {
+      var chk = document.getElementById('sync-' + mode + '-prev');
+      if (!chk || !chk.checked) return;
+      var lineMap = _syncLineMap[mode];
+      if (!lineMap || !lineMap.length) return;
+      var prevEl = document.getElementById(mode + '-prev');
+      var n = ta.value.split('\n').length;
+      var topLine = n > 1 ? Math.floor(ta.scrollTop * n / ta.scrollHeight) : 0;
+      _syncScrollPreview(prevEl, lineMap, topLine);
+    });
+  });
 }
 
 function l2nConvert(){
@@ -1558,9 +1554,10 @@ function l2nConvert(){
 
   // Process line by line so newlines stay in sync with preview
   var lines=input.split('\n');
-  var outLines=[], prevLines=[], mathCount=0, errMsg='';
+  var outLines=[], prevLines=[], lineMap=[], mathCount=0, errMsg='';
 
   for(var li=0;li<lines.length;li++){
+    lineMap.push(prevLines.length);
     var line=lines[li];
     // Unicode math symbols → LaTeX (inside or outside math delimiters)
     line=line.replace(/×/g,'\\times ').replace(/÷/g,'\\div ');
@@ -1630,10 +1627,12 @@ function l2nConvert(){
 
   outEl.textContent=outLines.join('\n');
   outEl.className='box mono'+(errMsg?' err':'');
-  // Preview: join lines with <br> to preserve visual newlines
-  prevEl.innerHTML=prevLines.join('<br>');
+  _syncLineMap.l2n=lineMap;
+  prevEl.innerHTML=prevLines.map(function(l,i){return'<div data-line="'+i+'">'+l+'</div>';}).join('');
   if(window.MathJax&&mathCount>0){
-    MathJax.typesetPromise([prevEl]).catch(function(){});
+    MathJax.typesetPromise([prevEl]).then(function(){_syncToCursor('l2n');}).catch(function(){});
+  }else{
+    _syncToCursor('l2n');
   }
   var status=errMsg
     ?'\u2717 \u932f\u8aa4\uff1a'+errMsg
@@ -1893,12 +1892,13 @@ function n2lConvert(){
     return sawBrl;
   }
 
-  var outLines=[], prevLines=[], mathCount=0, hasErr=false;
+  var outLines=[], prevLines=[], lineMap=[], mathCount=0, hasErr=false;
   var li=0;
   while(li<lines.length){
     var line=lines[li];
     if(!lineHasBrl(line)){
       // Pure prose line — pass through unchanged
+      lineMap[li]=prevLines.length;
       outLines.push(line);
       prevLines.push(esc(line));
       li++;
@@ -1936,6 +1936,7 @@ function n2lConvert(){
         else{flush();outLatex+=c;prevHtml+=esc(c);}
       }
       flush();
+      lineMap[li]=prevLines.length;
       outLines.push(outLatex);
       prevLines.push(prevHtml);
       li++;
@@ -1949,6 +1950,7 @@ function n2lConvert(){
     }
     if(blockStart===blockEnd){
       // Case (c): single pure-braille line. Convert directly.
+      lineMap[li]=prevLines.length;
       try{
         var latex=nemBrlToLatex(line.trim());
         outLines.push('\\('+latex+'\\)');
@@ -1963,6 +1965,7 @@ function n2lConvert(){
     }else{
       // Case (b): Multi-line pure-braille block — feed parseNemEnv.
       var block=lines.slice(blockStart, blockEnd+1).join('\n');
+      for(var bi=blockStart;bi<=blockEnd;bi++) lineMap[bi]=prevLines.length;
       try{
         var blockLatex=parseNemEnv(block);
         // parseNemEnv may return either:
@@ -1993,9 +1996,12 @@ function n2lConvert(){
 
   outEl.textContent=outLines.join('\n');
   outEl.className='box mono'+(hasErr?' err':'');
-  prevEl.innerHTML=prevLines.join('<br>');
+  _syncLineMap.n2l=lineMap;
+  prevEl.innerHTML=prevLines.map(function(l,i){return'<div data-line="'+i+'">'+l+'</div>';}).join('');
   if(window.MathJax&&mathCount>0){
-    MathJax.typesetPromise([prevEl]).catch(function(){});
+    MathJax.typesetPromise([prevEl]).then(function(){_syncToCursor('n2l');}).catch(function(){});
+  }else{
+    _syncToCursor('n2l');
   }
   var status=hasErr
     ?'\u2717 \u90e8\u5206\u5931\u6557'
@@ -2431,7 +2437,7 @@ window.addEventListener('message', function(e) {
 
 buildSymRef();
 l2nConvert();
-updateSyncPanels();
+_attachSyncScrollListeners();
 
 </script>
 
