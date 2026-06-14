@@ -6,11 +6,11 @@
 <title>BT Engine Regression</title>
 <style>
   :root{--ac:#1565c0;--ok:#2e7d32;--fail:#c62828;--warn:#e65100;--bg:#f5f5f5;--sf:#fff;--bd:#e0e0e0;--tx:#212121;--tx2:#666;}
-  body{margin:0;font-family:sans-serif;background:var(--bg);font-size:.875rem;}
-  .header{padding:10px 20px;background:var(--ac);color:#fff;display:flex;align-items:center;gap:16px;}
+  body{margin:0;font-family:sans-serif;background:var(--bg);font-size:.875rem;display:flex;flex-direction:column;height:100vh;}
+  .header{padding:10px 20px;background:var(--ac);color:#fff;display:flex;align-items:center;gap:16px;flex-shrink:0;}
   .header h1{margin:0;font-size:1rem;}
   .note{font-size:.78rem;opacity:.75;}
-  .summary{padding:10px 20px;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;gap:20px;align-items:center;}
+  .summary{padding:10px 20px;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;gap:20px;align-items:center;flex-shrink:0;}
   .stat{font-weight:600;}
   .stat.ok{color:var(--ok);}
   .stat.fail{color:var(--fail);}
@@ -22,7 +22,25 @@
   .brl{font-family:serif;font-size:1.1em;}
   .tag-ok{color:var(--ok);font-weight:600;}
   .tag-fail{color:var(--fail);font-weight:600;}
-  #result-wrap{overflow:auto;height:calc(100vh - 90px);}
+  #result-wrap{flex:1;overflow:auto;}
+  /* 即時比對 */
+  .cmp-panel{padding:8px 20px;background:#e8eaf6;border-bottom:1px solid #c5cae9;flex-shrink:0;}
+  .cmp-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .cmp-label{font-weight:600;color:var(--ac);white-space:nowrap;font-size:.82rem;}
+  #cmp-input{padding:4px 8px;border:1px solid #9fa8da;border-radius:4px;font-size:.875rem;width:160px;}
+  .cmp-btn{padding:4px 12px;border-radius:4px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;font-size:.82rem;}
+  .ll-status{font-size:.75rem;color:var(--tx2);}
+  .ll-status.ready{color:var(--ok);}
+  .ll-status.error{color:var(--fail);}
+  .cmp-out{margin-top:6px;display:flex;flex-direction:column;gap:3px;}
+  .cmp-line{display:flex;align-items:baseline;gap:8px;}
+  .cmp-src{font-size:.75rem;color:var(--tx2);width:68px;flex-shrink:0;}
+  .cmp-brl{font-family:serif;font-size:1.05em;}
+  .cmp-tag{font-weight:600;font-size:.8rem;}
+  .cmp-tag.ok{color:var(--ok);}
+  .cmp-tag.fail{color:var(--fail);}
+  .cmp-snippet{display:block;margin-top:4px;font-family:monospace;font-size:.78rem;background:#fff;border:1px solid #9fa8da;border-radius:3px;padding:2px 8px;user-select:all;color:#333;}
+  .cmp-hint{font-size:.72rem;color:var(--tx2);margin-top:1px;}
 </style>
 </head>
 <body>
@@ -31,6 +49,29 @@
   <span class="note">braille-translate.htm translateG2Word vs liblouis — 全規則啟用</span>
   <button class="run-btn" onclick="run()">▶ 執行</button>
 </div>
+
+<div class="cmp-panel">
+  <div class="cmp-row1">
+    <span class="cmp-label">即時比對</span>
+    <input id="cmp-input" type="text" placeholder="輸入英文字…" onkeydown="if(event.key==='Enter')compare()">
+    <button class="cmp-btn" onclick="compare()">比對</button>
+    <span id="ll-status" class="ll-status">liblouis 載入中…</span>
+  </div>
+  <div class="cmp-out" id="cmp-out" style="display:none">
+    <div class="cmp-line">
+      <span class="cmp-src">liblouis</span>
+      <span class="cmp-brl" id="cmp-ll"></span>
+      <span class="cmp-tag" id="cmp-tag"></span>
+    </div>
+    <div class="cmp-line">
+      <span class="cmp-src">BT engine</span>
+      <span class="cmp-brl" id="cmp-bt"></span>
+    </div>
+    <code class="cmp-snippet" id="cmp-snippet" style="display:none"></code>
+    <div class="cmp-hint" id="cmp-hint" style="display:none">↑ 全選複製後加入 REGRESSION_CASES</div>
+  </div>
+</div>
+
 <div class="summary" id="summary">尚未執行</div>
 <div id="result-wrap">
   <table id="tbl" style="display:none">
@@ -40,7 +81,115 @@
 </div>
 
 <script src="ueb-g2-rules.js"></script>
+<script src="build-no-tables-utf32.js"></script>
 <script>
+// ── liblouis 包裝層（從 braille-translate.htm 複製，僅保留 ueb-g2）──
+const LOU = (() => {
+    const M = (typeof liblouisBuild !== 'undefined') ? liblouisBuild : null;
+    const _tableCache = new Set();
+    const TABLE_DIR = 'table/';
+    const TABLE_DEPS = {
+        'en-ueb-g2.ctb':      ['en-ueb-math.ctb','en-ueb-chardefs.uti','en-ueb-g1.ctb','spaces.uti'],
+        'en-ueb-g1.ctb':      ['text_nabcc.dis','en-ueb-chardefs.uti','spaces.uti'],
+        'en-ueb-chardefs.uti':['en-chardefs.cti','latinLetterDef6Dots.uti','litdigits6Dots.uti','loweredDigits6Dots.uti'],
+    };
+
+    function isReady() { return !!(M && M.calledRun); }
+
+    async function _loadTableFile(filename) {
+        if (_tableCache.has(filename)) return;
+        _tableCache.add(filename);
+        try {
+            const resp = await fetch(TABLE_DIR + filename);
+            if (!resp.ok) throw new Error(resp.status);
+            const arrayBuf = await resp.arrayBuffer();
+            try { M.FS.mkdir('/tables'); } catch(e) {}
+            const bytes = new Uint8Array(arrayBuf);
+            let fileStr = '';
+            for (let b = 0; b < bytes.length; b++) fileStr += String.fromCharCode(bytes[b]);
+            if (filename.endsWith('.ctb') || filename.endsWith('.uti')) {
+                fileStr = fileStr.split('\n').map(line => {
+                    const t = line.trim();
+                    if (t.startsWith('seqdelimiter') || t.startsWith('seqbeforechars') ||
+                        t.startsWith('seqafterchars') || t.startsWith('seqafterexpression') ||
+                        t.startsWith('seqafterpattern')) return '# ' + line;
+                    return line;
+                }).join('\n');
+            }
+            M.FS.writeFile('/tables/' + filename, fileStr);
+        } catch(e) {
+            console.warn('liblouis: 無法載入表格', filename, e.message);
+        }
+        const deps = TABLE_DEPS[filename] || [];
+        await Promise.all(deps.map(d => _loadTableFile(d)));
+    }
+
+    const NABCC_TO_UNI = {
+        32:0x2800,97:0x2801,49:0x2802,98:0x2803,39:0x2804,
+        107:0x2805,50:0x2806,108:0x2807,96:0x2808,99:0x2809,
+        105:0x280a,102:0x280b,47:0x280c,109:0x280d,115:0x280e,
+        112:0x280f,34:0x2810,101:0x2811,51:0x2812,104:0x2813,
+        57:0x2814,111:0x2815,54:0x2816,114:0x2817,126:0x2818,
+        100:0x2819,106:0x281a,103:0x281b,62:0x281c,110:0x281d,
+        116:0x281e,113:0x281f,44:0x2820,42:0x2821,53:0x2822,
+        60:0x2823,45:0x2824,117:0x2825,56:0x2826,118:0x2827,
+        46:0x2828,37:0x2829,123:0x282a,36:0x282b,43:0x282c,
+        120:0x282d,33:0x282e,38:0x282f,59:0x2830,58:0x2831,
+        52:0x2832,124:0x2833,48:0x2834,122:0x2835,55:0x2836,
+        40:0x2837,95:0x2838,63:0x2839,119:0x283a,125:0x283b,
+        35:0x283c,121:0x283d,41:0x283e,61:0x283f
+    };
+
+    function _louTranslate(tableFile, text) {
+        if (!isReady()) return null;
+        try {
+            const inputLen = text.length;
+            const inBuf = M._malloc((inputLen + 1) * 4);
+            for (let i = 0; i < inputLen; i++)
+                M.setValue(inBuf + i * 4, text.codePointAt(i), 'i32');
+            M.setValue(inBuf + inputLen * 4, 0, 'i32');
+            const outMax = inputLen * 4;
+            const outBuf    = M._malloc((outMax + 1) * 4);
+            const inLenPtr  = M._malloc(4);
+            const outLenPtr = M._malloc(4);
+            M.setValue(inLenPtr,  inputLen, 'i32');
+            M.setValue(outLenPtr, outMax,   'i32');
+            const tableStr = M.allocate(M.intArrayFromString('/tables/' + tableFile), 'i8', M.ALLOC_NORMAL);
+            const ret = M._lou_translateString(tableStr, inBuf, inLenPtr, outBuf, outLenPtr, 0, 0, 0);
+            M._free(tableStr);
+            let result = null;
+            if (ret > 0) {
+                const outLen = M.getValue(outLenPtr, 'i32');
+                let out = '';
+                for (let i = 0; i < outLen; i++) {
+                    const val = M.getValue(outBuf + i * 4, 'i32');
+                    const uni = NABCC_TO_UNI[val];
+                    out += String.fromCharCode(uni !== undefined ? uni : 0x2800 + val);
+                }
+                result = out;
+            }
+            M._free(inBuf); M._free(outBuf);
+            M._free(inLenPtr); M._free(outLenPtr);
+            return result;
+        } catch(e) {
+            console.error('liblouis translate error:', e);
+            return null;
+        }
+    }
+
+    function translateG2(text) {
+        return _louTranslate('en-ueb-g2.ctb', text);
+    }
+
+    async function preload() {
+        if (!isReady()) return false;
+        await _loadTableFile('en-ueb-g2.ctb');
+        return true;
+    }
+
+    return { translateG2, isReady, preload };
+})();
+
 // ── 從 braille-translate.htm 複製的最小依賴 ──────────────────────
 const UEB_ALPHA = {
     'a':'⠁','b':'⠃','c':'⠉','d':'⠙','e':'⠑',
@@ -196,7 +345,7 @@ function translateG2Seq(word, _tables) {
 
 // 處理帶撇號的詞（對應 bt translateWordWithApos 的 ueb-g2 分支）
 function btTranslate(word) {
-    const aposIdx = word.search(/['‘’]/);
+    const aposIdx = word.search(/[''']/);
     if (aposIdx === -1) return translateG2Word(word, BT_TABLES);
     const main   = word.slice(0, aposIdx);
     const suffix = word.slice(aposIdx + 1);
@@ -222,7 +371,7 @@ function btTranslate(word) {
     return mainB + '⠄' + suffixB;
 }
 
-// ── Regression cases（428 筆 liblouis ground truth）──────────────
+// ── Regression cases（446 筆 liblouis ground truth）──────────────
 const REGRESSION_CASES={"but":"⠃","can":"⠉","do":"⠙","every":"⠑","from":"⠋","go":"⠛","have":"⠓","just":"⠚","knowledge":"⠅","like":"⠇","more":"⠍","not":"⠝","people":"⠏","quite":"⠟","rather":"⠗","so":"⠎","that":"⠞","us":"⠥","very":"⠧","will":"⠺","it":"⠭","you":"⠽","as":"⠵","and":"⠯","for":"⠿","of":"⠷","the":"⠮","with":"⠾","child":"⠡","shall":"⠩","about":"⠁⠃","above":"⠁⠃⠧","according":"⠁⠉","across":"⠁⠉⠗","after":"⠁⠋","afternoon":"⠁⠋⠝","afterward":"⠁⠋⠺","again":"⠁⠛","against":"⠁⠛⠌","already":"⠁⠇⠗","also":"⠁⠇","although":"⠁⠇⠹","altogether":"⠁⠇⠞","always":"⠁⠇⠺","because":"⠆⠉","before":"⠆⠋","behind":"⠆⠓","below":"⠆⠇","beneath":"⠆⠝","beside":"⠆⠎","between":"⠆⠞","beyond":"⠆⠽","blind":"⠃⠇","braille":"⠃⠗⠇","children":"⠡⠝","could":"⠉⠙","declare":"⠙⠉⠇","declaring":"⠙⠉⠇⠛","either":"⠑⠊","first":"⠋⠌","friend":"⠋⠗","good":"⠛⠙","great":"⠛⠗⠞","him":"⠓⠍","himself":"⠓⠍⠋","immediate":"⠊⠍⠍","its":"⠭⠎","itself":"⠭⠋","letter":"⠇⠗","little":"⠇⠇","much":"⠍⠡","must":"⠍⠌","myself":"⠍⠽⠋","necessary":"⠝⠑⠉","neither":"⠝⠑⠊","ourselves":"⠳⠗⠧⠎","paid":"⠏⠙","perhaps":"⠏⠻⠓","quick":"⠟⠅","receive":"⠗⠉⠧","receiving":"⠗⠉⠧⠛","rejoice":"⠗⠚⠉","rejoicing":"⠗⠚⠉⠛","said":"⠎⠙","should":"⠩⠙","such":"⠎⠡","their":"⠸⠮","themselves":"⠮⠍⠧⠎","through":"⠐⠹","thyself":"⠹⠽⠋","today":"⠞⠙","together":"⠞⠛⠗","tomorrow":"⠞⠍","tonight":"⠞⠝","would":"⠺⠙","your":"⠽⠗","yourself":"⠽⠗⠋","yourselves":"⠽⠗⠧⠎","discharge":"⠲⠡⠜⠛⠑","dislike":"⠲⠇⠊⠅⠑","discover":"⠲⠉⠕⠧⠻","dismay":"⠲⠍⠁⠽","concert":"⠒⠉⠻⠞","condition":"⠒⠙⠊⠰⠝","connect":"⠒⠝⠑⠉⠞","consider":"⠒⠎⠊⠙⠻","begin":"⠆⠛⠔","belief":"⠆⠇⠊⠑⠋","belong":"⠆⠇⠰⠛","running":"⠗⠥⠝⠝⠬","going":"⠛⠕⠬","playing":"⠏⠇⠁⠽⠬","working":"⠐⠺⠬","nation":"⠝⠁⠰⠝","motion":"⠍⠕⠰⠝","station":"⠌⠁⠰⠝","ration":"⠗⠁⠰⠝","science":"⠎⠉⠊⠰⠑","licence":"⠇⠊⠉⠰⠑","patience":"⠏⠁⠞⠊⠰⠑","distance":"⠲⠞⠨⠑","rance":"⠗⠨⠑","advance":"⠁⠙⠧⠨⠑","movement":"⠍⠕⠧⠑⠰⠞","payment":"⠏⠁⠽⠰⠞","kindness":"⠅⠔⠙⠰⠎","darkness":"⠙⠜⠅⠰⠎","goodness":"⠛⠙⠰⠎","careful":"⠉⠜⠑⠰⠇","useful":"⠥⠎⠑⠰⠇","hopeful":"⠓⠕⠏⠑⠰⠇","ability":"⠁⠃⠊⠇⠰⠽","safety":"⠎⠁⠋⠑⠞⠽","quality":"⠟⠥⠁⠇⠰⠽","aground":"⠁⠛⠗⠨⠙","around":"⠜⠨⠙","bound":"⠃⠨⠙","found":"⠋⠨⠙","mound":"⠍⠨⠙","sound":"⠎⠨⠙","wound":"⠺⠨⠙","account":"⠁⠒⠨⠞","amount":"⠁⠍⠨⠞","count":"⠉⠨⠞","mount":"⠍⠨⠞","fount":"⠋⠨⠞","mission":"⠍⠊⠎⠨⠝","passion":"⠏⠁⠎⠨⠝","session":"⠎⠑⠎⠨⠝","vision":"⠧⠊⠨⠝","lesson":"⠇⠑⠎⠎⠕⠝","blossom":"⠃⠇⠕⠎⠎⠕⠍","along":"⠁⠇⠰⠛","long":"⠇⠰⠛","song":"⠎⠰⠛","strong":"⠌⠗⠰⠛","wrong":"⠺⠗⠰⠛","thin":"⠹⠔","three":"⠹⠗⠑⠑","thunder":"⠹⠐⠥","threw":"⠹⠗⠑⠺","short":"⠩⠕⠗⠞","ship":"⠩⠊⠏","show":"⠩⠪","sheet":"⠩⠑⠑⠞","white":"⠱⠊⠞⠑","where":"⠐⠱","when":"⠱⠢","whether":"⠱⠑⠮⠗","which":"⠱","ghost":"⠣⠕⠌","aghast":"⠁⠣⠁⠌","high":"⠓⠊⠣","night":"⠝⠊⠣⠞","right":"⠐⠗","sight":"⠎⠊⠣⠞","fight":"⠋⠊⠣⠞","might":"⠍⠊⠣⠞","stamp":"⠌⠁⠍⠏","step":"⠌⠑⠏","still":"⠌","stop":"⠌⠕⠏","street":"⠌⠗⠑⠑⠞","string":"⠌⠗⠬","strict":"⠌⠗⠊⠉⠞","each":"⠑⠁⠡","peach":"⠏⠂⠡","reach":"⠗⠂⠡","teach":"⠞⠂⠡","beach":"⠃⠂⠡","out":"⠳","outer":"⠳⠞⠻","outline":"⠳⠞⠇⠔⠑","output":"⠳⠞⠏⠥⠞","outrage":"⠳⠞⠗⠁⠛⠑","enough":"⠢","ought":"⠐⠳","be":"⠆","his":"⠦","was":"⠴","were":"⠶","couldn't":"⠉⠙⠝⠄⠞","shouldn't":"⠩⠙⠝⠄⠞","wouldn't":"⠺⠙⠝⠄⠞","don't":"⠙⠕⠝⠄⠞","isn't":"⠊⠎⠝⠄⠞","aren't":"⠜⠢⠄⠞","haven't":"⠓⠁⠧⠢⠄⠞","Hello":"⠠⠓⠑⠇⠇⠕","HELLO":"⠠⠠⠓⠑⠇⠇⠕","World":"⠠⠸⠺","TODAY":"⠠⠠⠞⠙","beat":"⠃⠂⠞","bean":"⠃⠂⠝","bear":"⠃⠑⠜","beam":"⠃⠂⠍","bead":"⠃⠂⠙","beak":"⠃⠂⠅","beef":"⠃⠑⠑⠋","beer":"⠃⠑⠻","beet":"⠃⠑⠑⠞","beast":"⠃⠂⠌","beige":"⠃⠑⠊⠛⠑","being":"⠆⠬","become":"⠆⠉⠕⠍⠑","beautiful":"⠃⠂⠥⠞⠊⠰⠇","label":"⠇⠁⠃⠑⠇","table":"⠞⠁⠃⠇⠑","able":"⠁⠃⠇⠑","cable":"⠉⠁⠃⠇⠑","fable":"⠋⠁⠃⠇⠑","stable":"⠌⠁⠃⠇⠑","sable":"⠎⠁⠃⠇⠑","tribe":"⠞⠗⠊⠃⠑","scribe":"⠎⠉⠗⠊⠃⠑","describe":"⠙⠑⠎⠉⠗⠊⠃⠑","subscribe":"⠎⠥⠃⠎⠉⠗⠊⠃⠑","concern":"⠒⠉⠻⠝","concrete":"⠒⠉⠗⠑⠞⠑","confirm":"⠒⠋⠊⠗⠍","cone":"⠉⠐⠕","coin":"⠉⠕⠔","coil":"⠉⠕⠊⠇","coat":"⠉⠕⠁⠞","coal":"⠉⠕⠁⠇","cool":"⠉⠕⠕⠇","cook":"⠉⠕⠕⠅","copy":"⠉⠕⠏⠽","come":"⠉⠕⠍⠑","core":"⠉⠕⠗⠑","bacon":"⠃⠁⠉⠕⠝","falcon":"⠋⠁⠇⠉⠕⠝","icon":"⠊⠉⠕⠝","second":"⠎⠑⠉⠕⠝⠙","display":"⠲⠏⠇⠁⠽","dispute":"⠲⠏⠥⠞⠑","dish":"⠙⠊⠩","disk":"⠙⠊⠎⠅","disc":"⠙⠊⠎⠉","diss":"⠙⠊⠎⠎","distinct":"⠲⠞⠔⠉⠞","radius":"⠗⠁⠙⠊⠥⠎","studio":"⠌⠥⠙⠊⠕","medium":"⠍⠫⠊⠥⠍","tedious":"⠞⠫⠊⠳⠎","idiot":"⠊⠙⠊⠕⠞","understand":"⠐⠥⠌⠯","underline":"⠐⠥⠇⠔⠑","undergo":"⠐⠥⠛⠕","undermine":"⠐⠥⠍⠔⠑","underway":"⠐⠥⠺⠁⠽","blunder":"⠃⠇⠐⠥","wonder":"⠺⠕⠝⠙⠻","ponder":"⠏⠕⠝⠙⠻","under":"⠐⠥","sundered":"⠎⠐⠥⠫","question":"⠐⠟","suggestion":"⠎⠥⠶⠑⠎⠰⠝","digestion":"⠙⠊⠛⠑⠎⠰⠝","congestion":"⠒⠛⠑⠎⠰⠝","exhaustion":"⠑⠭⠓⠁⠥⠎⠰⠝","bastion":"⠃⠁⠎⠰⠝","estion":"⠑⠎⠰⠝","combustion":"⠉⠕⠍⠃⠥⠎⠰⠝","quickly":"⠟⠅⠇⠽","firstly":"⠋⠌⠇⠽","greatly":"⠛⠗⠞⠇⠽","littleness":"⠇⠇⠰⠎","goose":"⠛⠕⠕⠎⠑","quiver":"⠟⠥⠊⠧⠻","goods":"⠛⠙⠎","greet":"⠛⠗⠑⠑⠞","govern":"⠛⠕⠧⠻⠝","in":"⠔","by":"⠃⠽","to":"⠞⠕","inch":"⠔⠡","inner":"⠔⠝⠻","into":"⠔⠞⠕","insight":"⠔⠎⠊⠣⠞","inward":"⠔⠺⠜⠙","byway":"⠃⠽⠺⠁⠽","bypass":"⠃⠽⠏⠁⠎⠎","bygone":"⠃⠽⠛⠐⠕","enoughness":"⠢⠳⠣⠰⠎","bought":"⠃⠐⠳","brought":"⠃⠗⠐⠳","fought":"⠋⠐⠳","sought":"⠎⠐⠳","thought":"⠹⠐⠳","nought":"⠝⠐⠳","wrought":"⠺⠗⠐⠳","drought":"⠙⠗⠐⠳","Mr":"⠠⠍⠗","Mrs":"⠠⠍⠗⠎","Dr":"⠠⠙⠗","PE":"⠠⠠⠏⠑","OK":"⠠⠠⠕⠅","TV":"⠠⠠⠞⠧","iPhone":"⠊⠠⠏⠓⠐⠕","McDonald":"⠠⠍⠉⠠⠙⠕⠝⠁⠇⠙","doesn't":"⠙⠕⠑⠎⠝⠄⠞","didn't":"⠙⠊⠙⠝⠄⠞","hadn't":"⠸⠓⠝⠄⠞","hasn't":"⠓⠁⠎⠝⠄⠞","weren't":"⠺⠻⠢⠄⠞","that's":"⠞⠄⠎","it's":"⠭⠄⠎","he's":"⠓⠑⠄⠎","she's":"⠩⠑⠄⠎","I'm":"⠠⠊⠄⠍","we're":"⠺⠑⠄⠗⠑","they're":"⠮⠽⠄⠗⠑","I've":"⠠⠊⠄⠧⠑","you've":"⠽⠄⠧⠑","we've":"⠺⠑⠄⠧⠑","they've":"⠮⠽⠄⠧⠑","I'll":"⠠⠊⠄⠇⠇","you'll":"⠽⠄⠇⠇","he'll":"⠓⠑⠄⠇⠇","she'll":"⠩⠑⠄⠇⠇","we'll":"⠺⠑⠄⠇⠇","they'll":"⠮⠽⠄⠇⠇","I'd":"⠠⠊⠄⠙","you'd":"⠽⠄⠙","he'd":"⠓⠑⠄⠙","she'd":"⠩⠑⠄⠙","we'd":"⠺⠑⠄⠙","they'd":"⠮⠽⠄⠙","singing":"⠎⠬⠬","bring":"⠃⠗⠬","ring":"⠗⠬","king":"⠅⠬","thing":"⠹⠬","spring":"⠎⠏⠗⠬","swing":"⠎⠺⠬","among":"⠁⠍⠰⠛","belonging":"⠆⠇⠰⠛⠬","longing":"⠇⠰⠛⠬","round":"⠗⠨⠙","ground":"⠛⠗⠨⠙","discount":"⠲⠉⠨⠞","recount":"⠗⠑⠉⠨⠞","mention":"⠍⠢⠰⠝","tension":"⠞⠢⠨⠝","mansion":"⠍⠁⠝⠨⠝","expansion":"⠑⠭⠏⠁⠝⠨⠝","pension":"⠏⠢⠨⠝","action":"⠁⠉⠰⠝","fraction":"⠋⠗⠁⠉⠰⠝","traction":"⠞⠗⠁⠉⠰⠝","attraction":"⠁⠞⠞⠗⠁⠉⠰⠝","transaction":"⠞⠗⠁⠝⠎⠁⠉⠰⠝","blindness":"⠃⠇⠰⠎","sadness":"⠎⠁⠙⠰⠎","treatment":"⠞⠗⠂⠞⠰⠞","agreement":"⠁⠛⠗⠑⠑⠰⠞","statement":"⠌⠁⠞⠑⠰⠞","handful":"⠓⠯⠰⠇","faithful":"⠋⠁⠊⠹⠰⠇","really":"⠗⠂⠇⠇⠽","finally":"⠋⠔⠁⠇⠇⠽","totally":"⠞⠕⠞⠁⠇⠇⠽","generally":"⠛⠢⠻⠁⠇⠇⠽","reality":"⠗⠂⠇⠰⠽","possibility":"⠏⠕⠎⠎⠊⠃⠊⠇⠰⠽","romance":"⠗⠕⠍⠨⠑","balance":"⠃⠁⠇⠨⠑","presence":"⠏⠗⠑⠎⠰⠑","silence":"⠎⠊⠇⠰⠑","light":"⠇⠊⠣⠞","tight":"⠞⠊⠣⠞","sigh":"⠎⠊⠣","thigh":"⠹⠊⠣","nigh":"⠝⠊⠣","bright":"⠃⠐⠗","flight":"⠋⠇⠊⠣⠞","slight":"⠎⠇⠊⠣⠞","blight":"⠃⠇⠊⠣⠞","plight":"⠏⠇⠊⠣⠞","eight":"⠑⠊⠣⠞","weight":"⠺⠑⠊⠣⠞","freight":"⠋⠗⠑⠊⠣⠞","sleight":"⠎⠇⠑⠊⠣⠞","fish":"⠋⠊⠩","wish":"⠺⠊⠩","brush":"⠃⠗⠥⠩","breath":"⠃⠗⠂⠹","cloth":"⠉⠇⠕⠹","math":"⠍⠁⠹","wheel":"⠱⠑⠑⠇","whale":"⠱⠁⠇⠑","arm":"⠜⠍","art":"⠜⠞","farm":"⠋⠜⠍","hard":"⠓⠜⠙","park":"⠏⠜⠅","star":"⠌⠜","yard":"⠽⠜⠙","card":"⠉⠜⠙","her":"⠓⠻","term":"⠞⠻⠍","verb":"⠧⠻⠃","fern":"⠋⠻⠝","stern":"⠌⠻⠝","clerk":"⠉⠇⠻⠅","merge":"⠍⠻⠛⠑","throughout":"⠐⠹⠳⠞",
 "foghorn":"⠋⠕⠛⠓⠕⠗⠝","pigheaded":"⠏⠊⠛⠓⠂⠙⠫",
 "pothole":"⠏⠕⠞⠓⠕⠇⠑","outhouse":"⠳⠞⠓⠕⠥⠎⠑","sweetheart":"⠎⠺⠑⠑⠞⠓⠑⠜⠞","goatherd":"⠛⠕⠁⠞⠓⠻⠙","carthorse":"⠉⠜⠞⠓⠕⠗⠎⠑",
@@ -231,7 +380,53 @@ const REGRESSION_CASES={"but":"⠃","can":"⠉","do":"⠙","every":"⠑","from":
 "redhead":"⠗⠑⠙⠓⠂⠙","stateroom":"⠌⠁⠞⠑⠗⠕⠕⠍",
 "react":"⠗⠑⠁⠉⠞","reappear":"⠗⠑⠁⠏⠏⠑⠜","prearrange":"⠏⠗⠑⠜⠗⠁⠝⠛⠑","pineapple":"⠏⠔⠑⠁⠏⠏⠇⠑","anteater":"⠁⠝⠞⠂⠞⠻"};
 
-// ── 執行 ──────────────────────────────────────────────────────────
+// ── 即時比對 ─────────────────────────────────────────────────────
+async function compare() {
+    const word = document.getElementById('cmp-input').value.trim();
+    if (!word) return;
+
+    const btOut = btTranslate(word);
+    document.getElementById('cmp-bt').textContent = btOut;
+
+    if (!LOU.isReady()) {
+        document.getElementById('cmp-out').style.display = '';
+        document.getElementById('cmp-ll').textContent = '（liblouis 尚未就緒）';
+        document.getElementById('cmp-tag').textContent = '';
+        document.getElementById('cmp-snippet').style.display = 'none';
+        document.getElementById('cmp-hint').style.display = 'none';
+        return;
+    }
+
+    const llRaw = LOU.translateG2(word);
+    const llOut = llRaw ? llRaw.replace(/⠀/g, '').trim() : null;
+
+    document.getElementById('cmp-ll').textContent = llOut || '（轉譯失敗）';
+
+    const tagEl = document.getElementById('cmp-tag');
+    const snippet = document.getElementById('cmp-snippet');
+    const hint = document.getElementById('cmp-hint');
+
+    if (llOut && btOut === llOut) {
+        tagEl.textContent = '✓ 相符';
+        tagEl.className = 'cmp-tag ok';
+        snippet.style.display = 'none';
+        hint.style.display = 'none';
+    } else {
+        tagEl.textContent = '✗ 不符';
+        tagEl.className = 'cmp-tag fail';
+        if (llOut) {
+            snippet.textContent = `"${word}":"${llOut}"`;
+            snippet.style.display = 'block';
+            hint.style.display = 'block';
+        } else {
+            snippet.style.display = 'none';
+            hint.style.display = 'none';
+        }
+    }
+    document.getElementById('cmp-out').style.display = '';
+}
+
+// ── 執行 regression ──────────────────────────────────────────────
 function run() {
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
@@ -244,7 +439,6 @@ function run() {
         fail++;
         failures.push({w, got, exp});
     }
-    // 先輸出失敗的行
     for (const {w, got, exp} of failures) {
         const tr = document.createElement('tr');
         tr.className = 'fail';
@@ -260,7 +454,23 @@ function run() {
 
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-window.addEventListener('load', run);
+window.addEventListener('load', async () => {
+    run();
+    const statusEl = document.getElementById('ll-status');
+    if (typeof liblouisBuild === 'undefined') {
+        statusEl.textContent = 'liblouis ✗（未載入）';
+        statusEl.className = 'll-status error';
+        return;
+    }
+    try {
+        await LOU.preload();
+        statusEl.textContent = 'liblouis ✓';
+        statusEl.className = 'll-status ready';
+    } catch(e) {
+        statusEl.textContent = 'liblouis ✗';
+        statusEl.className = 'll-status error';
+    }
+});
 </script>
 </body>
 </html>
