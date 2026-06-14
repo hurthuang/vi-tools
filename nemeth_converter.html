@@ -85,6 +85,11 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
 .sync-chk input{cursor:pointer;accent-color:var(--blue);}
 /* Preview box: same fixed height as textarea and output box */
 .box.prev{overflow-y:auto;resize:vertical;height:200px;}
+/* n2l grid fills remaining space when output panel is collapsed */
+#p-n2l .grid.flex-fill{flex:1;min-height:0;}
+#p-n2l .grid.flex-fill .pane{min-height:0;}
+#p-n2l .grid.flex-fill .pane textarea,
+#p-n2l .grid.flex-fill .pane .box.prev{flex:1;height:auto;}
 .info{font-size:.71rem;color:var(--dim);padding:5px 8px;background:var(--surf2);
   border-left:3px solid var(--purple);border-radius:0 5px 5px 0}
 .info code{font-family:var(--mono);background:rgba(157,126,247,.15);
@@ -312,10 +317,6 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   <div class="pane">
     <div class="ph" id="l2n-out-label">
       <span class="dot g" aria-hidden="true"></span>Nemeth &#x8F38;&#x51FA;
-      <label class="sync-chk" title="同步捲動"><input type="checkbox" id="sync-l2n-out" checked onchange="updateSyncPanels()"> 同步</label>
-      <span style="font-size:.6rem;text-transform:none;opacity:.7;margin-left:4px">
-        
-      </span>
     </div>
     <div class="box mono" id="l2n-out"
       role="region" aria-labelledby="l2n-out-label"
@@ -338,7 +339,7 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
 
 <!-- Nemeth → LaTeX panel -->
 <main id="p-n2l" style="display:none" role="tabpanel" aria-labelledby="t-n2l">
-  <div class="grid">
+  <div class="grid flex-fill" id="n2l-grid">
     <div class="pane">
       <div class="ph" id="n2l-in-label">
         <span class="dot" aria-hidden="true"></span>Nemeth &#x9EDE;&#x5B57;&#x8F38;&#x5165;
@@ -362,8 +363,11 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   <div class="pane">
     <div class="ph" id="n2l-out-label">
       <span class="dot g" aria-hidden="true"></span>LaTeX &#x8F38;&#x51FA;
+      <button id="n2l-out-toggle" onclick="toggleN2lOut()"
+        aria-expanded="false" aria-controls="n2l-out"
+        style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:.65rem;font-weight:700;letter-spacing:.05em;padding:0">&#x25B6; &#x5C55;&#x958B;</button>
     </div>
-    <div class="box mono" id="n2l-out"
+    <div class="box mono" id="n2l-out" style="display:none"
       role="region" aria-labelledby="n2l-out-label"
       aria-live="polite"></div>
   </div>
@@ -2268,6 +2272,17 @@ function buildSymRef(){
 // UI
 // =====================================================================
 var curMode='l2n';
+function toggleN2lOut() {
+  var out = document.getElementById('n2l-out');
+  var btn = document.getElementById('n2l-out-toggle');
+  var grid = document.getElementById('n2l-grid');
+  var expand = out.style.display === 'none';
+  out.style.display = expand ? '' : 'none';
+  btn.setAttribute('aria-expanded', String(expand));
+  btn.innerHTML = expand ? '&#x25BC; &#x6536;&#x5408;' : '&#x25B6; &#x5C55;&#x958B;';
+  grid.classList.toggle('flex-fill', !expand);
+}
+
 function setMode(m){
   curMode=m;
   document.getElementById('p-l2n').style.display=(m==='l2n')?'flex':'none';
