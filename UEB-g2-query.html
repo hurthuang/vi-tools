@@ -716,6 +716,8 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             // g 開頭的 match 規則（ghous/ghorn/ghead 等）：
             // 若前一字是 n（構成 ong+h 結構），不應觸發（ong 不縮時 g 屬於 ong）
             if(r.s[0]==='g'&&lw[idx-1]==='n')continue;
+            // 複合詞邊界：th/wh/sh/gh 開頭的 pattern 若跨詞界則跳過，讓主循環處理
+            {const k2=r.s.slice(0,2);if((k2==='th'||k2==='wh'||k2==='sh'||k2==='gh')&&blocksCrossCompound(k2,lw,idx))continue;}
             const stemEnd=idx+r.s.length;
             const after=lw.slice(stemEnd);
             // 依 after type 驗證
