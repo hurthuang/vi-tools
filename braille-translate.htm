@@ -37,6 +37,7 @@
         .container { display: flex; gap: 20px; margin-bottom: 25px; align-items: stretch; }
         .input-area { flex: 1; display: flex; flex-direction: column; }
         .output-area { flex: 3; display: flex; flex-direction: column; }
+        .header h1 { font-size: 1.4em; }
         @media (max-width: 600px) {
             .container { flex-direction: column; gap: 12px; }
             .output-area { flex: 1; }
@@ -517,14 +518,14 @@
             </label>
         </div>
         <div class="btn-group">
-            <button onclick="openFileDialog()" style="background:#795548;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
-            <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;" aria-label="儲存原文"><span aria-hidden="true">💾</span> 儲存原文</button>
-            <button onclick="downloadTxt()" aria-label="儲存點字"><span aria-hidden="true">💾</span> 儲存點字</button>
-            <button class="secondary" onclick="downloadParallelHtml()" aria-label="匯出雙視 HTML"><span aria-hidden="true">📄</span> 匯出雙視</button>
+            <button onclick="openFileDialog()" title="開啟文字檔，或先前儲存的校對檔（.txt .docx .html）" style="background:#795548;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
+            <button onclick="saveInputText()" title="將輸入區文字儲存成 .txt 檔案" style="background:#546e7a;" aria-label="儲存編輯"><span aria-hidden="true">💾</span> 儲存編輯</button>
+            <button onclick="downloadTxt()" title="將點字輸出儲存成 .txt 檔案" aria-label="儲存輸出"><span aria-hidden="true">💾</span> 儲存輸出</button>
+            <button class="secondary" onclick="downloadParallelHtml()" title="儲存雙視校對檔，可重新開啟繼續修編" aria-label="儲存校對"><span aria-hidden="true">📄</span> 儲存校對</button>
         </div>
     </div>
     <!-- 隱藏的檔案輸入 -->
-    <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf" style="display:none" onchange="handleOpenFile(event, 'input-text', render)" aria-hidden="true">
+    <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf,.html,.htm" style="display:none" onchange="btHandleOpenFile(event)" aria-hidden="true">
     </div>
         <!-- UEB 自定縮寫規則面板 -->
         <div id="ueb-custom-panel" role="region" aria-label="UEB 自定縮寫規則">
@@ -710,7 +711,8 @@
 
     <div class="parallel-container" tabindex="0" role="region" aria-label="雙視校對區">
         <div class="parallel-title" aria-hidden="true">
-            <span>雙視校對區</span>
+            雙視校對區
+            <span style="font-weight:normal;font-size:0.78em;color:#888;margin-left:10px;">可直接點擊注音格修改轉換結果</span>
         </div>
         <div class="diff-legend" aria-hidden="true">
             <span><span class="legend-dot" style="background:#f1f8e9;border:1px solid #a5d6a7;"></span> 規則轉換</span>
@@ -2235,11 +2237,11 @@ function _zhEdConfirm() {
         else              _btZhEdits.delete(_zhEdCtxKey);
         _btZhEditsVersion++;
     }
-    _zhEdClose(); render();
+    _zhEdClose(); render(); btSaveSession();
 }
 function _zhEdReset() {
     if (_zhEdCtxKey !== null) { _btZhEdits.delete(_zhEdCtxKey); _btZhEditsVersion++; }
-    _zhEdClose(); render();
+    _zhEdClose(); render(); btSaveSession();
 }
 function _zhEdClose() {
     const el = document.getElementById('zh-brl-ed');
@@ -2247,6 +2249,150 @@ function _zhEdClose() {
     _zhEdKd && document.removeEventListener('keydown', _zhEdKd);
     _zhEdKu && document.removeEventListener('keyup',   _zhEdKu);
     _zhEdKd = null; _zhEdKu = null; _zhEdCtxKey = null;
+}
+
+// ── 校對存檔（localStorage + JSON 匯出/匯入）────────────────────
+
+const _BT_SESSION_KEY = 'vi-bt-session';
+let _btSaveTimer = null;
+
+function _btCollectSettings() {
+    return {
+        enMode:   document.getElementById('en-mode').value,
+        nemeth:   document.getElementById('nemeth-mode').checked,
+        lowGrade: document.getElementById('low-grade-mode').checked,
+        ucpValues: Array.from(document.querySelectorAll('input[name="ucp"]:checked')).map(el => el.value)
+    };
+}
+
+function _btApplySettings(s) {
+    if (!s) return;
+    if (s.enMode)   document.getElementById('en-mode').value = s.enMode;
+    if (s.nemeth   !== undefined) document.getElementById('nemeth-mode').checked   = s.nemeth;
+    if (s.lowGrade !== undefined) document.getElementById('low-grade-mode').checked = s.lowGrade;
+    if (Array.isArray(s.ucpValues)) {
+        document.querySelectorAll('input[name="ucp"]').forEach(el => {
+            el.checked = s.ucpValues.includes(el.value);
+        });
+        // 同步群組 checkbox
+        document.querySelectorAll('.ucp-group-cb').forEach(gcb => {
+            const grp  = gcb.dataset.group;
+            const all  = document.querySelectorAll(`input[name="ucp"][data-group="${grp}"]`);
+            const chk  = [...all].filter(el => el.checked);
+            gcb.checked       = chk.length > 0;
+            gcb.indeterminate = chk.length > 0 && chk.length < all.length;
+        });
+    }
+}
+
+function btSaveSession() {
+    const data = {
+        v: 1,
+        type: 'bt',
+        savedAt:   new Date().toISOString(),
+        inputText: document.getElementById('input-text').value,
+        settings:  _btCollectSettings(),
+        zhEdits:   [..._btZhEdits.entries()]
+    };
+    try { localStorage.setItem(_BT_SESSION_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function _btValidateSession(data) {
+    if (!data || typeof data !== 'object') return '不是有效的 JSON 物件。';
+    if (data.v !== 1) return '版本不符（需要 v:1），此存檔可能來自不相容的舊版或未來版本。';
+    // type 欄位明確標示其他工具
+    if (data.type === 'b2t' || data.type === 'nc') {
+        const names = { b2t: '點字轉文字', nc: '數學點字' };
+        return `此存檔是「${names[data.type]}」的存檔，無法載入至「文字轉點字」。`;
+    }
+    // 備援：b2t 存檔沒有 settings 欄位，bt 一定有
+    if (data.settings === undefined) return '此存檔是「點字轉文字」的存檔，無法載入至「文字轉點字」。';
+    if (typeof data.inputText !== 'string') return '存檔缺少 inputText 欄位。';
+    if (!Array.isArray(data.zhEdits)) return '存檔缺少 zhEdits 欄位。';
+    return null;
+}
+
+function btSaveSessionDebounced() {
+    clearTimeout(_btSaveTimer);
+    _btSaveTimer = setTimeout(btSaveSession, 800);
+}
+
+function btLoadSessionData(data) {
+    const err = _btValidateSession(data);
+    if (err) { alert('無法載入存檔：' + err); return; }
+    _btApplySettings(data.settings);
+    document.getElementById('input-text').value = data.inputText || '';
+    _btZhEdits.clear();
+    if (Array.isArray(data.zhEdits)) data.zhEdits.forEach(([k, v]) => _btZhEdits.set(k, v));
+    _btZhEditsVersion++;
+    render();
+}
+
+function btExportSession() {
+    btSaveSession();
+    const raw = localStorage.getItem(_BT_SESSION_KEY);
+    if (!raw) { alert('目前沒有存檔。'); return; }
+    const ts = (JSON.parse(raw).savedAt || '').slice(0, 10) || 'unknown';
+    const blob = new Blob([raw], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bt-' + ts + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function btImportSession() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,.html,.htm';
+    inp.onchange = function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                let data;
+                if (/\.html?$/i.test(file.name)) {
+                    data = _extractSessionFromHtml(ev.target.result);
+                    if (!data) { alert('無法載入存檔：此 HTML 檔案不含校對存檔資料。'); return; }
+                } else {
+                    data = JSON.parse(ev.target.result);
+                }
+                const valErr = _btValidateSession(data);
+                if (valErr) { alert('無法載入存檔：' + valErr); return; }
+                btLoadSessionData(data);
+                localStorage.setItem(_BT_SESSION_KEY, JSON.stringify(data));
+                document.getElementById('bt-session-banner')?.remove();
+            } catch(err) { alert('無法載入存檔：格式錯誤。'); }
+        };
+        reader.readAsText(file);
+    };
+    inp.click();
+}
+
+function _extractSessionFromHtml(htmlText) {
+    const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+    const el = doc.getElementById('vi-session');
+    return el ? JSON.parse(el.textContent) : null;
+}
+
+function btCheckSavedSession() {
+    try {
+        const raw = localStorage.getItem(_BT_SESSION_KEY); if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || !data.savedAt) return;
+        const editCount = Array.isArray(data.zhEdits) ? data.zhEdits.length : 0;
+        if (!data.inputText && editCount === 0) return;
+        const date = new Date(data.savedAt).toLocaleString('zh-TW');
+        const banner = document.createElement('div');
+        banner.id = 'bt-session-banner';
+        banner.style.cssText = 'padding:8px 14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.9em;';
+        banner.innerHTML =
+            `<span>📂 有上次的校對存檔（${date}${editCount ? '，' + editCount + ' 筆手動修正' : ''}）</span>`
+            + `<button onclick="btLoadSessionData(JSON.parse(localStorage.getItem('vi-bt-session')));document.getElementById('bt-session-banner').remove();" style="padding:3px 10px;font-size:0.85em;background:#388e3c;color:white;border:none;border-radius:4px;cursor:pointer;">繼續</button>`
+            + `<button onclick="localStorage.removeItem('vi-bt-session');document.getElementById('bt-session-banner').remove();" style="padding:3px 10px;font-size:0.85em;background:#757575;color:white;border:none;border-radius:4px;cursor:pointer;">捨棄</button>`
+            + `<span style="font-size:0.82em;color:#888;">存檔僅保存於本裝置，不會上傳</span>`;
+        const container = document.querySelector('.parallel-container');
+        if (container) container.parentNode.insertBefore(banner, container);
+    } catch(e) {}
 }
 
 function _getLineModeKey() {
@@ -3343,7 +3489,9 @@ function downloadTxt() {
     a.download='braille_result.txt'; a.click();
 }
 function downloadParallelHtml() {
-    const fs=document.getElementById('font-size-slider').value;
+    btSaveSession();
+    const fs = document.getElementById('font-size-slider').value;
+    const sessionJson = (localStorage.getItem(_BT_SESSION_KEY) || 'null').replace(/<\/script>/gi, '<\\/script>');
     const html=`<html><head><meta charset="UTF-8"><style>
         @font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
         body{font-family:sans-serif;padding:20px}
@@ -3359,7 +3507,7 @@ function downloadParallelHtml() {
         .custom-rule .token-text{color:#ef6c00}
         .font-ascii{font-family:'SimBraille'}
         .line-break{display:block;width:100%;height:10px;border-top:2px solid #000;margin:10px 0}
-    <\/style><\/head><body>${document.getElementById('parallel-view').innerHTML}<script src="shared.js"><\/script>\n<\/body><\/html>`;
+    <\/style><\/head><body>${document.getElementById('parallel-view').innerHTML}<script type="application\/json" id="vi-session">${sessionJson}<\/script><\/body><\/html>`;
     const blob=new Blob([html],{type:'text/html'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='parallel_check.html'; a.click();
@@ -3626,6 +3774,28 @@ function ucpUpdateGroupMaster(childCb) {
 // ════════════════════════════════════════════════════════════
 function openFileDialog() { document.getElementById('open-file-input').click(); }
 
+function btHandleOpenFile(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (/\.html?$/i.test(file.name)) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                const data = _extractSessionFromHtml(ev.target.result);
+                if (!data) { alert('無法載入：此 HTML 檔案不含校對存檔資料。'); return; }
+                const valErr = _btValidateSession(data);
+                if (valErr) { alert('無法載入存檔：' + valErr); return; }
+                btLoadSessionData(data);
+                localStorage.setItem(_BT_SESSION_KEY, JSON.stringify(data));
+                document.getElementById('bt-session-banner')?.remove();
+            } catch(e) { alert('無法載入：格式錯誤。'); }
+        };
+        reader.readAsText(file, 'UTF-8');
+        event.target.value = '';
+    } else {
+        handleOpenFile(event, 'input-text', render);
+    }
+}
+
 function saveInputText() {
     var text = document.getElementById('input-text').value;
     if (!text.trim()) { alert('輸入區沒有文字可儲存'); return; }
@@ -3657,6 +3827,12 @@ document.addEventListener('DOMContentLoaded', function() {
         el.style.display = '';
         el.classList.remove('shared-bt-only');
     });
+    btCheckSavedSession();
+    document.getElementById('input-text').addEventListener('input', btSaveSessionDebounced);
+    ['en-mode', 'nemeth-mode', 'low-grade-mode'].forEach(function(id) {
+        document.getElementById(id).addEventListener('change', btSaveSessionDebounced);
+    });
+    document.getElementById('ueb-custom-panel').addEventListener('change', btSaveSessionDebounced);
 });
 
 // ── 框架主題控制 ──

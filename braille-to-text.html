@@ -60,6 +60,9 @@ input[type="radio"] { cursor: pointer; }
 .output-area { flex: 3; display: flex; flex-direction: column; }
 .area-label { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .area-label label { margin: 0; font-weight: 600; }
+/* ── Diff legend ── */
+.diff-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.82em; color: #555; margin-bottom: 12px; align-items: center; }
+.legend-dot  { width: 12px; height: 12px; border-radius: 2px; display: inline-block; margin-right: 3px; vertical-align: middle; }
 
 textarea {
     flex: 1; min-height: 280px; padding: 12px;
@@ -99,11 +102,11 @@ textarea:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 2px rgb
 }
 .token-group.token-zh .token-text  { color: #1565c0; border-color: #bbdefb; }
 .token-group.token-zh .token-braille { color: #1565c0; }
-/* 文字在上、點字在下 */
+/* 點字在上、文字在下 */
 .token-text {
-    font-size: calc(var(--base-font-size) * 0.6); color: #388e3c;
-    border-bottom: 1px solid #c8e6c9; width: 100%;
-    text-align: center; margin-bottom: 4px; padding-bottom: 2px;
+    font-size: calc(var(--base-font-size) * 0.9); color: #388e3c;
+    border-top: 1px solid #c8e6c9; width: 100%;
+    text-align: center; margin-top: 4px; padding-top: 2px;
     word-break: break-all; max-width: 120px;
 }
 .token-braille {
@@ -154,13 +157,13 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
         <label><input type="radio" name="input-disp" value="sim"     onchange="setInputDisp(this.value)"> ASCII+點字字型</label>
     </div>
     <div class="btn-group">
-        <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf" style="display:none"
+        <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf,.html,.htm" style="display:none"
                aria-hidden="true" tabindex="-1"
-               onchange="handleOpenFile(event,'input-text',doConvert)">
-        <button onclick="document.getElementById('open-file-input').click()" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
-        <button onclick="copyOutput()" style="background:#1565c0;color:white;border-color:#0d47a1;">複製輸出</button>
-        <button onclick="saveOutputTxt()" style="background:#2e7d32;color:white;border-color:#1b5e20;" aria-label="儲存文字檔"><span aria-hidden="true">💾</span> 儲存文字</button>
-        <button onclick="saveParallelHtml()" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="儲存對照檔"><span aria-hidden="true">📄</span> 儲存對照</button>
+               onchange="b2tHandleOpenFile(event)">
+        <button onclick="document.getElementById('open-file-input').click()" title="開啟點字檔，或先前儲存的校對檔（.txt .html）" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
+        <button onclick="b2tSaveInputBraille()" title="將點字輸入儲存成 .txt 檔案" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="儲存編輯"><span aria-hidden="true">💾</span> 儲存編輯</button>
+        <button onclick="saveOutputTxt()" title="將轉換結果儲存成 .txt 檔案" style="background:#2e7d32;color:white;border-color:#1b5e20;" aria-label="儲存輸出"><span aria-hidden="true">💾</span> 儲存輸出</button>
+        <button onclick="saveParallelHtml()" title="儲存雙視校對檔，可重新開啟繼續修編" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="儲存校對"><span aria-hidden="true">📄</span> 儲存校對</button>
     </div>
 </div>
 
@@ -186,10 +189,13 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
 <div id="status-bar"></div>
 
 <div class="parallel-container">
-    <div class="parallel-title"><span aria-hidden="true">🔍</span> 逐格對照
-        <span style="font-weight:normal;font-size:0.8em;color:#888;">
-            &nbsp;綠色 = UEB 英文&nbsp;｜&nbsp;藍色 = 注音點字
-        </span>
+    <div class="parallel-title">雙視校對區</div>
+    <div class="diff-legend" aria-hidden="true">
+        <span><span class="legend-dot" style="background:#f1f8e9;border:1px solid #a5d6a7;"></span> UEB 英文</span>
+        <span><span class="legend-dot" style="background:#e3f2fd;border:1px solid #90caf9;"></span> 注音點字</span>
+        <span><span class="legend-dot" style="background:#fffde7;border:1px solid #fff176;"></span> 空格</span>
+        <span id="b2t-edited-legend" style="display:none"><span class="legend-dot" style="background:#fff3e0;border:1px solid #ff9800;"></span> 手動修改</span>
+        <span style="color:#999;">｜ 可直接點擊注音格修改轉換結果</span>
     </div>
     <div id="parallel-view">
         <span style="color:#999;font-size:0.9em;">轉換後顯示對照</span>
@@ -417,6 +423,7 @@ async function _init() {
         return;
     }
     setStatus('就緒', 'ok');
+    b2tCheckSavedSession();
 }
 document.addEventListener('DOMContentLoaded', _init);
 
@@ -437,6 +444,140 @@ let _lastTokens = [];
 const _zhEdits = new Map(); // braille格值 → 手動修改後的中文字
 let _inputDisp = 'unicode';
 let _canonical = '';
+
+// ── 校對存檔（localStorage + JSON 匯出/匯入）────────────────────
+
+const _B2T_SESSION_KEY = 'vi-b2t-session';
+let _b2tSaveTimer = null;
+
+function b2tSaveSession() {
+    const data = {
+        v: 1,
+        type: 'b2t',
+        savedAt:   new Date().toISOString(),
+        inputText: document.getElementById('input-text').value,
+        zhEdits:   [..._zhEdits.entries()]
+    };
+    try { localStorage.setItem(_B2T_SESSION_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function _b2tValidateSession(data) {
+    if (!data || typeof data !== 'object') return '不是有效的 JSON 物件。';
+    if (data.v !== 1) return '版本不符（需要 v:1），此存檔可能來自不相容的舊版或未來版本。';
+    // type 欄位明確標示其他工具
+    if (data.type === 'bt' || data.type === 'nc') {
+        const names = { bt: '文字轉點字', nc: '數學點字' };
+        return `此存檔是「${names[data.type]}」的存檔，無法載入至「點字轉文字」。`;
+    }
+    // 備援：bt 存檔一定有 settings 欄位，b2t 沒有
+    if (data.settings !== undefined) return '此存檔是「文字轉點字」的存檔，無法載入至「點字轉文字」。';
+    if (typeof data.inputText !== 'string') return '存檔缺少 inputText 欄位。';
+    if (!Array.isArray(data.zhEdits)) return '存檔缺少 zhEdits 欄位。';
+    return null;
+}
+
+function b2tSaveSessionDebounced() {
+    clearTimeout(_b2tSaveTimer);
+    _b2tSaveTimer = setTimeout(b2tSaveSession, 800);
+}
+
+function b2tLoadSessionData(data) {
+    const err = _b2tValidateSession(data);
+    if (err) { alert('無法載入存檔：' + err); return; }
+    document.getElementById('input-text').value = data.inputText || '';
+    _zhEdits.clear();
+    if (Array.isArray(data.zhEdits)) data.zhEdits.forEach(([k, v]) => _zhEdits.set(k, v));
+    doConvert();
+}
+
+function b2tExportSession() {
+    b2tSaveSession();
+    const raw = localStorage.getItem(_B2T_SESSION_KEY);
+    if (!raw) { alert('目前沒有存檔。'); return; }
+    const ts = (JSON.parse(raw).savedAt || '').slice(0, 10) || 'unknown';
+    const blob = new Blob([raw], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'b2t-' + ts + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function _extractSessionFromHtml(htmlText) {
+    const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+    const el = doc.getElementById('vi-session');
+    return el ? JSON.parse(el.textContent) : null;
+}
+
+function b2tImportSession() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,.html,.htm';
+    inp.onchange = function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                let data;
+                if (/\.html?$/i.test(file.name)) {
+                    data = _extractSessionFromHtml(ev.target.result);
+                    if (!data) { alert('無法載入存檔：此 HTML 檔案不含校對存檔資料。'); return; }
+                } else {
+                    data = JSON.parse(ev.target.result);
+                }
+                const valErr = _b2tValidateSession(data);
+                if (valErr) { alert('無法載入存檔：' + valErr); return; }
+                b2tLoadSessionData(data);
+                localStorage.setItem(_B2T_SESSION_KEY, JSON.stringify(data));
+                document.getElementById('b2t-session-banner')?.remove();
+            } catch(err) { alert('無法載入存檔：格式錯誤。'); }
+        };
+        reader.readAsText(file);
+    };
+    inp.click();
+}
+
+function b2tCheckSavedSession() {
+    try {
+        const raw = localStorage.getItem(_B2T_SESSION_KEY); if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || !data.savedAt) return;
+        const editCount = Array.isArray(data.zhEdits) ? data.zhEdits.length : 0;
+        if (!data.inputText && editCount === 0) return;
+        const date = new Date(data.savedAt).toLocaleString('zh-TW');
+        const banner = document.createElement('div');
+        banner.id = 'b2t-session-banner';
+        banner.style.cssText = 'padding:8px 14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.9em;';
+        banner.innerHTML =
+            `<span>📂 有上次的校對存檔（${date}${editCount ? '，' + editCount + ' 筆手動修正' : ''}）</span>`
+            + `<button onclick="b2tLoadSessionData(JSON.parse(localStorage.getItem('vi-b2t-session')));document.getElementById('b2t-session-banner').remove();" style="padding:3px 10px;font-size:0.85em;background:#388e3c;color:white;border:none;border-radius:4px;cursor:pointer;">繼續</button>`
+            + `<button onclick="localStorage.removeItem('vi-b2t-session');document.getElementById('b2t-session-banner').remove();" style="padding:3px 10px;font-size:0.85em;background:#757575;color:white;border:none;border-radius:4px;cursor:pointer;">捨棄</button>`
+            + `<span style="font-size:0.82em;color:#888;">存檔僅保存於本裝置，不會上傳</span>`;
+        const container = document.querySelector('.parallel-container');
+        if (container) container.parentNode.insertBefore(banner, container);
+    } catch(e) {}
+}
+
+function b2tHandleOpenFile(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (/\.html?$/i.test(file.name)) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                const data = _extractSessionFromHtml(ev.target.result);
+                if (!data) { alert('無法載入：此 HTML 檔案不含校對存檔資料。'); return; }
+                const valErr = _b2tValidateSession(data);
+                if (valErr) { alert('無法載入存檔：' + valErr); return; }
+                b2tLoadSessionData(data);
+                localStorage.setItem(_B2T_SESSION_KEY, JSON.stringify(data));
+                document.getElementById('b2t-session-banner')?.remove();
+            } catch(e) { alert('無法載入：格式錯誤。'); }
+        };
+        reader.readAsText(file, 'UTF-8');
+        event.target.value = '';
+    } else {
+        handleOpenFile(event, 'input-text', doConvert);
+    }
+}
 
 // ── Line token cache ──────────────────────────────────────────
 const _b2tLineCache = new Map();
@@ -511,6 +652,7 @@ function doConvert() {
     clearTimeout(window._parallelTimer);
     window._parallelTimer = setTimeout(renderParallel, 600);
     setStatus('✓ 轉換完成', 'ok');
+    b2tSaveSessionDebounced();
 }
 
 // ── 從 token 重建輸出文字（套用手動修改）────────────────────────
@@ -601,6 +743,7 @@ function renderParallel() {
                     g.classList.remove('token-edited');
                 }
                 document.getElementById('output-text').value = _buildOutputFromTokens();
+                b2tSaveSessionDebounced();
             };
         } else {
             // UEB 段：綠色
@@ -610,10 +753,12 @@ function renderParallel() {
             tDiv.textContent = t.text || '';
         }
 
-        g.appendChild(tDiv);
         g.appendChild(bDiv);
+        g.appendChild(tDiv);
         view.appendChild(g);
     }
+    const editedLeg = document.getElementById('b2t-edited-legend');
+    if (editedLeg) editedLeg.style.display = _zhEdits.size > 0 ? '' : 'none';
 }
 
 // ── Input display mode ────────────────────────────────────────
@@ -685,6 +830,15 @@ function copyOutput() {
     navigator.clipboard.writeText(t).then(() => setStatus('✓ 已複製', 'ok'));
 }
 
+function b2tSaveInputBraille() {
+    const t = document.getElementById('input-text').value;
+    if (!t) { setStatus('尚無輸入可儲存', 'err'); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain;charset=utf-8' }));
+    a.download = 'b2t_input.txt';
+    a.click();
+}
+
 function saveOutputTxt() {
     const t = document.getElementById('output-text').value;
     if (!t) { setStatus('尚無輸出可儲存', 'err'); return; }
@@ -697,7 +851,12 @@ function saveOutputTxt() {
 function saveParallelHtml() {
     const view = document.getElementById('parallel-view');
     if (!view || view.children.length === 0) { setStatus('尚無對照視圖可儲存', 'err'); return; }
+    b2tSaveSession();
     const fs = getComputedStyle(document.documentElement).getPropertyValue('--base-font-size').trim() || '20px';
+    const sessionJson = (localStorage.getItem(_B2T_SESSION_KEY) || 'null').replace(/<\/script>/gi, '<\\/script>');
+    const editedLegHtml = _zhEdits.size > 0
+        ? `<span><span class="legend-dot" style="background:#fff3e0;border:1px solid #ff9800;"></span> 手動修改</span>`
+        : '';
     const html = `<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8">
 <title>點字轉文字對照</title>
@@ -706,12 +865,14 @@ function saveParallelHtml() {
 :root{--base-font-size:${fs}}
 body{font-family:"Microsoft JhengHei","Segoe UI",sans-serif;padding:20px;background:#f4f7f9}
 .font-ascii{font-family:'SimBraille',sans-serif!important;letter-spacing:0}
+.diff-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:0.82em;color:#555;margin-bottom:12px;align-items:center}
+.legend-dot{width:12px;height:12px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
 #parallel-view{display:flex;flex-wrap:wrap;gap:8px;row-gap:18px;align-items:flex-start}
 .token-group{display:flex;flex-direction:column;align-items:center;padding:6px;background:#f1f8e9;border:1px solid #a5d6a7;border-radius:4px}
 .token-group.token-zh{background:#e3f2fd;border-color:#90caf9}
 .token-group.token-zh .token-text{color:#1565c0;border-color:#bbdefb}
 .token-group.token-zh .token-braille{color:#1565c0}
-.token-text{font-size:calc(var(--base-font-size) * 0.6);color:#388e3c;border-bottom:1px solid #c8e6c9;width:100%;text-align:center;margin-bottom:4px;padding-bottom:2px;word-break:break-all;max-width:120px}
+.token-text{font-size:calc(var(--base-font-size) * 0.9);color:#388e3c;border-top:1px solid #c8e6c9;width:100%;text-align:center;margin-top:4px;padding-top:2px;word-break:break-all;max-width:120px}
 .token-braille{font-size:calc(var(--base-font-size) * 1.3);line-height:1;color:#2e7d32;text-align:center}
 .token-space{background:#fffde7!important;border-color:#fff176!important}
 .token-space .token-text{color:#f9a825!important;border-color:#fff9c4!important}
@@ -720,7 +881,14 @@ body{font-family:"Microsoft JhengHei","Segoe UI",sans-serif;padding:20px;backgro
 .token-group.token-edited .token-text{color:#e65100!important;border-color:#ffcc80!important}
 .line-break{flex-basis:100%;height:25px;border-top:1px dashed #cfd8dc;margin:15px 0}
 </style></head><body>
+<div class="diff-legend">
+<span><span class="legend-dot" style="background:#f1f8e9;border:1px solid #a5d6a7;"></span> UEB 英文</span>
+<span><span class="legend-dot" style="background:#e3f2fd;border:1px solid #90caf9;"></span> 注音點字</span>
+<span><span class="legend-dot" style="background:#fffde7;border:1px solid #fff176;"></span> 空格</span>
+${editedLegHtml}
+</div>
 <div id="parallel-view">${view.innerHTML}</div>
+<script type="application/json" id="vi-session">${sessionJson}<\/script>
 </body></html>`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
@@ -750,7 +918,7 @@ window.addEventListener('message', function(e) {
 <script src="shared.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initBraillePanel({
+    const _b2tPanelCtrl = initBraillePanel({
         triggerId:    'dot-pad-btn',
         targetId:     'input-text',
         globalToggle:  true,
@@ -774,6 +942,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window._g2Timer = setTimeout(doConvert, 400);
         },
     });
+    _b2tPanelCtrl.syncKbdState(true);
 
     document.getElementById('input-text').addEventListener('input', function() {
         _canonical = _taRead();
