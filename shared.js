@@ -730,6 +730,99 @@ function initBraillePanel(opts) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  initPanelResizer — input/output 可拖曳分隔線
+//  opts: { storageKey, defaultPct=30, minPct=15, maxPct=75 }
+//  假設頁面有唯一 .container > .input-area + .output-area
+// ════════════════════════════════════════════════════════════
+function initPanelResizer(opts) {
+    const { storageKey, defaultPct = 30, minPct = 15, maxPct = 75 } = opts || {};
+    const container = document.querySelector('.container');
+    const inputEl   = container && container.querySelector('.input-area');
+    if (!container || !inputEl) return;
+
+    if (!document.getElementById('panel-resizer-css')) {
+        const s = document.createElement('style');
+        s.id = 'panel-resizer-css';
+        s.textContent =
+            '.panel-resizer{flex:0 0 16px;cursor:col-resize;display:flex;align-items:center;' +
+            'justify-content:center;user-select:none;align-self:stretch}' +
+            '.panel-resizer::after{content:"";width:3px;height:48px;background:#d0d0d0;' +
+            'border-radius:2px;transition:background .15s}' +
+            '.panel-resizer:hover::after,.panel-resizer.prs-active::after{background:#5c85d6}' +
+            '@media(max-width:600px){.panel-resizer{display:none}}';
+        document.head.appendChild(s);
+    }
+
+    container.style.gap = '0';
+
+    const resizer = document.createElement('div');
+    resizer.className = 'panel-resizer';
+    resizer.setAttribute('aria-hidden', 'true');
+    inputEl.insertAdjacentElement('afterend', resizer);
+
+    let pct = defaultPct;
+    try {
+        const saved = parseFloat(localStorage.getItem(storageKey));
+        if (saved >= minPct && saved <= maxPct) pct = saved;
+    } catch(e) {}
+
+    const isMobile = () => window.matchMedia('(max-width:600px)').matches;
+
+    function applyPct(p) {
+        p = Math.max(minPct, Math.min(maxPct, p));
+        pct = p;
+        inputEl.style.flex = isMobile() ? '' : '0 0 ' + p + '%';
+    }
+
+    applyPct(pct);
+
+    window.addEventListener('resize', function() {
+        inputEl.style.flex = isMobile() ? '' : '0 0 ' + pct + '%';
+    });
+
+    let active = false, startX = 0, startW = 0;
+    const px = e => e.touches ? e.touches[0].clientX : e.clientX;
+
+    function onStart(e) {
+        if (isMobile()) return;
+        active = true;
+        startX = px(e);
+        startW = inputEl.getBoundingClientRect().width;
+        resizer.classList.add('prs-active');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+        e.preventDefault();
+    }
+
+    function onMove(e) {
+        if (!active) return;
+        const cw = container.getBoundingClientRect().width;
+        applyPct(((startW + px(e) - startX) / cw) * 100);
+        if (e.cancelable) e.preventDefault();
+    }
+
+    function onEnd() {
+        if (!active) return;
+        active = false;
+        resizer.classList.remove('prs-active');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        try { localStorage.setItem(storageKey, pct.toFixed(1)); } catch(e) {}
+    }
+
+    resizer.addEventListener('mousedown', onStart);
+    resizer.addEventListener('touchstart', onStart, { passive: false });
+}
+
+// ════════════════════════════════════════════════════════════
 //  格式調整 Modal — CSS 注入
 // ════════════════════════════════════════════════════════════
 (function injectModalCSS() {

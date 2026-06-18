@@ -943,6 +943,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
     });
     _b2tPanelCtrl.syncKbdState(true);
+    initPanelResizer({ storageKey: 'vi-b2t-pane-pct' });
 
     document.getElementById('input-text').addEventListener('input', function() {
         _canonical = _taRead();
