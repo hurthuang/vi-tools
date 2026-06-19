@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>視障教學自製工具分享</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+<style>
+:root {
+    --green:  #2e7d32;
+    --green2: #388e3c;
+    --blue:   #1565c0;
+    --teal:   #00695c;
+    --amber:  #e65100;
+    --purple: #4527a0;
+    --gray:   #546e7a;
+}
+.reveal { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; }
+.reveal h1, .reveal h2, .reveal h3 { font-family: inherit; letter-spacing: 0; }
+.reveal h2 { font-size: .98em; color: var(--green); border-bottom: 3px solid var(--green); padding-bottom: .18em; margin: 0 0 .4em; }
+.reveal h3 { font-size: .68em; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: .07em; margin: 0 0 .3em; }
+.reveal p  { font-size: .74em; line-height: 1.5; margin: .25em 0; }
+.reveal ul { list-style: none; padding: 0; margin: 0; }
+.reveal ul li { font-size: .72em; line-height: 1.45; margin-bottom: .12em; }
+.reveal ul li::before { content: "▸ "; color: var(--green2); }
+.reveal section { overflow: hidden; box-sizing: border-box; padding: 14px 22px !important; }
+.reveal .slides section { text-align: left; }
+.center { text-align: center !important; }
+.reveal .slide-number { font-size: .5em; }
+
+/* ── 標題頁 ── */
+.slide-cover {
+    background: linear-gradient(140deg, #1b5e20 0%, #2e7d32 55%, #004d40 100%) !important;
+    color: #fff !important;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.slide-cover h1 { color: #fff !important; font-size: 2em; line-height: 1.15; margin: 0 0 .2em; }
+.slide-cover .tagline { color: #c8e6c9; font-size: .76em; margin: 0; }
+.slide-cover .presenter { margin-top: 1em; color: #a5d6a7; font-size: .74em; line-height: 1.9; border-top: 1px solid rgba(255,255,255,.2); padding-top: .8em; }
+.slide-cover .url { margin-top: .8em; background: rgba(255,255,255,.15); display: inline-block; padding: .28em .8em; border-radius: 5px; font-size: .7em; color: #fff; }
+
+/* ── 工具卡片 ── */
+.tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: .3em; }
+.tool-card { background: #f4f7f9; border-radius: 7px; padding: 9px 11px; border-left: 4px solid var(--green); }
+.tool-card .icon { font-size: 1.1em; line-height: 1; }
+.tool-card .name { font-weight: 700; font-size: .74em; color: #1a237e; margin: 3px 0 2px; }
+.tool-card .desc { font-size: .65em; color: #555; line-height: 1.4; }
+.tool-card.c-blue   { border-color: var(--blue); }
+.tool-card.c-teal   { border-color: var(--teal); }
+.tool-card.c-amber  { border-color: var(--amber); }
+.tool-card.c-purple { border-color: var(--purple); }
+.tool-card.c-gray   { border-color: var(--gray); border-style: dashed; background: #eef2f5; }
+
+/* ── 功能 + 情境兩欄 ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: .3em; }
+.col-box { background: #f4f7f9; border-radius: 7px; padding: 11px 13px; }
+.col-box.accent-green { background: #e8f5e9; }
+.col-box ul li { font-size: .7em; }
+.scenario-tag { display: inline-block; background: #e3f2fd; color: #1565c0; border-radius: 20px; padding: 2px 9px; font-size: .64em; margin: 2px; }
+
+/* ── 流程圖 ── */
+.flow { display: flex; align-items: center; gap: 7px; justify-content: center; margin: .45em 0; flex-wrap: wrap; }
+.flow-box { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px; padding: 6px 11px; font-size: .7em; text-align: center; line-height: 1.35; }
+.flow-arr { color: #888; font-size: .9em; }
+
+/* ── 快捷鍵 ── */
+.kbd-row { display: flex; flex-wrap: wrap; gap: 7px; margin: .35em 0 .5em; }
+.kbd-chip { display: flex; align-items: baseline; gap: 7px; background: #ede7f6; border-radius: 6px; padding: 5px 10px; flex: 0 1 auto; }
+.kbd-chip .keys { font-family: monospace; font-size: .7em; font-weight: 700; color: #4527a0; white-space: nowrap; }
+.kbd-chip .kdesc { font-size: .68em; color: #444; }
+
+/* ── NVDA 元件概覽 ── */
+.addon-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: .4em; }
+.addon-card { background: #f4f7f9; border-radius: 7px; padding: 10px 12px; border-left: 4px solid var(--purple); }
+.addon-card .name { font-weight: 700; font-size: .74em; color: #4527a0; margin-bottom: 3px; }
+.addon-card .desc { font-size: .67em; color: #555; line-height: 1.4; }
+
+/* ── 模式清單（語意 ol，CSS counter） ── */
+.step-list { list-style: none; padding: 0; margin: .2em 0 0; counter-reset: step;
+             display: flex; flex-direction: column; gap: 5px; }
+.step-list li { display: flex; align-items: center; gap: 8px; font-size: .72em;
+                line-height: 1.35; counter-increment: step; }
+.step-list li::before { content: counter(step); background: var(--purple); color: #fff;
+    border-radius: 4px; min-width: 22px; height: 22px; display: flex; align-items: center;
+    justify-content: center; font-size: .8em; font-weight: 700; flex-shrink: 0; }
+
+/* 六鍵鍵盤圖 */
+.key-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: .3em; }
+.key-map .key-cell { background: #fff; border: 2px solid #bbb; border-bottom: 4px solid #888;
+    border-radius: 5px; text-align: center; padding: 5px 4px; font-family: monospace; }
+.key-map .key-cell .kname { font-size: .9em; font-weight: 700; color: #222; }
+.key-map .key-cell .kdot  { font-size: .65em; color: var(--purple); font-weight: 700; }
+
+/* ── 附加元件詳細 ── */
+.addon-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: .3em; }
+.detail-box { background: #f4f7f9; border-radius: 7px; padding: 11px 13px; }
+.detail-box.accent { background: #e8f5e9; }
+.detail-box ul li { font-size: .7em; }
+
+/* ── 查詢區塊 ── */
+.dict-section { margin-bottom: .5em; }
+.dict-label { font-size: .7em; font-weight: 700; padding: 2px 8px; border-radius: 3px; display: inline-block; margin-bottom: 3px; }
+.dict-label.zh { background: #e8f5e9; color: var(--green); }
+.dict-label.en { background: #e3f2fd; color: var(--blue); }
+
+/* ── 結尾頁 ── */
+.slide-end {
+    background: linear-gradient(140deg, #0d47a1 0%, #1565c0 60%, #006064 100%) !important;
+    color: #fff !important;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.slide-end h1 { color: #fff !important; font-size: 1.5em; margin-bottom: .2em; }
+.slide-end p  { color: #bbdefb; font-size: .76em; }
+.slide-end .url-box { margin-top: .8em; background: rgba(255,255,255,.15); display: inline-block; padding: .4em 1.1em; border-radius: 8px; font-size: .86em; color: #fff; }
+.slide-end .gh { margin-top: .5em; font-size: .7em; color: #90caf9; }
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ── 閱讀版 ── */
+#reading-view {
+    max-width: 800px; margin: 0 auto; padding: 2em 1.5em;
+    font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    font-size: 1.1em; line-height: 1.8; color: #1a1a1a;
+}
+#reading-view h1 { font-size: 1.6em; color: #1b5e20; margin-bottom: .2em; }
+#reading-view h2 { font-size: 1.2em; color: #2e7d32; border-bottom: 2px solid #a5d6a7;
+    padding-bottom: .2em; margin-top: 1.8em; }
+#reading-view h3 { font-size: 1em; color: #4527a0; margin: .9em 0 .3em; }
+#reading-view section { border-bottom: 1px solid #e0e0e0; padding-bottom: 1.2em; margin-bottom: .5em; }
+#reading-view ul, #reading-view ol { padding-left: 1.6em; margin: .3em 0; }
+#reading-view li { margin-bottom: .3em; }
+#reading-view kbd { background: #ede7f6; border: 1px solid #9575cd; border-radius: 4px;
+    padding: 1px 6px; font-family: monospace; font-size: .92em; }
+#reading-view .slide-label { display: inline-block; background: #e8f5e9; color: #2e7d32;
+    border-radius: 4px; padding: 1px 8px; font-size: .8em; margin-bottom: .4em; }
+#reading-view a { color: #1565c0; }
+#reading-view a:focus { outline: 3px solid #ffeb3b; outline-offset: 2px; }
+.rv-slide-link { display: inline-block; margin-top: .7em; font-size: .82em; color: #546e7a !important;
+    text-decoration: none; border: 1px solid #bbb; border-radius: 4px; padding: 2px 8px; }
+.rv-slide-link:hover, .rv-slide-link:focus { background: #f0f4f8; }
+
+/* ── 切換按鈕 ── */
+#toggle-reading {
+    position: fixed; top: 12px; right: 14px; z-index: 99999;
+    padding: .45em 1em; background: #1565c0; color: #fff;
+    border: none; border-radius: 6px; cursor: pointer;
+    font-size: .95em; font-family: inherit; box-shadow: 0 2px 6px rgba(0,0,0,.3);
+}
+#toggle-reading:focus { outline: 3px solid #ffeb3b; outline-offset: 2px; }
+@media (max-width: 900px) {
+    #toggle-reading { font-size: 1em; padding: .6em 1.1em; top: 8px; right: 8px; }
+    #reading-view { font-size: 1em; padding: 1.2em 1em; }
+    #reading-view h1 { font-size: 1.4em; }
+    #reading-view h2 { font-size: 1.15em; }
+}
+</style>
+</head>
+<body>
+<!-- 螢幕閱讀器操作說明（視覺隱藏） -->
+<nav aria-label="簡報操作說明" class="sr-only">
+    <p>這是一份 15 頁的投影片簡報。若使用螢幕閱讀器，建議按頁面右上角的「切換閱讀版」按鈕，以一般網頁方式閱讀所有內容。</p>
+</nav>
+
+<!-- 換頁時螢幕閱讀器即時播報 -->
+<div id="a11y-live" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+<!-- 切換按鈕 -->
+<button id="toggle-reading" aria-pressed="false">切換閱讀版</button>
+
+<div class="reveal">
+<div class="slides" role="main" aria-label="視障教學自製工具分享 簡報">
+
+<!-- ── 1 標題 ── -->
+<section class="slide-cover center" role="region" aria-label="第 1 頁：視障教學自製工具分享">
+    <h1>視障教學<br>自製工具分享</h1>
+    <p class="tagline">瀏覽器端教材製作工具・無需安裝・資料不離開裝置</p>
+    <div class="presenter" aria-label="講者資訊">
+        高雄市立楠梓特殊學校　國中視巡<br>黃偉豪
+    </div>
+    <div class="url" aria-label="網址"><a href="https://hurthuang.github.io/vi-tools/" target="_blank" rel="noopener" style="color:#fff">https://hurthuang.github.io/vi-tools/</a></div>
+</section>
+
+<!-- ── 2 工具概覽 ── -->
+<section role="region" aria-label="第 2 頁：五個工具概覽">
+    <h2>vi-tools — 五個工具，涵蓋點字教材製作完整流程</h2>
+    <div class="tool-grid" role="list">
+        <div class="tool-card" role="listitem">
+            <div class="icon" aria-hidden="true">→</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#t2b" target="_blank" rel="noopener">文字轉點字</a></div>
+            <div class="desc">中英文混合文本即時轉換，支援 UEB G1/G2、注音點字、Nemeth 數學</div>
+        </div>
+        <div class="tool-card c-blue" role="listitem">
+            <div class="icon" aria-hidden="true">←</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#b2t" target="_blank" rel="noopener">點字轉文字</a></div>
+            <div class="desc">中英文混合點字自動還原，逐格雙視對照，可手動修正同音異字</div>
+        </div>
+        <div class="tool-card c-teal" role="listitem">
+            <div class="icon" aria-hidden="true">π</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#math" target="_blank" rel="noopener">數學點字</a></div>
+            <div class="desc">數學式與 Nemeth 數學點字雙向轉換，NVDA 可報讀，內建符號編輯器</div>
+        </div>
+        <div class="tool-card c-amber" role="listitem">
+            <div class="icon" aria-hidden="true">📄</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#doc" target="_blank" rel="noopener">文件整理</a></div>
+            <div class="desc">開啟 PDF／DOCX，自動清除版面雜訊，可試聽朗讀</div>
+        </div>
+        <div class="tool-card c-purple" role="listitem">
+            <div class="icon" aria-hidden="true">🔍</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#query" target="_blank" rel="noopener">UEB 查詢</a></div>
+            <div class="desc">英文單字與 UEB G2 點字雙向查詢，逐條列出縮寫規則</div>
+        </div>
+        <div class="tool-card c-gray" role="listitem">
+            <div class="icon" aria-hidden="true">📖</div>
+            <div class="name"><a href="https://hurthuang.github.io/vi-tools/#guide" target="_blank" rel="noopener">說明頁</a></div>
+            <div class="desc">各工具操作說明</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 3 文字轉點字 ── -->
+<section role="region" aria-label="第 3 頁：文字轉點字">
+    <h2><span aria-hidden="true">→</span> <a href="https://hurthuang.github.io/vi-tools/#t2b" target="_blank" rel="noopener">文字轉點字</a></h2>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>功能</h3>
+            <ul>
+                <li>中、英文字混合文本轉譯</li>
+                <li>英文可選：UEB G1／G2／自訂規則／電腦點字</li>
+                <li>UEB 自訂：可選擇啟用哪些縮寫規則，適合依教學進度分批開放</li>
+                <li>自訂轉譯規則：針對特殊例外設定（如特定地名不縮寫）</li>
+                <li>低年級模式：字間加空方、標點後加空行</li>
+                <li>雙視校對：點擊注音格可手動修正破音字讀音</li>
+                <li>標示縮寫字：快速查找套用縮寫規則的字</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>老師輸入考卷或作業文字，直接輸出點字版</li>
+                <li>UEB 教學：只啟用已教過的規則，未教的以一級呈現</li>
+                <li>中英文混排教材一次轉換</li>
+                <li>需要處理破音字的文件</li>
+                <li>低年級點字教材製作</li>
+            </ul>
+            <div style="margin-top:8px">
+                <span class="scenario-tag">特教老師</span>
+                <span class="scenario-tag">視巡老師</span>
+                <span class="scenario-tag">UEB 教學</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 4 點字轉文字 ── -->
+<section role="region" aria-label="第 4 頁：點字轉文字">
+    <h2><span aria-hidden="true">←</span> <a href="https://hurthuang.github.io/vi-tools/#b2t" target="_blank" rel="noopener">點字轉文字</a></h2>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>功能</h3>
+            <ul>
+                <li>中、英文點字混合文本一次還原為文字</li>
+                <li>中文使用智慧選字引擎，正確還原同音字</li>
+                <li>格式調整：可將斷行的點字接回再轉換</li>
+                <li>逐格雙視對照：點字在上、國字在下</li>
+                <li>點擊國字格可手動修正同音異字</li>
+                <li>修正紀錄自動存檔，可匯出校對檔跨裝置繼續</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>收到學生點字作答，還原為文字批改</li>
+                <li>校對點字書轉換結果</li>
+                <li>老師練習閱讀點字，對照國字確認</li>
+                <li>驗證文字→點字能否完整還原</li>
+            </ul>
+            <div style="margin-top:8px">
+                <span class="scenario-tag">批改點字作業</span>
+                <span class="scenario-tag">點字書校對</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 5 數學點字 ── -->
+<section role="region" aria-label="第 5 頁：數學點字">
+    <h2><span aria-hidden="true">π</span> <a href="https://hurthuang.github.io/vi-tools/#math" target="_blank" rel="noopener">數學點字</a></h2>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>功能</h3>
+            <ul>
+                <li>NVDA 可直接報讀數學式（透過 MathJax 渲染）</li>
+                <li>數學式轉換為 Nemeth 數學點字（即時預覽）</li>
+                <li>Nemeth 數學點字反查數學式</li>
+                <li>數學符號編輯器：用點選方式建立，不需背語法</li>
+                <li>108 課綱數學符號對照表</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>數學、理化老師製作含公式的點字教材</li>
+                <li>編輯點字版考卷的數學題目</li>
+                <li>學生確認 Nemeth 符號寫法</li>
+                <li>輸入數學點字反查對應數學式</li>
+            </ul>
+            <div style="margin-top:8px">
+                <span class="scenario-tag">數學教材</span>
+                <span class="scenario-tag">Nemeth 學習</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 6 文件整理 ── -->
+<section role="region" aria-label="第 6 頁：文件整理">
+    <h2><span aria-hidden="true">📄</span> <a href="https://hurthuang.github.io/vi-tools/#doc" target="_blank" rel="noopener">文件整理</a></h2>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>自動調整項目</h3>
+            <ul>
+                <li>中英文間加空格，提升報讀流暢度</li>
+                <li>清除答題括號（如「（　）」）</li>
+                <li>選項各佔一行（A/B/C/D 獨立成行）</li>
+                <li>題目／選項自動斷行</li>
+                <li>修復連字號斷字（PDF 常見問題）</li>
+                <li>接回不必要的斷行</li>
+                <li>HTML 預覽模式，適合 NVDA 操作</li>
+                <li>朗讀：點選句子或全篇朗讀</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>教科書 PDF 版面雜亂，清理後再轉點字</li>
+                <li>選擇題 DOCX 選項跨行，整理後轉換</li>
+                <li>先試聽文件內容再製作點字版</li>
+                <li>製作低視能學生高對比版教材</li>
+            </ul>
+            <div style="margin-top:8px">
+                <span class="scenario-tag">PDF 前處理</span>
+                <span class="scenario-tag">低視能教材</span>
+                <span class="scenario-tag">試聽校對</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 7 UEB 查詢 ── -->
+<section role="region" aria-label="第 7 頁：UEB 查詢">
+    <h2><span aria-hidden="true">🔍</span> <a href="https://hurthuang.github.io/vi-tools/#query" target="_blank" rel="noopener">UEB 查詢</a></h2>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>功能</h3>
+            <ul>
+                <li>英文 ↔ UEB G2 點字雙向查詢</li>
+                <li>輸入英文，查詢對應的 UEB G2 點字</li>
+                <li>輸入點字，反查原始英文拼字</li>
+                <li>逐條列出所套用的縮寫規則與說明</li>
+                <li>色碼標示不同規則類型</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>老師自學 UEB G2，驗證特定單字縮寫</li>
+                <li>製作教材遇到疑難單字，確認如何縮寫</li>
+                <li>學生學習 UEB 規則時查閱</li>
+                <li>確認轉換結果是否符合 UEB 標準</li>
+            </ul>
+            <div style="margin-top:8px">
+                <span class="scenario-tag">UEB 學習</span>
+                <span class="scenario-tag">規則查詢</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 8 雙視校對與存檔 ── -->
+<section role="region" aria-label="第 8 頁：雙視校對與跨裝置存檔">
+    <h2>雙視校對與跨裝置存檔</h2>
+    <div class="flow">
+        <div class="flow-box">輸入文字<br>或點字</div>
+        <div class="flow-arr" aria-hidden="true">▶</div>
+        <div class="flow-box">轉換<br>+ 手動校對</div>
+        <div class="flow-arr" aria-hidden="true">▶</div>
+        <div class="flow-box">匯出<br>HTML 校對檔</div>
+        <div class="flow-arr" aria-hidden="true">▶</div>
+        <div class="flow-box">換裝置<br>開啟繼續</div>
+    </div>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>自動存檔（本機）</h3>
+            <ul>
+                <li>關閉分頁不遺失，下次開啟自動恢復</li>
+                <li>文字轉點字、點字轉文字各自獨立存檔</li>
+                <li>資料僅存於本機瀏覽器，不上傳</li>
+            </ul>
+        </div>
+        <div class="col-box">
+            <h3>HTML 校對檔（跨裝置）</h3>
+            <ul>
+                <li>匯出一個 HTML 檔，同時可印出紙本雙視對照，也可重新開啟繼續修編</li>
+                <li>傳到另一台電腦後，用「開啟檔案」匯入</li>
+                <li>所有修正紀錄完整保留</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ── 9 NVDA 附加元件概覽 ── -->
+<section role="region" aria-label="第 9 頁：NVDA 附加元件概覽">
+    <h2>NVDA 附加元件</h2>
+    <p style="color:#555;font-size:.68em;margin-bottom:.4em">以下為配合 vi-tools 設計的 NVDA 螢幕閱讀器附加元件，需下載安裝於 Windows 桌面環境使用</p>
+    <div class="addon-grid" role="list">
+        <div class="addon-card" role="listitem">
+            <div class="name"><span aria-hidden="true">⌨</span> <a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">六點輸入法 (6d-IME)</a></div>
+            <div class="desc">六點鍵盤多模式輸入，支援注音點字、電腦點字、UEB G1/G2、Nemeth 數學</div>
+        </div>
+        <div class="addon-card" role="listitem">
+            <div class="name"><span aria-hidden="true">⠿</span> <a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">點字表切換 (brailleTableSwitcher)</a></div>
+            <div class="desc">快速切換 NVDA 輸入／輸出點字表（注音點字 / UEB G1 / UEB G2）</div>
+        </div>
+        <div class="addon-card" role="listitem">
+            <div class="name"><span aria-hidden="true">🔊</span> <a href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener">語音字典切換 (DictSwitcher)</a></div>
+            <div class="desc">快速在破音字修正、注音點字、數學點字字典間循環切換</div>
+        </div>
+        <div class="addon-card" role="listitem">
+            <div class="name"><span aria-hidden="true">📖</span> <a href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener">國語字典查詢 (zhDict)</a></div>
+            <div class="desc">選取字詞查詢教育部辭典或英文字典，自動判斷語言</div>
+        </div>
+        <div class="addon-card" style="grid-column:1/-1" role="listitem">
+            <div class="name"><span aria-hidden="true">📤</span> <a href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener">點字輸出匯出 (brailleExport)</a></div>
+            <div class="desc">擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案；支援快照與錄製兩種模式</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 10 點字表切換 ── -->
+<section role="region" aria-label="第 10 頁：點字表切換">
+    <h2><span aria-hidden="true">⠿</span> <a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">點字表切換 (brailleTableSwitcher)</a></h2>
+    <div class="kbd-row">
+        <div class="kbd-chip"><span class="keys">NVDA + Alt + B</span><span class="kdesc">循環切換輸出點字表</span></div>
+        <div class="kbd-chip"><span class="keys">NVDA + Alt + I</span><span class="kdesc">循環切換輸入點字表</span></div>
+        <div class="kbd-chip"><span class="keys">NVDA + Alt + O</span><span class="kdesc">報讀目前使用的點字表</span></div>
+    </div>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>輸出點字表（循環）</h3>
+            <ol class="step-list">
+                <li>注音點字（預設）</li>
+                <li>注音點字 ＋ UEB Grade 1</li>
+                <li>注音點字 ＋ UEB Grade 2</li>
+            </ol>
+        </div>
+        <div class="col-box">
+            <h3>輸入點字表（循環）</h3>
+            <ol class="step-list">
+                <li>英文電腦點字（八點）</li>
+                <li>UEB Grade 1</li>
+                <li>UEB Grade 2</li>
+            </ol>
+        </div>
+    </div>
+</section>
+
+<!-- ── 11 六點輸入法 ── -->
+<section role="region" aria-label="第 11 頁：六點輸入法">
+    <h2><span aria-hidden="true">⌨</span> <a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">六點輸入法 (6d-IME)</a></h2>
+    <div class="kbd-row">
+        <div class="kbd-chip"><span class="keys">Ctrl + NVDA + 7</span><span class="kdesc">開啟／關閉六點輸入</span></div>
+        <div class="kbd-chip"><span class="keys">J + K + L + Space</span><span class="kdesc">循環切換點字模式</span></div>
+        <div class="kbd-chip"><span class="keys">Ctrl + NVDA + 8</span><span class="kdesc">模式偏好設定</span></div>
+        <div class="kbd-chip"><span class="keys">Alt + Shift + NVDA + M</span><span class="kdesc">Nemeth 數學符號選單</span></div>
+    </div>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>支援的點字模式</h3>
+            <ol class="step-list">
+                <li>注音點字</li>
+                <li>黑點點字（可自訂）</li>
+                <li>電腦點字（Comp8）</li>
+                <li>UEB 一級</li>
+                <li>UEB 二級</li>
+            </ol>
+            <p style="font-size:.67em;color:#555;margin-top:.45em">可在偏好設定中勾選要參與循環切換的模式</p>
+        </div>
+        <div class="col-box accent-green">
+            <h3>六鍵對應（左手 1–3，右手 4–6）</h3>
+            <div class="key-map" role="img" aria-label="六點鍵盤對應：F點1 D點2 S點3 J點4 K點5 L點6">
+                <div class="key-cell"><div class="kname">F</div><div class="kdot">點 1</div></div>
+                <div class="key-cell"><div class="kname">D</div><div class="kdot">點 2</div></div>
+                <div class="key-cell"><div class="kname">S</div><div class="kdot">點 3</div></div>
+                <div class="key-cell"><div class="kname">J</div><div class="kdot">點 4</div></div>
+                <div class="key-cell"><div class="kname">K</div><div class="kdot">點 5</div></div>
+                <div class="key-cell"><div class="kname">L</div><div class="kdot">點 6</div></div>
+            </div>
+            <p style="font-size:.67em;color:#444;margin-top:.45em">
+                電腦點字模式下，<strong>F + S + J + Space</strong> 可輸入 Nemeth 數學點字，產生對應數學符號
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ── 12 語音字典切換 ── -->
+<section role="region" aria-label="第 12 頁：語音字典切換">
+    <h2><span aria-hidden="true">🔊</span> <a href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener">語音字典切換 (DictSwitcher)</a></h2>
+    <div class="kbd-row">
+        <div class="kbd-chip"><span class="keys">NVDA + Alt + D</span><span class="kdesc">循環切換語音字典</span></div>
+    </div>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>切換順序</h3>
+            <ol class="step-list">
+                <li>破音字修正</li>
+                <li>注音點字</li>
+                <li>數學點字</li>
+                <li>停用自訂字典</li>
+            </ol>
+        </div>
+        <div class="col-box accent-green">
+            <h3>各字典說明</h3>
+            <ul>
+                <li><b>破音字修正</b>：修正語音引擎對破音字的錯誤讀音（如「行人」vs「銀行」）</li>
+                <li><b>注音點字</b>：依注音點字規格調整語音報讀，與「報點」附加元件作用相同</li>
+                <li><b>數學點字</b>：讓語音引擎正確朗讀 Nemeth 數學符號</li>
+                <li><b>停用</b>：還原 NVDA 預設語音字典</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ── 13 國語字典查詢 ── -->
+<section role="region" aria-label="第 13 頁：國語字典查詢">
+    <h2><span aria-hidden="true">📖</span> <a href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener">國語字典查詢 (zhDict)</a></h2>
+    <div class="kbd-row">
+        <div class="kbd-chip"><span class="keys">Alt + NVDA + K</span><span class="kdesc">基本查詢</span></div>
+        <div class="kbd-chip"><span class="keys">Alt + Shift + NVDA + K</span><span class="kdesc">豐富查詢（含例句、同反義詞）</span></div>
+    </div>
+    <p style="font-size:.68em;color:#666;margin:.1em 0 .4em">選取或複製字詞後按快捷鍵，自動偵測中英文並切換對應字典</p>
+    <div class="two-col">
+        <div class="col-box">
+            <div class="dict-section">
+                <span class="dict-label zh">中文　教育部重編國語辭典</span>
+                <ul><li>注音符號、詞性</li><li>釋義、例句</li><li>似義詞</li></ul>
+            </div>
+        </div>
+        <div class="col-box">
+            <div class="dict-section">
+                <span class="dict-label en">英文　Free Dictionary ＋ Google 翻譯</span>
+                <ul><li>音標、詞性</li><li>中文釋義、英文例句</li><li>同義詞、反義詞</li></ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── 14 點字輸出匯出 ── -->
+<section role="region" aria-label="第 14 頁：點字輸出匯出">
+    <h2><span aria-hidden="true">📤</span> <a href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener">點字輸出匯出 (brailleExport)</a></h2>
+    <div class="kbd-row">
+        <div class="kbd-chip"><span class="keys">NVDA + Shift + C</span><span class="kdesc">快照目前點字顯示畫面</span></div>
+        <div class="kbd-chip"><span class="keys">NVDA + Shift + R</span><span class="kdesc">開始錄製（再按一次停止並輸出）</span></div>
+    </div>
+    <div class="two-col">
+        <div class="col-box">
+            <h3>輸出格式</h3>
+            <ul>
+                <li>複製到剪貼簿（預設）</li>
+                <li>儲存為 .txt（Unicode 點字）</li>
+                <li>儲存為 .brf（BRF ASCII，供印表機使用）</li>
+            </ul>
+            <h3 style="margin-top:.5em">可設定項目</h3>
+            <ul>
+                <li>匯出目錄（預設為桌面）</li>
+                <li>每行格數（依點字印表機紙張寬度）</li>
+                <li>檔名加入時間戳記，避免覆蓋舊檔</li>
+            </ul>
+        </div>
+        <div class="col-box accent-green">
+            <h3>適用情境</h3>
+            <ul>
+                <li>擷取學生點字作答，匯入「點字轉文字」還原</li>
+                <li>製作教材時驗證點字輸出正確性</li>
+                <li>輸出 BRF 供點字印表機列印</li>
+                <li>快速記錄點字顯示器上的內容</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ── 15 結尾 ── -->
+<section class="slide-end center" role="region" aria-label="第 15 頁：結語">
+    <h1>立即線上使用</h1>
+    <p>無需安裝・純瀏覽器執行・資料不上傳</p>
+    <div class="url-box" aria-label="網址"><a href="https://hurthuang.github.io/vi-tools/" target="_blank" rel="noopener" style="color:#fff">https://hurthuang.github.io/vi-tools/</a></div>
+    <p class="gh"><span aria-hidden="true">開源 ／</span> github.com/hurthuang/vi-tools</p>
+</section>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     閱讀版：所有投影片內容以語意 HTML 呈現，供螢幕閱讀器使用
+     ════════════════════════════════════════════════════════ -->
+<article id="reading-view" hidden tabindex="-1" lang="zh-TW" aria-label="視障教學自製工具分享 — 閱讀版（共 15 頁）">
+
+    <section aria-label="第 1 頁：視障教學自製工具分享">
+        <span class="slide-label">第 1 頁</span>
+        <h1>視障教學自製工具分享</h1>
+        <p>高雄市立楠梓特殊學校　國中視巡　黃偉豪</p>
+        <p>瀏覽器端教材製作工具，無需安裝，資料不離開裝置。</p>
+        <p>網址：<a href="https://hurthuang.github.io/vi-tools/" target="_blank" rel="noopener">https://hurthuang.github.io/vi-tools/</a></p>
+    </section>
+
+    <section aria-label="第 2 頁：五個工具概覽">
+        <span class="slide-label">第 2 頁</span>
+        <h2>五個工具，涵蓋點字教材製作完整流程</h2>
+        <ul>
+            <li><a href="https://hurthuang.github.io/vi-tools/#t2b" target="_blank" rel="noopener"><strong>文字轉點字</strong></a>：中英文混合文本即時轉換，支援 UEB G1/G2、注音點字、Nemeth 數學</li>
+            <li><a href="https://hurthuang.github.io/vi-tools/#b2t" target="_blank" rel="noopener"><strong>點字轉文字</strong></a>：中英文混合點字自動還原，逐格雙視對照，可手動修正同音異字</li>
+            <li><a href="https://hurthuang.github.io/vi-tools/#math" target="_blank" rel="noopener"><strong>數學點字</strong></a>：數學式與 Nemeth 數學點字雙向轉換，NVDA 可報讀，內建符號編輯器</li>
+            <li><a href="https://hurthuang.github.io/vi-tools/#doc" target="_blank" rel="noopener"><strong>文件整理</strong></a>：開啟 PDF／DOCX，自動清除版面雜訊，可試聽朗讀</li>
+            <li><a href="https://hurthuang.github.io/vi-tools/#query" target="_blank" rel="noopener"><strong>UEB 查詢</strong></a>：英文單字與 UEB G2 點字雙向查詢，逐條列出縮寫規則</li>
+            <li><a href="https://hurthuang.github.io/vi-tools/#guide" target="_blank" rel="noopener"><strong>說明頁</strong></a>：各工具操作說明</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 3 頁：文字轉點字">
+        <span class="slide-label">第 3 頁</span>
+        <h2><a href="https://hurthuang.github.io/vi-tools/#t2b" target="_blank" rel="noopener">文字轉點字</a></h2>
+        <h3>功能</h3>
+        <ul>
+            <li>中、英文字混合文本轉譯</li>
+            <li>英文可選：UEB G1／G2／自訂規則／電腦點字</li>
+            <li>UEB 自訂：可選擇啟用哪些縮寫規則，適合依教學進度分批開放</li>
+            <li>自訂轉譯規則：針對特殊例外設定（如特定地名不縮寫）</li>
+            <li>低年級模式：字間加空方、標點後加空行</li>
+            <li>雙視校對：點擊注音格可手動修正破音字讀音</li>
+            <li>標示縮寫字：快速查找套用縮寫規則的字</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>老師輸入考卷或作業文字，直接輸出點字版</li>
+            <li>UEB 教學：只啟用已教過的規則，未教的以一級呈現</li>
+            <li>中英文混排教材一次轉換</li>
+            <li>需要處理破音字的文件</li>
+            <li>低年級點字教材製作</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 4 頁：點字轉文字">
+        <span class="slide-label">第 4 頁</span>
+        <h2><a href="https://hurthuang.github.io/vi-tools/#b2t" target="_blank" rel="noopener">點字轉文字</a></h2>
+        <h3>功能</h3>
+        <ul>
+            <li>中、英文點字混合文本一次還原為文字</li>
+            <li>中文使用智慧選字引擎，正確還原同音字</li>
+            <li>格式調整：可將斷行的點字接回再轉換</li>
+            <li>逐格雙視對照：點字在上、國字在下</li>
+            <li>點擊國字格可手動修正同音異字</li>
+            <li>修正紀錄自動存檔，可匯出校對檔跨裝置繼續</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>收到學生點字作答，還原為文字批改</li>
+            <li>校對點字書轉換結果</li>
+            <li>老師練習閱讀點字，對照國字確認</li>
+            <li>驗證文字→點字能否完整還原</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 5 頁：數學點字">
+        <span class="slide-label">第 5 頁</span>
+        <h2><a href="https://hurthuang.github.io/vi-tools/#math" target="_blank" rel="noopener">數學點字</a></h2>
+        <h3>功能</h3>
+        <ul>
+            <li>NVDA 可直接報讀數學式（透過 MathJax 渲染）</li>
+            <li>數學式轉換為 Nemeth 數學點字（即時預覽）</li>
+            <li>Nemeth 數學點字反查數學式</li>
+            <li>數學符號編輯器：用點選方式建立，不需背語法</li>
+            <li>108 課綱數學符號對照表</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>數學、理化老師製作含公式的點字教材</li>
+            <li>編輯點字版考卷的數學題目</li>
+            <li>學生確認 Nemeth 符號寫法</li>
+            <li>輸入數學點字反查對應數學式</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 6 頁：文件整理">
+        <span class="slide-label">第 6 頁</span>
+        <h2><a href="https://hurthuang.github.io/vi-tools/#doc" target="_blank" rel="noopener">文件整理</a></h2>
+        <h3>自動調整項目</h3>
+        <ul>
+            <li>中英文間加空格，提升報讀流暢度</li>
+            <li>清除答題括號（如「（　）」）</li>
+            <li>選項各佔一行（A/B/C/D 獨立成行）</li>
+            <li>題目／選項自動斷行</li>
+            <li>修復連字號斷字（PDF 常見問題）</li>
+            <li>接回不必要的斷行</li>
+            <li>HTML 預覽模式，適合 NVDA 操作</li>
+            <li>朗讀：點選句子或全篇朗讀</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>教科書 PDF 版面雜亂，清理後再轉點字</li>
+            <li>選擇題 DOCX 選項跨行，整理後轉換</li>
+            <li>先試聽文件內容再製作點字版</li>
+            <li>製作低視能學生高對比版教材</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 7 頁：UEB 查詢">
+        <span class="slide-label">第 7 頁</span>
+        <h2><a href="https://hurthuang.github.io/vi-tools/#query" target="_blank" rel="noopener">UEB 查詢</a></h2>
+        <h3>功能</h3>
+        <ul>
+            <li>英文 ↔ UEB G2 點字雙向查詢</li>
+            <li>輸入英文，查詢對應的 UEB G2 點字</li>
+            <li>輸入點字，反查原始英文拼字</li>
+            <li>逐條列出所套用的縮寫規則與說明</li>
+            <li>色碼標示不同規則類型</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>老師自學 UEB G2，驗證特定單字縮寫</li>
+            <li>製作教材遇到疑難單字，確認如何縮寫</li>
+            <li>學生學習 UEB 規則時查閱</li>
+            <li>確認轉換結果是否符合 UEB 標準</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 8 頁：雙視校對與跨裝置存檔">
+        <span class="slide-label">第 8 頁</span>
+        <h2>雙視校對與跨裝置存檔</h2>
+        <p>流程：輸入文字或點字 → 轉換並手動校對 → 匯出 HTML 校對檔 → 換裝置開啟繼續</p>
+        <h3>自動存檔（本機）</h3>
+        <ul>
+            <li>關閉分頁不遺失，下次開啟自動恢復</li>
+            <li>文字轉點字、點字轉文字各自獨立存檔</li>
+            <li>資料僅存於本機瀏覽器，不上傳</li>
+        </ul>
+        <h3>HTML 校對檔（跨裝置）</h3>
+        <ul>
+            <li>匯出一個 HTML 檔，同時可印出紙本雙視對照，也可重新開啟繼續修編</li>
+            <li>傳到另一台電腦後，用「開啟檔案」匯入</li>
+            <li>所有修正紀錄完整保留</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 9 頁：NVDA 附加元件概覽">
+        <span class="slide-label">第 9 頁</span>
+        <h2>NVDA 附加元件（共 5 個）</h2>
+        <p>以下為配合 vi-tools 設計的 NVDA 螢幕閱讀器附加元件，需下載安裝於 Windows 桌面環境使用。</p>
+        <ul>
+            <li><a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener"><strong>六點輸入法 (6d-IME)</strong></a>：六點鍵盤多模式輸入，支援注音點字、電腦點字、UEB G1/G2、Nemeth 數學</li>
+            <li><a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener"><strong>點字表切換 (brailleTableSwitcher)</strong></a>：快速切換 NVDA 輸入／輸出點字表（注音點字 / UEB G1 / UEB G2）</li>
+            <li><a href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener"><strong>語音字典切換 (DictSwitcher)</strong></a>：快速在破音字修正、注音點字、數學點字字典間循環切換</li>
+            <li><a href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener"><strong>國語字典查詢 (zhDict)</strong></a>：選取字詞查詢教育部辭典或英文字典，自動判斷語言</li>
+            <li><a href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener"><strong>點字輸出匯出 (brailleExport)</strong></a>：擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案；支援快照與錄製兩種模式</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 10 頁：點字表切換">
+        <span class="slide-label">第 10 頁</span>
+        <h2><a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">點字表切換 (brailleTableSwitcher)</a></h2>
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><kbd>NVDA + Alt + B</kbd>：循環切換輸出點字表</li>
+            <li><kbd>NVDA + Alt + I</kbd>：循環切換輸入點字表</li>
+            <li><kbd>NVDA + Alt + O</kbd>：報讀目前使用的點字表</li>
+        </ul>
+        <h3>輸出點字表（循環）</h3>
+        <ol>
+            <li>注音點字（預設）</li>
+            <li>注音點字 ＋ UEB Grade 1</li>
+            <li>注音點字 ＋ UEB Grade 2</li>
+        </ol>
+        <h3>輸入點字表（循環）</h3>
+        <ol>
+            <li>英文電腦點字（八點）</li>
+            <li>UEB Grade 1</li>
+            <li>UEB Grade 2</li>
+        </ol>
+    </section>
+
+    <section aria-label="第 11 頁：六點輸入法">
+        <span class="slide-label">第 11 頁</span>
+        <h2><a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">六點輸入法 (6d-IME)</a></h2>
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><kbd>Ctrl + NVDA + 7</kbd>：開啟／關閉六點輸入</li>
+            <li><kbd>J + K + L + Space</kbd>：循環切換點字模式</li>
+            <li><kbd>Ctrl + NVDA + 8</kbd>：模式偏好設定</li>
+            <li><kbd>Alt + Shift + NVDA + M</kbd>：Nemeth 數學符號選單</li>
+        </ul>
+        <h3>支援的點字模式</h3>
+        <ol>
+            <li>注音點字</li>
+            <li>黑點點字（可自訂）</li>
+            <li>電腦點字（Comp8）</li>
+            <li>UEB 一級</li>
+            <li>UEB 二級</li>
+        </ol>
+        <p>可在偏好設定中勾選要參與循環切換的模式。</p>
+        <h3>六鍵對應（左手 1–3，右手 4–6）</h3>
+        <ul>
+            <li>F 鍵 = 點 1</li>
+            <li>D 鍵 = 點 2</li>
+            <li>S 鍵 = 點 3</li>
+            <li>J 鍵 = 點 4</li>
+            <li>K 鍵 = 點 5</li>
+            <li>L 鍵 = 點 6</li>
+        </ul>
+        <p>電腦點字模式下，<kbd>F + S + J + Space</kbd> 可輸入 Nemeth 數學點字，產生對應數學符號。</p>
+    </section>
+
+    <section aria-label="第 12 頁：語音字典切換">
+        <span class="slide-label">第 12 頁</span>
+        <h2><a href="https://github.com/hurthuang/NVDA-DictSwitcher" target="_blank" rel="noopener">語音字典切換 (DictSwitcher)</a></h2>
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><kbd>NVDA + Alt + D</kbd>：循環切換語音字典</li>
+        </ul>
+        <h3>切換順序</h3>
+        <ol>
+            <li>破音字修正</li>
+            <li>注音點字</li>
+            <li>數學點字</li>
+            <li>停用自訂字典</li>
+        </ol>
+        <h3>各字典說明</h3>
+        <ul>
+            <li><strong>破音字修正</strong>：修正語音引擎對破音字的錯誤讀音（如「行人」vs「銀行」）</li>
+            <li><strong>注音點字</strong>：依注音點字規格調整語音報讀，與「報點」附加元件作用相同</li>
+            <li><strong>數學點字</strong>：讓語音引擎正確朗讀 Nemeth 數學符號</li>
+            <li><strong>停用</strong>：還原 NVDA 預設語音字典</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 13 頁：國語字典查詢">
+        <span class="slide-label">第 13 頁</span>
+        <h2><a href="https://github.com/hurthuang/zhDict" target="_blank" rel="noopener">國語字典查詢 (zhDict)</a></h2>
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><kbd>Alt + NVDA + K</kbd>：基本查詢</li>
+            <li><kbd>Alt + Shift + NVDA + K</kbd>：豐富查詢（含例句、同反義詞）</li>
+        </ul>
+        <p>選取或複製字詞後按快捷鍵，自動偵測中英文並切換對應字典。</p>
+        <h3>中文：教育部重編國語辭典</h3>
+        <ul>
+            <li>注音符號、詞性</li>
+            <li>釋義、例句</li>
+            <li>似義詞</li>
+        </ul>
+        <h3>英文：Free Dictionary ＋ Google 翻譯</h3>
+        <ul>
+            <li>音標、詞性</li>
+            <li>中文釋義、英文例句</li>
+            <li>同義詞、反義詞</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 14 頁：點字輸出匯出">
+        <span class="slide-label">第 14 頁</span>
+        <h2><a href="https://github.com/hurthuang/NVDA-brailleExport" target="_blank" rel="noopener">點字輸出匯出 (brailleExport)</a></h2>
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><kbd>NVDA + Shift + C</kbd>：快照目前點字顯示畫面</li>
+            <li><kbd>NVDA + Shift + R</kbd>：開始錄製（再按一次停止並輸出）</li>
+        </ul>
+        <h3>輸出格式</h3>
+        <ul>
+            <li>複製到剪貼簿（預設）</li>
+            <li>儲存為 .txt（Unicode 點字）</li>
+            <li>儲存為 .brf（BRF ASCII，供印表機使用）</li>
+        </ul>
+        <h3>可設定項目</h3>
+        <ul>
+            <li>匯出目錄（預設為桌面）</li>
+            <li>每行格數（依點字印表機紙張寬度）</li>
+            <li>檔名加入時間戳記，避免覆蓋舊檔</li>
+        </ul>
+        <h3>適用情境</h3>
+        <ul>
+            <li>擷取學生點字作答，匯入「點字轉文字」還原</li>
+            <li>製作教材時驗證點字輸出正確性</li>
+            <li>輸出 BRF 供點字印表機列印</li>
+            <li>快速記錄點字顯示器上的內容</li>
+        </ul>
+    </section>
+
+    <section aria-label="第 15 頁：結語">
+        <span class="slide-label">第 15 頁</span>
+        <h2>立即線上使用</h2>
+        <p>無需安裝，純瀏覽器執行，資料不上傳。</p>
+        <p>網址：<a href="https://hurthuang.github.io/vi-tools/" target="_blank" rel="noopener">https://hurthuang.github.io/vi-tools/</a></p>
+        <p>開源：<a href="https://github.com/hurthuang/vi-tools" target="_blank" rel="noopener">github.com/hurthuang/vi-tools</a></p>
+    </section>
+
+</article>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script>
+Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'fade',
+    transitionSpeed: 'fast',
+    controls: true,
+    progress: true,
+    center: false,
+    margin: 0.04,
+    width: 1024,
+    height: 720,
+});
+
+// 換頁時透過 aria-live 播報頁次與標題
+function announceSlide() {
+    const slide = Reveal.getCurrentSlide();
+    const idx   = Reveal.getIndices().h + 1;
+    const total = Reveal.getTotalSlides();
+    const heading = slide.querySelector('h1, h2');
+    const title = heading ? heading.textContent.replace(/[\u{1F300}-\u{1FFFF}→←π⌨⠿🔊📄🔍📖📤]/gu, '').trim() : '';
+    const msg = `第 ${idx} 頁，共 ${total} 頁：${title}`;
+    const live = document.getElementById('a11y-live');
+    live.textContent = '';                      // 清空才能觸發重播
+    requestAnimationFrame(() => { live.textContent = msg; });
+}
+
+Reveal.on('ready', announceSlide);
+Reveal.on('slidechanged', announceSlide);
+
+// ── 閱讀版：位置同步 ────────────────────────────────────
+const revealEl  = document.querySelector('.reveal');
+const readingEl = document.getElementById('reading-view');
+const toggleBtn = document.getElementById('toggle-reading');
+
+// 給每個 section 加 id="rv-N" data-slide="N"，並插入「切換至投影片」連結
+const rvSections = Array.from(document.querySelectorAll('#reading-view section'));
+let currentReadingSlide = 1;
+
+rvSections.forEach((sec, i) => {
+    const n = i + 1;
+    sec.id = 'rv-' + n;
+    sec.dataset.slide = n;
+    const a = document.createElement('a');
+    a.href = '#';
+    a.className = 'rv-slide-link';
+    a.textContent = '↑ 切換至投影片第 ' + n + ' 頁';
+    a.addEventListener('click', e => { e.preventDefault(); toPresentation(n); });
+    sec.appendChild(a);
+});
+
+// IntersectionObserver：追蹤目前閱讀到哪一頁
+const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) currentReadingSlide = +e.target.dataset.slide; });
+}, { rootMargin: '-35% 0px -35% 0px', threshold: 0 });
+rvSections.forEach(s => io.observe(s));
+
+function toPresentation(slideNum) {
+    readingEl.hidden = true;
+    revealEl.hidden  = false;
+    toggleBtn.textContent = '切換閱讀版';
+    toggleBtn.setAttribute('aria-pressed', 'false');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    if (slideNum != null) Reveal.slide(slideNum - 1);
+}
+
+toggleBtn.addEventListener('click', function () {
+    const goReading = readingEl.hidden;
+    if (goReading) {
+        const cur = Reveal.getIndices().h + 1;
+        readingEl.hidden = false;
+        revealEl.hidden  = true;
+        this.textContent = '切換簡報版';
+        this.setAttribute('aria-pressed', 'true');
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
+        const target = document.getElementById('rv-' + cur);
+        if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+        readingEl.focus();
+    } else {
+        toPresentation(currentReadingSlide);
+    }
+});
+
+// 平板／手機：窄螢幕自動切閱讀版（須在所有 const 宣告之後）
+function applyNarrowMode() {
+    if (window.innerWidth <= 900 && readingEl.hidden) {
+        readingEl.hidden = false;
+        revealEl.hidden  = true;
+        toggleBtn.textContent = '切換簡報版';
+        toggleBtn.setAttribute('aria-pressed', 'true');
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
+    } else if (window.innerWidth > 900 && !readingEl.hidden) {
+        readingEl.hidden = true;
+        revealEl.hidden  = false;
+        toggleBtn.textContent = '切換閱讀版';
+        toggleBtn.setAttribute('aria-pressed', 'false');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+}
+applyNarrowMode();
+window.addEventListener('resize', applyNarrowMode);
+</script>
+</body>
+</html>
