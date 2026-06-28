@@ -1295,12 +1295,17 @@ function runAutoClean() {
   const text = getEditorText();
   if (!text.trim()) return;
   let result = cleanExamText(text, p2aGetOpts());
-  // 若開啟「斷行整理」開關，自動以標準模式套用
+  // 若開啟「斷行整理」開關，套用目前面板的模式設定
   if (document.getElementById('tog-auto-wrap').checked) {
     const lines = result.split('\n');
+    const threshold = parseInt(document.getElementById('fwp-linelen').value, 10) || 25;
     const decisions = [];
     for (let i = 0; i < lines.length - 1; i++) {
-      decisions.push(classifyLineBreak(lines, i, 'standard', 25));
+      decisions.push(
+        _wrapMode === 'all'
+          ? (lines[i].trim() === '' ? 'blank' : 'merge')
+          : classifyLineBreak(lines, i, _wrapMode, threshold)
+      );
     }
     const CJK   = /[\u2E80-\u9FFF\uF900-\uFAFF\uFE30-\uFE4F]/;
     const ALNUM = /[a-zA-Z0-9]/;

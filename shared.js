@@ -726,6 +726,7 @@ function initBraillePanel(opts) {
         if (typeof opts.onInsert === 'function') opts.onInsert();
     }
 
+    if (opts.startEnabled) syncKbdState(true);
     return { syncKbdState, openPanel, closePanel };
 }
 

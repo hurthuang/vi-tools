@@ -82,3 +82,47 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 - postMessage 主題同步（與其他工具頁相同協定）：父頁 `querySelectorAll('iframe')` 廣播，guide.html 監聽 `{type:'setTheme'}`
 - 側邊欄區段：→文字轉點字、←點字轉文字、π數學點字、📄文件整理、🔍UEB查詢，含共同功能子節
 - HASH_MAP 新增 `'frame-guide': 'guide'`
+
+## zh-tw 正向多音字：已驗證事實（勿再自行推論）
+
+### opcode 盤點（Opus 4.8 原始碼層級確認，2026-06-29）
+- `noback always`：**0 條**，不存在，不用補。
+- 唯一未處理且觸及 CJK 的 opcode：`word`(11) + `begword`(1) = 12 條。
+  字：倔几唧子徬据祇茍虮觜迤。**只有「子」實際重要**
+  （begword/word 子 = 125-156-4 zǐ；目前只有 letter 子的輕聲預設，
+  獨立/詞首的「子」會錯，例：子曰 vs 桌子）。其餘多為簡體/異體/罕用。
+- skip `%`/`$` 規則丟 0 條 CJK；`curr.length===1` 漏 0 條 CJK focus。
+
+### liblouis pass 規則排序（lou_translateString.c / compileTranslationTable.c）
+- `addForwardPassRule` 依 charslen **由大到小**插入 forPassRules；
+  `findForPassRule` 回傳第一條 passDoTest 過的 → 實為「長 match 優先」，
+  **檔案順序只在 charslen 相同時當 tiebreak**。作者不需排序，liblouis 強制排。
+- charslen 來自 passFindCharacters = 扣掉 lookback 後第一段字面 run
+  = **focus + 後文(next)**；**前文(prev/lookback)不計入優先序**。
+  → 正確排序鍵：next.length DESC，再 file-index ASC（不是總脈絡長度）。
+- `correct` 在 liblouis 是**獨立前置 pass**（makeCorrections 先改寫整串，
+  再進 context）；context 看到的是**改寫後**鄰字。
+  correct 內部排序也是 charslen DESC。
+
+### 與目前實作（braille-translate.htm）的已知落差
+- `_applyZhCtxRule` 用 array(file) 順序 first-match → 未照 next.length 排序。
+- `_applyZhCorrect` 是 per-char inline、`_applyZhCtxRule` 前後文讀原始 `text[]` →
+  未反映「correct 先跑、context 讀改寫後字串」。
+  有 21 條 context 規則的 prev/next 引用了 correct 的 LHS 字（如 斗/彊/尸/价/种）。
+
+### 驗證策略（先做這個，再決定要不要改）
+用已載入的 liblouis WASM（LOU）當 oracle：讓 LOU 掛 zh-tw.ctb 做正向，
+寫 differential test 比對「parseCtb 正向」vs「LOU 正向」，
+每筆 diff 即真 bug（排序 / correct pass / word 三類之一）。
+有真實 diff 數再決定排序修正的細度。
+
+**oracle 實作要點（已確認）：**
+- 載入：`_loadTableFile('zh-tw.ctb')` + TABLE_DEPS 補齊 5 個依賴（全在 `table/`）
+  ```
+  'zh-tw.ctb': ['en-us-comp8.ctb','IPA-unicode-range.uti','braille-patterns.cti','spaces.uti']
+  'en-us-comp8.ctb': ['loweredDigits6Dots.uti','latinLetterDef8Dots.uti']
+  ```
+- 解碼：zh-tw.ctb 無 text_nabcc.dis，UTF-32 build 直接輸出 Unicode codepoint（0x2800–0x28FF）
+  → 解碼函式用 `String.fromCodePoint(val)`，**不套現有 NABCC_TO_UNI**
+- 對齊：`_lou_translateString` 第 7 參數傳實際 outpos 陣列，可拿到每個 cell 對應的輸入 char index
+  → 據此把多 cell 的點字聚回原始 CJK 字，再逐字比對

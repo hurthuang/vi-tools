@@ -1268,8 +1268,71 @@ UEB_PUNCT["\u00d7"] = "⠐⠦"; // × multiply  5-236
 // ════════════════════════════════════════════════════════════
 //  CTB 解析器（fetch zh-tw.ctb）
 // ════════════════════════════════════════════════════════════
-let zhMap    = new Map();
-let isLoaded = false;
+let zhMap            = new Map();
+let zhCtxRules       = []; // [{prev, curr, next, braille}]   context rules
+let zhCorrectMap     = new Map(); // char → char  simple substitutions
+let zhCorrectCtxRules= []; // [{prev, curr, next, replacement}]  context substitutions
+let isLoaded         = false;
+
+function _decodeCtbStr(s) {
+    return s.replace(/\\x([0-9a-fA-F]{1,6})/g, (_, h) =>
+        String.fromCodePoint(parseInt(h, 16)));
+}
+
+// 查 correct 規則，回傳替換字元（或 null）
+function _applyZhCorrect(text, i) {
+    const ch = text[i];
+    const rawMap = _lgCurrentRawMap;
+    // context correct 優先（更精確）
+    for (const r of zhCorrectCtxRules) {
+        if (r.curr !== ch) continue;
+        if (r.prev !== null) {
+            let j = i - 1, collected = '';
+            while (j >= 0 && collected.length < r.prev.length) {
+                if (rawMap && rawMap[j] === -1) { j--; continue; }
+                collected = text[j--] + collected;
+            }
+            if (collected !== r.prev) continue;
+        }
+        if (r.next !== null) {
+            let j = i + 1, collected = '';
+            while (j < text.length && collected.length < r.next.length) {
+                if (rawMap && rawMap[j] === -1) { j++; continue; }
+                collected += text[j++];
+            }
+            if (collected !== r.next) continue;
+        }
+        return r.replacement;
+    }
+    // simple correct
+    return zhCorrectMap.get(ch) ?? null;
+}
+
+function _applyZhCtxRule(text, i, currOverride) {
+    const ch = currOverride !== undefined ? currOverride : text[i];
+    const rawMap = _lgCurrentRawMap; // non-null only in low-grade mode
+    for (const r of zhCtxRules) {
+        if (r.curr !== ch) continue;
+        if (r.prev !== null) {
+            let j = i - 1, collected = '';
+            while (j >= 0 && collected.length < r.prev.length) {
+                if (rawMap && rawMap[j] === -1) { j--; continue; } // skip synthetic space
+                collected = text[j--] + collected;
+            }
+            if (collected !== r.prev) continue;
+        }
+        if (r.next !== null) {
+            let j = i + 1, collected = '';
+            while (j < text.length && collected.length < r.next.length) {
+                if (rawMap && rawMap[j] === -1) { j++; continue; } // skip synthetic space
+                collected += text[j++];
+            }
+            if (collected !== r.next) continue;
+        }
+        return r.braille;
+    }
+    return null;
+}
 
 const BR_TO_ASCII = {
     '\u2801':'a','\u2802':'1','\u2803':'b','\u2804':'\'','\u2805':'k',
@@ -1325,6 +1388,59 @@ function parseCtb(text) {
         }
         let ci=1, di=2;
         if (op==='noback'||op==='nofor') { op=(parts[1]||'').toLowerCase(); ci=2; di=3; }
+        if (op === 'correct') {
+            const rhs = parts.slice(ci).join(' ');
+            if (rhs.includes('%') || rhs.includes('$')) continue;
+            // context correct: _N"<prev>"["<curr>"]"<next>"? "<repl>"
+            const mc1 = rhs.match(/^_\d+"([^"]*)"\["([^"]*)"\](?:"([^"]*)")?\s+"([^"]*)"/);
+            if (mc1) {
+                const curr = _decodeCtbStr(mc1[2]), repl = _decodeCtbStr(mc1[4]);
+                if (curr.length === 1 && repl.length >= 1)
+                    zhCorrectCtxRules.push({ prev: _decodeCtbStr(mc1[1]), curr,
+                        next: mc1[3] != null ? _decodeCtbStr(mc1[3]) : null,
+                        replacement: repl });
+                continue;
+            }
+            // context correct (no lookbehind): ["<curr>"]"<next>"? "<repl>"
+            const mc2 = rhs.match(/^\["([^"]*)"\](?:"([^"]*)")?\s+"([^"]*)"/);
+            if (mc2) {
+                const curr = _decodeCtbStr(mc2[1]), repl = _decodeCtbStr(mc2[3]);
+                if (curr.length === 1 && repl.length >= 1)
+                    zhCorrectCtxRules.push({ prev: null, curr,
+                        next: mc2[2] != null ? _decodeCtbStr(mc2[2]) : null,
+                        replacement: repl });
+                continue;
+            }
+            // simple correct: "<from>" "<to>"
+            const ms = rhs.match(/^"([^"]*)"\s+"([^"]*)"/);
+            if (ms) {
+                const from = _decodeCtbStr(ms[1]), to = _decodeCtbStr(ms[2]);
+                if (from.length === 1 && to.length >= 1) zhCorrectMap.set(from, to);
+            }
+            continue;
+        }
+        if (op === 'context') {
+            const rhs = parts.slice(ci).join(' ');
+            if (rhs.includes('%') || rhs.includes('$')) continue;
+            const m1 = rhs.match(/^_\d+"([^"]*)"\["([^"]*)"\](?:"([^"]*)")?\s+@([\d-]+)/);
+            if (m1) {
+                const curr = _decodeCtbStr(m1[2]);
+                if (curr.length === 1)
+                    try { zhCtxRules.push({ prev: _decodeCtbStr(m1[1]), curr,
+                        next: m1[3] != null ? _decodeCtbStr(m1[3]) : null,
+                        braille: dotsToUnicode(m1[4]) }); } catch(e) {}
+                continue;
+            }
+            const m2 = rhs.match(/^\["([^"]*)"\](?:"([^"]*)")?\s+@([\d-]+)/);
+            if (m2) {
+                const curr = _decodeCtbStr(m2[1]);
+                if (curr.length === 1)
+                    try { zhCtxRules.push({ prev: null, curr,
+                        next: m2[2] != null ? _decodeCtbStr(m2[2]) : null,
+                        braille: dotsToUnicode(m2[3]) }); } catch(e) {}
+            }
+            continue;
+        }
         if (!CHAR_OPS.has(op)||parts.length<=di) continue;
         const tok=parts[ci], dotsTok=parts[di];
         let char;
@@ -1357,7 +1473,8 @@ async function fetchAndParse(fn) {
 }
 
 async function loadRules() {
-    _vis.clear(); zhMap.clear(); isLoaded=false;
+    _vis.clear(); zhMap.clear(); zhCtxRules.length = 0;
+    zhCorrectMap.clear(); zhCorrectCtxRules.length = 0; isLoaded=false;
     const st = document.getElementById('rules-status');
     st.className='rules-status loading'; st.textContent='正在載入規則...';
     try {
@@ -3100,7 +3217,9 @@ function tokenizeWithCustom(text) {
         }
 
         // 中文 / 其他字元
-        const b = zhMap.get(ch) || ch;
+        const _corrected = _isZhChar(ch) ? _applyZhCorrect(text, i) : null;
+        const _eff = _corrected !== null ? _corrected : ch;
+        const b = (_isZhChar(_eff) ? _applyZhCtxRule(text, i, _eff) : null) || zhMap.get(_eff) || ch;
         if (_isZhChar(ch)) {
             const ctxKey = _zhCtxKey(text, i);
             const override = _btZhEdits.get(ctxKey);
