@@ -756,6 +756,7 @@ const LOU = (() => {
         'en-ueb-g1.ctb':      ['text_nabcc.dis','en-ueb-chardefs.uti','spaces.uti'],
         'en-ueb-g2.ctb':      ['en-ueb-math.ctb','en-ueb-chardefs.uti','en-ueb-g1.ctb','spaces.uti'],
         'en-ueb-chardefs.uti':['en-chardefs.cti','latinLetterDef6Dots.uti','litdigits6Dots.uti','loweredDigits6Dots.uti'],
+        'zh-tw.ctb':          ['en-us-comp8.ctb','IPA-unicode-range.uti','braille-patterns.cti','spaces.uti'],
     };
 
     function isReady() { return !!(M && M.calledRun); }
@@ -876,7 +877,65 @@ const LOU = (() => {
         console.log('liblouis: 所有英文表格預載完成');
     }
 
-    return { translateEnglish, translateSpan, preloadTables, isReady };
+    // ── zh-tw.ctb oracle（差異測試用）────────────────────────
+    let _zhLoaded = false;
+    async function loadZhTable() {
+        if (_zhLoaded) return;
+        if (!isReady()) { console.warn('liblouis: 模組未就緒'); return; }
+        await _loadTableFile('zh-tw.ctb');
+        _zhLoaded = true;
+        console.log('liblouis: zh-tw.ctb 載入完成');
+    }
+
+    // 回傳 { cells: string[], inputPos: number[] }
+    // cells[i] = 第 i 個輸出 cell 的 Unicode 點字
+    // inputPos[i] = 對應的輸入字元 index
+    function translateZhOracle(text) {
+        if (!isReady() || !_zhLoaded) return null;
+        try {
+            const inputLen = text.length;
+            const inBuf     = M._malloc((inputLen + 1) * 4);
+            for (let i = 0; i < inputLen; i++)
+                M.setValue(inBuf + i * 4, text.codePointAt(i), 'i32');
+            M.setValue(inBuf + inputLen * 4, 0, 'i32');
+
+            const outMax    = inputLen * 8;
+            const outBuf    = M._malloc((outMax + 1) * 4);
+            const inLenPtr  = M._malloc(4);
+            const outLenPtr = M._malloc(4);
+            const outPosBuf = M._malloc((outMax + 1) * 4); // outputPos
+            M.setValue(inLenPtr,  inputLen, 'i32');
+            M.setValue(outLenPtr, outMax,   'i32');
+
+            const tableStr = M.allocate(
+                M.intArrayFromString('/tables/zh-tw.ctb'),
+                'i8', M.ALLOC_NORMAL
+            );
+            const ret = M._lou_translateString(
+                tableStr, inBuf, inLenPtr, outBuf, outLenPtr,
+                0, outPosBuf, 0
+            );
+            M._free(tableStr);
+
+            let cells = [], inputPos = [];
+            if (ret > 0) {
+                const outLen = M.getValue(outLenPtr, 'i32');
+                for (let i = 0; i < outLen; i++) {
+                    const val = M.getValue(outBuf + i * 4, 'i32');
+                    cells.push(String.fromCodePoint(val >= 0x2800 ? val : 0x2800 + val));
+                    inputPos.push(M.getValue(outPosBuf + i * 4, 'i32'));
+                }
+            }
+            M._free(inBuf); M._free(outBuf);
+            M._free(inLenPtr); M._free(outLenPtr); M._free(outPosBuf);
+            return { cells, inputPos };
+        } catch(e) {
+            console.error('zh oracle error:', e);
+            return null;
+        }
+    }
+
+    return { translateEnglish, translateSpan, preloadTables, isReady, loadZhTable, translateZhOracle };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -1511,6 +1570,71 @@ async function loadRules() {
         st.className='rules-status error'; st.textContent='載入失敗：'+e.message;
     }
 }
+
+// ════════════════════════════════════════════════════════════
+//  zh-tw.ctb 差異測試（console 用）
+//  用法：await runZhDiff('成長/長大/重複/銀行/子曰/桌子')
+//        await runZhDiff()  ← 使用預設語料
+// ════════════════════════════════════════════════════════════
+window.runZhDiff = async function(text) {
+    const CORPUS = '成長長大重複快樂音樂銀行行走子曰桌子行行重行行朝三暮四相見時難別亦難東風無力百花殘春蠶到死絲方盡蠟炬成灰淚始乾';
+    const input = text || CORPUS;
+
+    await LOU.loadZhTable();
+
+    // parseCtb 路徑：逐字查規則
+    function parseCtbTranslate(t) {
+        let out = [];
+        for (let i = 0; i < t.length; i++) {
+            const ch = t[i];
+            if (!_isZhChar(ch)) { out.push({ ch, brl: ch, src: 'skip' }); continue; }
+            const corr = _applyZhCorrect(t, i);
+            const eff  = corr !== null ? corr : ch;
+            const ctx  = _applyZhCtxRule(t, i, eff);
+            const brl  = ctx || zhMap.get(eff) || ch;
+            out.push({ ch, brl, src: ctx ? 'ctx' : (corr ? 'corr' : 'map') });
+        }
+        return out;
+    }
+
+    // LOU oracle 路徑
+    const oracle = LOU.translateZhOracle(input);
+    if (!oracle) { console.error('oracle 回傳 null，zh-tw.ctb 可能未載入'); return; }
+
+    // 把 oracle cells 聚合回逐字（每個輸入 char 的點字）
+    const oracleByChar = {};
+    for (let ci = 0; ci < oracle.cells.length; ci++) {
+        const inp = oracle.inputPos[ci];
+        if (!(inp in oracleByChar)) oracleByChar[inp] = '';
+        oracleByChar[inp] += oracle.cells[ci];
+    }
+
+    const parsed = parseCtbTranslate(input);
+    let diffCount = 0, catA = [], catB = [], catC = [], catUnk = [];
+    const WORD_CHARS = new Set([...'倔几唧子徬据祇茍虮觜迤']);
+    const CORRECT_LHS = new Set([...'斗彊尸价种脏袜别发广栖']);
+
+    for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+        if (!_isZhChar(ch)) continue;
+        const mine = parsed[i].brl;
+        const lou  = oracleByChar[i] || '';
+        if (mine === lou) continue;
+        diffCount++;
+        const entry = { i, ch, mine, lou, src: parsed[i].src };
+        // 分類
+        if (WORD_CHARS.has(ch)) catA.push(entry);
+        else if (CORRECT_LHS.has(ch) || (i > 0 && CORRECT_LHS.has(input[i-1])) || (i < input.length-1 && CORRECT_LHS.has(input[i+1]))) catC.push(entry);
+        else catB.push(entry);
+    }
+
+    console.log(`=== zh-tw diff: ${diffCount} diffs in ${[...input].filter(c=>_isZhChar(c)).length} CJK chars ===`);
+    console.log(`(A) word/begword: ${catA.length}  (B) context排序: ${catB.length}  (C) correct pass: ${catC.length}  (?): ${catUnk.length}`);
+    if (catA.length) { console.log('--- (A) word/begword ---'); catA.forEach(e => console.log(`  [${e.i}]${e.ch}  mine:${e.mine}  lou:${e.lou}`)); }
+    if (catB.length) { console.log('--- (B) context排序 ---'); catB.forEach(e => console.log(`  [${e.i}]${e.ch}  mine:${e.mine}  lou:${e.lou}  src:${e.src}`)); }
+    if (catC.length) { console.log('--- (C) correct pass ---'); catC.forEach(e => console.log(`  [${e.i}]${e.ch}  mine:${e.mine}  lou:${e.lou}`)); }
+    return { diffCount, catA, catB, catC };
+};
 
 // ════════════════════════════════════════════════════════════
 //  英文點字轉換
