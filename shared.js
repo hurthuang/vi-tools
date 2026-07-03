@@ -562,7 +562,7 @@ function initBraillePanel(opts) {
             <span class="brlp-kbd-label">六點鍵盤</span>
             <button type="button" class="brlp-kbd-btn">關</button>
         </div>
-        <div class="brlp-kbd-hint">S=1 D=2 F=3 ｜ J=4 K=5 L=6<br>Space=空白格 ｜ Ctrl+B 切換</div>
+        <div class="brlp-kbd-hint">F=1 D=2 S=3 ｜ J=4 K=5 L=6<br>Space=空白格 ｜ Ctrl+B 切換</div>
         <hr class="brlp-divider">
         <div class="brlp-dot-label">點陣輸入</div>
         <div class="brlp-body">

@@ -602,7 +602,7 @@
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                 <label for="input-text" style="margin:0;">輸入文字：</label>
                 <button onclick="openFormatModal('input-text', render)" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
-                <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
+                <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
         </div>
@@ -634,7 +634,7 @@
                 <div class="rf-col-braille">
                     <div class="rf-label-row">
                         <label for="rule-braille-input" class="rf-label">自訂點字</label>
-                        <span class="rf-hint" aria-hidden="true">S=1 D=2 F=3 &nbsp;J=4 K=5 L=6 &nbsp;｜&nbsp; Space=空格</span>
+                        <span class="rf-hint" aria-hidden="true">F=1 D=2 S=3 &nbsp;J=4 K=5 L=6 &nbsp;｜&nbsp; Space=空格</span>
                     </div>
                     <div class="rf-braille-row">
                         <textarea id="rule-braille-input"
@@ -2973,10 +2973,16 @@ function getActiveG2Tables() {
 // ════════════════════════════════════════════════════════════
 //  Pre-pass：分類 U+0027 為引號或 apostrophe
 //  規則：
-//    空格/行首 + ' + 字母，且後方有對應的 ' + 空格/標點/行尾 → 配對引號
+//    空格/行首 + ' + 字母，且後方「同一句內」有對應的 ' + 空格/標點/行尾 → 配對引號
+//    常見省略詞（'n、'til、'cause…）一律當 apostrophe，不進入配對搜尋
 //    否則 → apostrophe
 //  回傳 Set，內含「是引號」的位置索引
 // ════════════════════════════════════════════════════════════
+// 固定省略詞：撇號後接這些詞時一律是省略號，不當開引號候選
+// （例：rock 'n' roll、'til、'cause、'tis、'twas… 避免跟後方所有格撇號誤配對）
+const APOS_ELISION_WORDS = new Set([
+    'n', 'til', 'cause', 'em', 'tis', 'twas', 'twill', 'round', 'bout', 'fraid', 'nuff'
+]);
 function classifyApostrophes(text) {
     const quotePositions = new Set();
     const n = text.length;
@@ -2990,10 +2996,22 @@ function classifyApostrophes(text) {
             ? /[A-Za-z]/.test(nextCh)
             : false;
         if (isOpenCandidate) {
-            // 前瞻：找對應的閉引號（' 後接空格/標點/行尾）
-            let found = false;
+            // 固定省略詞：不進入配對搜尋，直接當 apostrophe
+            const wordMatch = /^[A-Za-z]+/.exec(text.slice(i + 1));
+            const word = wordMatch ? wordMatch[0].toLowerCase() : '';
+            if (APOS_ELISION_WORDS.has(word)) { i++; continue; }
+
+            // 前瞻：找對應的閉引號（' 後接空格/標點/行尾），限同一句內
             for (let j = i + 1; j < n; j++) {
-                if (text[j] !== "'") continue;
+                if (text[j] !== "'") {
+                    // 句界（. ! ? 後接空白/行尾）→ 放棄配對，不跨句搜尋
+                    const nextAfter = j + 1 < n ? text[j + 1] : '';
+                    if ((text[j] === '.' || text[j] === '!' || text[j] === '?') &&
+                        (nextAfter === '' || /\s/.test(nextAfter))) {
+                        break;
+                    }
+                    continue;
+                }
                 const afterJ = j + 1 < n ? text[j + 1] : '';
                 const beforeJ = j > 0 ? text[j - 1] : '';
                 // 閉引號條件：前面是字母/數字/標點，後面是空格/標點/行尾/引號
@@ -3004,12 +3022,11 @@ function classifyApostrophes(text) {
                     if (!between.includes('\n')) {
                         quotePositions.add(i); // 開引號
                         quotePositions.add(j); // 閉引號
-                        found = true;
                     }
                     break;
                 }
             }
-            // found=false → apostrophe，不加入 quotePositions
+            // 找不到配對 → apostrophe，不加入 quotePositions
         }
         i++;
     }
@@ -3209,11 +3226,20 @@ function tokenizeWithCustom(text) {
         const hasDigit = /[0-9]/.test(run);
         const hasAlpha = /[a-zA-Z]/.test(run);
 
-        // 偵測題號：run 全是數字，且後方緊接 '.' 再接空格/換行/行末
+        // 偵測題號：run 全是數字，且後方緊接 '.' 再接空格/換行/行末，且在行首（可有前導縮排）
+        // 限制在行首是為了跟句尾數字（如「x = 5.」「答案是 12.」）區分——數字前面還有其他內容就不是題號
+        const _qNumRunStart = i - run.length;
+        let _qNumIsLineStart = true;
+        for (let _j = _qNumRunStart - 1; _j >= 0; _j--) {
+            if (text[_j] === ' ' || text[_j] === '⠀') continue;
+            _qNumIsLineStart = (text[_j] === '\n');
+            break;
+        }
         const isQNum = isNemethMode() && hasDigit && !hasAlpha &&
             /^\d+$/.test(run) &&
             text[i] === '.' &&
-            (i + 1 >= text.length || text[i + 1] === ' ' || text[i + 1] === '\u2800' || text[i + 1] === '\n');
+            (i + 1 >= text.length || text[i + 1] === ' ' || text[i + 1] === '\u2800' || text[i + 1] === '\n') &&
+            _qNumIsLineStart;
 
         if (isNemethMode() && hasDigit && !hasAlpha && !isQNum) {
             // 純數字 → Nemeth

@@ -172,7 +172,7 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
     <div class="input-area">
         <div class="area-label">
             <label for="input-text">點字輸入（UEB/注音點字）：</label>
-            <button id="dot-pad-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（S=1 D=2 F=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
+            <button id="dot-pad-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
         </div>
         <textarea id="input-text" autofocus
             placeholder="輸入 ASCII 點字（,k is p{}4）&#10;或 Unicode 點字（⠠⠅ ⠊⠎ ⠏⠪⠻⠲）&#10;或注音點字（⠋⠞⠄⠚⠡⠐⠗⠩⠈）&#10;Ctrl+B 開啟六點輸入"></textarea>
@@ -302,11 +302,22 @@ function _louBackTranslate(tableFile, uniStr) {
             const len = M.getValue(outP,'i32');
             let out = '';
             for (let i = 0; i < len; i++) out += String.fromCharCode(M.getValue(outBuf+i*4,'i32'));
-            result = out;
+            result = _fixBackTranslateMojibake(out);
         }
         M._free(inBuf); M._free(outBuf); M._free(inP); M._free(outP);
         return result;
     } catch(e) { return null; }
+}
+
+// en-ueb-g2.ctb 裡少數 wordsign+撇號縮寫的 "nofor word" 反向翻譯規則
+// （can't、it's、that's、you're/'ll/'ve、child's… 等）在表格原始碼中用的是
+// 彎撇號 U+2019，但這個 liblouis WASM build 編譯這幾條規則時沒有把它當一個
+// UTF-8 字元解碼，而是拆成三個原始位元組 U+00E2 U+0080 U+0099 分別輸出，
+// 導致反向翻譯結果變成 "canât" 這種亂碼。
+// 這是 liblouis 這個 build 內部的行為，不是我們載入點字表的方式造成的
+// （位元組層級是原封不動寫進虛擬檔案系統的），所以在輸出端做正規化修正。
+function _fixBackTranslateMojibake(s) {
+    return s.replace(/â/g, "'");
 }
 
 // ── McBopomofo（注音點字引擎，lazy load）─────────────────────
@@ -332,7 +343,15 @@ function _isChineseChunk(brailleStr) {
     const tokens = mcbopomofo.BopomofoBrailleConverter.convertBrailleToTokens(brailleStr);
     if (!tokens.length) return false;
     const first = tokens[0];
-    return typeof first === 'object' && first !== null && typeof first.bpmf === 'string';
+    if (!(typeof first === 'object' && first !== null && typeof first.bpmf === 'string')) return false;
+    // 往返驗證：convertBrailleToTokens 不檢查聲母/韻母/調號順序，
+    // 英文字母格湊巧也可能被硬讀成不合語法順序的注音（例：調號夾在聲母韻母中間）。
+    // 真正合法的注音點字，重新編碼一定跟原始點字完全一致；不一致就不是真的注音。
+    try {
+        const canonical = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(first.bpmf).trim();
+        if (canonical !== first.braille) return false;
+    } catch (e) { return false; }
+    return true;
 }
 
 function _segmentLine(uniLine) {
@@ -377,10 +396,9 @@ function _buildChineseCharTokens(brailleStr) {
         if (typeof token === 'object' && token !== null && typeof token.bpmf === 'string') {
             // BopomofoSyllable → 一個中文字
             const char = textIdx < fullText.length ? fullText[textIdx] : '';
-            // 從 bpmf 反推回點字格（單音節，不含多餘空格）
-            let brl = '';
-            try { brl = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(token.bpmf).trim(); } catch(e) {}
-            result.push({ braille: brl, text: char, isSpace: false });
+            // token.braille 就是這個音節在原始輸入裡實際佔用的點字格，直接用，
+            // 不必再用 convertBpmfToBraille 重新編碼（重編碼可能跟原始點字不同順序）
+            result.push({ braille: token.braille || '', text: char, isSpace: false });
             textIdx++;
         } else {
             // 標點、數字、字母（string token，已是解碼後文字）

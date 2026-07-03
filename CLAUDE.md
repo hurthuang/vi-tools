@@ -126,3 +126,45 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
   → 解碼函式用 `String.fromCodePoint(val)`，**不套現有 NABCC_TO_UNI**
 - 對齊：`_lou_translateString` 第 7 參數傳實際 outpos 陣列，可拿到每個 cell 對應的輸入 char index
   → 據此把多 cell 的點字聚回原始 CJK 字，再逐字比對
+
+## 轉換判斷修正一輪（已完成，2026-07-03）
+
+### bt：UEB 直單引號 `'` 誤判為引號
+- `classifyApostrophes`（braille-translate.htm）原本「開引號候選 → 往後掃到下一個換行前找配對」，
+  範圍過大且會跟所有格撇號（`-s'`）樣式衝突，例：`rock 'n' roll`、跨句的
+  `'Twas ... boys' game` 都會被錯誤配成一對引號。
+- 修法：① 加 `APOS_ELISION_WORDS` 白名單（n/til/cause/em/tis/twas/twill/round/bout/fraid/nuff），
+  這些詞開頭一律當撇號、不進入配對搜尋；② 配對搜尋遇到句界（`.!?` 後接空白/行尾）就放棄，不跨句配對。
+- 殘留已知風險：同一句內若真的有「省略號開頭詞 + 後方所有格詞」還是會誤判
+  （例：`'Twas the boys' idea.`），機率低，接受此取捨。
+
+### b2t：中文注音 / 英文 UEB 誤判
+- `_isChineseChunk`（braille-to-text.html）原本只看 `convertBrailleToTokens` 回傳的第一個
+  token 是不是 bpmf 物件；但 McBopomofoWeb 的判斷不檢查聲母/韻母/調號順序，
+  英文字母格湊巧也可能被硬讀成不合語法順序的注音（例：`⠍⠁⠽`「may」被讀成「ㄇㄧㄥ˙」，
+  調號夾在聲母韻母中間，不合法但仍回傳成功）。
+- 修法：往返驗證——`convertBpmfToBraille(token.bpmf)` 重新編碼，若跟原始點字不完全一致，
+  代表語法順序其實不合法，不當中文。真正的注音一定往返一致。
+- `_buildChineseCharTokens` 順便簡化：改用 token 自帶的 `.braille`（原始輸入的實際點字格），
+  不再用 `convertBpmfToBraille` 重新編碼去畫校對區（原本的重編碼可能跟原始輸入順序不同）。
+
+### b2t：反向翻譯撇號亂碼（`_louBackTranslate`）
+- `en-ueb-g2.ctb` 裡 wordsign+撇號縮寫（can't/it's/that's/you're/you'll/you've/child's…）的
+  `nofor word` 反向翻譯規則，原始碼用彎撇號 U+2019；這個 liblouis WASM build 編譯這幾條規則時
+  沒把它當一個 UTF-8 字元解碼，拆成三個原始位元組（U+00E2 U+0080 U+0099）分別輸出，
+  導致反向翻譯結果變成 `canât`、`itâs` 這種亂碼。已用 Node + `build-no-tables-utf32.js` 直接
+  掛真表驗證（`table/en-ueb-g2.ctb` 原始碼第153-296行可查到 `nofor word` 定義）。
+- 這是 liblouis WASM build 內部行為，不是我們載入點字表方式造成的（位元組層級原封不動寫入虛擬檔案系統）。
+- 修法：`_fixBackTranslateMojibake` 在 `_louBackTranslate` 輸出端做正規化，把固定的三位元組亂碼序列換回 `'`。
+
+### bt：Nemeth 題號誤判限制在行首
+- `isQNum`（braille-translate.htm）原本只要「數字 + `.` + 空白/行尾」就當題號，用上位 UEB 格式；
+  但這個樣式跟任何數字結尾的句子一樣（`x = 5.`、`答案是 12.`），會誤判。
+- 依使用者選擇：加上「數字前面（略過空白/縮排）必須是換行或文件開頭」的行首限制。
+- 取捨：`Problem 5. Find x.` 這種題號夾在句中的寫法，行首限制後不再判定為題號，
+  退化成一般 Nemeth 數字；使用者評估教材裡題號多半獨立成行，接受此取捨。
+
+### 附帶修正
+- 六點鍵盤面板提示文字「S=1 D=2 F=3」寫反了（`shared.js` `KEY_BITS` 實際上 F=1 D=2 S=3 才對），
+  5 個檔案（shared.js/braille-to-text.html/braille-translate.htm/nemeth_converter.html/UEB-g2-query.html）
+  的提示文字都改成 `F=1 D=2 S=3`，程式碼本身沒改。
