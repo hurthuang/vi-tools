@@ -630,6 +630,17 @@ input[type=range] { accent-color: var(--accent2); }
 
     <div class="divider"></div>
 
+    <!-- Balabolka 轉檔前排版 -->
+    <div>
+      <div class="section-label">語音轉檔輔助</div>
+      <button class="btn btn-neutral btn-wide" id="btn-balabolka" onclick="runBalabolkaFormat()" disabled
+        title="題目與選項之間、選項區塊與下一題之間各補兩行空行，方便 Balabolka 等語音轉檔軟體辨識段落停頓">
+        🔊 Balabolka 排版
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
     <!-- 雜訊清理 -->
     <div>
       <div class="section-label">雜訊清理</div>
@@ -898,7 +909,7 @@ function updateCounters() {
 }
 
 function updateButtons(hasText) {
-  ['btn-auto-clean','btn-wrap-tb','btn-hf-detect','btn-adv-replace'].forEach(id => {
+  ['btn-auto-clean','btn-wrap-tb','btn-hf-detect','btn-adv-replace','btn-balabolka'].forEach(id => {
     document.getElementById(id).disabled = !hasText;
   });
   ['btn-export-txt','btn-export-html'].forEach(id => {
@@ -1333,6 +1344,36 @@ function runAutoClean() {
   }
   setEditorText(result);
   setStatus('格式整理完成' + (document.getElementById('tog-auto-wrap').checked ? '（含斷行）' : ''));
+}
+
+// ════════════════════════════════════════════════════════════
+//  Balabolka 轉檔前排版
+//  題目 → 第一個選項、最後一個選項 → 下一題，各補兩個空行，
+//  方便 Balabolka 等語音轉檔軟體判斷段落停頓。
+//  假設選項已各自佔一行（(A)/(B)/(C)/(D) 開頭），
+//  建議先用「✨ 自動調整」整理過再套用。
+//  其餘行與行之間（選項與選項之間、一般文字之間）不動空行數。
+// ════════════════════════════════════════════════════════════
+function applyBalabolkaFormat(text) {
+  const isOpt = l => /^\([A-D]\)/.test(l);
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (i > 0) {
+      const enterOpt = isOpt(lines[i]) && !isOpt(lines[i - 1]);
+      const leaveOpt = !isOpt(lines[i]) && isOpt(lines[i - 1]);
+      if (enterOpt || leaveOpt) out.push('', '');
+    }
+    out.push(lines[i]);
+  }
+  return out.join('\n');
+}
+
+function runBalabolkaFormat() {
+  const text = getEditorText();
+  if (!text.trim()) return;
+  setEditorText(applyBalabolkaFormat(text));
+  setStatus('Balabolka 排版完成');
 }
 
 // ════════════════════════════════════════════════════════════
