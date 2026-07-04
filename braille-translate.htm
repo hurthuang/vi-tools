@@ -621,6 +621,11 @@
             <span id="custom-count-badge" style="font-size:0.82em;color:#888;" aria-live="polite"></span>
         </button>
         <div class="custom-rules-body" id="custom-rules-body" role="region" aria-label="自定義點字規則">
+            <!-- 多音字補充規則（bt-zh-supplement-rules.json）-->
+            <label class="zh-supplement-toggle-row" style="display:flex;align-items:center;gap:6px;font-size:0.85em;margin-bottom:10px;cursor:pointer;">
+                <input type="checkbox" id="zh-supplement-toggle" onchange="toggleZhSupplementRules()">
+                啟用多音字補充規則
+            </label>
             <!-- 新增規則表單 -->
             <div class="add-rule-form">
 
@@ -899,11 +904,15 @@ const LOU = (() => {
                 M.setValue(inBuf + i * 4, text.codePointAt(i), 'i32');
             M.setValue(inBuf + inputLen * 4, 0, 'i32');
 
-            const outMax    = inputLen * 8;
-            const outBuf    = M._malloc((outMax + 1) * 4);
-            const inLenPtr  = M._malloc(4);
-            const outLenPtr = M._malloc(4);
-            const outPosBuf = M._malloc((outMax + 1) * 4); // outputPos
+            const outMax     = inputLen * 8;
+            const outBuf     = M._malloc((outMax + 1) * 4);
+            const inLenPtr   = M._malloc(4);
+            const outLenPtr  = M._malloc(4);
+            // _lou_translateString 的第 7 參數是 char* spacing，不是 outputPos 陣列；
+            // 塞 int32 buffer 進去讀出來的位置是垃圾值。要拿逐字對應位置必須用
+            // _lou_translate（11 參數，內建正規的 outputPos/inputPos int* 陣列）。
+            const inputPosBuf  = M._malloc((outMax + 1) * 4);   // 每個輸出 cell → 輸入字元 index
+            const outputPosBuf = M._malloc((inputLen + 1) * 4); // 每個輸入字元 → 第一個輸出 cell index
             M.setValue(inLenPtr,  inputLen, 'i32');
             M.setValue(outLenPtr, outMax,   'i32');
 
@@ -911,9 +920,9 @@ const LOU = (() => {
                 M.intArrayFromString('/tables/zh-tw.ctb'),
                 'i8', M.ALLOC_NORMAL
             );
-            const ret = M._lou_translateString(
+            const ret = M._lou_translate(
                 tableStr, inBuf, inLenPtr, outBuf, outLenPtr,
-                0, outPosBuf, 0
+                0, 0, outputPosBuf, inputPosBuf, 0, 0
             );
             M._free(tableStr);
 
@@ -923,11 +932,11 @@ const LOU = (() => {
                 for (let i = 0; i < outLen; i++) {
                     const val = M.getValue(outBuf + i * 4, 'i32');
                     cells.push(String.fromCodePoint(val >= 0x2800 ? val : 0x2800 + val));
-                    inputPos.push(M.getValue(outPosBuf + i * 4, 'i32'));
+                    inputPos.push(M.getValue(inputPosBuf + i * 4, 'i32'));
                 }
             }
-            M._free(inBuf); M._free(outBuf);
-            M._free(inLenPtr); M._free(outLenPtr); M._free(outPosBuf);
+            M._free(inBuf); M._free(outBuf); M._free(outputPosBuf);
+            M._free(inLenPtr); M._free(outLenPtr); M._free(inputPosBuf);
             return { cells, inputPos };
         } catch(e) {
             console.error('zh oracle error:', e);
@@ -2139,7 +2148,49 @@ function customRuleMatch(text, i) {
             best = rule;
         }
     }
+    if (isZhSupplementEnabled() && builtinZhRulesLoaded) {
+        for (const rule of builtinZhRules) {
+            if (rule.text.length > (best ? best.text.length : 0) &&
+                text.startsWith(rule.text, i)) {
+                best = rule;
+            }
+        }
+    }
     return best;
+}
+
+// ════════════════════════════════════════════════════════════
+//  多音字補充規則（bt-zh-supplement-rules.json）
+//  來源：得/地補充字典 + my_dict.dic（NVDA/心測中心）+ 破音詞庫（鄭明芳老師），
+//  用萌典交叉驗證過的詞條，格式跟 customRules 一致（整詞比對 → 整詞點字覆蓋）
+// ════════════════════════════════════════════════════════════
+let builtinZhRules = [];
+let builtinZhRulesLoaded = false;
+const ZH_SUPPLEMENT_KEY = 'vi-bt-zh-supplement-enabled';
+
+function isZhSupplementEnabled() {
+    return localStorage.getItem(ZH_SUPPLEMENT_KEY) === '1';
+}
+
+async function loadBuiltinZhRules() {
+    if (builtinZhRulesLoaded) return;
+    try {
+        const r = await fetch('bt-zh-supplement-rules.json');
+        if (!r.ok) throw new Error(r.status);
+        builtinZhRules = await r.json();
+        builtinZhRulesLoaded = true;
+    } catch (e) {
+        console.warn('補充規則載入失敗：', e.message);
+        builtinZhRules = [];
+    }
+}
+
+async function toggleZhSupplementRules() {
+    const cb = document.getElementById('zh-supplement-toggle');
+    localStorage.setItem(ZH_SUPPLEMENT_KEY, cb.checked ? '1' : '0');
+    if (cb.checked && !builtinZhRulesLoaded) await loadBuiltinZhRules();
+    _customRulesVersion++;
+    render();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4102,6 +4153,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById(id).addEventListener('change', btSaveSessionDebounced);
     });
     document.getElementById('ueb-custom-panel').addEventListener('change', btSaveSessionDebounced);
+
+    const zhSupplementCb = document.getElementById('zh-supplement-toggle');
+    if (zhSupplementCb) {
+        zhSupplementCb.checked = isZhSupplementEnabled();
+        if (zhSupplementCb.checked) loadBuiltinZhRules();
+    }
 });
 
 // ── 框架主題控制 ──

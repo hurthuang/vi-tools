@@ -124,8 +124,52 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
   ```
 - 解碼：zh-tw.ctb 無 text_nabcc.dis，UTF-32 build 直接輸出 Unicode codepoint（0x2800–0x28FF）
   → 解碼函式用 `String.fromCodePoint(val)`，**不套現有 NABCC_TO_UNI**
-- 對齊：`_lou_translateString` 第 7 參數傳實際 outpos 陣列，可拿到每個 cell 對應的輸入 char index
-  → 據此把多 cell 的點字聚回原始 CJK 字，再逐字比對
+- 對齊：**（2026-07-04 更正，先前這則是錯的）** 不要用 `_lou_translateString`（8 參數）把
+  outputPos 陣列塞進第 7 個「spacing」參數——那個參數型別是 `char*`（1 byte/cell），
+  塞 int32 buffer 進去讀出來的位置全是垃圾值，比對會整批失真但不報錯。
+  要拿逐字對應位置，必須用 `_lou_translate`（11 參數，內建正規的
+  `outputPos`/`inputPos` int* 陣列）。`translateZhOracle`（braille-translate.htm）
+  已在 2026-07-04 改用 `_lou_translate` 修正。
+
+## 多音字補充規則（已完成，2026-07-04）
+
+### 背景與方法
+- `correction/`（未加入版控，授權使用）內的 `my_dict.dic`（心測中心 NVDA 語音校對紀錄）、
+  `破音詞庫.json`（鄭明芳老師轉譯軟體用）都是「已知多音字容易誤讀」的詞表，
+  跟 `bt-補充字典-得地.json`（國台圖字典.csv 得/地章節）性質相同，但消費端原本不同
+  （NVDA 語音 vs 鄭老師的轉譯核心），細節見 `project_correction_dict_sources`／
+  `project_zh_polyphone_moedict_verify` 記憶。
+- 用萌典 API（`https://www.moedict.tw/uni/{詞}.json`）當權威來源交叉驗證候選字：
+  查「from 詞」在該語境的正確注音、查「替代字」單字所有可能讀音，字串相同才採信——
+  完全不做任何點字轉換（因為專案裡至少有三套互不相容的注音/點字慣例：
+  zh-tw.ctb 的 U+3105-312F 注音符號 letter 定義、mcbopomofo 的
+  `BopomofoBrailleConverter`、liblouis hanzi 直接查表，三者對同一注音給出的點字碼都不同）。
+- **比對「bt 現在輸出什麼」務必用 bt 自己的 `parseCtb`/`zhMap`/`zhCtxRules`/`zhCorrectMap`
+  邏輯（純 JS 正規表達式解析 zh-tw.ctb 原始檔+規則套用），不能用 liblouis WASM 的
+  `_lou_translate` 代替**——兩者對於 word-boundary 相關的多字詞讀音會有落差
+  （bt 的簡化版 JS parser 沒有實作 liblouis C 引擎的 word/begword opcode 全部語意），
+  第一輪比對誤用 liblouis 當 bt 的替身，數字有出入但方向一致，已用 bt 自己的邏輯重跑校正。
+- 得/地字典抓出 4 筆真錯（買得/樂得/落得/只得 的「得」記成輕聲，其實是動詞義
+  「得以」該念完整二聲 ㄉㄜˊ，已訂正）。my_dict.dic + 破音詞庫 共 22 筆萌典驗證通過的新詞條。
+
+### 檔案與整合
+- `correction/bt-補充字典-得地.json`（701 筆，4 筆已訂正）+
+  `correction/bt-補充字典-my_dict破音詞庫.json`（22 筆，新增）→ 合併成
+  `bt-zh-supplement-rules.json`（repo 根目錄，**有進版控，會部署**；來源 `correction/`
+  內的原始詞表授權來源不明確是否可公開發佈，故不進版控，只有合併後的
+  word→braille 對照表上線）。同一詞若有多個 targetChar/targetIndex（如「長得」同時要修
+  長跟得）會合併成同一條規則、一次套用全部修正。
+- 整合進 `braille-translate.htm` 既有的「自定義規則」機制（`customRules`/`customRuleMatch`，
+  整詞比對 → 整詞點字覆蓋，跟英文自訂規則共用同一套 tokenizer 攔截點）：
+  新增 `builtinZhRules`（獨立於使用者自己的 `customRules`，不會混進使用者的規則列表/匯出/匯入）、
+  `zh-supplement-toggle` 核取方塊（自定義點字規則面板內，狀態存
+  `localStorage['vi-bt-zh-supplement-enabled']`），`customRuleMatch` 兩邊都查、
+  同長度時使用者自訂規則優先。
+
+### 已知殘留問題（未修，超出這輪驗證範圍）
+- 「了不得」目前補充字典只修了「了」，「得」「不」的預設讀音其實也是錯的
+  （萌典：ㄌㄧㄠˇ ˙ㄅㄨ ˙ㄉㄜ，兩個字都是輕聲，但 bt 預設都不是）；
+  因為這牽涉「不」的聲調，超出得/地/my_dict/破音詞庫這輪的驗證範圍，先留著沒動。
 
 ## 轉換判斷修正一輪（已完成，2026-07-03）
 
