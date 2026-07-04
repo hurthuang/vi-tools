@@ -8,3 +8,9 @@ desktop.ini
 
 # McBopomofoWeb source repo (build source for mcbopomofo-service.js)
 McBopomofoWeb/
+
+# 授權來源字典原始資料，不確定能否公開發佈，不進版控（衍生的 bt-zh-supplement-rules.json 有進版控）
+correction/
+
+# 其他專案（vi-slides）誤匯出到這裡的檔案
+outputs/
