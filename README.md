@@ -15,6 +15,7 @@
 | 數學點字 | [nemeth_converter.html](https://hurthuang.github.io/vi-tools/nemeth_converter.html) | LaTeX 數學式↔Nemeth 點字雙向轉換；MathJax 即時預覽；108 課綱符號對照；數學編輯器 |
 | 文件整理 | [pdf-to-accessible.html](https://hurthuang.github.io/vi-tools/pdf-to-accessible.html) | 開啟 PDF／DOCX／TXT，自動整理版面雜訊（頁首頁尾、選項斷行、連字號等）；內建語音朗讀（TTS）試聽；高對比與黃底黑字主題 |
 | UEB 查詢 | [UEB-g2-query.html](https://hurthuang.github.io/vi-tools/UEB-g2-query.html) | 輸入英文單字查 G2 點字，逐條列出所用縮寫規則並以色碼標示；支援點字反查英文；與 liblouis 結果並排比對 |
+| 點字輸入 | [braille-input.html](https://hurthuang.github.io/vi-tools/braille-input.html) | 整合四種點字輸入方式：常駐六點鍵盤（觸控／滑鼠／實體鍵盤同時按鍵組合，Ctrl+B 切換一般輸入）、點陣點選浮動面板、Unicode 64 點字符鍵盤；輸出可切換 Unicode／ASCII／ASCII+SimBraille 字型顯示 |
 
 ## 共同功能
 

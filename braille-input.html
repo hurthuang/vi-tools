@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>點字輸入整合工具</title>
+<style>
+    @font-face {
+        font-family: 'SimBraille';
+        src: url('SIMBRL.TTF') format('truetype');
+    }
+    body {
+        margin: 0;
+        padding: 24px 12px;
+        background-color: #f5f5f5;
+        font-family: Arial, "Microsoft JhengHei", sans-serif;
+        display: flex;
+        justify-content: center;
+    }
+    .container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 95%;
+        max-width: 1000px;
+    }
+    h1 {
+        text-align: center;
+        margin: 0;
+    }
+
+    /* ── 工具列 ── */
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+    }
+    .toolbar-sep {
+        width: 1px;
+        height: 26px;
+        background: #ddd;
+        margin: 0 4px;
+    }
+    .control-button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        background-color: #3e4347;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    .control-button.delete { background-color: #3e4347; }
+    .control-button.new-line { background-color: #3e4347; }
+    .control-button.clear-btn { background-color: #3e4347; }
+    .control-button.toggle-btn { background-color: #3e4347; }
+    .control-button.toggle-btn.active { background-color: #3949ab; box-shadow: inset 0 2px 4px rgba(0,0,0,0.25); }
+    .control-button:hover { opacity: 0.85; }
+    .mode-badge {
+        border: none; border-radius: 5px; padding: 10px 14px;
+        font-size: 15px; cursor: pointer; color: #fff;
+        background-color: #3949ab;
+    }
+    .mode-badge.normal { background-color: #3e4347; }
+    .mode-badge:hover { opacity: 0.9; }
+
+    /* ── 輸出框 ── */
+    .output-wrap { position: relative; }
+    .output-area {
+        width: 100%;
+        min-height: 150px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 24px;
+        font-family: inherit;
+        resize: vertical;
+    }
+    .output-area.simbraille-font {
+        font-family: 'SimBraille', monospace;
+        font-size: 30px;
+    }
+    .fake-caret {
+        position: absolute;
+        width: 2px;
+        background-color: #3949ab;
+        pointer-events: none;
+        display: none;
+        animation: caretBlink 1s step-end infinite;
+    }
+    @keyframes caretBlink { 50% { opacity: 0; } }
+
+    /* ── 點陣輸入浮動面板（貼在輸出框右下角）── */
+    .dot-panel {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 8px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+        padding: 14px 16px;
+        z-index: 50;
+        min-width: 210px;
+    }
+    .dot-panel-title { font-weight: 600; margin-bottom: 8px; }
+    .dot-body { display: flex; align-items: center; gap: 14px; }
+    .dot-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+        padding: 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;
+    }
+    .dot-btn {
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 1.5px solid #aaa; background: white;
+        cursor: pointer; font-size: 0.95rem; font-weight: 700; color: #555;
+        display: flex; align-items: center; justify-content: center;
+        transition: all .12s; line-height: 1;
+    }
+    .dot-btn.on { background: #3949ab; border-color: #3949ab; color: white; }
+    .dot-btn:hover:not(.on) { background: #e8eaf6; border-color: #3949ab; color: #3949ab; }
+    .dot-prev { font-size: 2.8rem; color: #3949ab; min-width: 48px; text-align: center; line-height: 1; }
+    .dot-panel-acts { display: flex; gap: 6px; margin-top: 12px; }
+    .dot-panel-acts button {
+        flex: 1; padding: 6px 8px; border-radius: 4px; cursor: pointer;
+        font-size: 0.85em; border: 1px solid #aaa; background: #f5f5f5;
+    }
+    .dot-insert { background: #3949ab !important; color: #fff !important; border-color: #3949ab !important; }
+
+    .hidden { display: none; }
+
+    .tooltip {
+        position: fixed;
+        top: 20px; right: 20px;
+        background-color: #3e4347;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        display: none;
+        animation: fadeOut 2s forwards;
+    }
+    @keyframes fadeOut {
+        0% { opacity: 1; }
+        70% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+
+    /* ── 常駐主鍵盤：觸控 / 實體鍵盤（改自 touch.txt，class 加 tk- 前綴避免衝突）── */
+    .tk-panel { position: relative; }
+    .tk-hint {
+        font-size: 0.82rem;
+        color: #666;
+        text-align: center;
+        margin-bottom: 6px;
+    }
+    .tk-keyboard-area {
+        height: 300px;
+        min-height: 260px;
+        background-color: #333;
+        border-radius: 6px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        touch-action: manipulation;
+        overflow: hidden;
+    }
+    .tk-braille-preview {
+        height: 60px;
+        background-color: #222;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        flex-shrink: 0;
+    }
+    .tk-keyboard {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        padding: 10px;
+    }
+    .tk-key-row {
+        display: flex;
+        width: 100%;
+        height: 70px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    .tk-key {
+        box-sizing: border-box;
+        background-color: #444;
+        color: white;
+        border: 2px solid #222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        user-select: none;
+        flex: 1 1 48px;
+        min-width: 48px;
+        height: 100%;
+        position: relative;
+        box-shadow: 0 4px 0 #222;
+        transition: transform 0.05s, box-shadow 0.05s;
+        touch-action: manipulation;
+    }
+    .tk-key.pressed {
+        background-color: #555;
+        transform: translateY(4px);
+        box-shadow: 0 0 0 #222;
+    }
+    .tk-key .tk-dot-position {
+        position: absolute;
+        bottom: 5px; right: 5px;
+        font-size: 14px;
+        color: #cfd8dc;
+    }
+    .tk-key-semicolon { background-color: #3949ab; }
+    .tk-control-buttons {
+        display: flex;
+        height: 60px;
+        background-color: #222;
+        width: 100%;
+        flex-shrink: 0;
+    }
+    .tk-control-btn {
+        flex: 1;
+        border: none;
+        background-color: #333;
+        color: white;
+        font-size: 18px;
+        border-right: 1px solid #444;
+        cursor: pointer;
+    }
+    .tk-control-btn:last-child { border-right: none; }
+    .tk-control-btn.space { flex: 2; background-color: #555; }
+    .tk-instructions {
+        position: absolute;
+        top: 10px; right: 10px;
+        background-color: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 100;
+        opacity: 0.9;
+        max-width: 250px;
+    }
+    .tk-instructions h3 { margin-top: 0; }
+    .tk-instructions p { margin: 5px 0; }
+    .tk-instructions-toggle {
+        position: absolute;
+        top: 10px; right: 10px;
+        background-color: rgba(0,0,0,0.5);
+        color: white;
+        width: 30px; height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 101;
+        cursor: pointer;
+    }
+    @media screen and (max-width: 768px) {
+        .tk-key { font-size: 18px; }
+        .tk-key-row { height: 60px; }
+        .tk-braille-preview { height: 50px; }
+        .tk-control-buttons { height: 50px; }
+        .tk-control-btn { font-size: 16px; }
+    }
+    @media screen and (max-width: 480px) {
+        .tk-key { font-size: 16px; }
+        .tk-key .tk-dot-position { font-size: 10px; }
+        .tk-key-row { height: 55px; }
+        .tk-braille-preview { height: 40px; }
+        .tk-control-buttons { height: 40px; }
+        .tk-control-btn { font-size: 14px; }
+    }
+
+    /* ── 收合區：Unicode 64 點字符鍵盤 ── */
+    .settings-panel {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        background-color: #f9f9f9;
+    }
+    .settings-panel h3 { margin-top: 0; }
+    select {
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        font-size: 15px;
+    }
+    .toggle-container { margin: 10px 0; }
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px; width: 16px;
+        left: 4px; bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #2196F3; }
+    input:checked + .slider:before { transform: translateX(26px); }
+
+    .braille-grid {
+        display: grid;
+        grid-template-columns: repeat(16, 1fr);
+        gap: 3px;
+        margin-top: 12px;
+    }
+    .braille-button {
+        font-size: 14px;
+        padding: 1px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        text-align: center;
+        min-height: 26px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .braille-char { margin-bottom: 2px; }
+    .braille-dots {
+        font-size: 9px;
+        color: #666;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .braille-button:hover { background-color: #eaeaea; }
+    @media screen and (max-width: 700px) {
+        .braille-grid { grid-template-columns: repeat(8, 1fr); }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>點字輸入整合工具</h1>
+
+    <div class="toolbar">
+        <button class="control-button" id="copyBtn">複製</button>
+        <button class="control-button delete" id="deleteBtn">刪除</button>
+        <button class="control-button new-line" id="newLineBtn">換行</button>
+        <button class="control-button clear-btn" id="clearBtn">清空</button>
+        <span class="toolbar-sep"></span>
+        <button class="control-button toggle-btn" id="toggleDotPanelBtn">點陣輸入</button>
+        <button class="control-button toggle-btn" id="toggleUnicodeBtn">Unicode 鍵盤</button>
+        <select id="charFormatSelect" title="點字輸出的文字編碼">
+            <option value="unicode">Unicode 點字</option>
+            <option value="ascii">ASCII</option>
+            <option value="ascii-simbraille">ASCII + SimBraille 字型</option>
+        </select>
+        <span class="toolbar-sep"></span>
+        <button type="button" class="mode-badge" id="modeIndicator">⠿ 六點輸入中（Ctrl+B 切換）</button>
+    </div>
+
+    <div class="output-wrap">
+        <textarea class="output-area" id="output" placeholder="點字輸出會顯示在這裡…" readonly inputmode="none"></textarea>
+
+        <!-- 點陣輸入：貼在輸出框右下角的浮動面板 -->
+        <div class="dot-panel hidden" id="dotPanel">
+            <div class="dot-panel-title">點陣輸入</div>
+            <div class="dot-body">
+                <div class="dot-grid">
+                    <button type="button" class="dot-btn" data-dot="1">1</button>
+                    <button type="button" class="dot-btn" data-dot="4">4</button>
+                    <button type="button" class="dot-btn" data-dot="2">2</button>
+                    <button type="button" class="dot-btn" data-dot="5">5</button>
+                    <button type="button" class="dot-btn" data-dot="3">3</button>
+                    <button type="button" class="dot-btn" data-dot="6">6</button>
+                </div>
+                <div class="dot-prev" id="dotPrev">⠀</div>
+            </div>
+            <div class="dot-panel-acts">
+                <button type="button" class="dot-insert" id="dotInsertBtn">插入</button>
+                <button type="button" class="dot-bksp" id="dotBkspBtn">倒退</button>
+                <button type="button" id="dotClearBtn">清點</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 常駐主鍵盤：觸控 / 實體鍵盤（同時按鍵組合輸入，預設啟用） -->
+    <div class="tk-panel" id="touchPanel">
+        <div class="tk-hint">F=1 D=2 S=3 ｜ J=4 K=5 L=6 ｜ A=退格（長按連續刪除） ｜ ;=換行</div>
+        <div class="tk-keyboard-area">
+            <div class="tk-braille-preview" id="tkPreview">&nbsp;</div>
+            <div class="tk-keyboard">
+                <div class="tk-key-row">
+                    <div class="tk-key" data-index="6" id="tk-key-a">退格<span class="tk-dot-position">A</span></div>
+                    <div class="tk-key" data-index="2" id="tk-key-s">3<span class="tk-dot-position">S</span></div>
+                    <div class="tk-key" data-index="1" id="tk-key-d">2<span class="tk-dot-position">D</span></div>
+                    <div class="tk-key" data-index="0" id="tk-key-f">1<span class="tk-dot-position">F</span></div>
+                    <div class="tk-key" data-index="3" id="tk-key-j">4<span class="tk-dot-position">J</span></div>
+                    <div class="tk-key" data-index="4" id="tk-key-k">5<span class="tk-dot-position">K</span></div>
+                    <div class="tk-key" data-index="5" id="tk-key-l">6<span class="tk-dot-position">L</span></div>
+                    <div class="tk-key tk-key-semicolon" data-index="7" id="tk-key-semicolon">換行<span class="tk-dot-position">;</span></div>
+                </div>
+            </div>
+            <div class="tk-control-buttons">
+                <button class="tk-control-btn" id="tkClearBtn">清除</button>
+                <button class="tk-control-btn space" id="tkSpaceBtn">空格</button>
+                <button class="tk-control-btn" id="tkEnterBtn">換行</button>
+            </div>
+            <div class="tk-instructions-toggle" id="tkInstructionsToggle">?</div>
+            <div class="tk-instructions hidden" id="tkInstructions">
+                <h3>使用說明：</h3>
+                <p>1. 同時按下不同按鍵組合輸入點字</p>
+                <p>2. F=點1, D=點2, S=點3</p>
+                <p>3. J=點4, K=點5, L=點6</p>
+                <p>4. A=退格, ;=換行</p>
+                <p>5. 示例: FSK 組合輸入 ⠕</p>
+                <p>6. 點進輸出框可切回一般手動打字；離開輸出框後即可再用鍵盤輸入點字</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收合區：Unicode 64 點字符鍵盤 -->
+    <div class="hidden" id="unicodeSection">
+        <div class="settings-panel">
+            <h3>顯示設定</h3>
+            <div class="toggle-container">
+                <label class="toggle-switch">
+                    <input checked type="checkbox" id="showCodeToggle" />
+                    <span class="slider"></span>
+                </label>
+                <label for="showCodeToggle">滑鼠懸停時顯示點位</label>
+            </div>
+            <label for="displayMode">顯示模式：</label>
+            <select id="displayMode">
+                <option value="dots">點位</option>
+                <option value="ueb">UEB</option>
+                <option value="zhuyin">注音</option>
+            </select>
+            <div class="braille-grid" id="keyboardMode"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip">已複製!</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const output = document.getElementById('output');
+    const tooltip = document.getElementById('tooltip');
+
+    const copyBtn = document.getElementById('copyBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const newLineBtn = document.getElementById('newLineBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const brailleMappings = {
+        0x2800: ["", "", ""],
+        0x2801: ["1", "a", "ㄓ/清聲"], 0x2802: ["2", ",", "二聲"], 0x2803: ["12", "b/but", "ㄔ"],
+        0x2804: ["3", "'", "一聲"], 0x2805: ["13", "k/knowledge", "ㄍ/ㄐ"], 0x2806: ["23", "be", "，"],
+        0x2807: ["123", "l/like", "ㄎ"], 0x2808: ["4", "", "三聲"], 0x2809: ["14", "c/can", "ㄌ"],
+        0x280A: ["24", "i", "ㄕ"], 0x280B: ["124", "f/from", "ㄊ"], 0x280C: ["34", "st/still", "ㄨ"],
+        0x280D: ["134", "m/more", "ㄇ"], 0x280E: ["234", " s/so", "ㄧㄡ"], 0x280F: ["1234", "p/people", "ㄆ"],
+        0x2810: ["5", "字首前綴", "四聲"], 0x2811: ["15", "e/every", "ㄒ/ㄙ"], 0x2812: ["25", "con/cc", "ㄨㄛ"],
+        0x2813: ["125", "h/have", "ㄗ"], 0x2814: ["35", "in", "ㄞ"], 0x2815: ["135", "o", "ㄅ"],
+        0x2816: ["235", "ff", "ㄩㄥ"], 0x2817: ["1235", "r/rather", "ㄏ"], 0x2818: ["45", "字首前綴", "ㄩㄢ"],
+        0x2819: ["145", "d/do", "ㄉ"], 0x281A: ["245", "j/just", "ㄑ/ㄘ"], 0x281B: ["1245", "g/go", "ㄖ"],
+        0x281C: ["345", "ar", "ㄚ"], 0x281D: ["1345", "n/not", "ㄋ"], 0x281E: ["2345", "t/that", "ㄧㄢ"],
+        0x281F: ["12345", "q/quite", "ㄈ"], 0x2820: ["6", "capital", "、"], 0x2821: ["16", "ch/child", "ㄧ"],
+        0x2822: ["26", "en/enough", "ㄧㄞ"], 0x2823: ["126", "gh", "ㄛ"], 0x2824: ["36", "-", "。"],
+        0x2825: ["136", "u/us", "ㄣ"], 0x2826: ["236", "his", "ㄩㄝ"], 0x2827: ["1236", "v/very", "ㄢ"],
+        0x2828: ["46", "字尾前綴", "ㄧㄤ"], 0x2829: ["146", "sh/shall", "ㄠ"], 0x282A: ["246", "ow", "ㄧㄠ"],
+        0x282B: ["1246", "ed", "ㄨㄟ"], 0x282C: ["346", "ing", "ㄧㄝ"], 0x282D: ["1346", "x/it", "ㄤ"],
+        0x282E: ["2346", "the", "ㄜ"], 0x282F: ["12346", "and", "ㄨㄥ"], 0x2830: ["56", "grade1", "；"],
+        0x2831: ["156", "wh/which", "ㄦ"], 0x2832: ["256", "dis", "ㄩㄣ"], 0x2833: ["1256", "ou/out", "ㄩ"],
+        0x2834: ["356", "was", "ㄧㄛ"], 0x2835: ["1356", "z/as", "ㄥ"], 0x2836: ["2356", "gg/were", "ㄨㄞ"],
+        0x2837: ["12356", "of", "ㄡ"], 0x2838: ["456", "字首前綴", "ㄨㄤ"], 0x2839: ["1456", "th/this", "ㄧㄣ"],
+        0x283A: ["2456", "w/will", "ㄞ"], 0x283B: ["12456", "er", "ㄨㄢ"], 0x283C: ["3456", "num", ""],
+        0x283D: ["13456", "y/you", "ㄧㄥ"], 0x283E: ["23456", "with", "ㄧㄚ"], 0x283F: ["123456", "for", "ㄨㄣ"]
+    };
+
+    // ════════════════ 輸入模式：六點輸入 / 一般輸入（Ctrl+B 切換）════════════════
+    let sixDotMode = true;
+    const modeIndicator = document.getElementById('modeIndicator');
+
+    function updateModeIndicator() {
+        modeIndicator.textContent = sixDotMode ? '⠿ 六點輸入中（Ctrl+B 切換）' : 'Aa 一般輸入中（Ctrl+B 切換）';
+        modeIndicator.classList.toggle('normal', !sixDotMode);
+        // 六點輸入模式時鎖住輸出框（readonly + inputmode=none），平板上才不會跳出系統輸入法
+        // 蓋住觸控點字鍵盤；切到一般輸入模式才解鎖，讓使用者能點進框內用系統鍵盤打字。
+        output.readOnly = sixDotMode;
+        if (sixDotMode) {
+            output.setAttribute('inputmode', 'none');
+        } else {
+            output.removeAttribute('inputmode');
+        }
+        updateFakeCaret();
+    }
+
+    // ════════════════ 假游標 ════════════════
+    // readonly 狀態下瀏覽器不畫原生游標，所以用「鏡像 div」量出游標的實際像素位置，
+    // 疊一條會閃爍的假游標線在輸出框上；一般輸入模式（非 readonly）時原生游標會自己
+    // 顯示，這裡就隱藏假游標。
+    const fakeCaret = document.createElement('div');
+    fakeCaret.className = 'fake-caret';
+    document.querySelector('.output-wrap').appendChild(fakeCaret);
+
+    const caretMirror = document.createElement('div');
+    caretMirror.style.cssText = 'position:absolute; visibility:hidden; top:-9999px; left:-9999px; overflow:hidden; white-space:pre-wrap; word-wrap:break-word; overflow-wrap:break-word;';
+    document.body.appendChild(caretMirror);
+
+    const MIRROR_PROPS = [
+        'boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+        'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing', 'wordSpacing'
+    ];
+
+    function updateFakeCaret() {
+        if (!sixDotMode) { fakeCaret.style.display = 'none'; return; }
+
+        const cs = getComputedStyle(output);
+        MIRROR_PROPS.forEach(p => { caretMirror.style[p] = cs[p]; });
+        // line-height 常是 "normal"（不是固定 px），瀏覽器對「空行」跟「有內容的行」
+        // 算出來的實際行高可能差個幾 px，導致假游標在插入第一個字元時垂直位置跳動；
+        // 這裡固定換算成明確的 px 數值，鏡像 div 和輸出框才會算得一致。
+        const lineHeight = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+        caretMirror.style.lineHeight = lineHeight + 'px';
+
+        const pos = output.selectionStart;
+        const text = output.value;
+        caretMirror.textContent = '';
+        caretMirror.appendChild(document.createTextNode(text.slice(0, pos)));
+        const marker = document.createElement('span');
+        caretMirror.appendChild(marker);
+        caretMirror.appendChild(document.createTextNode(text.slice(pos)));
+
+        const left = marker.offsetLeft - output.scrollLeft;
+        const top = marker.offsetTop - output.scrollTop;
+
+        fakeCaret.style.left = left + 'px';
+        fakeCaret.style.top = top + 'px';
+        fakeCaret.style.height = lineHeight + 'px';
+        fakeCaret.style.display = (top >= -1 && top < output.clientHeight) ? 'block' : 'none';
+    }
+
+    ['click', 'keyup', 'mouseup', 'touchend'].forEach(evt => {
+        output.addEventListener(evt, updateFakeCaret);
+    });
+    window.addEventListener('resize', updateFakeCaret);
+    function toggleSixDotMode() {
+        sixDotMode = !sixDotMode;
+        updateModeIndicator();
+    }
+    modeIndicator.addEventListener('click', toggleSixDotMode);
+
+    // ════════════════ 共用：游標位置插入 / 刪除 / 換行 / 清空 ════════════════
+    // 每個動作都會把焦點放回輸出框，讓瀏覽器原生的文字游標（閃爍的 |）
+    // 顯示在正確位置；是否攔截按鍵完全由上面的 sixDotMode 決定，跟焦點無關。
+    function insertAtCursor(text) {
+        const s = output.selectionStart ?? output.value.length;
+        const e = output.selectionEnd ?? output.value.length;
+        output.value = output.value.slice(0, s) + text + output.value.slice(e);
+        output.selectionStart = output.selectionEnd = s + text.length;
+        output.focus();
+        updateFakeCaret();
+    }
+    function doDelete() {
+        const s = output.selectionStart, e = output.selectionEnd;
+        if (s !== e) {
+            output.value = output.value.slice(0, s) + output.value.slice(e);
+            output.selectionStart = output.selectionEnd = s;
+        } else if (s > 0) {
+            output.value = output.value.slice(0, s - 1) + output.value.slice(s);
+            output.selectionStart = output.selectionEnd = s - 1;
+        }
+        output.focus();
+        updateFakeCaret();
+    }
+    function doNewLine() { insertAtCursor('\n'); }
+    function doSpace() { insertAtCursor(' '); }
+    function doClear() { output.value = ''; output.focus(); updateFakeCaret(); }
+
+    // ════════════════ 點字顯示格式：Unicode / ASCII / ASCII+SimBraille ════════════════
+    // ASCII 對照表來源：table/text_nabcc.dis（North American Braille Computer Code），
+    // 只取「不含第 7、8 點」的 64 種六點組合子集（字母、數字、標點），跟 Unicode
+    // 點字 U+2800~U+283F 的 64 種點位一一對應。
+    function dotsToBits(dotsStr) {
+        let b = 0;
+        for (const ch of dotsStr) b |= (1 << (parseInt(ch, 10) - 1));
+        return b;
+    }
+    const NABCC_TABLE = [
+        ["", " "],
+        ["1", "a"], ["12", "b"], ["14", "c"], ["145", "d"], ["15", "e"], ["124", "f"], ["1245", "g"], ["125", "h"], ["24", "i"], ["245", "j"],
+        ["13", "k"], ["123", "l"], ["134", "m"], ["1345", "n"], ["135", "o"], ["1234", "p"], ["12345", "q"], ["1235", "r"], ["234", "s"], ["2345", "t"],
+        ["136", "u"], ["1236", "v"], ["2456", "w"], ["1346", "x"], ["13456", "y"], ["1356", "z"],
+        ["356", "0"], ["2", "1"], ["23", "2"], ["25", "3"], ["256", "4"], ["26", "5"], ["235", "6"], ["2356", "7"], ["236", "8"], ["35", "9"],
+        ["46", "."], ["346", "+"], ["36", "-"], ["16", "*"], ["34", "/"], ["12356", "("], ["23456", ")"],
+        ["12346", "&"], ["3456", "#"],
+        ["6", ","], ["56", ";"], ["156", ":"], ["2346", "!"], ["1456", "?"], ["5", "\""], ["3", "'"], ["4", "`"], ["45", "~"],
+        ["246", "{"], ["12456", "}"], ["123456", "="], ["126", "<"], ["345", ">"], ["1246", "$"], ["146", "%"], ["1256", "|"], ["456", "_"]
+    ];
+    const NABCC_BY_BITS = {};
+    const ASCII_TO_BITS = {};
+    NABCC_TABLE.forEach(([dots, ch]) => {
+        const bits = dotsToBits(dots);
+        NABCC_BY_BITS[bits] = ch;
+        ASCII_TO_BITS[ch] = bits;
+    });
+
+    // 切換顯示格式時，把輸出框「既有」的文字也一併轉換：
+    // - Unicode → ASCII：每個 U+2800~U+283F 點字字元都有唯一對應的 ASCII 字元，可安全轉換。
+    // - ASCII → Unicode：假設框內文字都是點字內容才轉換——如果之前用「一般輸入」模式
+    //   手動打過一般文字，切回 Unicode 時那些字母/符號也會被誤判成點字組合而被轉換，
+    //   這是 ASCII 點字碼跟一般文字共用同一組字元、無法百分之百分辨所致。
+    // - ASCII ↔ ASCII+SimBraille：底層字元完全相同，只是換字型，不需要轉換文字。
+    function convertOutputText(oldFormat, newFormat) {
+        const oldIsUnicode = oldFormat === 'unicode';
+        const newIsUnicode = newFormat === 'unicode';
+        if (oldIsUnicode === newIsUnicode) return;
+        const s = output.selectionStart, e = output.selectionEnd;
+        const converted = [...output.value].map(ch => {
+            if (oldIsUnicode) {
+                const cp = ch.codePointAt(0);
+                if (cp >= 0x2800 && cp <= 0x283F) {
+                    const bits = cp - 0x2800;
+                    return NABCC_BY_BITS[bits] !== undefined ? NABCC_BY_BITS[bits] : ch;
+                }
+                return ch;
+            } else {
+                const bits = ASCII_TO_BITS[ch];
+                return bits !== undefined ? String.fromCodePoint(0x2800 + bits) : ch;
+            }
+        }).join('');
+        output.value = converted;
+        output.selectionStart = s;
+        output.selectionEnd = e;
+        updateFakeCaret();
+    }
+
+    let charFormat = 'unicode';
+    const charFormatSelect = document.getElementById('charFormatSelect');
+    charFormatSelect.addEventListener('change', function() {
+        const oldFormat = charFormat;
+        charFormat = this.value;
+        convertOutputText(oldFormat, charFormat);
+        output.classList.toggle('simbraille-font', charFormat === 'ascii-simbraille');
+    });
+
+    function codeToChar(bits) {
+        if (charFormat === 'unicode') return String.fromCodePoint(0x2800 + bits);
+        return NABCC_BY_BITS[bits] !== undefined ? NABCC_BY_BITS[bits] : String.fromCodePoint(0x2800 + bits);
+    }
+    function insertBrailleCell(bits) {
+        insertAtCursor(codeToChar(bits));
+    }
+
+    copyBtn.addEventListener('click', function() {
+        if (output.value) {
+            navigator.clipboard.writeText(output.value).then(showTooltip);
+        }
+    });
+    deleteBtn.addEventListener('click', doDelete);
+    newLineBtn.addEventListener('click', doNewLine);
+    clearBtn.addEventListener('click', doClear);
+
+    function showTooltip() {
+        tooltip.style.display = 'block';
+        tooltip.style.animation = 'none';
+        tooltip.offsetHeight;
+        tooltip.style.animation = 'fadeOut 2s forwards';
+        setTimeout(() => tooltip.style.display = 'none', 2000);
+    }
+
+    // ════════════════ 常駐主鍵盤：觸控 / 實體鍵盤（同時按鍵組合）════════════════
+    let tkDots = [0, 0, 0, 0, 0, 0];
+    let tkBrailleCode = 0;
+    let tkActiveKeys = new Set();
+    let tkTouches = {};
+
+    const tkKeys = document.querySelectorAll('.tk-key');
+    const tkPreview = document.getElementById('tkPreview');
+    const tkClearBtn = document.getElementById('tkClearBtn');
+    const tkSpaceBtn = document.getElementById('tkSpaceBtn');
+    const tkEnterBtn = document.getElementById('tkEnterBtn');
+    const tkInstructionsToggle = document.getElementById('tkInstructionsToggle');
+    const tkInstructions = document.getElementById('tkInstructions');
+    const tkKeyboardArea = document.querySelector('.tk-keyboard-area');
+
+    tkInstructionsToggle.addEventListener('click', function() {
+        tkInstructions.classList.toggle('hidden');
+    });
+
+    tkKeyboardArea.addEventListener('touchstart', tkHandleTouchStart, { passive: false });
+    tkKeyboardArea.addEventListener('touchmove', tkHandleTouchMove, { passive: false });
+    tkKeyboardArea.addEventListener('touchend', tkHandleTouchEnd, { passive: false });
+    tkKeyboardArea.addEventListener('touchcancel', function() {
+        for (const touchId in tkTouches) {
+            const info = tkTouches[touchId];
+            if (info && info.element) tkHandleKeyRelease(info.element);
+        }
+        tkTouches = {};
+        if (tkBrailleCode !== 0) tkCommitBraille();
+    }, { passive: false });
+
+    tkKeys.forEach(key => {
+        key.addEventListener('mousedown', function() { tkHandleKeyPress(this); });
+        key.addEventListener('mouseup', function() { tkHandleKeyRelease(this); });
+        key.addEventListener('mouseleave', function() {
+            if (this.classList.contains('pressed')) tkHandleKeyRelease(this);
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'b') {
+            toggleSixDotMode();
+            e.preventDefault();
+            return;
+        }
+        if (!sixDotMode) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+        let keyElement;
+        switch (e.key.toLowerCase()) {
+            case 'a': keyElement = document.getElementById('tk-key-a'); break;
+            case 's': keyElement = document.getElementById('tk-key-s'); break;
+            case 'd': keyElement = document.getElementById('tk-key-d'); break;
+            case 'f': keyElement = document.getElementById('tk-key-f'); break;
+            case 'j': keyElement = document.getElementById('tk-key-j'); break;
+            case 'k': keyElement = document.getElementById('tk-key-k'); break;
+            case 'l': keyElement = document.getElementById('tk-key-l'); break;
+            case ';': keyElement = document.getElementById('tk-key-semicolon'); break;
+            case ' ': doSpace(); e.preventDefault(); return;
+            case 'backspace': doDelete(); e.preventDefault(); return;
+            case 'enter': doNewLine(); e.preventDefault(); return;
+        }
+        if (keyElement) { tkHandleKeyPress(keyElement); e.preventDefault(); }
+    });
+
+    document.addEventListener('keyup', function(e) {
+        if (!sixDotMode) return;
+
+        let keyElement;
+        switch (e.key.toLowerCase()) {
+            case 'a': keyElement = document.getElementById('tk-key-a'); break;
+            case 's': keyElement = document.getElementById('tk-key-s'); break;
+            case 'd': keyElement = document.getElementById('tk-key-d'); break;
+            case 'f': keyElement = document.getElementById('tk-key-f'); break;
+            case 'j': keyElement = document.getElementById('tk-key-j'); break;
+            case 'k': keyElement = document.getElementById('tk-key-k'); break;
+            case 'l': keyElement = document.getElementById('tk-key-l'); break;
+            case ';': keyElement = document.getElementById('tk-key-semicolon'); break;
+        }
+        if (keyElement) { tkHandleKeyRelease(keyElement); e.preventDefault(); }
+    });
+
+    tkClearBtn.addEventListener('click', doClear);
+    tkSpaceBtn.addEventListener('click', doSpace);
+    tkEnterBtn.addEventListener('click', doNewLine);
+
+    function tkHandleTouchStart(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.classList.contains('tk-key')) {
+                tkTouches[touch.identifier] = { element, x: touch.clientX, y: touch.clientY };
+                tkHandleKeyPress(element);
+            }
+        }
+        if (Object.keys(tkTouches).length > 0) e.preventDefault();
+    }
+
+    function tkHandleTouchMove(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            const info = tkTouches[touch.identifier];
+            if (info && info.element) {
+                const newElement = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (newElement !== info.element) {
+                    tkHandleKeyRelease(info.element);
+                    if (newElement && newElement.classList.contains('tk-key')) {
+                        tkHandleKeyPress(newElement);
+                        tkTouches[touch.identifier] = { element: newElement, x: touch.clientX, y: touch.clientY };
+                    } else {
+                        delete tkTouches[touch.identifier];
+                    }
+                } else {
+                    info.x = touch.clientX;
+                    info.y = touch.clientY;
+                }
+            }
+        }
+        if (Object.keys(tkTouches).length > 0) e.preventDefault();
+    }
+
+    function tkHandleTouchEnd(e) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            const info = tkTouches[touch.identifier];
+            if (info && info.element) tkHandleKeyRelease(info.element);
+            delete tkTouches[touch.identifier];
+        }
+        if (Object.keys(tkTouches).length === 0 && tkBrailleCode !== 0) {
+            const anyFunctionKeyPressed = tkActiveKeys.has(6) || tkActiveKeys.has(7);
+            if (!anyFunctionKeyPressed) tkCommitBraille();
+        }
+        e.preventDefault();
+    }
+
+    function tkHandleKeyPress(keyElement) {
+        if (keyElement.classList.contains('pressed')) return;
+        keyElement.classList.add('pressed');
+        const index = parseInt(keyElement.dataset.index);
+        tkActiveKeys.add(index);
+
+        if (index >= 0 && index <= 5) {
+            tkDots[index] = 1;
+            if (index === 0) tkBrailleCode |= 1;
+            else if (index === 1) tkBrailleCode |= 2;
+            else if (index === 2) tkBrailleCode |= 4;
+            else if (index === 3) tkBrailleCode |= 8;
+            else if (index === 4) tkBrailleCode |= 16;
+            else if (index === 5) tkBrailleCode |= 32;
+            tkUpdatePreview();
+        } else if (index === 6) {
+            startBackspaceRepeat();
+        }
+    }
+
+    function tkHandleKeyRelease(keyElement) {
+        keyElement.classList.remove('pressed');
+        const index = parseInt(keyElement.dataset.index);
+        tkActiveKeys.delete(index);
+
+        if (index === 6) { stopBackspaceRepeat(); tkResetDots(); return; }
+        if (index === 7) { doNewLine(); tkResetDots(); return; }
+
+        let anyPointKeyActive = false;
+        for (let i = 0; i <= 5; i++) {
+            if (tkActiveKeys.has(i)) { anyPointKeyActive = true; break; }
+        }
+        if (!anyPointKeyActive && tkBrailleCode !== 0) tkCommitBraille();
+    }
+
+    // 長按 A（退格）連續刪除：涵蓋實體鍵盤、滑鼠、觸控三種操作方式
+    let bkspTimer = null, bkspInterval = null;
+    function startBackspaceRepeat() {
+        doDelete();
+        clearTimeout(bkspTimer); clearInterval(bkspInterval);
+        bkspTimer = setTimeout(() => { bkspInterval = setInterval(doDelete, 60); }, 400);
+    }
+    function stopBackspaceRepeat() {
+        clearTimeout(bkspTimer); clearInterval(bkspInterval);
+        bkspTimer = null; bkspInterval = null;
+    }
+
+    function tkUpdatePreview() {
+        if (tkBrailleCode === 0) {
+            tkPreview.textContent = '';
+        } else {
+            const brailleChar = String.fromCharCode(0x2800 + tkBrailleCode);
+            let activeDots = [];
+            for (let i = 0; i < 6; i++) if (tkDots[i] === 1) activeDots.push(i + 1);
+            tkPreview.textContent = brailleChar + ' (' + activeDots.join(',') + ')';
+        }
+    }
+
+    function tkCommitBraille() {
+        if (tkBrailleCode !== 0) {
+            insertBrailleCell(tkBrailleCode);
+            tkResetDots();
+        }
+    }
+
+    function tkResetDots() {
+        tkDots = [0, 0, 0, 0, 0, 0];
+        tkBrailleCode = 0;
+        tkUpdatePreview();
+    }
+
+    // ════════════════ 點陣輸入：貼在輸出框右下角的浮動面板 ════════════════
+    const DOT_BITS = { 1: 0x01, 2: 0x02, 3: 0x04, 4: 0x08, 5: 0x10, 6: 0x20 };
+    const dotSelection = new Set();
+    const dotPanel = document.getElementById('dotPanel');
+    const toggleDotPanelBtn = document.getElementById('toggleDotPanelBtn');
+    const dotGrid = dotPanel.querySelector('.dot-grid');
+    const dotPrev = document.getElementById('dotPrev');
+    const dotInsertBtn = document.getElementById('dotInsertBtn');
+    const dotBkspBtn = document.getElementById('dotBkspBtn');
+    const dotClearBtn = document.getElementById('dotClearBtn');
+
+    function clearDotSelection() {
+        dotSelection.clear();
+        dotPanel.querySelectorAll('.dot-btn').forEach(b => b.classList.remove('on'));
+        dotPrev.textContent = '⠀';
+    }
+    function openDotPanel() {
+        dotPanel.classList.remove('hidden');
+        toggleDotPanelBtn.classList.add('active');
+    }
+    function closeDotPanel() {
+        dotPanel.classList.add('hidden');
+        toggleDotPanelBtn.classList.remove('active');
+        clearDotSelection();
+    }
+
+    toggleDotPanelBtn.addEventListener('click', function() {
+        dotPanel.classList.contains('hidden') ? openDotPanel() : closeDotPanel();
+    });
+    document.addEventListener('click', function(e) {
+        if (dotPanel.classList.contains('hidden')) return;
+        if (dotPanel.contains(e.target) || toggleDotPanelBtn.contains(e.target)) return;
+        closeDotPanel();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDotPanel();
+    });
+
+    dotGrid.addEventListener('click', function(e) {
+        const btn = e.target.closest('.dot-btn');
+        if (!btn) return;
+        const d = +btn.dataset.dot;
+        if (dotSelection.has(d)) { dotSelection.delete(d); btn.classList.remove('on'); }
+        else { dotSelection.add(d); btn.classList.add('on'); }
+        dotPrev.textContent = String.fromCodePoint(0x2800 + [...dotSelection].reduce((b, x) => b | DOT_BITS[x], 0));
+    });
+    dotInsertBtn.addEventListener('click', function() {
+        insertBrailleCell([...dotSelection].reduce((b, x) => b | DOT_BITS[x], 0));
+        clearDotSelection();
+    });
+    dotBkspBtn.addEventListener('click', doDelete);
+    dotClearBtn.addEventListener('click', clearDotSelection);
+
+    // ════════════════ 收合區：Unicode 64 點字符鍵盤 ════════════════
+    const unicodeSection = document.getElementById('unicodeSection');
+    const toggleUnicodeBtn = document.getElementById('toggleUnicodeBtn');
+    const touchPanel = document.getElementById('touchPanel');
+    const keyboardMode = document.getElementById('keyboardMode');
+    const displayModeSelect = document.getElementById('displayMode');
+    const showCodeToggle = document.getElementById('showCodeToggle');
+    let currentDisplayMode = 0;
+
+    // 開啟 Unicode 鍵盤時隱藏常駐觸控面板（節省版面），收合則還原；
+    // 六點輸入的按鍵監聽是全域的，不受這個顯示/隱藏影響。
+    toggleUnicodeBtn.addEventListener('click', function() {
+        const nowHidden = unicodeSection.classList.toggle('hidden');
+        toggleUnicodeBtn.classList.toggle('active', !nowHidden);
+        touchPanel.classList.toggle('hidden', !nowHidden);
+    });
+
+    function renderKeyboard() {
+        keyboardMode.innerHTML = '';
+        for (let i = 0x2800; i <= 0x283F; i++) {
+            const brailleChar = String.fromCodePoint(i);
+            const button = document.createElement('button');
+            button.className = 'braille-button';
+            button.dataset.unicode = i.toString(16).toUpperCase();
+            button.dataset.dots = brailleMappings[i] ? brailleMappings[i][0] : "";
+
+            const charSpan = document.createElement('span');
+            charSpan.className = 'braille-char';
+            charSpan.textContent = brailleChar;
+
+            const dotsSpan = document.createElement('span');
+            dotsSpan.className = 'braille-dots';
+            dotsSpan.textContent = brailleMappings[i] ? brailleMappings[i][currentDisplayMode] : "";
+
+            button.appendChild(charSpan);
+            button.appendChild(dotsSpan);
+            button.title = 'Unicode: U+' + i.toString(16).toUpperCase();
+
+            button.addEventListener('mouseenter', updateButtonTooltip);
+            button.addEventListener('click', function() {
+                insertBrailleCell(i - 0x2800);
+            });
+            keyboardMode.appendChild(button);
+        }
+    }
+
+    function updateButtonTooltip(event) {
+        const button = event.currentTarget;
+        if (showCodeToggle.checked) {
+            const dots = button.dataset.dots;
+            button.title = `點位 ${dots}`;
+        } else {
+            button.title = 'Unicode: U+' + button.dataset.unicode;
+        }
+    }
+
+    displayModeSelect.addEventListener('change', function() {
+        currentDisplayMode = parseInt(this.selectedIndex);
+        renderKeyboard();
+    });
+
+    showCodeToggle.addEventListener('change', function() {
+        const buttons = document.querySelectorAll('.braille-button');
+        buttons.forEach(button => {
+            if (button.matches(':hover')) {
+                const event = new Event('mouseenter');
+                button.dispatchEvent(event);
+            }
+        });
+    });
+
+    // ════════════════ 初始化 ════════════════
+    updateModeIndicator();
+    renderKeyboard();
+});
+</script>
+</body>
+</html>
