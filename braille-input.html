@@ -32,38 +32,61 @@
     /* ── 工具列 ── */
     .toolbar {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
+        padding-bottom: 2px;
     }
     .toolbar-sep {
         width: 1px;
-        height: 26px;
+        height: 22px;
         background: #ddd;
-        margin: 0 4px;
+        margin: 0 3px;
+        flex-shrink: 0;
     }
     .control-button {
-        padding: 10px 15px;
+        padding: 7px 11px;
         border: none;
         border-radius: 5px;
         background-color: #3e4347;
         color: white;
-        font-size: 16px;
+        font-size: 14px;
         cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
-    .control-button.delete { background-color: #3e4347; }
-    .control-button.new-line { background-color: #3e4347; }
     .control-button.clear-btn { background-color: #3e4347; }
     .control-button.toggle-btn { background-color: #3e4347; }
     .control-button.toggle-btn.active { background-color: #3949ab; box-shadow: inset 0 2px 4px rgba(0,0,0,0.25); }
     .control-button:hover { opacity: 0.85; }
+    .control-button:disabled { opacity: 0.4; cursor: not-allowed; }
     .mode-badge {
-        border: none; border-radius: 5px; padding: 10px 14px;
-        font-size: 15px; cursor: pointer; color: #fff;
+        border: none; border-radius: 5px; padding: 7px 11px;
+        font-size: 13px; cursor: pointer; color: #fff;
         background-color: #3949ab;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .mode-badge.normal { background-color: #3e4347; }
     .mode-badge:hover { opacity: 0.9; }
+    .font-size-control {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+        font-size: 13px;
+        color: #555;
+    }
+    .font-size-control input[type="range"] {
+        width: 80px;
+        accent-color: #3949ab;
+    }
+    .font-size-label {
+        min-width: 34px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
 
     /* ── 輸出框 ── */
     .output-wrap { position: relative; }
@@ -80,7 +103,6 @@
     }
     .output-area.simbraille-font {
         font-family: 'SimBraille', monospace;
-        font-size: 30px;
     }
     .fake-caret {
         position: absolute;
@@ -297,6 +319,12 @@
         margin-bottom: 10px;
         font-size: 15px;
     }
+    #charFormatSelect {
+        margin: 0;
+        padding: 6px 8px;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
     .toggle-container { margin: 10px 0; }
     .toggle-switch {
         position: relative;
@@ -368,8 +396,6 @@
 
     <div class="toolbar">
         <button class="control-button" id="copyBtn">複製</button>
-        <button class="control-button delete" id="deleteBtn">刪除</button>
-        <button class="control-button new-line" id="newLineBtn">換行</button>
         <button class="control-button clear-btn" id="clearBtn">清空</button>
         <span class="toolbar-sep"></span>
         <button class="control-button toggle-btn" id="toggleDotPanelBtn">點陣輸入</button>
@@ -379,6 +405,12 @@
             <option value="ascii">ASCII</option>
             <option value="ascii-simbraille">ASCII + SimBraille 字型</option>
         </select>
+        <span class="toolbar-sep"></span>
+        <label class="font-size-control" title="輸出文字大小">
+            A
+            <input type="range" id="fontSizeSlider" min="16" max="48" step="2" value="24">
+            <span class="font-size-label" id="fontSizeLabel">24px</span>
+        </label>
         <span class="toolbar-sep"></span>
         <button type="button" class="mode-badge" id="modeIndicator">⠿ 六點輸入中（Ctrl+B 切換）</button>
     </div>
@@ -473,8 +505,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tooltip = document.getElementById('tooltip');
 
     const copyBtn = document.getElementById('copyBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const newLineBtn = document.getElementById('newLineBtn');
     const clearBtn = document.getElementById('clearBtn');
 
     const brailleMappings = {
@@ -670,6 +700,31 @@ document.addEventListener('DOMContentLoaded', function() {
         output.classList.toggle('simbraille-font', charFormat === 'ascii-simbraille');
     });
 
+    // ════════════════ 輸出框文字大小 ════════════════
+    const FONT_SIZE_MIN = 16, FONT_SIZE_MAX = 48, FONT_SIZE_DEFAULT = 24;
+    const FONT_SIZE_KEY = 'braille-input-font-size';
+    let outputFontSize = FONT_SIZE_DEFAULT;
+    try {
+        const saved = parseInt(localStorage.getItem(FONT_SIZE_KEY), 10);
+        if (!isNaN(saved) && saved >= FONT_SIZE_MIN && saved <= FONT_SIZE_MAX) outputFontSize = saved;
+    } catch (e) {}
+
+    const fontSizeLabel = document.getElementById('fontSizeLabel');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+
+    function applyFontSize() {
+        output.style.fontSize = outputFontSize + 'px';
+        fontSizeLabel.textContent = outputFontSize + 'px';
+        fontSizeSlider.value = outputFontSize;
+        try { localStorage.setItem(FONT_SIZE_KEY, outputFontSize); } catch (e) {}
+        updateFakeCaret();
+    }
+    fontSizeSlider.addEventListener('input', function() {
+        outputFontSize = parseInt(this.value, 10);
+        applyFontSize();
+    });
+    applyFontSize();
+
     function codeToChar(bits) {
         if (charFormat === 'unicode') return String.fromCodePoint(0x2800 + bits);
         return NABCC_BY_BITS[bits] !== undefined ? NABCC_BY_BITS[bits] : String.fromCodePoint(0x2800 + bits);
@@ -683,8 +738,6 @@ document.addEventListener('DOMContentLoaded', function() {
             navigator.clipboard.writeText(output.value).then(showTooltip);
         }
     });
-    deleteBtn.addEventListener('click', doDelete);
-    newLineBtn.addEventListener('click', doNewLine);
     clearBtn.addEventListener('click', doClear);
 
     function showTooltip() {
