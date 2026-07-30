@@ -462,12 +462,15 @@ var GEO=[
   // ── Rule 15: Modified expressions ────────────────────────────────
   {latexRe:/\\overleftrightarrow\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$[33O]';},
-   nemRe:/",([A-Z,]+)<\$\[33O\]/g,
-   n2l:function(m){return '\\overleftrightarrow{'+stripCap(m[1])+'}';}},
+   // n2l：內容不再假設「只有大寫字母+逗號」，改成抓 " 到 <$[33O] 之間任何內容，
+   // 遞迴丟回 parseNemStr 讓運算子/上下標/大小寫都能正確還原（呼應 l2n 那邊
+   // \overleftrightarrow 已修成可以吃任意內容，不能再逐字元濾掉非英數字元）
+   nemRe:/"([\s\S]*?)<\$\[33O\]/g,
+   n2l:function(m){return '\\overleftrightarrow{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overrightarrow\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$O]';},
-   nemRe:/",([A-Z,]+)<\$O\]/g,
-   n2l:function(m){return '\\overrightarrow{'+stripCap(m[1])+'}';}},
+   nemRe:/"([\s\S]*?)<\$O\]/g,
+   n2l:function(m){return '\\overrightarrow{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overline\{([^}]+)\}/g,
    l2n:function(m){
      var inner=m[1].trim();
@@ -480,16 +483,42 @@ var GEO=[
      }
      return '"'+content+'<:]';
    },
-   nemRe:/",([A-Za-z,0-9]+)<:\]/g,
-   n2l:function(m){return '\\overline{'+stripCap(m[1])+'}';}},
+   // n2l：只還原完整形式 "content<:]（縮寫形式 letter: 的 : 跟一般 Nemeth 冒號無法
+   // 區分，本來就是這個記法固有的歧義，不硬猜）
+   nemRe:/"([\s\S]*?)<:\]/g,
+   n2l:function(m){return '\\overline{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overset\{\\frown\}\s*\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$A]';},
-   nemRe:/",([A-Z,]+)<\$A\]/g,
-   n2l:function(m){return '\\overset{\\frown}{'+stripCap(m[1])+'}';}},
+   nemRe:/"([\s\S]*?)<\$A\]/g,
+   n2l:function(m){return '\\overset{\\frown}{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\vec\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$33O]';},
-   nemRe:/",([A-Za-z,]+)<\$33O\]/g,
-   n2l:function(m){return '\\vec{'+stripCap(m[1])+'}';}},
+   nemRe:/"([\s\S]*?)<\$33O\]/g,
+   n2l:function(m){return '\\vec{'+parseNemStr(m[1])+'}';}},
+  {latexRe:/\\(?:hat|widehat)\{([^}]+)\}/g,
+   l2n:function(m){return '"'+capL(m[1])+'<_<]';},
+   nemRe:/"([\s\S]*?)<_<\]/g,
+   n2l:function(m){return '\\hat{'+parseNemStr(m[1])+'}';}},
+  {latexRe:/\\(?:tilde|widetilde)\{([^}]+)\}/g,
+   l2n:function(m){return '"'+capL(m[1])+'<@:]';},
+   nemRe:/"([\s\S]*?)<@:\]/g,
+   n2l:function(m){return '\\tilde{'+parseNemStr(m[1])+'}';}},
+  // dot 跟 ddot 都要在同一個 GEO 陣列出現，順序沒差——<*] 跟 <**] 中間的 * 數量不同，
+  // 兩個正規表達式互不重疊（<*] 要求 < 跟 ] 中間剛好一個 *，不會誤吃 <**] 的一部分）
+  {latexRe:/\\ddot\{([^}]+)\}/g,
+   l2n:function(m){return '"'+capL(m[1])+'<**]';},
+   nemRe:/"([\s\S]*?)<\*\*\]/g,
+   n2l:function(m){return '\\ddot{'+parseNemStr(m[1])+'}';}},
+  {latexRe:/\\dot\{([^}]+)\}/g,
+   l2n:function(m){return '"'+capL(m[1])+'<*]';},
+   nemRe:/"([\s\S]*?)<\*\]/g,
+   n2l:function(m){return '\\dot{'+parseNemStr(m[1])+'}';}},
+
+  // ── Rule 19: Braces（大括號，集合記號等；左 .( 右 .)，Example 19-2/19-3）──
+  {latexRe:/\\\{([^{}]*)\\\}/g,
+   l2n:function(m){return '.('+latexToNemethAsc(m[1])+'.)';},
+   nemRe:/\.\(([\s\S]*?)\.\)/g,
+   n2l:function(m){return '\\{'+parseNemStr(m[1])+'\\}';}},
 
   // ── Rule 17: Shapes ──────────────────────────────────────────────
   {latexRe:/\\angle_\{right\}|\\rightangle/g,
@@ -660,9 +689,24 @@ var LATEX_SIMPLE=[
   ['\\cong',' @:.K '],['\\sim',' @: '],
   ['\\iff',' $[33O '],['\\implies',' $33O '],
   ['\\Leftrightarrow',' $[33O '],['\\Rightarrow',' $33O '],
+  // 一般右指箭頭（非邏輯蘊含），Rule 21.2 Arrows，Example 21-8："AB"→",a $o ,b"
+  // （右指縮寫形式，一般型態、正常長度、單一箭桿時用；字母大小寫過真點字轉換會被歸一化
+  // 成大寫，這裡跟其他既有符號一樣統一用大寫 O，不要用小寫 o——小寫 o 在 n2l 端經過
+  // asc2brl→brl2asc 往返後會變回大寫，用小寫寫的比對規則會抓不到，這是實測抓出來的坑）。
+  // \mapsto（函式對應，如 f: A \to B）跟 \to/\rightarrow 用同一個右指箭頭符號。
+  // 左指箭頭：Example 21-7「Left-pointing Arrow」BA→",b $[33 ,a"（跟 Example 21-9
+  // 「Right- and Left-pointing Arrow」雙向箭頭 $[33o 不是同一個符號——雙向箭頭結尾多一個
+  // o，單純左指沒有；第一次查表時誤把雙向箭頭的符號當成左指箭頭，換算後跟既有的 \iff
+  // （$[33O）完全撞在一起，重新對照官方範例才抓到抓錯的是哪一個）。$[33（4 個字元，
+  // 沒有字母結尾）本身沒有大小寫問題，跟 $[33O（5 字元）長度不同不會誤判。
+  ['\\to',' $O '],['\\rightarrow',' $O '],['\\mapsto',' $O '],
+  ['\\leftarrow',' $[33 '],
   ['\\neq',' /.K '],['\\ne',' /.K '],
   ['\\geq',' .1: '],['\\ge',' .1: '],
   ['\\leq',' "K: '],['\\le',' "K: '],
+  // 全等/恆等於（is congruent to / is identical to），Rule 21.3 Identity，
+  // Example 21-11/21-12："f(x) _l #0"、"#2 _l #5(mod #3)"
+  ['\\equiv',' _L '],
   // Set/Logic (Rule 20-21, 23)
   ['\\notin',' /@E '],['\\ni',' @5 '],['\\in',' @E '],
   ['\\supseteq',' _.1: '],['\\supset',' _.1 '],
@@ -707,6 +751,12 @@ var LATEX_SIMPLE=[
   // Absolute value shorthand
   ['\\lvert','\\'],['\\rvert','\\'],
   ['\\left|','\\'],['\\right|','\\'],
+  // Braces（大括號，集合記號等）：Rule 19 左 { = .( 、右 } = .)
+  // （Example 19-2/19-3 {Wed., Thurs., Fri} → .(,wed41 ,thurs41 ,fri4.)）
+  // 純 LaTeX 分組用的無跳脫 { } 不受影響（另有專門邏輯處理，直接丟掉不印出符號）；
+  // \left\{ / \right\} 沒接 \begin{array} 時也會落到這裡（\left/\right 本身先被丟掉，
+  // 剩下的 \{ \} 才進到這個表），所以順便修正非矩陣情境的 \left\{ ... \right\}。
+  ['\\{','.('],['\\}','.)'],
 ];
 
 // LaTeX structural patterns (handled recursively)
@@ -748,8 +798,21 @@ function eatRightDelim(s,i){
   eatRightDelimIndex=i;
 }
 
+// Rule 15：常見「單一符號正上方/正下方加修飾符號」（overline/vec/箭頭/hat/dot/arc 等）
+// 共用的內容轉換邏輯——遞迴轉換內容，並補回內部 sentinel 清理邏輯會誤刪的回基線符號：
+// latexToNemethAsc 遞迴呼叫時，如果內容結尾剛好是上標/下標（如 x^2），那次獨立呼叫的
+// sentinel 清理邏輯會判斷「這次呼叫裡後面沒東西了」而把回基線符號 " 整個吃掉；但外層還
+// 要接上 modifierSuffix（如 <:] <$O] <_<]），所以還是需要這個 "（Example 15-4 已驗證：
+// "x with bar" 且 x 帶平方 → x~2"<:]，閉合前有 "）。用內容原始 LaTeX 結尾是否為
+// 上標/下標判斷，手動補回。
+function wrapModifier(content,modifierSuffix){
+  var nem=latexToNemethAsc(content);
+  if(/[\^_](\{[^{}]*\}|[^{}\s])$/.test(content)) nem+='"';
+  return '"'+nem+modifierSuffix;
+}
+
 // Convert a LaTeX string to Nemeth ASCII
-function latexToNemethAsc(expr){
+function latexToNemethAsc(expr,insideScript){
   if(!expr||!expr.trim())return '';
   var s=expr.trim(), result='', i=0;
 
@@ -809,47 +872,83 @@ function latexToNemethAsc(expr){
         }
         continue;
       }
-      if(cmd==='\\overline'){
+      if(cmd==='\\overline'||cmd==='\\bar'){
         var inner=extractBraces(s,i);i=inner.end;
         var content=inner.content.trim();
-        // capL equivalent
-        var caps=content.split('').map(function(c){
-          if(/[A-Z]/.test(c))return','+c;
-          if(/[a-z0-9]/.test(c))return c;
-          return '';
-        }).join('');
-        if(caps.length===1||(caps.length===2&&caps[0]===',')){
-          result+=caps+':';
+        // Rule 15.2.2：內容剛好是「單一數字或字母（可帶 prime）」才用縮寫形式（後面直接加 :）；
+        // 只要有上標/下標或其他符號（+ - 等），一律照 15.2.1 五步驟用完整形式，
+        // 必須遞迴呼叫 latexToNemethAsc 才能正確處理，不能逐字元濾掉非英數字元
+        // （原本的寫法會把 + ^ 等符號直接丟掉，"x+y" 縮成 "xy"、"x^2" 縮成 "x2"，是誤譯）。
+        // \bar 跟 \overline 在 Nemeth 是同一種記法（macron/overline 沒有分開的點字符號），
+        // 共用同一套邏輯；n2l 還原統一還原成 \overline{...}（見 GEO 表，這是記法本身的
+        // 固有歧義，不是 bug——兩個 LaTeX 指令、同一種點字，還原時只能選一個）。
+        if(/^[A-Za-z0-9]'*$/.test(content)){
+          var one=/[A-Z]/.test(content[0])?','+content:content;
+          result+=one+':';
         }else{
-          result+='"'+caps+'<:]';
+          result+=wrapModifier(content,'<:]');
         }
         continue;
       }
       if(cmd==='\\overrightarrow'){
         var inner=extractBraces(s,i);i=inner.end;
-        var caps=inner.content.trim().split('').map(function(c){return /[A-Z]/.test(c)?','+c:/[a-z]/.test(c)?c:'';}).join('');
-        result+='"'+caps+'<$O]';continue;
+        result+=wrapModifier(inner.content.trim(),'<$O]');continue;
       }
       if(cmd==='\\overleftrightarrow'){
         var inner=extractBraces(s,i);i=inner.end;
-        var caps=inner.content.trim().split('').map(function(c){return /[A-Z]/.test(c)?','+c:/[a-z]/.test(c)?c:'';}).join('');
-        result+='"'+caps+'<$[33O]';continue;
+        result+=wrapModifier(inner.content.trim(),'<$[33O]');continue;
       }
       if(cmd==='\\vec'){
         var inner=extractBraces(s,i);i=inner.end;
-        var caps=inner.content.trim().split('').map(function(c){return /[A-Z]/.test(c)?','+c:/[a-z]/.test(c)?c:'';}).join('');
-        result+='"'+caps+'<$33O]';continue;
+        result+=wrapModifier(inner.content.trim(),'<$33O]');continue;
+      }
+      if(cmd==='\\hat'||cmd==='\\widehat'){
+        // Rule 15.15 Caret (circumflex)，Example 15-70："x^" → "x<_<]"
+        var inner=extractBraces(s,i);i=inner.end;
+        result+=wrapModifier(inner.content.trim(),'<_<]');continue;
+      }
+      if(cmd==='\\tilde'||cmd==='\\widetilde'){
+        // Tilde 當一般字母修飾符號（不是加在比較符號上面那個特例，21.6/21.7 是另一回事）：
+        // Example 8-39 "x with superscribed tilde" → "x<@:]"、Example 15-45 同款
+        // "x with superscribed tilde" 用在下標對象裡 → "x<`:]"（PDF 原始擷取這兩處
+        // 前綴字元不一致，`` ` ``／``@`` 對照 nc 自己的 Pr 表都是 dot-4，判斷是同一個
+        // 符號、只是 PDF 來源排版時字元選用不一致，兩個範例互相驗證，可信度高）。
+        var inner=extractBraces(s,i);i=inner.end;
+        result+=wrapModifier(inner.content.trim(),'<@:]');continue;
+      }
+      if(cmd==='\\dot'){
+        // Rule 15.16 Dot，Example 15-75："上面一個點" → "x<*]"
+        var inner=extractBraces(s,i);i=inner.end;
+        result+=wrapModifier(inner.content.trim(),'<*]');continue;
+      }
+      if(cmd==='\\ddot'){
+        // Rule 15.16.2，Example 15-79：兩個點 → "x<**]"
+        var inner=extractBraces(s,i);i=inner.end;
+        result+=wrapModifier(inner.content.trim(),'<**]');continue;
       }
       if(cmd==='\\overset'){
         // \overset{\frown}{XY} -> arc
         var mod=extractBraces(s,i);i=mod.end;
         var base=extractBraces(s,i);i=base.end;
         if(mod.content.trim()==='\\frown'||mod.content.trim()==='\frown'){
-          var caps=base.content.trim().split('').map(function(c){return /[A-Z]/.test(c)?','+c:/[a-z]/.test(c)?c:'';}).join('');
-          result+='"'+caps+'<$A]';
+          result+=wrapModifier(base.content.trim(),'<$A]');
         }else{
           result+='"'+latexToNemethAsc(base.content)+'<'+latexToNemethAsc(mod.content)+']';
         }
+        continue;
+      }
+      if(cmd==='\\roman'){
+        // Rule 3.11.1(a)：有意義代表數字的大寫羅馬數字，用「單一/雙重大寫指示符 +
+        // 小寫字母」一起表示（Example 3-96 VII→,,vii），跟一般大寫字母「每個字母各自
+        // 加大寫指示符」（,V,I,I）不同。羅馬數字語意無法從純字母自動判斷（規則書自己
+        // 也說「有疑慮就不當羅馬數字」，Example 3-108 CL 不當羅馬數字），所以用專屬
+        // 指令讓使用者明確標記：\roman{VII} 而不是直接打 VII。
+        // 小寫羅馬數字（Rule 3.11.1(b)）當一般英文字母處理即可，不需要這個指令
+        // （nc 本來就會把小寫字母原樣輸出，例：vi+iv .k x）。
+        var inner=extractBraces(s,i);i=inner.end;
+        var content=inner.content.trim();
+        var capPfx=content.length===1?',':',,';
+        result+=capPfx+content.toLowerCase();
         continue;
       }
       if(cmd==='\\begin'){
@@ -1093,7 +1192,9 @@ function latexToNemethAsc(expr){
       // Inside superscript: no numeric indicator (Rule 3.4.1)
       // The baseline indicator " is appended only when there are more
       // math objects following at the baseline (handled in cleanup below).
-      result+='^'+latexToNemethAsc(expTrim).replace(/^#/,'')+'"\x01';
+      // insideScript=true：內容裡如果又有下標，屬於 Rule 14.6 講的「higher order」，
+      // 不能再套用數字下標指示符省略規則（見下面 subscript 分支）。
+      result+='^'+latexToNemethAsc(expTrim,true).replace(/^#/,'')+'"\x01';
       continue;
     }
 
@@ -1101,8 +1202,50 @@ function latexToNemethAsc(expr){
     if(c==='_'){
       i++;
       var sub=extractBraces(s,i);i=sub.end;
+      var subContent=sub.content.trim();
       // Inside subscript: no numeric indicator (Rule 3.4.1)
-      result+=';'+latexToNemethAsc(sub.content.trim()).replace(/^#/,'')+'"\x01';
+      var subNem=latexToNemethAsc(subContent,true).replace(/^#/,'');
+      // Rule 14.6 Numeric Subscripts：右下標若同時符合：
+      //   a. 是右下標（LaTeX _ 本來就只有右下標，恆成立）
+      //   b. 只有一層，不含自己的上下標（不是巢狀在別的上下標「裡面」，也不能自己
+      //      再帶上下標——用 insideScript 擋住巢狀情形，subContent 只能是純數字擋住
+      //      「自己還帶上下標」的情形）
+      //   c. 下標的對象是字母（任何字母系統）或縮寫函式名
+      //   d. 下標本身只有數字
+      // 下標指示符 ; 連同回基線符號都要省略（不是只省略 ;）——x_1 → x1（不是 x;1、
+      // 也不是 x1"）、log_2 x → log2 x（不是 log;2 x、也不是 log2"x，注意函式名原本
+      // 帶的空白這裡也要拿掉：Example 14-41 官方是 "log2 x" 不是 "log 2 x"）。
+      // 用 result 目前結尾判斷對象：單一字母（含 Greek 的 .字母 / .,字母、大寫的 ,字母，
+      // 且前面不是另一個英數字元，避免 "AB" 這種多字母序列把 B 誤判成單一字母)，
+      // 或是已知縮寫函式名（trig/log/ln/lim，這些指令都以「詞+空白」結尾）。
+      var _funcNameBases=['arcsin ','arccos ','arctan ','sin ','cos ','tan ','cot ','sec ','csc ','ln ','log ','lim '];
+      var _isFuncBase=_funcNameBases.some(function(fn){return result.slice(-fn.length)===fn;});
+      // Rule 14.6 條件 c 明訂「字母可以帶一個以上的質數記號」不影響省略資格
+      // （Example 14-39 "x'1" 沒有 ;），質數記號 ' 本身在 nc 是原樣直接輸出的字元
+      // （Rule 23.16，撇號本來就是質數記號，見 Example 23-34~23-39），所以判斷結尾
+      // 字母時允許後面接零個以上的 '。
+      var _letterEnd=result.match(/(,?[A-Za-z]'*)$/);
+      var _isLetterBase=false;
+      if(_letterEnd){
+        var _charBefore=result[result.length-_letterEnd[0].length-1]||'';
+        // 只有「前面緊接另一個字母」才不算獨立字母（避免 "AB" 誤判成單一字母 B）；
+        // 前面是數字不影響判斷——Example 14-117 "x1y1"，y 前面緊接 x 的下標數字 1，
+        // y 本身還是算獨立字母，一樣要省略指示符（"x1y1" 兩個下標都不加 ;）。
+        _isLetterBase=!/[A-Za-z]/.test(_charBefore);
+      }
+      var _omitSubInd=!insideScript&&/^[0-9]+$/.test(subContent)&&(_isFuncBase||_isLetterBase);
+      if(_omitSubInd){
+        if(_isFuncBase) result=result.replace(/ $/,'');
+        result+=subNem; // 省略下標指示符時，回基線 sentinel 也一併不加（不算真正切換層級）
+        // Rule 18.4：函式名（連同它的下標）後面一定要留一格再接引數，這格空白原本
+        // 就存在（"log " 的空白），但上面為了避免變成 "log 2" 已經先拿掉，這裡在
+        // 下標處理完之後補回來——只有函式名底才需要，一般字母底（x_1+y 這種）維持
+        // 原本「單一空白＝排版用途、略過」的行為，不要多插空白（Example 14-41：
+        // "log2 x"，2 跟 x 之間才要有空白；一般字母底沒有類似的強制留白規則）。
+        if(_isFuncBase&&s[i]===' '&&s[i+1]!==' '){ result+=' '; i++; }
+      }else{
+        result+=';'+subNem+'"\x01';
+      }
       continue;
     }
 
@@ -1121,9 +1264,19 @@ function latexToNemethAsc(expr){
     if(c==='}'){i++;continue;}
 
     // ── Digits ───────────────────────────────────────────
-    if(/[0-9]/.test(c)){
+    // 含開頭無整數部分的小數（如 .3、-.3）：Rule 3.2「decimal point is a numeric
+    // symbol only when followed by a number」，須一併進入本分支才會補數字指示符 #
+    // （Example 3-5 ".35"→"#.35"；否則開頭的 "." 會被當成一般標點單獨吃掉，
+    //  後面的數字因為 prev==='.' 判斷不到「數字開頭」而漏掉 #）
+    if(/[0-9]/.test(c)||(c==='.'&&/[0-9]/.test(s[i+1]||''))){
       var numStart=i;
-      while(i<s.length&&(/[0-9]/.test(s[i])||s[i]==='.'))i++;
+      while(i<s.length&&(/[0-9]/.test(s[i])||s[i]==='.'||
+        // Rule 3.2「numeric comma」：逗號後面剛好接 3 個數字（千分位分組），且第 4 個
+        // 字元不是數字，視為數字內部符號，不切斷、不加空格（Example 3-4 "1,478.00"→
+        // "#1,478.00"）；跟一般當清單/座標分隔用的逗號（如 "(-3,2)"→"(-3, 2)"，
+        // 逗號後面不是剛好 3 個數字）用同一個判斷式分開，不用另外處理後者。
+        (s[i]===','&&/^[0-9]{3}(?!\d)/.test(s.slice(i+1)))
+      ))i++;
       var num=s.slice(numStart,i);
       // Numeric indicator # rules (Nemeth Rule 3.3 / 3.4.1):
       //   Required:  at expression start, or after a space (incl. after .K etc.)
@@ -1233,8 +1386,15 @@ var NEM_TOKENS=[
   [' $P ',' \\perp '],[' $L ',' \\parallel '],[' /$L ',' \\nparallel '],
   [' @: ',' \\sim '],
   [' $[33O ',' \\iff '],[' $33O ',' \\implies '],
+  // 一般箭頭（Rule 21.2），排在 $33O/$[33O 後面（"長樣式優先"，避免提前吃掉那兩個較長
+  // 符號的一部分）；右指用大寫 O——字母經過真點字往返會被歸一化成大寫，這裡跟 l2n
+  // 端輸出的大小寫要一致才配對得到（見上面 LATEX_SIMPLE 的說明）。左指 $[33 沒有字母
+  // 結尾，不受大小寫影響，但要確認前後空格邊界不會誤吃到 $[33O（iff）——" $[33 "
+  // 結尾要求緊接空格，"$[33O" 那個位置是 O 不是空格，兩者不會互相誤判。
+  [' $O ',' \\to '],[' $[33 ',' \\leftarrow '],
   // Comparison (longer patterns first)
   [' /.K ',' \\ne '],[' "K: ',' \\le '],[' .1: ',' \\ge '],
+  [' _L ',' \\equiv '],
   // Ratio (比) and proportion (比例) per PDF 21.2 Example 21-34.
   // Tokens have leading/trailing spaces per the spec layout.
   [' "1 ',' \\ratio '],
@@ -1317,6 +1477,13 @@ function pairNemAbsBars(s){
       if(c === '\\' && i+1 < n && /[a-z]/.test(line.charAt(i+1))){
         i++; // the \
         while(i < n && /[a-zA-Z]/.test(line.charAt(i))) i++;
+        continue;
+      }
+      // `\{` / `\}`：Rule 19 大括號還原出來的跳脫大括號指令，不是絕對值直線候選
+      // （這個函式在 GEO 的 n2l 已經把 .( .) 轉成 \{ \} 之後才跑，這裡如果不排除，
+      // 反斜線會被誤判成絕對值直線符號，兩個 \{ \} 湊一對變成 |...|，把大括號吃掉）
+      if(c === '\\' && (line.charAt(i+1) === '{' || line.charAt(i+1) === '}')){
+        i += 2;
         continue;
       }
       // `_\` double-bar prefix — skip both characters verbatim, don't
@@ -1411,10 +1578,21 @@ function parseNemRadical(s){
 }
 
 function parseNemLevel(s){
-  // Superscript ^expr"
-  s=s.replace(/\^([^"^;]+)"/g,function(m,e){return '^{'+parseNemStr(e)+'}';});
+  // Superscript ^expr"（回基線 " 用 "? 設成可有可無——上標/下標如果是整段表達式
+  // 最後一個東西，l2n 端不會補回基線符號，這裡也要能認得沒有 " 收尾的情況）
+  s=s.replace(/\^([^"^;]+)"?/g,function(m,e){return '^{'+parseNemStr(e)+'}';});
   // Subscript ;expr"
-  s=s.replace(/;([^";^]+)"/g,function(m,e){return '_{'+parseNemStr(e)+'}';});
+  s=s.replace(/;([^";^]+)"?/g,function(m,e){return '_{'+parseNemStr(e)+'}';});
+  // Rule 14.6 反向：純數字下標接在字母/縮寫函式名後面時，下標指示符 ; 跟回基線 "
+  // 在 l2n 端會整個省略（見 latexToNemethAsc 的 subscript 分支），這裡要能認得
+  // 「字母/函式名直接接數字，沒有 ; 也沒有 "」代表被省略指示符的下標，補回 _{...}。
+  // 縮寫函式名（多字母）要先判斷，不然 "LOG2" 會被誤判成 "LO" + "G 下標 2"。
+  // 這個規則本身沒有歧義（Nemeth 慣例裡「字母緊接數字、無其他符號」只會是下標），
+  // 但要排在上面兩個明確帶指示符的規則之後，避免影響已經處理過的內容。
+  s=s.replace(/\b(ARCSIN|ARCCOS|ARCTAN|SIN|COS|TAN|COT|SEC|CSC|LN|LOG|LIM)([0-9]+)(?![0-9])/g,
+    function(m,fn,digits){return fn+'_{'+digits+'}';});
+  s=s.replace(/(,?[A-Za-z])([0-9]+)(?![A-Za-z0-9])/g,
+    function(m,base,digits){return base+'_{'+digits+'}';});
   return s;
 }
 
@@ -1426,6 +1604,15 @@ function parseNemStr(s){
   s=applyNemTokens(s);
   s=pairNemAbsBars(s);
   s=applyGreek(s);
+  // Rule 3.11.1(a) 反向：大寫羅馬數字用「雙重大寫指示符 + 小寫字母」一起表示
+  // （Example 3-96 VII→,,vii），跟一般大寫字母「每個字母各自加大寫指示符」（,V,I,I）
+  // 不一樣，下面的逐字元大小寫轉換 pass 不認得連續逗號，要在那之前先轉成 \roman{...}
+  // （單一大寫羅馬數字如 ,v 跟一般單一大寫變數 ,V 點字完全相同，天生無法區分，
+  // 還原只能當一般大寫字母，不強猜，只處理雙重指示符這種明確、無歧義的多字母情形）。
+  // 字母大小寫過真點字轉換（asc2brl→brl2asc）會被歸一化成大寫，這裡要接受大寫輸入
+  // （沒有真的過點字、直接測 parseNemStr 才會看到小寫，跟 l2n 端自己寫的一致；
+  // 實際使用者操作一定會過點字，字母必為大寫，兩種都要接受才不會漏判）。
+  s=s.replace(/,,([A-Za-z]+)/g,function(m,letters){return '\\roman{'+letters.toUpperCase()+'}';});
   // Cap indicators: ,A -> A (uppercase), bare A -> a (lowercase)
   // Rule 5: comma = cap indicator, so ,A = uppercase A; bare A = lowercase a.
   // Use a two-pass approach to avoid regex-in-marker issues:
