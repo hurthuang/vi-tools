@@ -615,11 +615,14 @@ var GEO=[
   // Empty set: \emptyset / \varnothing -> _0  (Rule 23.7)
   {latexRe:/\\varnothing|\\emptyset/g, l2n:function(){return '_0';},
    nemRe:/_0/g, n2l:function(){return '\\emptyset';}},
-  // Quantifiers: \forall -> @&  \exists -> @"6  (Rule 23.17)
+  // Quantifiers: \forall -> @&（Example 23-46 `&x `e ,a 已驗證正確）
+  // \exists -> @=（Example 23-44 `=x；原本寫成 @"6，用 Pr 表反查點位發現完全是另一組
+  // 點，是真的錯了，不是拼法不同——已修正成 @=，"=" 在 nc 的 Pr 表裡對應全六點，
+  // 跟 PDF 的 "`=" backtick(dot4)+equals(全六點) 點位一致）(Rule 23.17)
   {latexRe:/\\forall/g, l2n:function(){return '@&';},
    nemRe:/@&/g, n2l:function(){return '\\forall';}},
-  {latexRe:/\\exists/g, l2n:function(){return '@"6';},
-   nemRe:/@"6/g, n2l:function(){return '\\exists';}},
+  {latexRe:/\\exists/g, l2n:function(){return '@=';},
+   nemRe:/@=/g, n2l:function(){return '\\exists';}},
   // Negation / Not: \neg, \lnot -> @: (tilde = logical NOT, Rule 20.9)
   {latexRe:/\\lnot|\\neg/g, l2n:function(){return '@: ';},
    nemRe:/@: /g, n2l:function(){return '\\neg ';}},
@@ -713,7 +716,7 @@ var LATEX_SIMPLE=[
   ['\\subseteq',' _"K: '],['\\subset',' _"K '],
   ['\\cup',' .+ '],['\\cap',' .% '],
   ['\\varnothing','_0'],['\\emptyset','_0'],
-  ['\\forall','@&'],['\\exists','@"6'],
+  ['\\forall','@&'],['\\exists','@='],
   ['\\lnot','@: '],['\\neg','@: '],
   ['\\mid','|'],
   // Misc (Rule 23)
@@ -981,12 +984,17 @@ function latexToNemethAsc(expr,insideScript){
           }
           var caseRows=[];
           for(var li=0;li<validLines.length;li++){
-            // 處理行內的 & (對齊符號)：取第一個 & 之前的部分
-            var mainCell=validLines[li].split('&')[0].replace(/\s+$/,'');
-            // 脫掉外層 {...} 如 "{x+y=15}" -> "x+y=15"
-            mainCell=mainCell.replace(/^\{([\s\S]*)\}$/,'$1').replace(/^\s+|\s+$/g,'');
-            if(!mainCell)continue;
-            var lineNem=latexToNemethAsc(mainCell);
+            // 處理行內的 &（分段函式最常見的寫法就是「數值 & 條件」兩欄，如
+            // "x, & \text{if } x \geq 0"）：原本只取第一個 & 之前的部分，
+            // & 後面的條件文字整個被丟掉——這是嚴重的資訊遺失，Example 19-33
+            // 官方分段函式範例明訂條件要保留在同一行（"@,(x, if x "k.k #0"，
+            // 逗號後面的條件文字沒有省略）。改成每個 & 分隔的欄位都個別轉換、
+            // 用空格串起來，跟下面矩陣分支處理多欄的方式一致。
+            var cells=validLines[li].split('&').map(function(c){
+              return c.replace(/^\{([\s\S]*)\}$/,'$1').replace(/^\s+|\s+$/g,'');
+            }).filter(function(c){return c;});
+            if(!cells.length)continue;
+            var lineNem=cells.map(function(c){return latexToNemethAsc(c);}).join(' ');
             // PDF 17.4(d): strip leading # when the row starts with a
             // digit in direct contact with the left enlarged brace.
             lineNem=lineNem.replace(/^#/,'');
@@ -1412,7 +1420,7 @@ var NEM_TOKENS=[
   ['@:@:','\\approx '],
   // Set/Logic (大寫 E 代表字母 e，@ 代表 dot-4)
   ['/@E','\\notin '],['@E','\\in '],
-  ['@&','\\forall '],['@"6','\\exists '],['@: ','\\neg '],
+  ['@&','\\forall '],['@=','\\exists '],['@: ','\\neg '],
   ['_"K:','\\subseteq '],['_"K','\\subset '],
   ['_.1:','\\supseteq '],['_.1','\\supset '],
   ['_0','\\emptyset '],
