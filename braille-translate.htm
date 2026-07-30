@@ -1874,6 +1874,7 @@ function translateG2Seq(word, _tables) {
         // ANYWHERE（任何位置含字首）
         for (const k of Object.keys(_t.anywhere)) {
             if (lw.startsWith(k, i) && k.length > bestLen) {
+                if (k === 'en' && typeof blocksEnAnywhere !== 'undefined' && blocksEnAnywhere(lw, i)) continue;
                 bestType = 'anywhere'; bestLen = k.length; bestBr = _t.anywhere[k]; best = k;
             }
         }
@@ -1881,7 +1882,7 @@ function translateG2Seq(word, _tables) {
         if (isStart && !isAllCaps) {
             for (const k of Object.keys(_t.begword)) {
                 if (lw.startsWith(k, i) && i + k.length < total && k.length > bestLen) {
-                    if (k === 'be') {
+                    if (k === 'be' && !(typeof allowsBeVowelException !== 'undefined' && allowsBeVowelException(lw))) {
                         const suf = lw.slice(i + k.length);
                         const firstAfter = suf[0] || '';
                         if (_VOWELS_SET.has(firstAfter) && firstAfter !== 'i') { continue; }
@@ -2927,6 +2928,11 @@ function translateComp8Mixed(str) {
     return result;
 }
 
+// UEB 10.1.2/10.2.2：alphabetic/strong wordsign 後接撇號時，只有這幾種後綴才能繼續用縮寫
+// （can't/you're/it's/that'll/you've/this'd…）；其他後綴（more'n、you'm、this'n 等古語/方言）
+// 規則書明訂排除，要退回逐字母拼寫，不能用 wordsign。
+const ALLOWED_APOS_SUFFIXES = new Set(['d', 'll', 're', 's', 't', 've']);
+
 // 翻譯可能含撇號縮寫的詞（如 I'm、they've、don't）
 // run 中的撇號為原始字元（' / ' / '）
 function translateWordWithApos(run, modeVal) {
@@ -2980,6 +2986,13 @@ function translateWordWithApos(run, modeVal) {
                 let restB = '';
                 for (const c of rest.toLowerCase()) restB += UEB_ALPHA[c] || c;
                 mainB = sfBraille + restB;
+            } else if ((WS_ALPHA_SET.has(mainLow) || WS_STRONG_SET.has(mainLow)) &&
+                       !ALLOWED_APOS_SUFFIXES.has(suffix.toLowerCase())) {
+                // main 整詞就是 wordsign，但後綴不在 d/ll/re/s/t/ve 之列（more'n、you'm、this'n…）
+                // → 不用 wordsign，main 退回逐字母拼寫
+                let mb = '';
+                for (const c of main.toLowerCase()) mb += UEB_ALPHA[c] || c;
+                mainB = mb;
             } else {
                 mainB = translateG2Word(main, _tables);
             }
@@ -3034,6 +3047,11 @@ function getActiveG2Tables() {
 const APOS_ELISION_WORDS = new Set([
     'n', 'til', 'cause', 'em', 'tis', 'twas', 'twill', 'round', 'bout', 'fraid', 'nuff'
 ]);
+// UEB 2.6.1/2.6.2：「standing alone」左邊界＝空格/連字號/破折號，或前面再接開括號類
+// （原本只認空格跟 '(' ，比官方定義窄，漏掉連字號/破折號/方括號/大括號）
+const _APOS_LEFT_BOUNDARY = /[\s\-‐-―([{]/;
+// UEB 2.6.1/2.6.3：「standing alone」右邊界＝空格/連字號/破折號/常見標點，或再接右括號類
+const _APOS_RIGHT_BOUNDARY = /[\s.,!?;:)\]}"'\-‐-―]/;
 function classifyApostrophes(text) {
     const quotePositions = new Set();
     const n = text.length;
@@ -3042,8 +3060,8 @@ function classifyApostrophes(text) {
         if (text[i] !== "'") { i++; continue; }
         const prevCh = i > 0 ? text[i - 1] : '';
         const nextCh = i + 1 < n ? text[i + 1] : '';
-        // 開引號條件：前面是空格/行首/開括號，後面是字母
-        const isOpenCandidate = /[\s(]/.test(prevCh) || prevCh === ''
+        // 開引號條件：前面是空格/行首/連字號/破折號/開括號，後面是字母
+        const isOpenCandidate = _APOS_LEFT_BOUNDARY.test(prevCh) || prevCh === ''
             ? /[A-Za-z]/.test(nextCh)
             : false;
         if (isOpenCandidate) {
@@ -3065,9 +3083,9 @@ function classifyApostrophes(text) {
                 }
                 const afterJ = j + 1 < n ? text[j + 1] : '';
                 const beforeJ = j > 0 ? text[j - 1] : '';
-                // 閉引號條件：前面是字母/數字/標點，後面是空格/標點/行尾/引號
-                if (/[A-Za-z0-9.,!?;:)]/.test(beforeJ) &&
-                    (/[\s.,!?;:)"']/.test(afterJ) || afterJ === '')) {
+                // 閉引號條件：前面是字母/數字/標點/右括號類，後面是空格/連字號/破折號/標點/行尾/引號
+                if (/[A-Za-z0-9.,!?;:)\]}]/.test(beforeJ) &&
+                    (_APOS_RIGHT_BOUNDARY.test(afterJ) || afterJ === '')) {
                     // 確認中間沒有換行（同一段落內）
                     const between = text.slice(i + 1, j);
                     if (!between.includes('\n')) {

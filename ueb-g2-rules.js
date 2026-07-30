@@ -16,7 +16,11 @@ const G2_MIDWORD = {'ea':'⠂','bb':'⠆','cc':'⠒','ff':'⠖','gg':'⠶'};
 
 const G2_MIDEND = {'ing':'⠬','tion':'⠰⠝','ence':'⠰⠑','ance':'⠨⠑','ment':'⠰⠞','ness':'⠰⠎','ful':'⠰⠇','ity':'⠰⠽','ound':'⠨⠙','ount':'⠨⠞','sion':'⠨⠝','less':'⠨⠎','ong':'⠰⠛'};
 
-const G2_LOWWORD = {'his':'⠦','was':'⠴','were':'⠶','enough':'⠢'};
+// 10.5 lower wordsigns：be/were/his/was/enough/in 六個「單獨成詞」縮寫（見 UEB_GROUPS 的 lw_words 項）
+// be/in 之前分別掛在 lg_con_dis／lg_en_in（10.6 lower groupsigns）toggle 底下，
+// 且 translateG2Seq 的 SUFWORD 分支對 'be' 有 `continue` 略過，standalone "be" 實際上完全沒縮寫過；
+// 移進本表後由 1726 行 `_t.lowword[lw]` 直接查表，跟 lw_words 勾選項描述一致，也修正 be 不縮寫的問題。
+const G2_LOWWORD = {'his':'⠦','was':'⠴','were':'⠶','enough':'⠢','be':'⠆','in':'⠔'};
 
 const G2_SUFWORD = {'be':'⠆'};
 
@@ -58,6 +62,13 @@ const G2_EXCEPTIONS = {
 'understanding':'⠐⠥⠌⠯⠬','understandings':'⠐⠥⠌⠯⠬⠎','understandable':'⠐⠥⠌⠯⠁⠃⠇⠑',
 'misunderstand':'⠍⠊⠎⠐⠥⠌⠯','misunderstood':'⠍⠊⠎⠐⠥⠌⠕⠕⠙',
 'be':'⠆',
+// UEB 10.6.1「But」明訂 benefit 不可用 be- 縮寫（重音在 BEN，非 be-nefit）；
+// 與允許縮寫的 beneficent 用字母樣式無法區分，需逐詞覆蓋。
+'benefit':'⠃⠢⠑⠋⠊⠞','benefits':'⠃⠢⠑⠋⠊⠞⠎','benefited':'⠃⠢⠑⠋⠊⠞⠫','benefiting':'⠃⠢⠑⠋⠊⠞⠬',
+// UEB 10.8.3：biscuity/dacoity/fruity/hoity-toity/rabbity 不可用 ity 縮寫（逐字母拼寫，比照既有 biscuity 等）
+'hoity':'⠓⠕⠊⠞⠽','toity':'⠞⠕⠊⠞⠽',
+// UEB 10.8.4：陰性字尾 -ess 接在 en/in 結尾的字後面，不可用 ness 縮寫（逐字母拼寫）
+'chieftainess':'⠉⠓⠊⠑⠋⠞⠁⠊⠝⠑⠎⠎','citizeness':'⠉⠊⠞⠊⠵⠑⠝⠑⠎⠎','heatheness':'⠓⠑⠁⠞⠓⠑⠝⠑⠎⠎',
 };
 
 // 整詞縮寫表：shortforms + wordsigns + initial-letter contractions
@@ -318,6 +329,11 @@ function blocksEaGroupsign(word, pos) {
     return false;
 }
 
+// UEB 10.6.9：'en' 單獨成詞時不可用 lower groupsign（跟 enough 同一格 ⠢，會誤讀成 enough）
+function blocksEnAnywhere(word, pos) {
+    return pos === 0 && word.length === 2 && word.toLowerCase() === 'en';
+}
+
 // ════════════════════════════════════════════════════════════
 //  五、blocksConBegword / blocksDisBegword
 //  來源：liblouis en-ueb-g2.ctb lines 852–875 match 規則翻譯
@@ -334,9 +350,23 @@ function blocksConBegword(word) {
     return false;
 }
 
+// UEB 10.6.1/10.10.4「Examples」明訂可縮，但 braille-translate.htm 的 be+母音 啟發式
+// （母音緊接 be 就整批擋掉）誤判為不可縮：beatitude/Beatrice/Beatrix 是 be-a 真的斷成兩音節
+// （不是 bear/beach 那種融成一個音節），bedraggled 是 be+子音簇+母音（vowel 沒有緊貼在後面一格，
+// 啟發式只看後一格抓不到）。逐詞覆蓋，允許 be- 縮寫。
+const _BE_ALLOW_STEMS = ['beatitude', 'beatrice', 'beatrix', 'bedraggle'];
+function allowsBeVowelException(word) {
+    const lw = word.toLowerCase();
+    return _BE_ALLOW_STEMS.some(w => lw.startsWith(w));
+}
+
 function blocksDisBegword(word) {
     const lw = word.toLowerCase();
     if (lw.length <= 3) return false;
+    // UEB 10.6.1/10.11.5「But」明訂例外，字元類啟發式規則抓不到，逐詞覆蓋
+    // （dishevel：h 後接 e，不在既有的 h+子音清單內；disulphide：dis 後接母音 u，
+    //  一般 dis+母音可縮，這兩個是特例）
+    if (lw.startsWith('dishevel') || lw.startsWith('disulphide')) return true;
     const ch = lw[3];
     if (ch === 'k') return true;                                                // disk, diskette
     if (ch === 'h' && 'bcdfghiklmnprtw'.includes(lw[4] || '')) return true;    // dishwasher, dishcloth…
