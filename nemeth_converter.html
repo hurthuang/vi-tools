@@ -492,8 +492,12 @@ var GEO=[
    nemRe:/"([\s\S]*?)<\$A\]/g,
    n2l:function(m){return '\\overset{\\frown}{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\vec\{([^}]+)\}/g,
-   l2n:function(m){return '"'+capL(m[1])+'<$33O]';},
-   nemRe:/"([\s\S]*?)<\$33O\]/g,
+   l2n:function(m){return '"'+capL(m[1])+'<$O]';},
+   // Same braille symbol as \overrightarrow (contracted arrow, Lesson 12
+   // Postscript + Lesson 15 Example 15-34); \overrightarrow's identical nemRe
+   // above wins on reverse-parse, which is fine since Nemeth doesn't
+   // distinguish the two prints.
+   nemRe:/"([\s\S]*?)<\$O\]/g,
    n2l:function(m){return '\\vec{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\(?:hat|widehat)\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<_<]';},
@@ -599,8 +603,8 @@ var GEO=[
   {latexRe:/\\ni/g, l2n:function(){return ' @5 ';},
    nemRe:/ @5 /g, n2l:function(){return ' \\ni ';}},
   // \mid (such that vertical bar)
-  {latexRe:/\\mid/g, l2n:function(){return ' | ';},
-   nemRe:/ \| /g, n2l:function(){return ' \\mid ';}},
+  {latexRe:/\\mid/g, l2n:function(){return '\\';},
+   nemRe:null, n2l:function(){return ' \\mid ';}},
 
   // ── Rule 20: Set operations ──────────────────────────────────────
   {latexRe:/\\cup/g, l2n:function(){return ' .+ ';},
@@ -623,9 +627,12 @@ var GEO=[
    nemRe:/@&/g, n2l:function(){return '\\forall';}},
   {latexRe:/\\exists/g, l2n:function(){return '@=';},
    nemRe:/@=/g, n2l:function(){return '\\exists';}},
-  // Negation / Not: \neg, \lnot -> @: (tilde = logical NOT, Rule 20.9)
-  {latexRe:/\\lnot|\\neg/g, l2n:function(){return '@: ';},
-   nemRe:/@: /g, n2l:function(){return '\\neg ';}},
+  // Negation / Not: \neg, \lnot -> / (dots 3-4, prefixed directly, no space —
+  // pathstoliteracy.org Nemeth Symbol Library "Negation, or not": "Negation
+  // (dots 3-4)... can be placed in front of many symbols". Previously this
+  // wrongly reused \sim's code (@:), colliding with an unrelated symbol.
+  {latexRe:/\\lnot|\\neg/g, l2n:function(){return '/';},
+   nemRe:/\/(?!\.K|@E)/g, n2l:function(){return '\\neg ';}},
   // Logical implication: \implies, \Rightarrow -> $33O (right spear arrow)
   {latexRe:/\\implies|\\Rightarrow/g, l2n:function(){return ' $33O ';},
    nemRe:/ \$33O /g, n2l:function(){return ' \\implies ';}},
@@ -651,16 +658,16 @@ var GEO=[
   // Barred typeform: ,_X  (Rule 7 typeform indicator for double-struck)
   // But in practice Abraham uses these correctly via latexToNemeth
   // We add explicit mappings as fallback
-  {latexRe:/\\mathbb\{N\}/g, l2n:function(){return ',_N';},
-   nemRe:/,_N/g, n2l:function(){return '\\mathbb{N}';}},
-  {latexRe:/\\mathbb\{Z\}/g, l2n:function(){return ',_Z';},
-   nemRe:/,_Z/g, n2l:function(){return '\\mathbb{Z}';}},
-  {latexRe:/\\mathbb\{Q\}/g, l2n:function(){return ',_Q';},
-   nemRe:/,_Q/g, n2l:function(){return '\\mathbb{Q}';}},
-  {latexRe:/\\mathbb\{R\}/g, l2n:function(){return ',_R';},
-   nemRe:/,_R/g, n2l:function(){return '\\mathbb{R}';}},
-  {latexRe:/\\mathbb\{C\}/g, l2n:function(){return ',_C';},
-   nemRe:/,_C/g, n2l:function(){return '\\mathbb{C}';}},
+  {latexRe:/\\mathbb\{N\}/g, l2n:function(){return ',_;,N';},
+   nemRe:/,_;,N/g, n2l:function(){return '\\mathbb{N}';}},
+  {latexRe:/\\mathbb\{Z\}/g, l2n:function(){return ',_;,Z';},
+   nemRe:/,_;,Z/g, n2l:function(){return '\\mathbb{Z}';}},
+  {latexRe:/\\mathbb\{Q\}/g, l2n:function(){return ',_;,Q';},
+   nemRe:/,_;,Q/g, n2l:function(){return '\\mathbb{Q}';}},
+  {latexRe:/\\mathbb\{R\}/g, l2n:function(){return ',_;,R';},
+   nemRe:/,_;,R/g, n2l:function(){return '\\mathbb{R}';}},
+  {latexRe:/\\mathbb\{C\}/g, l2n:function(){return ',_;,C';},
+   nemRe:/,_;,C/g, n2l:function(){return '\\mathbb{C}';}},
 ];
 
 // =====================================================================
@@ -687,9 +694,21 @@ var LATEX_SIMPLE=[
   // Arithmetic operations (Rule 20)
   ['\\times','@*'],['\\div','./'],['\\cdot','*'],
   ['\\pm','+-'],['\\mp','-+'],
+  // Percent sign — no space before or after (attaches directly to the
+  // preceding number, per CH1 "百分比符號與前面數字不空方"). Previously
+  // completely unhandled: fell through to the generic "unknown command"
+  // fallback, which literally emitted a raw '%' character into the ASCII
+  // stream — colliding with an unrelated existing use of '%' in the
+  // ASCII↔braille decode table and producing garbage braille.
+  ['\\%','@0'],
   // Comparison (Rule 21) - longer first
-  ['\\nparallel','/$L'],['\\parallel',' $L '],['\\perp',' $P '],
+  ['\\nparallel',' /$L '],['\\parallel',' $L '],['\\perp',' $P '],
   ['\\cong',' @:.K '],['\\sim',' @: '],
+  // \propto (正比, ∝) was previously not implemented at all — fell through
+  // to the generic "unknown command" fallback and got spelled out letter
+  // by letter ("PROPTO"). Space-wrapped like the other comparison signs
+  // above (CH3 "關係符號": these all need a blank cell before and after).
+  ['\\propto',' _= '],
   ['\\iff',' $[33O '],['\\implies',' $33O '],
   ['\\Leftrightarrow',' $[33O '],['\\Rightarrow',' $33O '],
   // 一般右指箭頭（非邏輯蘊含），Rule 21.2 Arrows，Example 21-8："AB"→",a $o ,b"
@@ -703,6 +722,19 @@ var LATEX_SIMPLE=[
   // （$[33O）完全撞在一起，重新對照官方範例才抓到抓錯的是哪一個）。$[33（4 個字元，
   // 沒有字母結尾）本身沒有大小寫問題，跟 $[33O（5 字元）長度不同不會誤判。
   ['\\to',' $O '],['\\rightarrow',' $O '],['\\mapsto',' $O '],
+  // \uparrow/\downarrow (vaporization/precipitation arrows) are NOT here —
+  // they need a lookahead to decide on a trailing space, which a static
+  // string substitution can't do. See their own dispatch further down
+  // (right before the "Geometry shapes" section).
+  // §3.1.4 reversible reaction arrow: two same-length single-cell shafts,
+  // top arrow (the one pointing the way the print reaction actually
+  // favors) shown first — \rightleftharpoons here always means "top arrow
+  // right-pointing" ($3o$[3), the only direction actually used in any
+  // example currently in this document; a left-favored reversible
+  // reaction would need the mirrored $[3$3o form, not implemented since
+  // nothing has needed it yet. Verified against class.kh.edu.tw/19061/
+  // bulletin/msg_view/434's existing hand-transcribed reaction table.
+  ['\\rightleftharpoons',' $3o$[3 '],
   ['\\leftarrow',' $[33 '],
   ['\\neq',' /.K '],['\\ne',' /.K '],
   ['\\geq',' .1: '],['\\ge',' .1: '],
@@ -714,11 +746,21 @@ var LATEX_SIMPLE=[
   ['\\notin',' /@E '],['\\ni',' @5 '],['\\in',' @E '],
   ['\\supseteq',' _.1: '],['\\supset',' _.1 '],
   ['\\subseteq',' _"K: '],['\\subset',' _"K '],
-  ['\\cup',' .+ '],['\\cap',' .% '],
+  ['\\cup','.+'],['\\cap','.%'],
   ['\\varnothing','_0'],['\\emptyset','_0'],
   ['\\forall','@&'],['\\exists','@='],
-  ['\\lnot','@: '],['\\neg','@: '],
-  ['\\mid','|'],
+  // dots 3-4, prefixed directly (pathstoliteracy.org Nemeth Symbol Library
+  // "Negation, or not") — previously wrongly reused \sim's code (@:).
+  ['\\lnot','/'],['\\neg','/'],
+  // dots 1-2-5-6 vertical bar (Rule 23.20 / Example 23-57 "P(purple|yellow)")
+  // — must reuse the '\\' ascii convention, same as \lvert/\rvert below;
+  // bare '|' is not a valid ascii-to-braille token and passed through unconverted.
+  ['\\mid','\\'],
+  // Half brackets (Rule 19.4/19.5): upper = ceiling function, lower = floor
+  // function (108課綱高斯符號). Lesson 17 (NFB Lesson Manual) confirmed
+  // clean ASCII: upper left/right @^( / @^) , lower left/right @;( / @;) .
+  ['\\lceil','@^('],['\\rceil','@^)'],
+  ['\\lfloor','@;('],['\\rfloor','@;)'],
   // Misc (Rule 23)
   ['\\therefore',' ,* '],['\\because',' @/ '],
   ['\\infty',',='],
@@ -727,9 +769,12 @@ var LATEX_SIMPLE=[
   ['\\doteqdot',' ".K%*<*] '],
   // ≐ (dot over only) 若有需要
   ['\\doteq',' ".K<*] '],
-  // Number sets (Rule 7 barred typeform)
-  ['\\mathbb{N}',',_N'],['\\mathbb{Z}',',_Z'],
-  ['\\mathbb{Q}',',_Q'],['\\mathbb{R}',',_R'],['\\mathbb{C}',',_C'],
+  // Number sets (Rule 7 barred/blackboard typeform)
+  // ,_ = barred typeform indicator; ; = required alphabetic indicator after
+  // any typeform indicator (Rule 7.1); , = capital sign for the letter itself
+  // (typeform indicator does not imply capitalization) — see Example 7-2.
+  ['\\mathbb{N}',',_;,N'],['\\mathbb{Z}',',_;,Z'],
+  ['\\mathbb{Q}',',_;,Q'],['\\mathbb{R}',',_;,R'],['\\mathbb{C}',',_;,C'],
   // Greek letters (Rule 6) - lowercase
   ['\\alpha','.A'],['\\beta','.B'],['\\gamma','.G'],['\\delta','.D'],
   ['\\epsilon','.E'],['\\zeta','.Z'],['\\eta','.:'],['\\theta','.?'],
@@ -737,6 +782,11 @@ var LATEX_SIMPLE=[
   ['\\nu','.N'],['\\xi','.X'],['\\omicron','.O'],['\\pi','.P'],
   ['\\rho','.R'],['\\sigma','.S'],['\\tau','.T'],['\\upsilon','.U'],
   ['\\phi','.F'],['\\chi','.&'],['\\psi','.Y'],['\\omega','.W'],
+  // 108課綱表列的變體字形 \varepsilon(ε)/\varphi(φ) 跟 \epsilon(ϵ)/\phi(ϕ) 是同一個
+  // 希臘字母的不同印刷字形，不是不同字母。Nemeth 的「另一種寫法」指示符（Rule 6/Lesson 4
+  // 4.11.3）只有在同一份文件裡兩種寫法都出現時才需要用；這份教材只會固定用一種寫法，所以
+  // 直接對應到跟標準寫法一樣的點字，不用另外處理指示符。
+  ['\\varepsilon','.E'],['\\varphi','.F'],
   // Greek uppercase
   ['\\Delta','.,D'],['\\Gamma','.,G'],['\\Theta','.,?'],
   ['\\Lambda','.,L'],['\\Xi','.,X'],['\\Pi','.,P'],
@@ -809,15 +859,67 @@ function eatRightDelim(s,i){
 // "x with bar" 且 x 帶平方 → x~2"<:]，閉合前有 "）。用內容原始 LaTeX 結尾是否為
 // 上標/下標判斷，手動補回。
 function wrapModifier(content,modifierSuffix){
-  var nem=latexToNemethAsc(content);
+  // Rule 3.4.1-style: content directly under a modifier's multipurpose
+  // indicator doesn't get its own digit indicator (same principle \frac
+  // already applies to its numerator/denominator) — confirmed against
+  // Nemeth 2022 Rule 15.13 Examples 15-68/15-69 (decimal repeating-digit
+  // bar): neither has a second digit indicator after the multipurpose
+  // indicator introducing the barred digits.
+  var nem=latexToNemethAsc(content).replace(/^#/,'');
   if(/[\^_](\{[^{}]*\}|[^{}\s])$/.test(content)) nem+='"';
   return '"'+nem+modifierSuffix;
 }
 
+// Real two-letter periodic-table element symbols — used by the numeral-
+// subscript-omission check (Rule 14.6) below to recognize chemical formulas
+// with multi-letter element symbols (Cl, Na, Ca, Mg, Fe, ...), not just
+// single-letter ones (H, O, C, N, S, P, K...) which already worked via the
+// plain single-letter check. An explicit symbol list (rather than a generic
+// "any capital+lowercase pair" pattern) specifically avoids misfiring on
+// ordinary two-adjacent-variable math notation (e.g. "Xy_2" meaning "X
+// times y-sub-2" — rare in practice, but a generic pattern could not tell
+// that apart from a genuine 2-letter element symbol; matching against the
+// real periodic table eliminates the ambiguity).
+var CHEM_2LETTER_SYMBOLS=new Set(['HE','LI','BE','NE','NA','MG','AL','SI','CL','AR',
+  'CA','SC','TI','CR','MN','FE','CO','NI','CU','ZN','GA','GE','AS','SE','BR','KR',
+  'RB','SR','ZR','NB','MO','TC','RU','RH','PD','AG','CD','IN','SN','SB','TE','XE',
+  'CS','BA','LA','CE','PR','ND','PM','SM','EU','GD','TB','DY','HO','ER','TM','YB',
+  'LU','HF','TA','RE','OS','IR','PT','AU','HG','TL','PB','BI','PO','AT','RN',
+  'FR','RA','AC','TH','PA','NP','PU','AM','CM','BK','CF','ES','FM','MD','NO','LR',
+  'RF','DB','SG','BH','HS','MT','DS','RG','CN','NH','FL','MC','LV','TS','OG']);
+
+// Module-level flag (not a function parameter — see \ce dispatch below for
+// why): true while processing the content of a \ce{...} chemistry-formula
+// block. Rule 14.6's numeral-subscript-omission exception for chemical
+// formulas can't be reliably detected from the accumulated output string
+// alone — "HN" (chained single-letter elements, e.g. inside "HNO3") and
+// "AB" (two ordinary adjacent math variables) produce the IDENTICAL comma
+// pattern (",H,N" vs ",A,B"), so there is no way to tell them apart after
+// the fact. \ce{...} (mhchem's standard LaTeX chemistry-formula command)
+// gives an explicit, unambiguous signal instead: while this flag is set,
+// every numeral subscript omits the indicator unconditionally, matching
+// this document's own established rule text ("變數、函數、化學式後面接
+// 下標數字時...不需加上下標記號") without needing any letter-pattern
+// heuristics at all. A plain module-level var (rather than threading a
+// parameter through latexToNemethAsc's every recursive call site) because
+// \ce{} content never nests inside itself in practice and everything
+// inside one \ce{} block — subscripts, superscripts, parenthesized groups
+// — is uniformly chemistry, so there is nothing to "turn back off" until
+// the whole block's content finishes processing.
+var _chemMode=false;
+
 // Convert a LaTeX string to Nemeth ASCII
-function latexToNemethAsc(expr,insideScript){
+function latexToNemethAsc(expr,insideScript,embedded,radicalDepth){
+  radicalDepth=radicalDepth||0;
   if(!expr||!expr.trim())return '';
   var s=expr.trim(), result='', i=0;
+  // Tracks nesting depth of literal ( )  [ ] — used to scope the Rule 3.5.1
+  // Enclosed List exception (comma+space before a digit doesn't need a
+  // fresh numeric indicator) to content that's actually inside grouping
+  // symbols, e.g. "(-3, 2)" or "[36, 48]". Without this, "1, 2, 3, 4" as a
+  // bare top-level list (not inside any bracket) incorrectly lost the
+  // indicator on every number after the first one.
+  var bracketDepth=0;
 
   while(i<s.length){
     var c=s[i];
@@ -839,8 +941,8 @@ function latexToNemethAsc(expr,insideScript){
         var num=extractBraces(s,i);i=num.end;
         var den=extractBraces(s,i);i=den.end;
         // Inside fraction: no numeric indicator needed (Rule 3.4.1)
-        var numNem=latexToNemethAsc(num.content).replace(/^#/,'');
-        var denNem=latexToNemethAsc(den.content).replace(/^#/,'');
+        var numNem=latexToNemethAsc(num.content,false,true).replace(/^#/,'');
+        var denNem=latexToNemethAsc(den.content,false,true).replace(/^#/,'');
         // 檢測是否為繁分數（內層含簡單分數 ?…/…# 或 _?…/…_#）
         // Nemeth 2022 §13.6: 繁分數用 ,? ,/ ,# 標記
         var innerHasFrac=/[_]?\?[^?#]*\/[^?#]*#/.test(numNem)||/[_]?\?[^?#]*\/[^?#]*#/.test(denNem);
@@ -866,12 +968,25 @@ function latexToNemethAsc(expr,insideScript){
         // Inside radical: no numeric indicator (Rule 3.4.1)
         // Strip leading # from both index and radicand — the radical
         // sign > already acts as the "indicator" that suppresses #.
-        var radNem=latexToNemethAsc(rad.content).replace(/^#/,'');
+        // Rule 16.3 Nested Radicals: when a radical sits inside another
+        // radical's own content, the order-of-radical indicator (dots 4-6,
+        // ASCII ".") is repeated before BOTH the opening symbol (or the
+        // index-of-radical indicator < if there's an index, per the rule's
+        // own wording — not before the radical sign itself in that case)
+        // and the termination indicator ] — once per nesting depth (the
+        // outermost radical, depth 0, gets none at all). Verified against
+        // Nemeth 2022 Example 16-14/16-15/16-16/16-17 (all four nested-
+        // radical examples), including the index-present case (16-15).
+        // radicalDepth is THIS radical's own depth (0 = not nested inside
+        // another radical); radicalDepth+1 is passed to its own content so
+        // a radical nested inside THIS one is marked one level deeper.
+        var orderMark=Array(radicalDepth+1).join('.');
+        var radNem=latexToNemethAsc(rad.content,false,true,radicalDepth+1).replace(/^#/,'');
         if(opt.content!==null){
-          var idxNem=latexToNemethAsc(opt.content).replace(/^#/,'');
-          result+='<'+idxNem+'>'+radNem+']';
+          var idxNem=latexToNemethAsc(opt.content,false,true,radicalDepth+1).replace(/^#/,'');
+          result+=orderMark+'<'+idxNem+'>'+radNem+orderMark+']';
         }else{
-          result+='>'+radNem+']';
+          result+=orderMark+'>'+radNem+orderMark+']';
         }
         continue;
       }
@@ -902,8 +1017,14 @@ function latexToNemethAsc(expr,insideScript){
         result+=wrapModifier(inner.content.trim(),'<$[33O]');continue;
       }
       if(cmd==='\\vec'){
+        // NFB Lesson 12 Postscript (Vector Notation Notes): a non-bold letter
+        // with a superscribed right-pointing arrow keeps the arrow, in its
+        // ordinary contracted form ($O) per 12.3.1 — same symbol as
+        // \overrightarrow. (The bold case, where the arrow is omitted, isn't
+        // representable in plain LaTeX \vec{} since it doesn't bold the
+        // letter.) Confirmed against Lesson 15 Example 15-34: "x<$O]".
         var inner=extractBraces(s,i);i=inner.end;
-        result+=wrapModifier(inner.content.trim(),'<$33O]');continue;
+        result+=wrapModifier(inner.content.trim(),'<$O]');continue;
       }
       if(cmd==='\\hat'||cmd==='\\widehat'){
         // Rule 15.15 Caret (circumflex)，Example 15-70："x^" → "x<_<]"
@@ -1112,6 +1233,77 @@ function latexToNemethAsc(expr,insideScript){
         result+='('+latexToNemethAsc(top.content)+'%'+latexToNemethAsc(bot.content)+')';
         continue;
       }
+      // \ce{...} (mhchem chemistry-formula notation) — explicit signal that
+      // everything inside is a chemical formula, so Rule 14.6's numeral-
+      // subscript-omission exception applies unconditionally (see _chemMode
+      // above for why this can't just be inferred from letter patterns).
+      // Two mhchem shorthand conventions get rewritten into plain LaTeX
+      // before falling through to the normal recursive parser, which then
+      // handles everything else (+ signs, parens, ^ charges — including
+      // Rule 14.11's simultaneous subscript-then-superscript ordering for
+      // e.g. SO4^{2-}) via its existing machinery, no new handling needed:
+      //   - "->" (bare reaction arrow) -> \rightarrow, already a working
+      //     command (produces the same ⠫⠕ used elsewhere for rays/→).
+      //     Equilibrium arrows (<=>, <=>>, <<=>) are NOT handled — no
+      //     example in this document has needed them yet.
+      //   - a bare digit run right after a letter or closing grouping
+      //     symbol (mhchem's implicit-subscript shorthand, e.g. "H2O",
+      //     "Ca(OH)2") -> explicit "_{...}" so it flows through the normal
+      //     subscript branch (with _chemMode forcing the omission).
+      // A third rewrite handles physical-state annotations — (g)/(l)/(s)/
+      // (aq) — per BANA §5.2.1: "If print shows the physical state in the
+      // subscript position, such placement is disregarded in braille" —
+      // i.e. (g) etc. is ALWAYS baseline text, never really a subscript,
+      // even when the source LaTeX groups it together with a genuine
+      // subscript count (e.g. "Cl_{2(g)}", mirroring how print visually
+      // stacks "2(g)" as one subscripted unit). Split BEFORE the implicit-
+      // digit-wrap pass below runs, so "_{2(g)}" becomes "_{2}(g)" (real
+      // subscript "2", state left on the baseline) and a bare "_{(g)}"
+      // (no count) becomes just "(g)" with no subscript at all. Caught via
+      // cross-checking electrolysis examples (Cl2(g), H2(g)) against
+      // class.kh.edu.tw/19061/bulletin/msg_view/434's reference table:
+      // grouping the state into the subscript also broke the numeral-only
+      // omission test ($/^[0-9]+$/), so it produced a spurious ⠰ that
+      // shouldn't be there at all, not just a misplaced (g).
+      if(cmd==='\\ce'){
+        var ceEx=extractBraces(s,i);i=ceEx.end;
+        var ceContent=ceEx.content
+          .replace(/->/g,'\\rightarrow')
+          .replace(/_\{(\d*)\((g|l|s|aq)\)\}/g,function(m,digits,state){
+            return (digits?'_{'+digits+'}':'')+'('+state+')';
+          })
+          .replace(/([A-Za-z)\]])(\d+)/g,'$1_{$2}');
+        var _prevChemMode=_chemMode;
+        _chemMode=true;
+        try{
+          result+=latexToNemethAsc(ceContent,insideScript,embedded);
+        }finally{
+          _chemMode=_prevChemMode;
+        }
+        continue;
+      }
+      // Vaporization/precipitation arrows (BANA "Chemical Notation Using
+      // the Nemeth Braille Code" 2023 ed. §3.2.4): "The arrow is unspaced
+      // from the element SYMBOL to which it applies... If the arrow is
+      // interior to the expression, a space follows the arrow." — i.e. no
+      // leading space ever, but a trailing space ONLY when something else
+      // still follows in this same expression (not when it's the last
+      // thing, e.g. a lone "...+CO2\uparrow" ending a reaction). Handled
+      // here as its own dispatch (rather than a static LATEX_SIMPLE
+      // string) specifically because that trailing-space decision needs
+      // to peek at what comes next — plain string substitution has no way
+      // to know that. Verified against class.kh.edu.tw/19061/bulletin/
+      // msg_view/434's existing table: both the trailing-space case
+      // (interior, e.g. "SO2↑ + H2O") and the no-trailing-space case
+      // (expression-final, e.g. "...+CO2↑") match exactly once this
+      // lookahead was added — a fixed suffix without it reproduced the
+      // second case fine but dropped the space in the first.
+      if(cmd==='\\uparrow'||cmd==='\\downarrow'){
+        result+=(cmd==='\\uparrow'?'$<':'$%');
+        var _arrowRest=s.slice(i).replace(/^\s+/,'');
+        if(_arrowRest.length>0&&_arrowRest[0]!=='}')result+=' ';
+        continue;
+      }
       // ── Geometry shapes (Rule 17) ─────────────────────
       if(cmd==='\\angle'){result+='$[ ';continue;}
       if(cmd==='\\triangle'){result+='$T ';continue;}
@@ -1120,20 +1312,91 @@ function latexToNemethAsc(expr,insideScript){
       if(cmd==='\\parallel'){result+=' $L ';continue;}
       if(cmd==='\\cong'){result+=' @:.K ';continue;}
       if(cmd==='\\sim'){result+=' @: ';continue;}
+      if(cmd==='\\pmod'||cmd==='\\bmod'){
+        // Rule 21 Example 21-12: "2≡5(mod 3)" -> "#2 _l #5(mod #3)" — the
+        // modulus keeps its own numeric indicator (it's preceded by the
+        // literal word "mod" + space, not touching the prior numeral), and
+        // "(mod ...)" as a whole is unspaced from whatever precedes it
+        // (matches \pmod's own LaTeX rendering convention).
+        var m=extractBraces(s,i);i=m.end;
+        result+='(mod '+latexToNemethAsc(m.content.trim())+')';
+        continue;
+      }
       if(cmd==='\\log'){
+        // Base written as \log[b]{x} (bracket) or the more common \log_{b}{x}
+        // (LaTeX subscript, matching the 108 課綱 table's own convention) —
+        // both glue the base directly onto "log" with no space (pathstoliteracy
+        // .org "Logarithm Examples with SimBraille" #4: log_e x -> "log;e x").
+        // A numeric base additionally omits the subscript indicator per Rule
+        // 14.6 (#3 there / Example 14-41 "log2 x") — previously only the
+        // bracket form was handled; \log_{b}{x} fell through to "log " (with
+        // a now-stray trailing space) plus the generic subscript branch.
         var sub=extractBracket(s,i);i=sub.end;
-        if(sub.content!==null){result+='log;'+latexToNemethAsc(sub.content);
+        if(sub.content===null&&s[i]==='_'){
+          var us=extractBraces(s,i+1);sub={content:us.content,end:us.end};i=sub.end;
+        }
+        if(sub.content!==null){
+          var baseTrim=sub.content.trim();
+          var baseNem=latexToNemethAsc(baseTrim,true).replace(/^#/,'');
+          result+=/^[0-9]+$/.test(baseTrim)?('log'+baseNem):('log;'+baseNem);
+          // Rule 18.4/14.3.b: the space after "log" (plus its base) before the
+          // argument is mandatory regardless of source spacing — previously
+          // only handled when the argument was braced or already had a
+          // literal space before it; a bare argument immediately following
+          // (e.g. \log_{2}8, no braces/space) fell through with no space at
+          // all, merging into an ambiguous run ("log28" instead of "log2
+          // #8", indistinguishable from log base 28).
           if(i<s.length&&s[i]==='{'){var a=extractBraces(s,i);i=a.end;result+=' '+latexToNemethAsc(a.content);}
+          else if(i<s.length&&s[i]===' '){result+=' ';i++;}
+          else if(i<s.length){result+=' ';}
         }else result+='log ';continue;
       }
       if(cmd==='\\lim'){
         var sub=extractBraces(s,i);
-        if(i<s.length&&s[i]==='_'){i++;sub=extractBraces(s,i);i=sub.end;result+='"lim%'+latexToNemethAsc(sub.content);}
+        if(i<s.length&&s[i]==='_'){
+          // Rule 15: the under-modifier needs a termination indicator (]),
+          // and lim is a function name so Rule 18.4 mandates a following
+          // space regardless of source spacing — both were previously
+          // missing (already-published msg_view/1041 example has both:
+          // "...⠼⠴⠻⠀⠋⠷⠭⠾" for \lim_{x\to0}f(x), this handler produced
+          // neither).
+          i++;sub=extractBraces(s,i);i=sub.end;
+          result+='"lim%'+latexToNemethAsc(sub.content.trim())+'] ';
+        }
         else result+='lim ';
         continue;
       }
-      if(cmd==='\\sum'){result+='".,S';continue;}
-      if(cmd==='\\prod'){result+='".,P';continue;}
+      if(cmd==='\\sum'||cmd==='\\prod'){
+        // Rule 15: a large operator's limits, when stacked directly above/below
+        // it (display style — the norm for a standalone equation in this tool),
+        // use the under (%) / over (<) modifier construction, under written
+        // first regardless of source order, terminated by ']'. Previously this
+        // fell through to ordinary corner subscript/superscript, which is only
+        // correct for inline-style limits (see Example 15-37 vs Example 14-57
+        // in Nemeth 2022 — confirmed independently against MathCAT's Nemeth
+        // rules, which branch the same way on MathML munderover vs msubsup).
+        var bigOpBase=(cmd==='\\sum')?'".,S':'".,P';
+        var bigOpJ=i;
+        while(bigOpJ<s.length&&s[bigOpJ]===' ')bigOpJ++;
+        if(s.slice(bigOpJ,bigOpJ+7)==='\\limits')bigOpJ+=7;
+        var bigOpUnder=null,bigOpOver=null;
+        for(var bigOpPass=0;bigOpPass<2;bigOpPass++){
+          while(bigOpJ<s.length&&s[bigOpJ]===' ')bigOpJ++;
+          if(s[bigOpJ]==='_'&&bigOpUnder===null){
+            bigOpJ++;var bigOpSub=extractBraces(s,bigOpJ);bigOpUnder=bigOpSub.content;bigOpJ=bigOpSub.end;
+          }else if(s[bigOpJ]==='^'&&bigOpOver===null){
+            bigOpJ++;var bigOpSup=extractBraces(s,bigOpJ);bigOpOver=bigOpSup.content;bigOpJ=bigOpSup.end;
+          }else break;
+        }
+        i=bigOpJ;
+        result+=bigOpBase;
+        if(bigOpUnder!==null||bigOpOver!==null){
+          if(bigOpUnder!==null)result+='%'+latexToNemethAsc(bigOpUnder);
+          if(bigOpOver!==null)result+='<'+latexToNemethAsc(bigOpOver);
+          result+=']';
+        }
+        continue;
+      }
       if(cmd==='\\int'){result+='!';continue;}
       if(cmd==='\\iint'){result+='!!';continue;}
       if(cmd==='\\iiint'){result+='!!!';continue;}
@@ -1169,40 +1432,154 @@ function latexToNemethAsc(expr,insideScript){
       }
       if(cmd==='\\mathbb'){
         var arg=extractBraces(s,i);i=arg.end;
-        result+=',_'+arg.content.trim();continue;
+        // Rule 7: typeform indicator needs alphabetic indicator (;) then
+        // the letter's own capital sign (,) — see LATEX_SIMPLE \mathbb{N} comment.
+        result+=',_;,'+arg.content.trim();continue;
       }
       if(cmd==='\\mathrm'||cmd==='\\text'||cmd==='\\operatorname'){
         var arg=extractBraces(s,i);i=arg.end;
-        result+=arg.content;continue;
+        // \text{}/\mathrm{}/\operatorname{} mark content as an ordinary
+        // printed word (as opposed to bare math-mode letters, which are
+        // math objects like point labels — "$ABCDE$" for a pentagon's
+        // vertices needs a capital indicator on EACH letter, Rule per
+        // CH1 "不同端點或不同元素需分開使用大寫記號"). A continuous
+        // all-caps WORD like "USA" instead uses a single double capital
+        // indicator covering the whole run (CH1 "連續兩個大寫記號代表
+        // 接下來的英文字母都是大寫"). Bare "$USA$" can't be told apart
+        // from "$ABCDE$" from the LaTeX alone — both are just consecutive
+        // capital letters — so \text{} is the deliberate signal a document
+        // author uses to say "this is one word", matching how \text is
+        // ordinarily used for print English inside a math expression.
+        if(/^[A-Z]{2,}$/.test(arg.content)){
+          result+=',,'+arg.content;
+        }else if(/^[A-Za-z]$/.test(arg.content)){
+          // Rule 10.3: the English-letter indicator (;) is required before
+          // a ONE-LETTER abbreviation (10 g -> ;G, 1 km = 1000 m -> the
+          // multi-letter "km" stays bare but the one-letter "m" needs ;M),
+          // regardless of an attached superscript/subscript/period/grouping
+          // symbol (Example 10-22/10-21). Multi-letter abbreviations (cm,
+          // km, sec...) do NOT take this indicator (Example 10-23/10-24),
+          // which is why this branch only fires for exactly one letter.
+          result+=';'+(/[A-Z]/.test(arg.content)?','+arg.content:arg.content.toUpperCase());
+        }else{
+          result+=arg.content;
+        }
+        continue;
       }
       // ── Simple command lookup ────────────────────────────
       var found=false;
       for(var si=0;si<LATEX_SIMPLE.length;si++){
         if(cmd===LATEX_SIMPLE[si][0]){result+=LATEX_SIMPLE[si][1];found=true;break;}
       }
+      // \{ and \} are grouping symbols too (Rule 3.5.1 Enclosed List scope) —
+      // track them the same as literal ( ) [ ] above.
+      if(cmd==='\\{')bracketDepth++;
+      else if(cmd==='\\}')bracketDepth=Math.max(0,bracketDepth-1);
       if(!found)result+=cmd.slice(1).toUpperCase()+' '; // unknown -> uppercase
       continue;
+    }
+
+    // ── Simultaneous subscript+superscript (Rule 14.11) ────────────────────
+    // When a base carries both at once (e.g. P^{m}_{n} or P_{n}^{m}), Nemeth
+    // requires the subscript first regardless of source order, with no
+    // baseline-return between them (they're one unit, not two separate
+    // script excursions). Detected by peeking past the first script marker
+    // for an immediately-adjacent second one; falls through to the ordinary
+    // single-script branches below when there's no such pair.
+    if(c==='^'||c==='_'){
+      var simFirstIsSup=(c==='^');
+      var simFirstEx=extractBraces(s,i+1);
+      var simOtherCh=s[simFirstEx.end];
+      if((simFirstIsSup&&simOtherCh==='_')||(!simFirstIsSup&&simOtherCh==='^')){
+        var simSecondEx=extractBraces(s,simFirstEx.end+1);
+        var simSupContent=(simFirstIsSup?simFirstEx.content:simSecondEx.content).trim();
+        var simSubContent=(simFirstIsSup?simSecondEx.content:simFirstEx.content).trim();
+        i=simSecondEx.end;
+        var simSubNem=latexToNemethAsc(simSubContent,true).replace(/^(-?)#/,'$1');
+        var simSupNem=latexToNemethAsc(simSupContent,true).replace(/^(-?)#/,'$1');
+        // Same Rule 14.6 numeric-subscript-omission test as the standalone
+        // subscript branch below (kept in sync with it).
+        var _simFuncBases=['arcsin ','arccos ','arctan ','sin ','cos ','tan ','cot ','sec ','csc ','ln ','log ','lim '];
+        var _simIsFuncBase=_simFuncBases.some(function(fn){return result.slice(-fn.length)===fn;});
+        var _simLetterEnd=result.match(/(,?[A-Za-z]'*)$/);
+        var _simIsLetterBase=false;
+        if(_simLetterEnd){
+          if(_chemMode){
+            // See the standalone subscript branch below for the full
+            // explanation (kept in sync with it).
+            _simIsLetterBase=true;
+          }else{
+            var _simCharBefore=result[result.length-_simLetterEnd[0].length-1]||'';
+            _simIsLetterBase=!/[A-Za-z]/.test(_simCharBefore);
+          }
+        }
+        // Two-letter chemical element symbol — see the standalone subscript
+        // branch below for the full explanation (kept in sync with it,
+        // including NOT checking the character before the match — chained
+        // element symbols like "CaCl2" would otherwise block every element
+        // after the first).
+        if(!_simIsLetterBase){
+          var _simChemEnd=result.match(/,([A-Za-z][A-Za-z])'*$/);
+          if(_simChemEnd&&CHEM_2LETTER_SYMBOLS.has(_simChemEnd[1].toUpperCase())){
+            _simIsLetterBase=true;
+          }
+        }
+        var _simOmitSubInd=!insideScript&&/^[0-9]+$/.test(simSubContent)&&(_simIsFuncBase||_simIsLetterBase);
+        if(_simOmitSubInd){
+          if(_simIsFuncBase)result=result.replace(/ $/,'');
+          result+=simSubNem;
+        }else{
+          result+=';'+simSubNem;
+        }
+        result+='^'+simSupNem+'"\x01';
+        continue;
+      }
     }
 
     // ── Superscript ^ ─────────────────────────────────────────────────────
     if(c==='^'){
       i++;
-      // Bare ^\circ (no braces): degree symbol
+      // Bare ^\circ (no braces): degree symbol. Same sentinel as the general
+      // superscript case below (Rule 10.6.3 Example 10-58: "20°C", unspaced,
+      // needs the baseline-return indicator before C; "20° C", spaced, does
+      // not — the cleanup pass below strips the sentinel when whitespace
+      // follows and keeps it as "\"" otherwise, exactly matching that rule).
       if(s.slice(i,i+5)==='\\circ'&&(i+5>=s.length||!/[a-zA-Z]/.test(s[i+5]))){
-        i+=5; result+='^.*'; continue;
+        i+=5; result+='^.*"\x01'; continue;
       }
       var exp=extractBraces(s,i);
       var expTrim=exp.content.trim();
       if(expTrim==='\\circ'||expTrim==='\circ'){
-        i=exp.end; result+='^.*'; continue;
+        i=exp.end; result+='^.*"\x01'; continue;
       }
       i=exp.end;
-      // Inside superscript: no numeric indicator (Rule 3.4.1)
+      // Rule 14.3.2 + 14.3.b/14.7: a function name's mandatory trailing
+      // space (baked into "sin "/"tan "/etc. by the LATEX_SIMPLE table)
+      // must NOT precede an indicator that applies to it — the indicator
+      // attaches directly (Example 14-6/14-13: TAN^-1, not TAN ^-1) — and
+      // the mandatory space is deferred to AFTER the superscript closes
+      // (Example 14-17/14-18: SIN^2 .?, not SIN^2".?). That trailing space
+      // is a real space, not a baseline-indicator sentinel, since the space
+      // itself already returns the reader to the baseline.
+      var _supFuncBases=['arcsin ','arccos ','arctan ','sin ','cos ','tan ','cot ','sec ','csc ','ln ','log ','lim '];
+      var _supIsFuncBase=_supFuncBases.some(function(fn){return result.slice(-fn.length)===fn;});
+      if(_supIsFuncBase){
+        result=result.replace(/ $/,'');
+        result+='^'+latexToNemethAsc(expTrim,true).replace(/^(-?)#/,'$1')+' \x01';
+        continue;
+      }
+      // Inside superscript: no numeric indicator (Rule 3.4.1), even when the
+      // numeral is preceded by an unspaced negative sign that starts the
+      // superscript content — Rule 3.4.1's "no indicator after superscript
+      // indicator" example (x2 -> x^2) is confirmed to override the general
+      // negative-number exception in this position by Lesson 14 Example
+      // 14-13 (tan^-1, not tan^-#1); (-?)# strips an optional leading minus
+      // together with the # so the minus is put back but the # is not.
       // The baseline indicator " is appended only when there are more
       // math objects following at the baseline (handled in cleanup below).
       // insideScript=true：內容裡如果又有下標，屬於 Rule 14.6 講的「higher order」，
       // 不能再套用數字下標指示符省略規則（見下面 subscript 分支）。
-      result+='^'+latexToNemethAsc(expTrim,true).replace(/^#/,'')+'"\x01';
+      result+='^'+latexToNemethAsc(expTrim,true).replace(/^(-?)#/,'$1')+'"\x01';
       continue;
     }
 
@@ -1211,8 +1588,10 @@ function latexToNemethAsc(expr,insideScript){
       i++;
       var sub=extractBraces(s,i);i=sub.end;
       var subContent=sub.content.trim();
-      // Inside subscript: no numeric indicator (Rule 3.4.1)
-      var subNem=latexToNemethAsc(subContent,true).replace(/^#/,'');
+      // Inside subscript: no numeric indicator (Rule 3.4.1), including when
+      // preceded by an unspaced negative sign starting the subscript content
+      // (see the parallel note on the superscript branch above).
+      var subNem=latexToNemethAsc(subContent,true).replace(/^(-?)#/,'$1');
       // Rule 14.6 Numeric Subscripts：右下標若同時符合：
       //   a. 是右下標（LaTeX _ 本來就只有右下標，恆成立）
       //   b. 只有一層，不含自己的上下標（不是巢狀在別的上下標「裡面」，也不能自己
@@ -1235,11 +1614,42 @@ function latexToNemethAsc(expr,insideScript){
       var _letterEnd=result.match(/(,?[A-Za-z]'*)$/);
       var _isLetterBase=false;
       if(_letterEnd){
-        var _charBefore=result[result.length-_letterEnd[0].length-1]||'';
-        // 只有「前面緊接另一個字母」才不算獨立字母（避免 "AB" 誤判成單一字母 B）；
-        // 前面是數字不影響判斷——Example 14-117 "x1y1"，y 前面緊接 x 的下標數字 1，
-        // y 本身還是算獨立字母，一樣要省略指示符（"x1y1" 兩個下標都不加 ;）。
-        _isLetterBase=!/[A-Za-z]/.test(_charBefore);
+        if(_chemMode){
+          // Inside \ce{...}: skip the "avoid AB ambiguity" char-before
+          // check entirely. Chained single-letter element symbols (e.g.
+          // the H-N-O run in "HNO3") produce the exact same comma pattern
+          // as two ordinary adjacent math variables ("AB") — see _chemMode
+          // above — so this can only be resolved by the explicit \ce{}
+          // signal, not by inspecting the pattern itself.
+          _isLetterBase=true;
+        }else{
+          var _charBefore=result[result.length-_letterEnd[0].length-1]||'';
+          // 只有「前面緊接另一個字母」才不算獨立字母（避免 "AB" 誤判成單一字母 B）；
+          // 前面是數字不影響判斷——Example 14-117 "x1y1"，y 前面緊接 x 的下標數字 1，
+          // y 本身還是算獨立字母，一樣要省略指示符（"x1y1" 兩個下標都不加 ;）。
+          _isLetterBase=!/[A-Za-z]/.test(_charBefore);
+        }
+      }
+      // 化學式的雙字母元素符號（Cl、Na、Ca、Mg、Fe...）同樣適用 Rule 14.6 省略規則
+      // （單字母元素 H/O/C 已經被上面的邏輯正確處理，這裡補的是雙字母的情況）——
+      // 對照 class.kh.edu.tw/19061/bulletin/msg_view/434 既有的化學反應式點字核對
+      // 才抓到：CaCl2/NaOH/H2SO4 這類雙字母元素式子被誤插了下標指示符（"Cl;2"
+      // 而非 "Cl2"），因為上面的單字母判斷刻意排除「前面緊接另一個字母」的情況
+      // （為了不誤判 "AB" 這種多字母序列），連帶也擋住了雙字母元素符號本身第二個
+      // 字母。用實際週期表符號表比對，不是泛用的「大寫+小寫」樣式，避免跟一般數學
+      // 「兩個相鄰單字母變數」的寫法（如 $Xy_2$ 理論上可能是「X 乘 y 下標 2」）混淆
+      // ——真的週期表符號表本身就已經排除了這種巧合誤判的機率。
+      // 不檢查「前面是不是字母」：跟單字母判斷不同，這裡故意省略這一步，因為化學式
+      // 常常是好幾個元素符號連在一起（CaCl2 = Ca + Cl2），前一個元素符號的最後一個
+      // 字母本來就是字母，如果沿用單字母判斷的排除邏輯，會連鎖擋住整條化學式裡除了
+      // 第一個元素以外的所有元素——用逗號本身已經標記了「這是獨立的新字母」這件事
+      // （nc 的大寫指示符规则本來就是每個需要大寫的新字母各自補一個逗號），不需要
+      // 再額外檢查前一個字元。
+      if(!_isLetterBase){
+        var _chemEnd=result.match(/,([A-Za-z][A-Za-z])'*$/);
+        if(_chemEnd&&CHEM_2LETTER_SYMBOLS.has(_chemEnd[1].toUpperCase())){
+          _isLetterBase=true;
+        }
       }
       var _omitSubInd=!insideScript&&/^[0-9]+$/.test(subContent)&&(_isFuncBase||_isLetterBase);
       if(_omitSubInd){
@@ -1276,6 +1686,13 @@ function latexToNemethAsc(expr,insideScript){
     // symbol only when followed by a number」，須一併進入本分支才會補數字指示符 #
     // （Example 3-5 ".35"→"#.35"；否則開頭的 "." 會被當成一般標點單獨吃掉，
     //  後面的數字因為 prev==='.' 判斷不到「數字開頭」而漏掉 #）
+    // ( ) pass straight through unconverted further down (see symMap),
+    // so tracking depth here is safe. [ ] get converted to a different
+    // ASCII code by symMap below — depth for those is tracked at that
+    // point instead, so as not to short-circuit past their conversion.
+    if(c==='('){ bracketDepth++; result+=c; i++; continue; }
+    if(c===')'){ bracketDepth=Math.max(0,bracketDepth-1); result+=c; i++; continue; }
+
     if(/[0-9]/.test(c)||(c==='.'&&/[0-9]/.test(s[i+1]||''))){
       var numStart=i;
       while(i<s.length&&(/[0-9]/.test(s[i])||s[i]==='.'||
@@ -1297,9 +1714,11 @@ function latexToNemethAsc(expr,insideScript){
       var noHashChars='^;?/>(![<@*=,';  // comma added: inside (a, b) no # needed
       var needHash=!result||prev===' ';
       if(prev&&noHashChars.indexOf(prev)>=0)needHash=false;
-      // Space after comma (coordinate separator) must NOT trigger #.
-      // e.g. "(0, 6)" — the space is from ", " in symMap, but 6 needs no #.
-      if(prev===' '&&result.length>=2&&result.charAt(result.length-2)===',')needHash=false;
+      // Space after comma (coordinate separator) must NOT trigger # —
+      // but ONLY when inside grouping symbols (Rule 3.5.1 Enclosed List
+      // scope). "(0, 6)" → 6 needs no #, but a bare top-level list like
+      // "1, 2, 3, 4" (no enclosing brackets) does need # on every number.
+      if(bracketDepth>0&&prev===' '&&result.length>=2&&result.charAt(result.length-2)===',')needHash=false;
       // `-` as NEGATIVE SIGN → digit still needs #.
       // Negative sign context: result is empty (expression-leading -)
       // OR the minus follows a space (after = or similar operator padding).
@@ -1309,6 +1728,13 @@ function latexToNemethAsc(expr,insideScript){
         var prevprev=result.length>=2?result.charAt(result.length-2):'';
         if(!prevprev||prevprev===' ')needHash=true;
         // prevprev==='(' → still suppressed (bracket context, handled by noHashChars above)
+        // Rule 3.5.1/3.5.2 Enclosed List exception: if that space itself
+        // follows a comma (e.g. "(2, -3)"), this is a list item, not a
+        // fresh negative number after an operator — no digit indicator
+        // regardless (Example 3-66: "(-1, -2, -3)" -> "(-1, -2, -3)",
+        // no # anywhere, confirmed via nc's own asc2brl against the rule).
+        // Scoped to bracketDepth>0 for the same reason as the digit case above.
+        if(bracketDepth>0&&prevprev===' '&&result.length>=3&&result.charAt(result.length-3)===',')needHash=false;
       }
       // After letters: no # (Rule 3.4.1)
       if(prev&&/[A-Z]/.test(prev))needHash=false;
@@ -1326,13 +1752,28 @@ function latexToNemethAsc(expr,insideScript){
       result+=c.toUpperCase();i++;continue;
     }
 
+    // Rule 19.5.2 Example 19-27: two adjacent absolute-value bars (the
+    // closing bar of one and the opening bar of the next, with nothing
+    // between them) need a multipurpose indicator inserted so the pair
+    // isn't misread as a single double vertical bar (Rule 19.5.1's
+    // boldface-norm symbol, also two bars unspaced). Detected here since
+    // every bare `|` maps to the same ASCII `\` regardless of open/close
+    // role (nc doesn't track abs-bar pairing at parse time).
+    if(c==='|'){
+      result+=(result.slice(-1)==='\\'?'"\\':'\\');i++;continue;
+    }
+
     // ── Common symbols ────────────────────────────────────
     var symMap={'=':' .K ','<':' "K ','>':" .1 ",'+':"+",
       '-':'-','*':'*','/':'_/',',':', ','.':'.',
       '(':'(',')':')','[':'`(',']':'`)',
-      '|':'\\','!':'&','%':'`0',
+      '!':'&','%':'`0',
     };
-    if(symMap[c]!==undefined){result+=symMap[c];i++;continue;}
+    if(symMap[c]!==undefined){
+      if(c==='[')bracketDepth++;
+      else if(c===']')bracketDepth=Math.max(0,bracketDepth-1);
+      result+=symMap[c];i++;continue;
+    }
 
     // Degree symbol direct
     if(c==='°'){result+='^.*';i++;continue;}
@@ -1357,8 +1798,35 @@ function latexToNemethAsc(expr,insideScript){
   // math objects following the super/subscript. Strip the marker `"\x01`
   // when nothing follows it (end of expression or only whitespace/space),
   // and remove the sentinel \x01 everywhere else (keeping the actual ").
-  result = result.replace(/"\x01(\s*)$/,'$1');   // trailing " → remove
+  // `embedded` means this call's result will be spliced into a larger
+  // structure (fraction numerator/denominator before the / or #, radical
+  // content before the closing ]) — from the caller's perspective this is
+  // NOT the true end of the overall expression, even though it looks like
+  // "end of string" from inside this recursive call alone. Closing
+  // structural delimiters need the same baseline indicator that a plain
+  // `)` already gets (confirmed: (a^2) keeps the indicator before `)`,
+  // so \frac{1}{a^n} must keep it before the fraction closes too) — skip
+  // the trailing-strip step and always keep the indicator in that case.
+  // A blank cell (space) right after the sentinel already returns the
+  // reader to the baseline by itself — the rule is "接空方...不需加上
+  // 還原記號" (followed by a space needs no indicator), regardless of
+  // what comes after that space (comparison sign or anything else) and
+  // regardless of `embedded`. This is a different criterion from the
+  // structural-delimiter case above (fraction/radical closes abut the
+  // sentinel directly, no space, so this rule doesn't touch those).
+  result = result.replace(/"\x01(?=\s)/g,'');
+  if(!embedded){
+    result = result.replace(/"\x01(\s*)$/,'$1');   // trailing " → remove
+  }
   result = result.replace(/"\x01/g,'"');          // mid-expression " → keep
+  // Same trailing/mid-expression logic for the mandatory-space-after-
+  // function-name-superscript sentinel (Rule 14.3.b): drop the space
+  // entirely at the true end of the expression, keep it as a real single
+  // space wherever more content follows.
+  if(!embedded){
+    result = result.replace(/ \x01(\s*)$/,'$1');
+  }
+  result = result.replace(/ \x01/g,' ');
   return result;
 }
 
@@ -1420,18 +1888,18 @@ var NEM_TOKENS=[
   ['@:@:','\\approx '],
   // Set/Logic (大寫 E 代表字母 e，@ 代表 dot-4)
   ['/@E','\\notin '],['@E','\\in '],
-  ['@&','\\forall '],['@=','\\exists '],['@: ','\\neg '],
+  ['@&','\\forall '],['@=','\\exists '],['/','\\neg '],
   ['_"K:','\\subseteq '],['_"K','\\subset '],
   ['_.1:','\\supseteq '],['_.1','\\supset '],
   ['_0','\\emptyset '],
   // Misc
   [',*','\\therefore '],
   ['@/','\\because '],
-  [',_N','\\mathbb{N}'],
-  [',_Z','\\mathbb{Z}'],
-  [',_Q','\\mathbb{Q}'],
-  [',_R','\\mathbb{R}'],
-  [',_C','\\mathbb{C}'],
+  [',_;,N','\\mathbb{N}'],
+  [',_;,Z','\\mathbb{Z}'],
+  [',_;,Q','\\mathbb{Q}'],
+  [',_;,R','\\mathbb{R}'],
+  [',_;,C','\\mathbb{C}'],
   // Trig/functions
   ['SIN ','\\sin '],['COS ','\\cos '],['TAN ','\\tan '],
   ['COT ','\\cot '],['SEC ','\\sec '],['CSC ','\\csc '],
@@ -2286,15 +2754,15 @@ var GRADES=[
     {l:'\\forall{x}', n:'`&x',  name:'\u5c0d\u6240\u6709 \u2200'},
     {l:'\\exists{x}', n:'`=x',  name:'\u5b58\u5728 \u2203'},
     {l:'\\infty',     n:',=',   name:'\u7121\u7a6e \u221e'},
-    {l:'\\neg',       n:'`:',   name:'\u975e \u00ac'},
+    {l:'\\neg',       n:'/',    name:'\u975e \u00ac'},
     {l:'\\implies',   n:'$33O', name:'\u8543\u542b \u27f9'},
     {l:'\\iff',       n:'$[33O',name:'\u7b49\u50f9 \u27fa'},
-    {l:'\\mid',       n:'|',    name:'\u689d\u4ef6\u6a5f\u7387 |'},
+    {l:'\\mid',       n:'\\',   name:'\u689d\u4ef6\u6a5f\u7387 |'},
     {l:'\\sum_{i=1}^{n}',n:'".,S;i .k #1~n"',name:'\u7e3d\u548c \u03a3'},
     {l:'P^{m}_{n}',   n:',P~m;n"',name:'\u6392\u5217 P'},
   ]},
   {title:'\u9ad8\u4e2d 11 \u5e74\u7d1a\uff08\u4e09\u89d2/\u5411\u91cf\uff09',items:[
-    {l:'\\vec{AB}',   n:'",A,B<$33O]', name:'\u5411\u91cf AB'},
+    {l:'\\vec{AB}',   n:'",A,B<$O]', name:'\u5411\u91cf AB'},
     {l:'\\sin\\theta',n:'sin .?',      name:'\u6b63\u5f26 sin'},
     {l:'\\cos\\theta',n:'cos .?',      name:'\u9918\u5f26 cos'},
     {l:'\\tan\\theta',n:'tan .?',      name:'\u6b63\u5207 tan'},
@@ -2754,7 +3222,7 @@ _attachSyncScrollListeners();
     <a role="navigation">常用符號</a>	
 	<button data-text="因為" onclick="insertMath('\\because\ ')">∵</button>
 	<button data-text="所以" onclick="insertMath('\\therefore\ ')">∴</button>
-	<button data-text="度" onclick="insertMath('^{\\circ} ')">°</button>
+	<button data-text="度（緊接字母時如 20°C 不留空格；跟字母之間如果真的要留印刷體空格，自己在後面補一格）" onclick="insertMath('^{\\circ}')">°</button>
 	<button data-text="圓週率" onclick="insertMath('\\pi\ ')">π</button>
 	<button data-text="無限" onclick="insertMath('\\infty\ ')">∞</button>
 	<button data-text="交集" onclick="insertMath('\\cap\ ')">∩</button>
@@ -2824,6 +3292,8 @@ _attachSyncScrollListeners();
   	<button data-text="射線 \overleftrightarrow{端點}" onclick="insertMath('\\overleftrightarrow{}')">直線</button>
   	<button data-text="弧 \overset{\frown}{端點}" onclick="insertMath('\\overset{\\frown}{}')">弧</button>
   	<button data-text="向量 \vec{文字}" onclick="insertMath('\\vec{}')">向量</button>
+	<a role="navigation">化學</a>
+	<button data-text="化學式 \ce{...}（元素符號連在一起時一定要包這個，例如 HNO3、CaCl2，否則下標省略指示符會判斷錯誤；隱式下標 Cl2、隱式箭頭 -> 都可以直接寫在裡面）" onclick="insertMath('\\ce{}')">化學式</button>
 	<a role="navigation">三角函數</a>
 		<select id="select-trig" onchange="insertTrigFunction()">
 		  <option value="">請選擇</option>
@@ -2846,6 +3316,7 @@ _attachSyncScrollListeners();
   	<button data-text="分數 \frac{分子}{分母}" onclick="insertMath('\\frac{}{}')">分數</button>
   	<button data-text="上標/指數 ^{n}" onclick="insertMath('^{}')">xⁿ</button>
   	<button data-text="下標/底數 _{n}" onclick="insertMath('_{}')">xₙ</button>
+  	<button data-text="英文縮寫 \text{...}（單位符號如 m、g、s 一定要包這個才會補英文字母指示符；USA 這種整詞縮寫也用這個）" onclick="insertMath('\\text{}')">縮寫</button>
   	<button data-text="根號 \sqrt{n}" onclick="insertMath('\\sqrt{}')">√x</button>
   	<button data-text="n 次方根 \sqrt[n]{m}" onclick="insertMath('\\sqrt[n]{}')">n次方根 ∛x</button>
   	<button data-text="聯立方程式 \begin{cases} {第一式} &amp;{註記} \\ {第二式} &amp;{註記} \end{cases}" onclick="insertMath('\\begin{cases} {} &{} \\\\ {} &{} \\end{cases}')">聯立方程式</button>
