@@ -1768,6 +1768,36 @@ function latexToNemethAsc(expr,insideScript,embedded,radicalDepth){
       '-':'-','*':'*','/':'_/',',':', ','.':'.',
       '(':'(',')':')','[':'`(',']':'`)',
       '!':'&','%':'`0',
+      // Prime (Rule 23.16): the plain ASCII apostrophe ' is itself the
+      // Nemeth ASCII braille symbol for prime, so it needs no lookup —
+      // it just falls through untouched elsewhere in this function. But
+      // authors don't always type that exact character: equation editors,
+      // PDF copy-paste, and autocorrect commonly produce the Unicode
+      // prime ′ (U+2032) or the "curly" right single quote ’ (U+2019)
+      // instead. Both silently passed through as literal (non-braille)
+      // characters before this fix — same category of bug as bt/b2t's
+      // past straight-vs-curly-quote mixups. Normalizing them to plain
+      // ' here (not filtering them out elsewhere) lets every existing
+      // prime-aware rule (e.g. the Rule 14.6 letter-ending check below,
+      // which matches "'" ) keep working unchanged.
+      '′':"'",'’':"'",
+      // Double/triple prime have their own dedicated Unicode characters
+      // (″ U+2033, ‴ U+2034) — map straight to two/three plain primes so
+      // they go through the exact same already-correct multi-prime path
+      // as literally typing '' / '''. Plain ASCII " (U+0022) is included
+      // too: nc's OWN internal ASCII-braille representation separately
+      // overloads " to mean the baseline-return indicator (⠐) at a later
+      // pipeline stage (see e.g. the "^.*\",F" style seen throughout
+      // braille_map.json), so a literal " typed by an author — most
+      // often produced by an editor auto-merging two typed '' into one
+      // "smart" double-quote — collided with that internal sentinel and
+      // silently became a baseline-return marker instead of a double
+      // prime (confirmed: $x"$ produced ⠭⠐, not the correct ⠭⠄⠄). There
+      // is no legitimate use for a bare quote character in Nemeth math
+      // input, so treating it unconditionally as double-prime is safe.
+      // ” (U+201D, curly close-double-quote) is the double-prime
+      // equivalent of ’ above, same rationale.
+      '"':"''",'”':"''",'″':"''",'‴':"'''",
     };
     if(symMap[c]!==undefined){
       if(c==='[')bracketDepth++;

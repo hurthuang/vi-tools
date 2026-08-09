@@ -49,7 +49,67 @@ fs.mkdirSync(WORK, { recursive: true });
 sh(`cd "${WORK}" && "C:/Windows/System32/tar.exe" -xf "${UNICODE_DOCX}"`);
 // tar.exe (bsdtar, built into Windows) can extract zip/docx directly
 
+// 1.5. Every top-level "# " heading (前言/凡例/CHn/附錄/參考資料) starts its own
+// new page — per explicit user request. Pandoc maps every "# " heading to the
+// "Heading1" paragraph style (verified by inspecting the built docx: exactly
+// as many Heading1 paragraphs as there are "# " lines in the source), so
+// adding <w:pageBreakBefore/> to that ONE style definition in styles.xml is
+// sufficient — it does not need to be set on each paragraph individually,
+// and does not affect "## "/"### " (Heading2/3) subsections, which continue
+// to flow normally within a chapter. Must run BEFORE the first
+// rezipWorkInto (Unicode/點字版) below so both docx outputs get it — step 3
+// (BrailleASCII style insertion) re-reads this same styles.xml file later
+// and only ADDS a style, it doesn't touch this one.
+// GOTCHA (found via user screenshot: title page had nothing on it but the
+// title, TOC pushed to its own page): pandoc's built-in "TOCHeading" style
+// (used for the literal "Table of Contents" paragraph in front of the TOC
+// field) is `w:basedOn="Heading1"` — it INHERITS pageBreakBefore from the
+// same patch above, since its own <w:pPr> override only touches spacing/
+// outlineLvl, not this property. Explicitly overriding it back to false
+// on TOCHeading itself (child style properties win over basedOn) undoes
+// the unwanted inheritance without touching the Heading1 patch itself.
+{
+  const stylesPathEarly = path.join(WORK, 'word', 'styles.xml');
+  let stylesEarly = fs.readFileSync(stylesPathEarly, 'utf8');
+  const h1Idx = stylesEarly.indexOf('w:styleId="Heading1"');
+  const h1Start = stylesEarly.lastIndexOf('<w:style', h1Idx);
+  const h1End = stylesEarly.indexOf('</w:style>', h1Idx) + '</w:style>'.length;
+  const h1Block = stylesEarly.slice(h1Start, h1End);
+  if (!h1Block.includes('pageBreakBefore')) {
+    // <w:keepLines/> is always the child immediately before where
+    // pageBreakBefore belongs in the CT_PPrBase schema sequence — inserting
+    // right after it (verified present in this style's current <w:pPr>) is
+    // schema-order-safe here.
+    const patchedH1Block = h1Block.replace('<w:keepLines />', '<w:keepLines /><w:pageBreakBefore />');
+    stylesEarly = stylesEarly.slice(0, h1Start) + patchedH1Block + stylesEarly.slice(h1End);
+    fs.writeFileSync(stylesPathEarly, stylesEarly, 'utf8');
+  }
+  const tocIdx = stylesEarly.indexOf('w:styleId="TOCHeading"');
+  if (tocIdx !== -1) {
+    const tocStart = stylesEarly.lastIndexOf('<w:style', tocIdx);
+    const tocEnd = stylesEarly.indexOf('</w:style>', tocIdx) + '</w:style>'.length;
+    const tocBlock = stylesEarly.slice(tocStart, tocEnd);
+    if (!tocBlock.includes('pageBreakBefore')) {
+      // <w:pPr> is the very first child of <w:style> here — pageBreakBefore
+      // is first in the CT_PPrBase sequence, so prepending inside <w:pPr>
+      // is schema-order-safe.
+      const patchedTocBlock = tocBlock.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore w:val="0" />');
+      stylesEarly = stylesEarly.slice(0, tocStart) + patchedTocBlock + stylesEarly.slice(tocEnd);
+      fs.writeFileSync(stylesPathEarly, stylesEarly, 'utf8');
+    }
+  }
+}
+
 let doc = fs.readFileSync(path.join(WORK, 'word', 'document.xml'), 'utf8');
+// Pandoc's --toc always emits the literal English heading "Table of
+// Contents" for the TOC field's own title paragraph — replace with the
+// Chinese equivalent. Must target only the visible <w:t> text run, NOT
+// the identical-looking string inside <w:docPartGallery w:val="Table of
+// Contents" /> a few characters earlier in the same <w:sdt> block — that
+// attribute is Word's own internal gallery-type identifier for recognizing
+// this content control as a built-in TOC and must stay in English, or
+// Word may stop treating it as a proper TOC field.
+doc = doc.replace(/(<w:t[^>]*>)Table of Contents(<\/w:t>)/, '$1目錄$2');
 const map = JSON.parse(fs.readFileSync(MAP_FILE, 'utf8'));
 const brailleRe = /[\u2800-\u28FF]+/g;
 const runRe = /<w:r>((?:(?!<w:r>|<\/w:r>)[\s\S])*)<\/w:r>/g;
@@ -93,6 +153,15 @@ console.log('braille coverage OK:', found.size, 'unique sequences');
 // and inside rendered OMML math (m:t, a completely different XML
 // namespace/tag that this regex doesn't match at all), neither of which
 // should be split.
+// SHORT_CHEM_MAX: used by step 2.3b below, not this step — see that step's
+// comment. (This step, 2.3, stays unconditional: the braille always starts
+// its own new line regardless of length or chapter. An earlier version of
+// this step tried to also skip the line break entirely for short CH10
+// formulas, sharing the label's line — user feedback: that was wrong, the
+// braille must still always get its own line; only whether that one line
+// needs a FURTHER split (step 2.3b's inner reaction-arrow break) should be
+// length-gated.)
+const SHORT_CHEM_MAX = 36;
 {
   const passRunBoundary = /<w:r>((?:(?!<w:r>|<\/w:r>)[\s\S])*?)<w:t([^>]*)>([\s\S]*?)→<\/w:t><\/w:r><w:r>((?:(?!<w:r>|<\/w:r>)[\s\S])*?)<w:t([^>]*)> ([⠀-⣿][\s\S]*?)<\/w:t><\/w:r>/g;
   doc = doc.replace(passRunBoundary, (full, rPr1, attrs1, textBefore, rPr2, attrs2, brailleText) =>
@@ -114,9 +183,17 @@ console.log('braille coverage OK:', found.size, 'unique sequences');
 // 2.3b. Force a hard break before the INTERNAL chemical reaction arrow
 // (reactants on one line, "→ products" on the next) — a different arrow
 // from step 2.3 above, which splits the outer "here's the label → here's
-// the braille" transcription marker. This one is INSIDE the braille content
-// itself, between reactants and products (CaCl2+Na2CO3 → CaCO3+2NaCl).
-// Matches BANA's own canonical presentation of long equations exactly
+// the braille" transcription marker (step 2.3 is unconditional — the
+// braille always gets its own line no matter what). This one is INSIDE the
+// braille content itself, between reactants and products
+// (CaCl2+Na2CO3 → CaCO3+2NaCl), and — per explicit user decision — is
+// skipped when the WHOLE formula is short enough (at or under
+// SHORT_CHEM_MAX cells, currently 36) to fit on that one line by itself
+// without needing a further split; CH10's reaction list has many short
+// formulas (e.g. "HCl→H+ + Cl-") where forcing a second split wastes
+// vertical space for no benefit. Scoped to CH10 only, like the rest of
+// this step. Longer formulas keep matching BANA's own canonical
+// presentation exactly
 // (Chem 2023 Example 3-36/3-37, Example 9-1/9-2 — every one splits right
 // before this arrow) and reuses the same "always force, don't calculate
 // page width" philosophy already applied to step 2.3's outer arrow (per
@@ -145,6 +222,13 @@ console.log('braille coverage OK:', found.size, 'unique sequences');
   doc = doc.replace(runOrParaRe, (full, rPr, attrs, text) => {
     if (rPr === undefined) { paraIdxArrow++; chemModeArrow = chemFlagsArrow[paraIdxArrow]; return full; }
     if (!chemModeArrow) return full;
+    // Measure only the braille portion, not the whole run's text — pandoc
+    // sometimes merges the outer "→ " label-arrow into the SAME run as the
+    // braille that follows it (confirmed for this exact paragraph), which
+    // would otherwise inflate the length by 2 non-braille characters and
+    // push a formula that's actually at the threshold over it.
+    const brailleOnly = text.match(/[⠀-⣿]+/);
+    if (brailleOnly && [...brailleOnly[0]].length <= SHORT_CHEM_MAX) return full;
     for (const pat of ARROW_PATTERNS) {
       const idx = text.indexOf(pat);
       if (idx === -1) continue;
@@ -197,6 +281,51 @@ doc = doc.replace(/<w:p>(<w:pPr>([\s\S]*?)<\/w:pPr>)?([\s\S]*?)<\/w:p>/g, (full,
     : `<w:pPr><w:wordWrap w:val="off" /></w:pPr>`;
   return `<w:p>${newPPr}${body}</w:p>`;
 });
+
+// 2.4b. Widen the two braille-comparison columns in the appendix unit
+// tables (長度/面積/體積, 密度/速度) — pandoc emits every pipe-table with N
+// EQUAL-width columns (confirmed: both tables' <w:tblGrid> came out as five
+// identical `w:w="1584"` gridCols) with no awareness of how wide the actual
+// rendered content is per column. These two tables have short content in
+// 中文/符號/是否相同 but multi-cell braille strings in 本教材/BANA, so the
+// equal split visibly wrapped the longer braille onto a second line inside
+// its cell (user screenshot: 密度 g/cm³ row). Both tables share the same
+// unique header cell text ("本教材（沿用舊慣例）") used here to find them —
+// this string does not appear anywhere else in the document. Total width
+// is kept at the original 7920 (5×1584) so the table's overall size on the
+// page doesn't change, only the proportions between its 5 columns; keeps
+// both <w:tblGrid> and each cell's own <w:tcW> in sync since a
+// tblLayout="fixed" table's rendering can depend on either being present.
+// Runs before docPristine so both outputs get it, same as steps 2.3/2.4.
+{
+  // 中文/符號/本教材/BANA/是否相同 — widened 中文 and 是否相同 from an earlier
+  // pass (800/920) after a user screenshot showed 4-character labels
+  // ("平方公分" etc.) and the "是否相同" header itself wrapping to 2 lines
+  // inside their cells; the difference came out of 符號 (had visible slack
+  // in that same screenshot) and a small trim off 本教材/BANA (their longest
+  // content, 7-8 braille cells, still comfortably fits at these widths).
+  const COL_WIDTHS = [1150, 800, 2260, 2560, 1150];
+  const marker = '本教材（沿用舊慣例）';
+  let searchFrom = 0;
+  while (true) {
+    const markerIdx = doc.indexOf(marker, searchFrom);
+    if (markerIdx === -1) break;
+    const tblStart = doc.lastIndexOf('<w:tbl>', markerIdx);
+    const tblEnd = doc.indexOf('</w:tbl>', markerIdx) + '</w:tbl>'.length;
+    if (tblStart === -1) { searchFrom = markerIdx + marker.length; continue; }
+    let tbl = doc.slice(tblStart, tblEnd);
+    tbl = tbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/,
+      '<w:tblGrid>' + COL_WIDTHS.map(w => `<w:gridCol w:w="${w}" />`).join('') + '</w:tblGrid>');
+    let colIdx = 0;
+    tbl = tbl.replace(/<w:tc><w:tcPr\s*\/>/g, () => {
+      const w = COL_WIDTHS[colIdx % COL_WIDTHS.length];
+      colIdx++;
+      return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa" /></w:tcPr>`;
+    });
+    doc = doc.slice(0, tblStart) + tbl + doc.slice(tblEnd);
+    searchFrom = tblStart + tbl.length;
+  }
+}
 
 // Keep a pristine copy for the ASCII-conversion step below (step 4) — its
 // braille_map lookup requires unbroken, contiguous braille runs exactly as
