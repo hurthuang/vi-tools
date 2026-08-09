@@ -909,8 +909,9 @@ var CHEM_2LETTER_SYMBOLS=new Set(['HE','LI','BE','NE','NA','MG','AL','SI','CL','
 var _chemMode=false;
 
 // Convert a LaTeX string to Nemeth ASCII
-function latexToNemethAsc(expr,insideScript,embedded,radicalDepth){
+function latexToNemethAsc(expr,insideScript,embedded,radicalDepth,scriptDepth){
   radicalDepth=radicalDepth||0;
+  scriptDepth=scriptDepth||0;
   if(!expr||!expr.trim())return '';
   var s=expr.trim(), result='', i=0;
   // Tracks nesting depth of literal ( )  [ ] — used to scope the Rule 3.5.1
@@ -1579,7 +1580,15 @@ function latexToNemethAsc(expr,insideScript,embedded,radicalDepth){
       // math objects following at the baseline (handled in cleanup below).
       // insideScript=true：內容裡如果又有下標，屬於 Rule 14.6 講的「higher order」，
       // 不能再套用數字下標指示符省略規則（見下面 subscript 分支）。
-      result+='^'+latexToNemethAsc(expTrim,true).replace(/^(-?)#/,'$1')+'"\x01';
+      // Rule 14.4.3 + Example 14-9（Superscript Letter with Superscript
+      // Letter，n^(x^y) 印刷體點字為 n~x~~y）：上標的上標（同方向巢狀）要疊加上標
+      // 指示符，疊加次數等於目前巢狀深度＋1——跟既有 \sqrt 巢狀用 radicalDepth
+      // 疊加多重根號指示符是同一個原理，這裡用 scriptDepth 對應。只在「上標裡面
+      // 還是上標」這個同方向巢狀情形疊加；範圍刻意收斂到這一種（跟 radicalDepth
+      // 一樣，因為只有這個情形有官方範例可核對，「上標裡面是下標」之類的混合巢狀
+      // 沒有動，維持原來每層各自一個指示符的行為，不強行套用同一套疊加邏輯）。
+      var _upMarks=Array(scriptDepth+2).join('^');
+      result+=_upMarks+latexToNemethAsc(expTrim,true,embedded,radicalDepth,scriptDepth+1).replace(/^(-?)#/,'$1')+'"\x01';
       continue;
     }
 
