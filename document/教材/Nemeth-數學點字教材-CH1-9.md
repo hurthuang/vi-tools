@@ -1408,6 +1408,7 @@ $(2a)^{5}(3b)^{4}(4c)^{3}(5d)^{2}$ 完整點字共 27 格，超過 20 格上限�
 
 ## 延伸工具
 
-如欲查詢其他算式的 Nemeth 點字寫法，可以使用作者開發的線上工具「數學點字」：
-<https://hurthuang.github.io/vi-tools/#math>——輸入 LaTeX 算式即可即時看到對應的
-Nemeth 點字，也支援反向查詢（點字轉回 LaTeX）。
+- Nemeth↔LaTeX 雙向轉譯：<https://hurthuang.github.io/vi-tools/#math>（輸入 LaTeX 算式
+  即可即時看到對應的 Nemeth 點字，也支援反向查詢：點字轉回 LaTeX）
+- Nemeth 符號快速查詢：<https://class.kh.edu.tw/19061/bulletin/msg_view/818>（符號對照表，
+  適合快速查符號對照）
