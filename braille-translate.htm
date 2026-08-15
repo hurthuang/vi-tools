@@ -3995,12 +3995,31 @@ function downloadTxt() {
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='braille_result.txt'; a.click();
 }
-function downloadParallelHtml() {
+let _simBrailleDataUri = null;
+async function _getSimBrailleFontFace() {
+    // 存檔匯出要能帶到別的裝置開，字型用 base64 內嵌，不依賴外部 SIMBRL.TTF 相對路徑
+    if (_simBrailleDataUri === null) {
+        try {
+            const buf = await (await fetch('SIMBRL.TTF')).arrayBuffer();
+            let binary = '';
+            new Uint8Array(buf).forEach(b => binary += String.fromCharCode(b));
+            _simBrailleDataUri = 'data:font/ttf;base64,' + btoa(binary);
+        } catch (e) {
+            _simBrailleDataUri = ''; // 失敗就退回相對路徑（至少同機開仍可用）
+        }
+    }
+    return _simBrailleDataUri
+        ? `@font-face{font-family:'SimBraille';src:url('${_simBrailleDataUri}') format('truetype')}`
+        : `@font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}`;
+}
+
+async function downloadParallelHtml() {
     btSaveSession();
     const fs = document.getElementById('font-size-slider').value;
     const sessionJson = (localStorage.getItem(_BT_SESSION_KEY) || 'null').replace(/<\/script>/gi, '<\\/script>');
+    const fontFace = await _getSimBrailleFontFace();
     const html=`<html><head><meta charset="UTF-8"><style>
-        @font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+        ${fontFace}
         body{font-family:sans-serif;padding:20px}
         .token-group{display:inline-flex;flex-direction:column;align-items:center;padding:5px;
           border:1px solid #a5d6a7;background:#f1f8e9;border-radius:4px;margin:3px}
