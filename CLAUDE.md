@@ -224,3 +224,39 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 - 六點鍵盤面板提示文字「S=1 D=2 F=3」寫反了（`shared.js` `KEY_BITS` 實際上 F=1 D=2 S=3 才對），
   5 個檔案（shared.js/braille-to-text.html/braille-translate.htm/nemeth_converter.html/UEB-g2-query.html）
   的提示文字都改成 `F=1 D=2 S=3`，程式碼本身沒改。
+
+## Word docx：docDefaults 預設西方語言若為 zh-TW，SimBraille 會被靜默替換成中文字型（已釐清，2026-08-09）
+
+### 背景
+在（本 repo 之外的）另一份 Word 文件「UEB 學習手冊」上，把內文中的 Unicode 點字
+（U+2800-U+28FF）轉成 ASCII + SimBraille 字型時，每個點字 run 都已明確設定
+`<w:rFonts w:ascii="SimBraille" w:eastAsia="SimBraille" w:hAnsi="SimBraille" w:cs="SimBraille"/>`，
+但不論在 Word 畫面上或匯出 PDF，該文字仍顯示成新細明體（PMingLiU），完全看不到點字圖案。
+用 Word COM 開文件確認 `Range.Font.NameAscii` 回報值正確是 `"SimBraille"`，但實際繪製的字型
+不同，證實這不是 run 層級的設定錯誤。
+
+### 根因
+文件的 `word/styles.xml` → `docDefaults` → `<w:rPrDefault><w:rPr><w:lang w:val="zh-TW" .../>`——
+也就是文件的**預設西方語言**被設成 zh-TW（正常應是 en-US）。這個設定會觸發 Word 的字型替換
+（font-linking）邏輯，把 ASCII 範圍字元的顯示字型換成中文字型，即使該 run 有明確的
+`w:ascii`/`w:cs` 覆寫也蓋不過去——這是「整份文件」層級的判斷，不是單一 run 的屬性能覆蓋的
+（實測：在同一 run 上疊加 `w:lang w:val="en-US"` 直接覆寫也沒用，必須改 docDefaults 本身）。
+
+### 診斷方法（因為畫面上看不出差異，肉眼除錯會卡死）
+用 Word COM（PowerShell）把「會壞」和「不會壞」的文件分別 `ExportAsFixedFormat` 存成 PDF，
+直接讀 PDF 內的 `/BaseFont` 清單比對兩者實際內嵌的字型名稱——這比對 Word 畫面截圖快很多，
+也比單看 `Range.Font.*` 準（COM 屬性可能回報「宣告值」而非「實際繪製字型」）。用這個方法對
+`styles.xml`/`fontTable.xml`/`settings.xml` 逐檔換入換出做二分法，鎖定到就是 docDefaults 的
+`w:lang w:val`。
+
+### 修法與影響範圍
+只改 `docDefaults` 裡 `<w:lang>` 的 `w:val`（西方語言）從 `zh-TW` 改成 `en-US`；`w:eastAsia="zh-TW"`
+不動，文件裡原有的中文內容不受影響（中文渲染看的是 `eastAsia`，不是 `val`）。
+
+### 對本 repo 的相關性
+`document/教材/.build/rebuild.js` 產生 ASCII+SimBraille 版 docx 用的是字元樣式
+（`BrailleASCII` custom style，見該檔第 652-664 行），跟這次踩到的直接 run-level `rFonts`
+寫法不同，且其來源文件 `docDefaults.lang.val` 本來就是 `en-US`（非 zh-TW），因此目前沒有中獎。
+但只要哪天 rebuild.js 的輸入來源換成一份「預設西方語言是 zh-TW」的 Word 文件（例如直接用
+繁中 Word 手動編輯產生的檔案，而非目前這種由程式產出的樣板），SimBraille 字型顯示就會無聲
+失效——值得在該類來源文件上跑 rebuild.js 前，順手檢查一下 `styles.xml` 的 `docDefaults.lang.val`。
