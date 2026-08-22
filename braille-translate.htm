@@ -434,6 +434,43 @@
         }
         .zh-py-ed-err { font-size: .78em; color: #d32f2f; margin-bottom: 6px; }
         html[data-theme="dark"] .zh-py-ed-err { color: #ef5350; }
+        /* 注音虛擬鍵盤（標準/大千式排列）*/
+        .zpk-grid { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+        .zpk-row { display: flex; gap: 3px; justify-content: center; }
+        .zpk-key {
+            width: 27px; height: 30px; padding: 0;
+            font-size: 1.05em; font-family: inherit; line-height: 1;
+            border: 1px solid var(--border, #ccc); border-radius: 4px;
+            background: var(--input-bg, #f8f8f8); color: var(--text, #333); cursor: pointer;
+        }
+        .zpk-key:hover { border-color: #1565c0; background: rgba(21,101,192,.12); }
+        .zpk-key.zpk-tone { background: #fff3e0; border-color: #ffb74d; }
+        .zpk-key.zpk-tone:hover { background: #ffe0b2; }
+        html[data-theme="dark"] .zpk-key { background: #333; border-color: #555; color: #eee; }
+        html[data-theme="dark"] .zpk-key:hover { border-color: #42a5f5; background: rgba(66,165,245,.18); }
+        html[data-theme="dark"] .zpk-key.zpk-tone { background: rgba(255,183,77,.18); border-color: #ffb74d; }
+        html[data-theme="dark"] .zpk-key.zpk-tone:hover { background: rgba(255,183,77,.3); }
+        .zpk-bksp {
+            font-size: .8em; padding: 4px 10px; cursor: pointer; border-radius: 4px;
+            border: 1px solid var(--border, #ccc); background: #ffebee; color: #c62828;
+        }
+        .zpk-bksp:hover { background: #ffcdd2; }
+        html[data-theme="dark"] .zpk-bksp { background: rgba(198,40,40,.25); border-color: #e57373; color: #ef9a9a; }
+        html[data-theme="dark"] .zpk-bksp:hover { background: rgba(198,40,40,.4); }
+        .zh-py-ed-inputrow { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .zh-py-ed-inputrow .zh-py-ed-input { margin-bottom: 0; flex: 1; }
+        /* 深色主題：#zh-brl-ed/#zh-py-ed 一直是用不存在的 --card-bg/--border 等變數（專案裡從未定義），
+           在暗色主題下一直維持亮色外殼；新增的注音鍵盤按鍵用明確的 dark 選擇器，兩者並列會不一致，
+           順手一起補上外殼的 dark 樣式 */
+        html[data-theme="dark"] #zh-brl-ed,
+        html[data-theme="dark"] #zh-py-ed { background: #2b2b2b; border-color: #555; }
+        html[data-theme="dark"] .zh-ed-hdr { color: #aaa; }
+        html[data-theme="dark"] .zh-ed-seq,
+        html[data-theme="dark"] .zh-py-ed-input { background: #1e1e1e; border-color: #555; color: #eee; }
+        html[data-theme="dark"] .zh-ed-cur-lbl { color: #999; }
+        html[data-theme="dark"] .zh-ed-hint { color: #999; }
+        html[data-theme="dark"] .zh-ed-btns button { background: #333; border-color: #555; color: #eee; }
+        html[data-theme="dark"] .zh-ed-btns button:hover { background: #444; }
 
 
         /* modal CSS → shared.js */
@@ -538,10 +575,14 @@
                 <strong style="color:#e65100;">⟨N⟩ Nemeth 數學</strong>
             </label>
         </div>
-        <div class="control-item" title="低年級空行空方：每個國字間插入空格（空方），每行之間插入空行，適合製作低年級點字摸讀教材">
+        <div class="control-item" title="低年級模式：每行之間插入空行，方便製作低年級點字摸讀教材；「空行空方」另外在每個國字間、標點後插入空格（可點擊切換）">
             <label style="display:inline; margin:0; cursor:pointer;">
-                <input type="checkbox" id="low-grade-mode" onchange="render()" style="cursor:pointer; accent-color:#795548;">
-                <span style="color:#795548; font-size:.85em;">低年級空行空方</span>
+                <span style="color:#795548; font-size:.85em;">低年級模式</span>
+                <select id="low-grade-mode" onchange="render()" style="cursor:pointer; accent-color:#795548;">
+                    <option value="off">關閉</option>
+                    <option value="full">空行空方</option>
+                    <option value="line">空行不空方</option>
+                </select>
             </label>
         </div>
         <div class="btn-group">
@@ -2350,7 +2391,8 @@ const _lgSpaceSet    = new Set();   // raw offset of punct where space before is
 let   _lgCurrentRawMap  = null;     // preprocessed-pos → raw-pos mapping
 let   _lgPunctPositions = null;     // Set of raw offsets eligible for toggle
 
-function _lgPreprocess(rawText, noSpaceSet) {
+function _lgPreprocess(rawText, noSpaceSet, spaceMode) {
+    // spaceMode: 是否插入字間/標點空方（空行永遠插入；此參數只控制空方）
     const chars = Array.from(rawText);
     const out = [], rawMap = [];
     const punctPos = new Set();
@@ -2363,6 +2405,10 @@ function _lgPreprocess(rawText, noSpaceSet) {
                 out.push('\n'); rawMap.push(ri);
                 if (trailing < 2) { out.push('\n'); rawMap.push(-1); }
             }
+            continue;
+        }
+        if (!spaceMode) {
+            out.push(ch); rawMap.push(ri);
             continue;
         }
         if (ZH_PUNCT_SPACE.has(ch)) {
@@ -2609,15 +2655,39 @@ function _zhEdClose() {
 // ── 注音修正浮動編輯器（文字輸入，經 mcbopomofo 往返驗證後換算成點字）──
 let _zhPyEdCtxKey = null;
 
+// 標準（大千式）注音鍵盤排列，供沒有系統注音輸入法的使用者用滑鼠/觸控輸入
+// 來源：與 vChewing 輸入法手冊、維基教科書「注音字母與鍵位」交叉核對過的鍵位表
+const ZPK_ROWS = [
+    [['1','ㄅ'],['2','ㄉ'],['3','ˇ'],['4','ˋ'],['5','ㄓ'],['6','ˊ'],['7','˙'],['8','ㄚ'],['9','ㄞ'],['0','ㄢ'],['-','ㄦ']],
+    [['q','ㄆ'],['w','ㄊ'],['e','ㄍ'],['r','ㄐ'],['t','ㄔ'],['y','ㄗ'],['u','ㄧ'],['i','ㄛ'],['o','ㄟ'],['p','ㄣ']],
+    [['a','ㄇ'],['s','ㄋ'],['d','ㄎ'],['f','ㄑ'],['g','ㄕ'],['h','ㄙ'],['j','ㄨ'],['k','ㄜ'],['l','ㄠ'],[';','ㄤ']],
+    [['z','ㄈ'],['x','ㄌ'],['c','ㄏ'],['v','ㄒ'],['b','ㄖ'],['n','ㄘ'],['m','ㄩ'],[',','ㄝ'],['.','ㄡ'],['/','ㄥ']],
+];
+const ZPK_TONE_SYMS = new Set(['ˊ','ˇ','ˋ','˙']);
+
+function _zpkBuildGridHtml() {
+    return ZPK_ROWS.map(row =>
+        '<div class="zpk-row">' +
+        row.map(([cap, sym]) =>
+            `<button type="button" class="zpk-key${ZPK_TONE_SYMS.has(sym) ? ' zpk-tone' : ''}" data-sym="${sym}" title="鍵位：${cap === ',' ? '逗號' : cap === '.' ? '句號' : cap === '/' ? '斜線' : cap === ';' ? '分號' : cap === '-' ? '減號' : cap}">${sym}</button>`
+        ).join('') +
+        '</div>'
+    ).join('');
+}
+
 function _zhPyEdEnsureDOM() {
     if (document.getElementById('zh-py-ed')) return;
     const el = document.createElement('div');
     el.id = 'zh-py-ed';
     el.innerHTML =
         `<div class="zh-ed-hdr"></div>
-         <input type="text" id="zh-py-ed-input" class="zh-py-ed-input" autocomplete="off" spellcheck="false">
+         <div class="zh-py-ed-inputrow">
+           <input type="text" id="zh-py-ed-input" class="zh-py-ed-input" autocomplete="off" spellcheck="false">
+           <button type="button" id="zh-py-ed-bksp" class="zpk-bksp" title="刪除游標前一個符號">⌫</button>
+         </div>
          <div id="zh-py-ed-err" class="zh-py-ed-err" style="display:none"></div>
-         <div class="zh-ed-hint">直接輸入注音符號＋聲調（一聲不用標）<br>輕聲請在最後加「˙」；留空＝清除修正<br>Enter 確認；Esc 取消</div>
+         <div class="zpk-grid">${_zpkBuildGridHtml()}</div>
+         <div class="zh-ed-hint">可直接打字（系統注音輸入法）或點下方虛擬鍵盤（標準/大千式排列）<br>空白鍵＝第一聲不標；輕聲請在最後點「˙」；留空＝清除修正<br>Enter 確認；Esc 取消</div>
          <div class="zh-ed-btns">
            <button id="zh-py-ed-ok">確認</button>
            <button id="zh-py-ed-rst">還原原始</button>
@@ -2627,6 +2697,13 @@ function _zhPyEdEnsureDOM() {
     document.getElementById('zh-py-ed-ok').addEventListener('click', _zhPyEdConfirm);
     document.getElementById('zh-py-ed-rst').addEventListener('click', _zhPyEdReset);
     document.getElementById('zh-py-ed-cl').addEventListener('click', _zhPyEdClose);
+    document.getElementById('zh-py-ed-bksp').addEventListener('mousedown', e => { e.preventDefault(); _zpkBackspace(); });
+    el.querySelector('.zpk-grid').addEventListener('mousedown', e => {
+        const btn = e.target.closest('.zpk-key');
+        if (!btn) return;
+        e.preventDefault(); // 保持輸入框焦點/游標位置不被按鈕搶走
+        _zpkInsert(btn.dataset.sym);
+    });
     const inp = document.getElementById('zh-py-ed-input');
     inp.addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); _zhPyEdConfirm(); }
@@ -2638,6 +2715,33 @@ function _zhPyEdEnsureDOM() {
             !el2.contains(e.target) && !e.target.classList.contains('zh-py-clickable'))
             _zhPyEdClose();
     }, true);
+}
+
+// 在游標位置插入一個注音符號（不覆蓋既有內容，方便逐字輸入）
+function _zpkInsert(sym) {
+    const inp = document.getElementById('zh-py-ed-input');
+    const start = inp.selectionStart ?? inp.value.length;
+    const end   = inp.selectionEnd   ?? inp.value.length;
+    inp.value = inp.value.slice(0, start) + sym + inp.value.slice(end);
+    const pos = start + sym.length;
+    inp.focus();
+    inp.setSelectionRange(pos, pos);
+    document.getElementById('zh-py-ed-err').style.display = 'none';
+}
+function _zpkBackspace() {
+    const inp = document.getElementById('zh-py-ed-input');
+    const start = inp.selectionStart ?? inp.value.length;
+    const end   = inp.selectionEnd   ?? inp.value.length;
+    if (start === end) {
+        if (start === 0) { inp.focus(); return; }
+        inp.value = inp.value.slice(0, start - 1) + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start - 1, start - 1);
+    } else {
+        inp.value = inp.value.slice(0, start) + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start, start);
+    }
 }
 
 function _openZhBpmfEditor(zyCell) {
@@ -2709,7 +2813,7 @@ function _btCollectSettings() {
     return {
         enMode:   document.getElementById('en-mode').value,
         nemeth:   document.getElementById('nemeth-mode').checked,
-        lowGrade: document.getElementById('low-grade-mode').checked,
+        lowGrade: document.getElementById('low-grade-mode').value,
         ucpValues: Array.from(document.querySelectorAll('input[name="ucp"]:checked')).map(el => el.value)
     };
 }
@@ -2718,7 +2822,11 @@ function _btApplySettings(s) {
     if (!s) return;
     if (s.enMode)   document.getElementById('en-mode').value = s.enMode;
     if (s.nemeth   !== undefined) document.getElementById('nemeth-mode').checked   = s.nemeth;
-    if (s.lowGrade !== undefined) document.getElementById('low-grade-mode').checked = s.lowGrade;
+    if (s.lowGrade !== undefined) {
+        // 相容舊版 boolean 儲存格式（checkbox 年代）
+        const lg = typeof s.lowGrade === 'boolean' ? (s.lowGrade ? 'full' : 'off') : s.lowGrade;
+        document.getElementById('low-grade-mode').value = lg;
+    }
     if (Array.isArray(s.ucpValues)) {
         document.querySelectorAll('input[name="ucp"]').forEach(el => {
             el.checked = s.ucpValues.includes(el.value);
@@ -2852,7 +2960,7 @@ function _getLineModeKey() {
         groups = Array.from(document.querySelectorAll('.ucp-group-cb'))
                       .map(cb => cb.checked ? '1' : '0').join('');
     }
-    const lowGrade = document.getElementById('low-grade-mode').checked ? '1' : '0';
+    const lowGrade = document.getElementById('low-grade-mode').value;
     return mode + '|' + nemeth + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade;
 }
 
@@ -2876,9 +2984,11 @@ function render() {
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
 
-    const lgMode = document.getElementById('low-grade-mode').checked;
+    const lgVal      = document.getElementById('low-grade-mode').value; // off | full | line
+    const lgMode      = lgVal !== 'off';       // 空行（含 auto-break 額外空行）
+    const lgSpaceMode = lgVal === 'full';      // 另外加字間/標點空方
     if (lgMode) {
-        const prep = _lgPreprocess(input, _lgSpaceSet);
+        const prep = _lgPreprocess(input, _lgSpaceSet, lgSpaceMode);
         input = prep.text;
         _lgCurrentRawMap  = prep.rawMap;
         _lgPunctPositions = prep.punctPos;
@@ -2972,8 +3082,8 @@ function render() {
         lineCells += bLen;
     });
 
-    // 標記低年級可切換標點
-    if (lgMode && _lgCurrentRawMap && _lgPunctPositions) {
+    // 標記低年級可切換標點（僅空行空方模式才有空方可切換）
+    if (lgSpaceMode && _lgCurrentRawMap && _lgPunctPositions) {
         for (const rt of renderTokens) {
             if (rt.srcStart !== undefined && rt.braille !== '\n') {
                 const rawOff = _lgCurrentRawMap[rt.srcStart];
@@ -3056,6 +3166,14 @@ function translateUEBMixed(str) {
             continue;
         }
 
+        // 數字中間的小數點/千位逗號（如 v1.5）：輸出標點點字，不影響 numeric mode
+        // （外層 tokenizer 只在前後皆數字時才會把 . / , 併入 run，故此處不需要重新確認位置）
+        if (ch === '.' || ch === ',') {
+            result += UEB_PUNCT[ch] || ch;
+            i++;
+            continue;
+        }
+
         // 其他字元（不應到達這裡，由外層 tokenizer 分隔）
         result += ch;
         i++;
@@ -3074,6 +3192,9 @@ function translateComp8Mixed(str) {
         } else if (/[A-Z]/.test(ch)) {
             inNum = false;
             result += COMP8_UPPER[ch] || ch;
+        } else if (ch === '.' || ch === ',') {
+            // 數字中間的小數點/千位逗號：輸出標點點字，維持 inNum 不變（不重下數字號）
+            result += COMP8_PUNCT[ch] || ch;
         } else if (/[a-z]/.test(ch)) {
             inNum = false;
             result += UEB_ALPHA[ch] || ch;
@@ -3106,7 +3227,11 @@ function translateWordWithApos(run, modeVal) {
         } else if (!hasAlpha) {
             let b = UEB_NUMSIGN;
             const digitMap = modeVal === 'comp8' ? COMP8_DIGIT : UEB_DIGIT;
-            for (const d of run) b += digitMap[d] || d;
+            const punctMap = modeVal === 'comp8' ? COMP8_PUNCT : UEB_PUNCT;
+            for (const d of run) {
+                // 數字內的小數點/千位逗號：輸出對應標點點字，不重下數字號（numeric mode 持續）
+                b += (d === '.' || d === ',') ? (punctMap[d] || d) : (digitMap[d] || d);
+            }
             return b;
         } else {
             return translateUEBMixed(run);
@@ -3407,8 +3532,20 @@ function tokenizeWithCustom(text) {
         // 收集連續字母和數字（不含空格），並在其後貪婪地吸收 'suffix
         if (/[a-zA-Z0-9]/.test(ch)) {
             let run = '';
-            while (i < text.length && /[a-zA-Z0-9]/.test(text[i])) {
-                run += text[i]; i++;
+            while (i < text.length) {
+                if (/[a-zA-Z0-9]/.test(text[i])) {
+                    run += text[i]; i++;
+                    continue;
+                }
+                // 數字中間的小數點/千位逗號（如 0.5、3,141.59）：
+                // 前一字元是數字、後一字元也是數字時，併入同一個 run，
+                // 避免小數點打斷 numeric mode 而在小數點後多下一個數字號
+                if ((text[i] === '.' || text[i] === ',') &&
+                    /[0-9]$/.test(run) && /[0-9]/.test(text[i + 1] || '')) {
+                    run += text[i]; i++;
+                    continue;
+                }
+                break;
             }
             // 嘗試吸收後接的撇號縮寫（如 's、'd、'll、're、've、't、'm、'n）
             // 撇號可以是 ' (U+0027)、' (U+2019)、' (U+2018)
@@ -3504,6 +3641,9 @@ function tokenizeWithCustom(text) {
                     inN = false;
                     if (/[A-Z]/.test(c)) b += CAP1;
                     b += UEB_ALPHA[c.toLowerCase()] || c;
+                } else if (c === '.' || c === ',') {
+                    // 數字中間的小數點/千位逗號：不影響 inN（numeric mode 持續，不重下數字號）
+                    b += (c === '.') ? NEMETH_DECIMAL : '';
                 } else {
                     inN = false;
                     b += c;
