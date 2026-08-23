@@ -3011,9 +3011,27 @@ function dl(text,fname){
   a.download=fname; a.click();
 }
 function l2nSaveInput(){dl(document.getElementById('l2n-in').value,'latex_input.txt');}
+// Build a self-contained preview HTML document from a prevEl's innerHTML.
+// Two things the live in-app preview relies on that a bare innerHTML dump
+// loses: (1) the app's own CSS, which is what gives each per-line <div>
+// its line-height and therefore what makes a blank source line still take
+// up a visible row; (2) that CSS on the empty <div data-line="N"></div>
+// rows themselves only helps if the row has *some* content to lay out —
+// so we also fill genuinely empty rows with &nbsp; as a belt-and-braces
+// fix that keeps the blank line visible even under different CSS.
+function buildStandalonePreviewHtml(inner,title){
+  inner=inner.replace(/(<div data-line="\d+")(><\/div>)/g,'$1>&nbsp;</div>');
+  var style='body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;'
+    +'background:#ffffff;color:#101320;font-size:16px;line-height:1.65;'
+    +'max-width:900px;margin:24px auto;padding:0 20px 60px;}'
+    +'[data-line]{min-height:1.65em;}'
+    +'span[aria-label="math"]{margin:0 2px;}';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'<'+'/title>'
+    +'<style>'+style+'<'+'/style><'+'/head><body>'+inner+'<'+'/body><'+'/html>';
+}
 function l2nSavePrev(){
   var inner=document.getElementById('l2n-prev').innerHTML;
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nemeth Preview<'+'/title><'+'/head><body>'+inner+'<'+'/body><'+'/html>';
+  var html=buildStandalonePreviewHtml(inner,'Nemeth Preview');
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
   a.download='nemeth_preview.html'; a.click();
@@ -3021,7 +3039,7 @@ function l2nSavePrev(){
 function n2lSaveInput(){dl(document.getElementById('n2l-in').value,'nemeth_input.txt');}
 function n2lSavePrev(){
   var inner=document.getElementById('n2l-prev').innerHTML;
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>LaTeX Preview<'+'/title><'+'/head><body>'+inner+'<'+'/body><'+'/html>';
+  var html=buildStandalonePreviewHtml(inner,'LaTeX Preview');
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
   a.download='latex_preview.html'; a.click();
