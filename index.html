@@ -568,6 +568,16 @@
   });
   tabs.forEach(tab => tab.addEventListener('click', () => switchTo(tab.dataset.target)));
 
+  // nc → bt 銜接：nc 的「複製並開啟 bt」按鈕送出數學算式時，切到 bt 分頁，
+  // 再轉發給 bt 的 iframe 讓它填進輸入框（bt 自己的 setBtInput 監聽器負責覆蓋）。
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'sendToBt') {
+      switchTo('frame-bt');
+      var btFrame = document.getElementById('frame-bt');
+      try { btFrame.contentWindow.postMessage({type:'setBtInput', text:e.data.text}, '*'); } catch(ex) {}
+    }
+  });
+
   // Arrow key navigation for tablist
   document.getElementById('tabbar').addEventListener('keydown', function(e) {
     if (!e.target.matches('.tab')) return;

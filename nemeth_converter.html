@@ -338,7 +338,7 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
     <button class="btn" onclick="l2nSavePrev()">存預覽</button>
     <button class="btn" onclick="l2nClear()" aria-label="&#x6E05;&#x9664;&#x8F38;&#x5165;&#x5167;&#x5BB9;">&#x6E05;&#x9664;</button>
     <button class="btn" onclick="wrapStandaloneNumbers()" title="將文件中所有獨立數字（非題號）加上數學區塊標示">標示數字</button>
-    <button class="btn" onclick="l2nCopyForBt()" title="複製 Unicode 點字輸出（不受目前顯示切換影響），並開啟「文字轉點字」分頁，貼上即可轉換整份含中文的文件">複製並開啟 bt →</button>
+    <button class="btn" onclick="l2nCopyForBt()" title="送出 Unicode 點字輸出（不受目前顯示切換影響）給「文字轉點字」，轉換整份含中文的文件；包在 index.html 分頁架構裡會直接切到 bt 分頁並填入輸入框，單獨開啟 nc 則退回複製到剪貼簿+開新分頁">送到 bt →</button>
   </div>
   <div class="st" id="l2n-st" role="status" aria-live="polite"></div>
   <hr>
@@ -3261,11 +3261,21 @@ function l2nCopy(){navigator.clipboard.writeText(_l2nOutLines.join('\n')).then(f
 // \u76ee\u524d ASCII+SimBraille \u986f\u793a\u5207\u63db\u5f71\u97ff\uff09\uff0c\u56e0\u70ba\u53ea\u6709\u771f\u6b63\u7684\u9ede\u5b57 Unicode \u5b57\u5143\u6703\u88ab bt
 // \u7684\u7ffb\u8b6f\u5f15\u64ce\u539f\u6a23\u7a7f\u900f\uff1bASCII \u5b57\u5143\u6703\u88ab bt \u7576\u6210\u4e00\u822c\u82f1\u6587\u5b57\u6bcd/\u6a19\u9ede\u91cd\u65b0\u8aa4\u8b6f\u4e00\u6b21
 // \uff08\u5df2\u7528\u700f\u89bd\u5668\u5be6\u6e2c\u9a57\u8b49\u5169\u7a2e\u60c5\u6cc1\uff09\u3002
+// \u5305\u5728 index.html \u88e1\uff08frame-nc\uff09\u6642\uff1apostMessage \u7d66\u7236\u9801\uff0c\u7236\u9801\u5207\u5230 bt \u5206\u9801
+// \uff08#t2b\uff09\u4e26\u8f49\u767c\u7d66 bt \u7684 iframe \u76f4\u63a5\u8986\u84cb\u8f38\u5165\u6846\uff0c\u4e0d\u7528\u526a\u8cbc\u7c3f\u3002\u55ae\u7368\u958b\u555f nc
+// \uff08\u4e0d\u5728 iframe \u88e1\uff0cwindow.parent===window\uff09\u6642\u6c92\u6709\u7236\u9801\u53ef\u4ee5\u8f49\u767c\uff0c\u9000\u56de\u8907\u88fd\u5230
+// \u526a\u8cbc\u7c3f\uff0b\u958b\u65b0\u5206\u9801\u3001\u4f7f\u7528\u8005\u81ea\u5df1\u8cbc\u4e0a\u3002
 function l2nCopyForBt(){
-  navigator.clipboard.writeText(_l2nOutLinesUnicode.join('\n')).then(function(){
-    setStatus('l2n-st','\u2713 \u5df2\u8907\u88fd\uff08Unicode \u9ede\u5b57\uff09\uff0c\u8acb\u5728 bt \u5206\u9801\u8cbc\u4e0a','ok');
-    window.open('braille-translate.htm','_blank');
-  });
+  var text=_l2nOutLinesUnicode.join('\n');
+  if(window.parent && window.parent!==window){
+    window.parent.postMessage({type:'sendToBt',text:text},'*');
+    setStatus('l2n-st','\u2713 \u5df2\u9001\u51fa\u7d66 bt','ok');
+  }else{
+    navigator.clipboard.writeText(text).then(function(){
+      setStatus('l2n-st','\u2713 \u5df2\u8907\u88fd\uff08Unicode \u9ede\u5b57\uff09\uff0c\u8acb\u5728 bt \u5206\u9801\u8cbc\u4e0a','ok');
+      window.open('braille-translate.htm','_blank');
+    });
+  }
 }
 function l2nSave(){dl(_l2nOutLines.join('\n'),'nemeth.txt');}
 function l2nClear(){document.getElementById('l2n-in').value='';l2nConvert();}

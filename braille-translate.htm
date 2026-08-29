@@ -4520,6 +4520,16 @@ window.addEventListener('message', function(e) {
     }
 });
 
+// nc → bt 銜接：接住 index.html 轉發過來的數學算式（Unicode 點字），直接覆蓋
+// 輸入框內容（使用者主動按下 nc 那邊的按鈕才會觸發，視為有意換掉目前內容）。
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'setBtInput') {
+        document.getElementById('input-text').value = e.data.text;
+        render();
+        if (typeof btSaveSessionDebounced === 'function') btSaveSessionDebounced();
+    }
+});
+
 loadRules();
 
 </script>

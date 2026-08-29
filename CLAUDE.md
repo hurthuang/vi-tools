@@ -369,10 +369,28 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
   沒有權威資料可查證，維持現有「中文/數學用空格自然分隔」的方式即可，不強加
   規則書沒有明確涵蓋的指示符。
 
-### 實作：nc 新增「複製並開啟 bt →」按鈕
-- l2n 面板新增按鈕，呼叫 `l2nCopyForBt()`：複製內容一律用 Unicode 點字（新增
+### 實作：nc 新增「送到 bt →」按鈕
+- l2n 面板新增按鈕，呼叫 `l2nCopyForBt()`：內容一律用 Unicode 點字（新增
   `_l2nOutLinesUnicode`，在 `l2nConvert()` 裡於套用 ASCII 顯示轉換**之前**存一份，
-  不受目前 ASCII+SimBraille 顯示切換影響），並 `window.open('braille-translate.htm')`
-  開新分頁，使用者自行 Ctrl+V 貼上即可轉換整份含中文的文件。刻意選最簡單的
-  「複製+開新分頁，手動貼上」做法，不做 localStorage 自動帶入（會牽涉 bt 既有
-  輸入內容被覆蓋的衝突處理，複雜度較高、目前不需要）。
+  不受目前 ASCII+SimBraille 顯示切換影響）。
+- 第一版做「複製到剪貼簿＋開新分頁」，使用者反饋應該直接切到 index.html 的
+  bt 分頁（`#t2b`）、直接填入 bt 輸入框，不要剪貼簿——但 nc/bt 都是包在
+  `index.html` 裡的 iframe（`frame-nc`/`frame-bt`），彼此是平行關係，要跨三個
+  檔案傳訊息：nc（iframe）→`index.html`（父頁，負責切分頁）→bt（另一個
+  iframe，負責把文字放進輸入框）。改成依執行環境分流：
+  - **包在 index.html 裡**（`window.parent!==window`）：`l2nCopyForBt()` 用
+    `window.parent.postMessage({type:'sendToBt',text})` 送給父頁；`index.html`
+    新增的訊息監聽器收到後呼叫既有的 `switchTo('frame-bt')` 切分頁（會正確更新
+    分頁 UI 跟網址 hash），再用 `document.getElementById('frame-bt').contentWindow
+    .postMessage({type:'setBtInput',text})` 轉發給 bt 的 iframe；bt 新增的
+    `setBtInput` 監聽器直接覆蓋 `#input-text` 的值並呼叫 `render()`
+    （沿用既有 `setTheme` postMessage 的同一套跨 iframe 協定，訊息監聽器寫在
+    一起）。
+  - **單獨開啟 nc**（`window.parent===window`，例如直接開 `nemeth_converter.html`
+    測試）：沒有父頁可以轉發，退回第一版的「複製到剪貼簿＋開新分頁」，使用者
+    自己 Ctrl+V。
+  - 覆蓋 bt 現有輸入內容前不彈確認框——這是使用者主動按下按鈕的操作，視為
+    有意換掉目前內容。
+- 用本機 server + 真實瀏覽器測完整流程（`index.html#math` 觸發按鈕 → 分頁自動
+  切到 `#t2b` → bt 輸入框收到內容並自動 `render()` 出正確結果）跟單獨開啟 nc
+  時 `window.parent===window` 正確判斷退回剪貼簿模式，兩條路徑都驗證過。
