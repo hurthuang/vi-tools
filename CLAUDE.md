@@ -260,3 +260,73 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 但只要哪天 rebuild.js 的輸入來源換成一份「預設西方語言是 zh-TW」的 Word 文件（例如直接用
 繁中 Word 手動編輯產生的檔案，而非目前這種由程式產出的樣板），SimBraille 字型顯示就會無聲
 失效——值得在該類來源文件上跑 rebuild.js 前，順手檢查一下 `styles.xml` 的 `docDefaults.lang.val`。
+
+## nc（nemeth_converter.html）l2n/n2l 多輪修正與功能補強（已完成，2026-08-29）
+
+### l2n 輸出功能補強
+- 新增 Unicode／ASCII+SimBraille 輸出格式切換（比照 bt 既有做法，`@font-face` 載入
+  SIMBRL.TTF，`brlToAsciiMixed()` 只轉字串裡的點字 Unicode 字元、其餘文字不動）。
+- 修「l2n 複製到 n2l 換行消失」：`l2n-out` 是一堆 `<div data-line>` 組成，`.textContent`
+  讀取多個 `<div>` 不會補回換行。改成保留 `l2nConvert()` 算出的原始行陣列
+  （`_l2nOutLines`），複製/存檔改用 `.join('\n')`。
+- 新增 `vi-nc-session`（localStorage）自動存檔，l2n/n2l 輸入內容 + 分頁 + 輸出格式，
+  重整頁面會跳出「有上次輸入內容」提示列，跟 bt/b2t 既有存檔提示列同一套邏輯（bt/b2t
+  的驗證函式本來就已預留 `type==='nc'` 分支，這次補上）。
+
+### n2l 巢狀上標（Rule 14.4.3）解析 bug
+- l2n 端疊冪（如 `n^{x^y}`）會疊加連續多個 `^` 表示深度（`N^X^^Y`），n2l 舊解析器
+  （單一 regex `[^"^;]+`）不認得疊加，會拆成兩個各自獨立的上標，變成
+  `n^{x}^^{y}` 這種缺共同底數的畸形 LaTeX——正是 MathJax "Double exponent: use
+  braces to clarify" 錯誤的成因。改寫成小型手寫掃描 `_wrapNemSup`：連續 `^`
+  只算一個指示符，遇到更深一層的 `^` 連續段視為目前內容的一部分、遞迴展開。
+- 連帶修好：分數/根號內容含指數時被多包一層大括號（`a^{{n}}`）——原因是
+  `parseNemFrac`/`parseNemRadical` 遞迴呼叫 `parseNemStr` 處理分子分母時，內部
+  已轉換好的 `^{...}` LaTeX 被外層 `_wrapNemSup` 誤認成還沒處理的原始標記重包一次；
+  修法是偵測「單一個 `^` 後面緊接 `{`」代表已轉換完的 LaTeX，直接照抄跳過。
+- 上標內容終止條件加了空格：l2n 端「上標後面直接接空格」會省略回基線指示符 `"`
+  （空方本身就讓讀者回到基線），n2l 原本沒把空格算終止條件，導致
+  `2^{10}=a\times2^{6}` 這種算式，等號後面的內容全部被吞進前一個指數裡。
+
+### n2l 分數 bug：`/`（分數線）跟 `\neg`（否定符號）共用同一字元互相打架
+- `nemBrlToLatex` 在真正切開分數結構前會先跑一輪 GEO 符號表（處理集合/角度等），
+  其中 `\neg` 規則把裸 `/` 直接轉成 `\neg`——但分數線 `?num/den#` 用的也是同一個
+  `/`，GEO pass 這時候還沒切開分數結構，會把任何分數的分數線搶先吃掉，等
+  `parseNemFrac` 要切分子分母時 `/` 已經不見了。修法：`nemBrlToLatex` 跑 GEO
+  規則前先用 `_maskFracSlashes()`（規則跟 `parseNemFrac` 自己 4 條分數規則一一
+  對應、順序相同）把真正的分數線暫時換成私有字元，跑完 GEO 規則再換回來，
+  天生支援任意深度巢狀分數（繁分數/超繁分數）。
+- 同類 bug 另外抓到兩個：`\because`（∵ 用 `` `/ ``，backtick+slash 複合符號，
+  也被 `\neg` 規則搶走 `/`；修法：`\neg` 的 nemRe 加 lookbehind 排除前面緊接
+  backtick 的情形，注意 lookbehind `(?<!x)` 要放在保護對象**前面**）；
+  `\forall{x}`/`\exists{x}` 少了強制空格（GEO 表自己寫的還原函式忘了補，
+  旁邊 `NEM_TOKENS` 表裡其實有正確版本但比對順序排後面、從未執行到，變成死碼），
+  導致 `\forallX` 這種黏在一起、MathJax 直接報錯的結果，順便也讓變數字母沒被
+  正確還原成小寫（沒空格時「反斜線後連續字母都當指令名跳過」邏輯把變數也吞了）。
+
+### ASCII 點字顯示改用真正點顯器相容的字元 + 小寫字母
+- 對照 `table/text_nabcc.dis`（liblouis 附的標準電腦點字 8 點 ASCII 對照表）發現：
+  ASCII 64–95 這段字元（`@ A-Z [ \ ] ^ _`）除了底線 `_` 是唯一例外，點顯器都會
+  自動多加第 7 點，導致 nc 原本挑的幾個 dot-4 系列符號在真實點顯器上顯示錯誤
+  （例：`@` 想表達純 dot-4，點顯器會顯示成 dot4-7）。逐一換成 96–127 區段的
+  安全字元：`@`→`` ` ``（dot4）、`^`→`~`（dot4-5，上標指示符）、`\`→`|`
+  （dot1256，絕對值直線）、`[`→`{`（dot246，角/箭頭前綴）、`]`→`}`（dot12456，
+  根號/修飾符收尾）。做法：`asc2brl`（輸入）新舊字元都收，`brl2asc`（輸出）跟
+  所有比對「brl2asc 解碼結果」的 n2l regex 都改用新字元，l2n 內部建構字串維持
+  用舊字元不動。事後發現 bt 的 `BR_TO_ASCII` 表早就獨立採用完全一樣的五個字元
+  對應，互相印證選字正確。
+- ASCII+SimBraille 顯示的英文字母改小寫（`brlToAsciiMixed()` 對 `brl2asc(c)`
+  結果套 `.toLowerCase()`）——nc 內部 n2l 邏輯（大寫指示符、SIN/COS 函式名比對、
+  化學元素判斷等）全部維持大寫不動，只在最後顯示層轉小寫；bt 的 `BR_TO_ASCII`
+  本來就是小寫，這次是讓 nc 追上一致。
+
+### l2n 題號自動轉 UEB 上位數字
+- Nemeth 數學數字（下位，nc 內部 `Pr` 表數字一路在用）跟 UEB 文字數字（上位）
+  點位真的不一樣（共用同一個數字指示符 ⠼ dots3456，但接在後面的數字本體點位
+  一組是字母 a-j 那組、一組整組下移一排），題號不是數學內容，依慣例該用上位。
+  `wrapStandaloneNumbers()` 原本刻意跳過題號、不包進數學區塊，導致題號從頭到尾
+  沒進過轉換管線，永遠停留在純文字（不管 Unicode 或 ASCII+SimBraille 模式都
+  顯示不出點字）。新增 `UEB_NUMSIGN`/`UEB_DIGIT`（點位跟 bt 的 `UEB_DIGIT` 一致）
+  + `ueQNumBraille()`，`l2nConvert()` 每行開頭偵測「（可縮排）數字+`.`+空白/
+  行尾」自動轉換，句點維持原樣文字（跟同行其他標點一致）。`(N)` 括號格式風險
+  較高（可能跟函式引數 `f(3)`、公式標號引用混淆，且沒有「N.」天然的行首邊界），
+  這輪刻意不處理，維持 `wrapStandaloneNumbers()` 現有排除行為。

@@ -23,6 +23,7 @@ window.MathJax={
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
 <style>
+@font-face { font-family: 'SimBraille'; src: url('SIMBRL.TTF') format('truetype'); }
 :root{
   --bg:#0b0d14;--surf:#13161f;--surf2:#1b1f2d;--bd:#262b3e;--bd2:#343b56;
   --blue:#5a99ff;--purple:#b39aff;--green:#4ee3a8;--red:#ff8b8b;
@@ -78,6 +79,8 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
   padding:10px;min-height:130px;font-size:15px;line-height:1.65}
 .box.mono{font-family:var(--mono);color:var(--green);white-space:pre-wrap;word-break:break-all;
   overflow-y:auto;resize:vertical;height:200px;}
+.box.mono.font-ascii{font-family:'SimBraille',var(--mono);letter-spacing:0}
+.box.mono.font-unicode{font-family:"Apple Braille","Segoe UI Symbol",var(--mono);letter-spacing:1px}
 .box.err{color:var(--red)}
 /* Sync-scroll checkbox in panel headers */
 .sync-chk{font-size:.65rem;font-weight:normal;text-transform:none;color:var(--dim);
@@ -317,6 +320,10 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   <div class="pane">
     <div class="ph" id="l2n-out-label">
       <span class="dot g" aria-hidden="true"></span>Nemeth &#x8F38;&#x51FA;
+      <span style="margin-left:auto;display:inline-flex;gap:8px;font-size:.65rem;font-weight:normal;text-transform:none;color:var(--dim);">
+        <label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;"><input type="radio" name="l2n-output-format" value="unicode" checked onchange="l2nConvert()" style="accent-color:var(--blue);cursor:pointer;"> Unicode</label>
+        <label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;"><input type="radio" name="l2n-output-format" value="ascii" onchange="l2nConvert()" style="accent-color:var(--blue);cursor:pointer;"> ASCII+SimBraille</label>
+      </span>
     </div>
     <div class="box mono" id="l2n-out"
       role="region" aria-labelledby="l2n-out-label"
@@ -412,7 +419,18 @@ Expecting `+ht.join(", ")+", got '"+(this.terminals_[ce]||ce)+"'":Pt="Parse erro
 // =====================================================================
 // NABCC / Nemeth ASCII <-> Unicode Braille
 // =====================================================================
-var Pr = " A1B'K2L@CIF/MSP\"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)=";
+// 以下 4 個字元原本用 @ ^ \ [ ]，但實體點顯器的電腦點字表（table/text_nabcc.dis，
+// 業界標準）裡 ASCII 64–95 這段字元（@ A-Z [ \ ] ^ _）除了底線 _ 是唯一例外，
+// 全部會被自動多加第 7 點，用來跟同一個字元的「小寫版本」做區分——這在 Nemeth
+// ASCII 只是想表達單純的某個 6 點 cell 時就會顯示錯誤。已對照 text_nabcc.dis
+// 逐一確認以下新字元在點顯器上都是純 6 點、不會被加第 7/8 點：
+//   @(dot4)->`   ^(dot4-5,上標指示符)->~   \(dot1256,絕對值直線)->|
+//   [(dot246)->{   ](dot12456,根號/修飾符收尾)->}
+// 舊字元仍在下面 asc2brl 保留為輸入別名，向下相容舊的存檔/貼上內容，以及 l2n
+// 內部仍用舊字元建構字串的地方（asc2brl 新舊都吃得進去，最終編碼出來的點字
+// 完全一樣）；brl2asc 輸出跟所有比對「brl2asc 解碼結果」的 n2l regex 都已改用
+// 新字元。
+var Pr = " A1B'K2L`CIF/MSP\"E3H9O6R~DJG>NTQ,*5<-U8V.%{$+X!&;:4|0Z7(_?W}#Y)=";
 
 function brl2asc(s){
   var r='';
@@ -424,8 +442,13 @@ function asc2brl(s){
   for(var i=0;i<s.length;i++){
     var c=s[i];
     if(c===' '){r+='\u2800';continue;}
-    // 反引號 ` 視同 @ (Nemeth ASCII dots 4)
-    if(c==='`'){r+='\u2808';continue;}
+    // ` ~ | { } 是新的正式輸出字元；@ ^ \ [ ] 仍當輸入別名接受，向下相容舊內容
+    // 與 l2n 內部仍用舊字元建構字串的地方（見上面 Pr 表旁的說明）。
+    if(c==='`'||c==='@'){r+='\u2808';continue;}
+    if(c==='~'||c==='^'){r+='\u2818';continue;}
+    if(c==='|'||c==='\\'){r+='\u2833';continue;}
+    if(c==='{'||c==='['){r+='\u282a';continue;}
+    if(c==='}'||c===']'){r+='\u283b';continue;}
     // 小寫字母自動轉大寫查表（Nemeth ASCII 表字母不區分大小寫，
     // 數學式中的大寫字母由前綴 , 表達）
     var lookup=c;
@@ -436,6 +459,40 @@ function asc2brl(s){
   return r;
 }
 function isBrl(c){return c>='\u2800'&&c<='\u28FF';}
+// Convert only the Unicode-braille characters within a mixed string
+// (braille + prose/LaTeX text) to their ASCII (SimBraille) equivalents,
+// leaving every other character untouched. Letters are lowercased for
+// this display \u2014 brl2asc/Pr uses uppercase internally (n2l's whole
+// pipeline depends on that: cap indicators, SIN/COS/\u2026, chemistry element
+// checks all assume uppercase), but on a real braille display a bare
+// uppercase ASCII letter gets an extra dot-7 added (same class of issue
+// as the @/^/\/[/] fix above \u2014 see table/text_nabcc.dis), so the text
+// actually shown/exported here needs lowercase even though the internal
+// convention stays uppercase.
+function brlToAsciiMixed(s){
+  var r='';
+  for(var i=0;i<s.length;i++){
+    var c=s[i];
+    r += isBrl(c) ? brl2asc(c).toLowerCase() : c;
+  }
+  return r;
+}
+// 題號（行首「N. 」）不是數學內容，依慣例要用 UEB「上位」數字點位，不是
+// Nemeth 數學的「下位」數字點位——兩者共用同一個數字起始指示符 ⠼（dots3456），
+// 但接在後面的數字本體點位不一樣（上位＝字母 a-j 那組點位；下位＝整組下移一排，
+// 避開 dot1/dot4，是 nc 內部 Pr 表數字一路在用的那組）。nc 完全是 Nemeth 數學
+// 專用工具，本來沒有上位數字這套點位，這裡另外建一份，只給題號這個特殊情況用。
+var UEB_NUMSIGN='⠼';
+var UEB_DIGIT={'1':'⠁','2':'⠃','3':'⠉','4':'⠙','5':'⠑','6':'⠋','7':'⠛','8':'⠓','9':'⠊','0':'⠚'};
+function ueQNumBraille(digits){
+  var r=UEB_NUMSIGN;
+  for(var i=0;i<digits.length;i++) r+=UEB_DIGIT[digits[i]];
+  return r;
+}
+function l2nIsAscii(){
+  var r=document.querySelector('input[name="l2n-output-format"]:checked');
+  return !!r && r.value==='ascii';
+}
 
 // =====================================================================
 // GEO TABLE — Nemeth 2022 + 108 Curriculum
@@ -465,11 +522,11 @@ var GEO=[
    // n2l：內容不再假設「只有大寫字母+逗號」，改成抓 " 到 <$[33O] 之間任何內容，
    // 遞迴丟回 parseNemStr 讓運算子/上下標/大小寫都能正確還原（呼應 l2n 那邊
    // \overleftrightarrow 已修成可以吃任意內容，不能再逐字元濾掉非英數字元）
-   nemRe:/"([\s\S]*?)<\$\[33O\]/g,
+   nemRe:/"([\s\S]*?)<\$\{33O\}/g,
    n2l:function(m){return '\\overleftrightarrow{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overrightarrow\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$O]';},
-   nemRe:/"([\s\S]*?)<\$O\]/g,
+   nemRe:/"([\s\S]*?)<\$O\}/g,
    n2l:function(m){return '\\overrightarrow{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overline\{([^}]+)\}/g,
    l2n:function(m){
@@ -485,11 +542,11 @@ var GEO=[
    },
    // n2l：只還原完整形式 "content<:]（縮寫形式 letter: 的 : 跟一般 Nemeth 冒號無法
    // 區分，本來就是這個記法固有的歧義，不硬猜）
-   nemRe:/"([\s\S]*?)<:\]/g,
+   nemRe:/"([\s\S]*?)<:\}/g,
    n2l:function(m){return '\\overline{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\overset\{\\frown\}\s*\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$A]';},
-   nemRe:/"([\s\S]*?)<\$A\]/g,
+   nemRe:/"([\s\S]*?)<\$A\}/g,
    n2l:function(m){return '\\overset{\\frown}{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\vec\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<$O]';},
@@ -497,25 +554,25 @@ var GEO=[
    // Postscript + Lesson 15 Example 15-34); \overrightarrow's identical nemRe
    // above wins on reverse-parse, which is fine since Nemeth doesn't
    // distinguish the two prints.
-   nemRe:/"([\s\S]*?)<\$O\]/g,
+   nemRe:/"([\s\S]*?)<\$O\}/g,
    n2l:function(m){return '\\vec{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\(?:hat|widehat)\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<_<]';},
-   nemRe:/"([\s\S]*?)<_<\]/g,
+   nemRe:/"([\s\S]*?)<_<\}/g,
    n2l:function(m){return '\\hat{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\(?:tilde|widetilde)\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<@:]';},
-   nemRe:/"([\s\S]*?)<@:\]/g,
+   nemRe:/"([\s\S]*?)<`:\}/g,
    n2l:function(m){return '\\tilde{'+parseNemStr(m[1])+'}';}},
   // dot 跟 ddot 都要在同一個 GEO 陣列出現，順序沒差——<*] 跟 <**] 中間的 * 數量不同，
   // 兩個正規表達式互不重疊（<*] 要求 < 跟 ] 中間剛好一個 *，不會誤吃 <**] 的一部分）
   {latexRe:/\\ddot\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<**]';},
-   nemRe:/"([\s\S]*?)<\*\*\]/g,
+   nemRe:/"([\s\S]*?)<\*\*\}/g,
    n2l:function(m){return '\\ddot{'+parseNemStr(m[1])+'}';}},
   {latexRe:/\\dot\{([^}]+)\}/g,
    l2n:function(m){return '"'+capL(m[1])+'<*]';},
-   nemRe:/"([\s\S]*?)<\*\]/g,
+   nemRe:/"([\s\S]*?)<\*\}/g,
    n2l:function(m){return '\\dot{'+parseNemStr(m[1])+'}';}},
 
   // ── Rule 19: Braces（大括號，集合記號等；左 .( 右 .)，Example 19-2/19-3）──
@@ -527,15 +584,15 @@ var GEO=[
   // ── Rule 17: Shapes ──────────────────────────────────────────────
   {latexRe:/\\angle_\{right\}|\\rightangle/g,
    l2n:function(){return '$[.r]';},
-   nemRe:/\$\[\.r\]/g, n2l:function(){return '\\angle_{right}';}},
+   nemRe:/\$\{\.r\}/g, n2l:function(){return '\\angle_{right}';}},
   {latexRe:/\\triangle_\{right\}|\\righttriangle/g,
    l2n:function(){return '$T.r]';},
-   nemRe:/\$T\.r\]/g, n2l:function(){return '\\triangle_{right}';}},
+   nemRe:/\$T\.r\}/g, n2l:function(){return '\\triangle_{right}';}},
   {latexRe:/\\triangle_\{iso\}/g,
    l2n:function(){return '$T.i]';},
-   nemRe:/\$T\.i\]/g, n2l:function(){return '\\triangle_{iso}';}},
+   nemRe:/\$T\.i\}/g, n2l:function(){return '\\triangle_{iso}';}},
   {latexRe:/\\angle/g, l2n:function(){return '$[ ';},
-   nemRe:/\$\[ /g, n2l:function(){return '\\angle ';}},
+   nemRe:/\$\{ /g, n2l:function(){return '\\angle ';}},
   {latexRe:/\\triangle/g, l2n:function(){return '$T ';},
    nemRe:/\$T /g, n2l:function(){return '\\triangle ';}},
   {latexRe:/\\square/g, l2n:function(){return '$4';},
@@ -549,9 +606,9 @@ var GEO=[
   {latexRe:/\\perp/g, l2n:function(){return ' $P ';},
    nemRe:/ \$P /g, n2l:function(){return ' \\perp ';}},
   {latexRe:/\\cong/g, l2n:function(){return ' @:.K ';},
-   nemRe:/ @:\.K /g, n2l:function(){return ' \\cong ';}},
+   nemRe:/ `:\.K /g, n2l:function(){return ' \\cong ';}},
   {latexRe:/\\sim(?!\\)/g, l2n:function(){return ' @: ';},
-   nemRe:/ @: /g, n2l:function(){return ' \\sim ';}},
+   nemRe:/ `: /g, n2l:function(){return ' \\sim ';}},
 
   // ── \\begin{cases} system of equations (Rule 19.6 enlarged brace) ────────
   // Per PDF §17.4(a): only the left enlarged brace is shown when the
@@ -596,12 +653,12 @@ var GEO=[
   {latexRe:/\\supset/g, l2n:function(){return ' _.1 ';},
    nemRe:/ _\.1 /g, n2l:function(){return ' \\supset ';}},
   {latexRe:/\\notin/g, l2n:function(){return ' /@E ';},
-   nemRe:/ \/@E /g, n2l:function(){return ' \\notin ';}},
+   nemRe:/ \/`E /g, n2l:function(){return ' \\notin ';}},
   {latexRe:/\\in(?!f)/g, l2n:function(){return ' @E ';},
-   nemRe:/ @E /g, n2l:function(){return ' \\in ';}},
+   nemRe:/ `E /g, n2l:function(){return ' \\in ';}},
   // \ni (reverse membership) — contains the element
   {latexRe:/\\ni/g, l2n:function(){return ' @5 ';},
-   nemRe:/ @5 /g, n2l:function(){return ' \\ni ';}},
+   nemRe:/ `5 /g, n2l:function(){return ' \\ni ';}},
   // \mid (such that vertical bar)
   {latexRe:/\\mid/g, l2n:function(){return '\\';},
    nemRe:null, n2l:function(){return ' \\mid ';}},
@@ -624,35 +681,52 @@ var GEO=[
   // 點，是真的錯了，不是拼法不同——已修正成 @=，"=" 在 nc 的 Pr 表裡對應全六點，
   // 跟 PDF 的 "`=" backtick(dot4)+equals(全六點) 點位一致）(Rule 23.17)
   {latexRe:/\\forall/g, l2n:function(){return '@&';},
-   nemRe:/@&/g, n2l:function(){return '\\forall';}},
+   // 這裡跟其他 "函式名" 一樣需要強制補一個真空格（不是可有可無的 baseline
+   // indicator）：\forall/\exists 後面緊接的變數字母如果沒有空格分隔，LaTeX
+   // 會把整串（如 \forallx）誤判成一個不存在的指令名稱，MathJax 直接報錯；
+   // 這個空格同時也讓後面 parseNemStr 的大小寫還原能正確在這裡斷開重新掃描
+   // （沒有空格時，cap-handling 的「反斜線後面連續字母都當指令名跳過」邏輯
+   // 會把緊接的變數字母也吞掉，變數就不會被還原成小寫）。
+   nemRe:/`&/g, n2l:function(){return '\\forall ';}},
   {latexRe:/\\exists/g, l2n:function(){return '@=';},
-   nemRe:/@=/g, n2l:function(){return '\\exists';}},
+   nemRe:/`=/g, n2l:function(){return '\\exists ';}},
   // Negation / Not: \neg, \lnot -> / (dots 3-4, prefixed directly, no space —
   // pathstoliteracy.org Nemeth Symbol Library "Negation, or not": "Negation
   // (dots 3-4)... can be placed in front of many symbols". Previously this
   // wrongly reused \sim's code (@:), colliding with an unrelated symbol.
+  // n2l 的 nemRe 跑在 nemBrlToLatex 的 GEO pass（parseNemStr/parseNemFrac 之前），
+  // 這時字串還是原始 Nemeth ASCII，分數的 ?num/den# 也還沒被切開——bare "/"
+  // 同時身兼「否定符號」跟「分數線」兩種意思，純靠位置區分。這條規則本身管不了
+  // 分數線的情形（曾經試過在這裡用 lookbehind 排除，但巢狀分數（繁分數/超繁分數）
+  // 的分數線判斷需要平衡括號而不是簡單的「往回找 ? 到 #」，regex lookbehind
+  // 做不到，已改成 nemBrlToLatex 在跑這個 GEO pass 之前先用 _maskFracSlashes
+  // 保護所有真正的分數線，這裡維持原樣即可（見 nemBrlToLatex 旁的說明）。
+  // (?<!`) 排除 \because 的 "`/"（backtick+slash 兩格複合符號，見下面 \because
+  // 條目）——這條規則原本沒排除，會搶先把 \because 自己的 "/" 吃成 "\neg "，
+  // 等 \because 自己的 nemRe 要比對時 "/" 已經不見了，變成 "`\neg" 這種掉一半
+  // 的錯誤結果（GEO 陣列裡這條排在 \because 前面，先跑先贏）。
   {latexRe:/\\lnot|\\neg/g, l2n:function(){return '/';},
-   nemRe:/\/(?!\.K|@E)/g, n2l:function(){return '\\neg ';}},
+   nemRe:/(?<!`)\/(?!\.K|`E)/g, n2l:function(){return '\\neg ';}},
   // Logical implication: \implies, \Rightarrow -> $33O (right spear arrow)
   {latexRe:/\\implies|\\Rightarrow/g, l2n:function(){return ' $33O ';},
    nemRe:/ \$33O /g, n2l:function(){return ' \\implies ';}},
   // Biconditional: \iff, \Leftrightarrow -> $[33O
   {latexRe:/\\iff|\\Leftrightarrow/g, l2n:function(){return ' $[33O ';},
-   nemRe:/ \$\[33O /g, n2l:function(){return ' \\iff ';}},
+   nemRe:/ \$\{33O /g, n2l:function(){return ' \\iff ';}},
   // Therefore / Because  (Rule 23.18)
   {latexRe:/\\therefore/g, l2n:function(){return ' ,* ';},
    nemRe:/ ,\* /g, n2l:function(){return ' \\therefore ';}},
   {latexRe:/\\because/g, l2n:function(){return ' @/ ';},
-   nemRe:/ @\/ /g, n2l:function(){return ' \\because ';}},
+   nemRe:/ `\/ /g, n2l:function(){return ' \\because ';}},
   // \fallingdotseq / \doteqdot (approximately equal ≒) — dot over AND dot under
   // Nemeth 2022 §21.3: ".K%*<*]  (dots over+under modification of equals)
   {latexRe:/\\fallingdotseq|\\doteqdot|\\approxeq/g,
    l2n:function(){return ' ".K%*<*] ';},
-   nemRe:/ "\.K%\*<\*\] /g, n2l:function(){return ' \\fallingdotseq ';}},
+   nemRe:/ "\.K%\*<\*\} /g, n2l:function(){return ' \\fallingdotseq ';}},
   // Degree: ^{\circ} or ^\circ  (Rule 23.10: hollow dot at superscript)
   {latexRe:/\^\{\\circ\}|\^\\circ|(?<![\\])°/g,
    l2n:function(){return '^.*';},
-   nemRe:/\^\.\*"?/g, n2l:function(){return '^\\circ';}},
+   nemRe:/~\.\*"?/g, n2l:function(){return '^\\circ';}},
 
   // ── Number sets: \mathbb{X} ──────────────────────────────────────
   // Barred typeform: ,_X  (Rule 7 typeform indicator for double-struck)
@@ -1891,22 +1965,22 @@ var GREEK_MAP={
 };
 
 // Ordered token replacements (longer first to avoid partial matches)
-// brl2asc 產出的是大寫字母、用 @ 表達 dot-4，這裡要與之一致
+// brl2asc 產出的是大寫字母、用 ` 表達 dot-4，這裡要與之一致
 var NEM_TOKENS=[
   // 近似值 ≑ (dot over + dot under) - must be before \\approx pattern
   [' ".K%*<*] ',' \\fallingdotseq '],
   // 全等 ≅
-  [' @:.K ',' \\cong '],
+  [' `:.K ',' \\cong '],
   // Geometry
   [' $P ',' \\perp '],[' $L ',' \\parallel '],[' /$L ',' \\nparallel '],
-  [' @: ',' \\sim '],
-  [' $[33O ',' \\iff '],[' $33O ',' \\implies '],
+  [' `: ',' \\sim '],
+  [' ${33O ',' \\iff '],[' $33O ',' \\implies '],
   // 一般箭頭（Rule 21.2），排在 $33O/$[33O 後面（"長樣式優先"，避免提前吃掉那兩個較長
   // 符號的一部分）；右指用大寫 O——字母經過真點字往返會被歸一化成大寫，這裡跟 l2n
   // 端輸出的大小寫要一致才配對得到（見上面 LATEX_SIMPLE 的說明）。左指 $[33 沒有字母
   // 結尾，不受大小寫影響，但要確認前後空格邊界不會誤吃到 $[33O（iff）——" $[33 "
   // 結尾要求緊接空格，"$[33O" 那個位置是 O 不是空格，兩者不會互相誤判。
-  [' $O ',' \\to '],[' $[33 ',' \\leftarrow '],
+  [' $O ',' \\to '],[' ${33 ',' \\leftarrow '],
   // Comparison (longer patterns first)
   [' /.K ',' \\ne '],[' "K: ',' \\le '],[' .1: ',' \\ge '],
   [' _L ',' \\equiv '],
@@ -1918,22 +1992,22 @@ var NEM_TOKENS=[
   // Arithmetic
   ['+-','\\pm '],
   ['-+','\\mp '],
-  ['@*','\\times '],
+  ['`*','\\times '],
   ['./','\\div '],
   ['.+','\\cup '],
   ['.%','\\cap '],
   [',=','\\infty '],
   // approximately equal (≈) — must be after fallingdotseq match
-  ['@:@:','\\approx '],
-  // Set/Logic (大寫 E 代表字母 e，@ 代表 dot-4)
-  ['/@E','\\notin '],['@E','\\in '],
-  ['@&','\\forall '],['@=','\\exists '],['/','\\neg '],
+  ['`:`:','\\approx '],
+  // Set/Logic (大寫 E 代表字母 e，` 代表 dot-4)
+  ['/`E','\\notin '],['`E','\\in '],
+  ['`&','\\forall '],['`=','\\exists '],['/','\\neg '],
   ['_"K:','\\subseteq '],['_"K','\\subset '],
   ['_.1:','\\supseteq '],['_.1','\\supset '],
   ['_0','\\emptyset '],
   // Misc
   [',*','\\therefore '],
-  ['@/','\\because '],
+  ['`/','\\because '],
   [',_;,N','\\mathbb{N}'],
   [',_;,Z','\\mathbb{Z}'],
   [',_;,Q','\\mathbb{Q}'],
@@ -1956,87 +2030,60 @@ function applyNemTokens(s){
   return s;
 }
 
-// Convert lone Nemeth absolute-value bars (the ASCII backslash `\`,
-// corresponding to Unicode braille ⠳ U+2833) into LaTeX `|...|`.
-// Nemeth uses the same bar character for both the opening and closing
-// of an absolute value, so there's no per-bar open/close distinction.
-// We pair them in order: the 1st and 2nd lone bar form a pair, 3rd and
-// 4th form another, etc.
-//
-// Runs AFTER applyNemTokens/parseNemRadical, so the string already
-// contains LaTeX commands like `\pm`, `\sqrt`, `\sin`, `\left`, `\frac`,
-// `\begin{...}`. Those backslashes are NOT abs bars and must be skipped.
-//
-// Edge cases:
-//   - `\` followed by a LOWERCASE letter is a LaTeX command start. Skip
-//     the entire command name (LaTeX commands use lowercase; uppercase
-//     after `\` is a Nemeth-ASCII variable name, e.g. `\X\` = |x|).
-//   - `_\` is the double-bar (`\Vert`) prefix — leave alone.
-//   - Odd count of lone bars → typo. Leave the last one raw.
+// Nemeth 絕對值直線（dot1256, ⠳ U+2833，asc2brl/brl2asc 用 | 表示，舊字元 \
+// 仍當輸入別名）在解碼出來的字串裡本來就已經是最終 LaTeX 要的 | 字元，不需要
+// 再轉換——這個函式現在只做「配對驗證」：Nemeth 用同一個符號表示絕對值的左右
+// 兩條線，沒有開合區分，這裡假設第 1、2 條配對、第 3、4 條配對……以此類推。
+// 換字元前這裡還要另外排除 LaTeX 指令（\pm、\sqrt…）跟跳脫大括號（\{、\}）
+// 開頭的反斜線，因為那時候掃的是 \ 字元、跟真正的 LaTeX command 前綴撞在一起；
+// 換成 | 之後這個問題不存在了（| 不會出現在任何 LaTeX 指令語法裡），不需要再排除。
 //
 // Known limitation: nested bars like `||x|-|y||` are mis-paired by the
 // "every two consecutive bars form a pair" rule. Use \lvert/\rvert for
-// those (not handled here).
+// those (not handled here). 落單的一條（奇數個）目前直接保留原樣——剛好也是
+// \mid（條件機率）在 nc 裡的真實編碼（跟絕對值共用同一個點位，無法從點字本身
+// 區分，見 symRef 的 \mid 條目），保留原樣不轉換反而是正確結果。
 function pairNemAbsBars(s){
-  // Process each line independently (abs values don't span lines).
-  return s.split('\n').map(function(line){
-    // Single pass: collect bar positions, skipping over LaTeX commands
-    // and `_\` double-bar prefixes.
-    var barPositions = [];
-    var i = 0, n = line.length;
-    while(i < n){
-      var c = line.charAt(i);
-      // LaTeX command: `\` followed by lowercase letter. Skip the whole
-      // command name (which may contain mixed-case letters after the
-      // first — rare but possible, e.g. someone's custom `\myCmd`).
-      if(c === '\\' && i+1 < n && /[a-z]/.test(line.charAt(i+1))){
-        i++; // the \
-        while(i < n && /[a-zA-Z]/.test(line.charAt(i))) i++;
-        continue;
-      }
-      // `\{` / `\}`：Rule 19 大括號還原出來的跳脫大括號指令，不是絕對值直線候選
-      // （這個函式在 GEO 的 n2l 已經把 .( .) 轉成 \{ \} 之後才跑，這裡如果不排除，
-      // 反斜線會被誤判成絕對值直線符號，兩個 \{ \} 湊一對變成 |...|，把大括號吃掉）
-      if(c === '\\' && (line.charAt(i+1) === '{' || line.charAt(i+1) === '}')){
-        i += 2;
-        continue;
-      }
-      // `_\` double-bar prefix — skip both characters verbatim, don't
-      // treat the `\` as a candidate abs bar.
-      if(c === '_' && line.charAt(i+1) === '\\'){
-        i += 2;
-        continue;
-      }
-      // Any other `\` at this point is an abs bar candidate.
-      if(c === '\\'){
-        barPositions.push(i);
-      }
-      i++;
-    }
-    // Pair them: 1st+2nd → |...|, 3rd+4th → |...|, etc.
-    // If odd count: leave the last one as `\`.
-    var barSet = {};
-    var pairableCount = barPositions.length - (barPositions.length % 2);
-    for(var p = 0; p < pairableCount; p++){
-      barSet[barPositions[p]] = true;
-    }
-    // Build output.
-    var result = '';
-    for(var k = 0; k < n; k++){
-      if(barSet[k]){
-        result += '|';
-      } else {
-        result += line.charAt(k);
-      }
-    }
-    return result;
-  }).join('\n');
+  return s;
 }
 
 function applyGreek(s){
   // Match .X  .,X  patterns (Greek letters)
   return s.replace(/\.,[A-Z?]/g,function(m){return GREEK_MAP[m]?GREEK_MAP[m]+' ':m;})
           .replace(/\.[A-Z?&.:*]/g,function(m){return GREEK_MAP[m]?GREEK_MAP[m]+' ':m;});
+}
+
+// nemBrlToLatex 在真正呼叫 parseNemStr（進而呼叫 parseNemFrac）之前，會先跑一輪
+// GEO 表的 nemRe（見該函式），其中 \neg 的規則會把裸 "/" 轉成 "\neg "——但分數
+// 的分數線 ?num/den# 用的也是同一個 "/" 字元，兩者純粹靠上下文（是否落在分數的
+// ?…# 範圍內）區分。GEO pass 這時候還沒切開分數結構，"/" 對它來說只是普通字元，
+// 於是任何分數都會被 \neg 規則搶先把分數線吃成 "\neg "，等真正的 parseNemFrac
+// 要切分子分母時 "/" 早就不見了，整個分數轉錯（含巢狀的繁分數/超繁分數，因為要
+// 判斷「這個 / 是不是落在分數範圍內」需要平衡對應的 ?…# 括號，簡單的
+// regex lookahead/lookbehind 做不到）。
+// 解法：nemBrlToLatex 在跑 GEO pass 之前，先用這裡的 4 條規則（跟 parseNemFrac
+// 自己的規則逐一對應、順序也相同）把「真正的分數線」暫時換成不會被任何其他規則
+// 誤判的私有字元 \x02，跑完 GEO pass 之後再換回來——之後 parseNemFrac 看到的就是
+// 完全原封不動的 "/"，其餘規則也不會誤觸 \x02。
+function _maskFracSlashes(s){
+  function maskOne(re){
+    var max=10;
+    while(max-->0){
+      var prev=s;
+      s=s.replace(re,function(m,pre,num,sep,den,post){
+        return pre+num+sep+'\x02'+den+post;
+      });
+      if(s===prev)break;
+    }
+  }
+  maskOne(/(,,\?)([^]+?)(,,)\/([^]+?)(,,#)/);
+  maskOne(/(,\?)([^]+?)(,)\/([^]+?)(,#)/);
+  maskOne(/([0-9]+_\?)([^_]+)()\/([^_]+)(_#)/);
+  maskOne(/(\?)([^?#\/]+)()\/([^#]+)(#)/);
+  return s;
+}
+function _unmaskFracSlashes(s){
+  return s.replace(/\x02/g,'/');
 }
 
 function parseNemFrac(s){
@@ -2082,20 +2129,86 @@ function parseNemFrac(s){
 
 function parseNemRadical(s){
   // Indexed radical: <idx>radicand]
-  s=s.replace(/<([^>]+)>([^\]]+)\]/g,function(m,idx,rad){
+  s=s.replace(/<([^>]+)>([^\}]+)\}/g,function(m,idx,rad){
     return '\\sqrt['+parseNemStr(idx)+']{'+parseNemStr(rad)+'}';
   });
   // Simple radical: >radicand]
-  s=s.replace(/>([^\]]+)\]/g,function(m,rad){
+  s=s.replace(/>([^\}]+)\}/g,function(m,rad){
     return '\\sqrt{'+parseNemStr(rad)+'}';
   });
   return s;
 }
 
+// Rule 14.4.3（Example 14-9）反向：上標裡面還是上標時，l2n 端指示符會疊加成
+// 連續多個 ~（例如 n^{x^y} 編碼成 N~X~~Y——內層 x^y 的指示符多疊一個 ~，見
+// latexToNemethAsc 的 _upMarks/scriptDepth；l2n 內部字串構造仍用歷史上的 ^，
+// 這裡看到的 ~ 是 brl2asc 解碼真點字後、依 asc2brl 的別名對照轉換出來的新
+// 輸出字元，見 Pr 表旁的說明）。疊加次數只是拿來跟其他深度的指示符做視覺區分，
+// 不代表反向時要多包一層大括號——不論疊了幾個 ~，遇到時都只是「找到這段內容
+// 的終點、包一層 ^{...}」（這裡輸出的 ^{...} 是真正的 LaTeX 上標語法，跟輸入
+// 端的 Nemeth-ASCII 標記字元 ~ 是兩回事，剛好都用「上標」這個概念，字元選擇
+// 無關），途中如果遇到更深一層的 ~ 連續段，那段本身就是這層內容的一部分
+// （不是終點），交給 parseNemStr 遞迴再展開一次就能疊出正確的巢狀大括號。
+// 單一 regex 的排除字元類沒辦法表達「跳過任意長度的內層 ~ 連續段」，所以這裡
+// 改用小型手寫掃描（後者只認得單一層級，遇到疊加的 ~~ 會被切斷，兩層各自獨立
+// 包一次大括號，變成 X^{^{Y}} 這種多包一層的錯誤結構，也就是使用者回報的
+// MathJax "Double exponent: use braces to clarify" 錯誤的成因）。
+function _wrapNemSup(s){
+  var out='', i=0, n=s.length;
+  while(i<n){
+    var c=s[i];
+    if(c==='~'){
+      var j=i; while(j<n && s[j]==='~') j++; // 整段連續 ~（不論疊了幾個）算一個指示符
+      // parseNemFrac/parseNemRadical（跑在 parseNemLevel 之前，見 parseNemStr
+      // 開頭的呼叫順序）遞迴呼叫 parseNemStr 處理分子分母/根號內容時，裡面原始
+      // 的 ~ 標記可能已經被轉成正式 LaTeX 的 ^{...} 了。這個判斷假設「單一個
+      // ~ 後面緊接 {」只可能是已經轉換完的 LaTeX——理論上不是絕對安全，因為
+      // 换用 { 表示 dot-4-6（角/箭頭符號 "${…" 的前綴字元，見 Pr 表旁的說明）
+      // 之後，原始 Nemeth ASCII 也可能真的出現 {，但目前唯一用到它的符號一定
+      // 是先接 $ 再接 {（"${33O" 等），不會直接接在 ~ 後面，所以這裡的假設在
+      // 現有符號表下仍然成立；如果未來新增「~ 後面直接是 { 開頭符號」的情況，
+      // 這個判斷要跟著重新檢查。找到這裡直接照抄到對應的 } 為止，不再呼叫
+      // parseNemStr，避免已經轉好的內容被再包一層大括號（例如 \frac{1}{a^n}
+      // 的分母 a^{n} 被再包成 a^{{n}}）。
+      if(j===i+1 && s[j]==='{'){
+        var depth=0, m=j;
+        do{
+          if(s[m]==='{')depth++;
+          else if(s[m]==='}')depth--;
+          m++;
+        }while(m<n && depth>0);
+        out+=s.slice(i,m);
+        i=m;
+        continue;
+      }
+      var k=j;
+      // 終點除了 " / ; / 字串結尾，還要停在空格：l2n 端的清理邏輯（見
+      // latexToNemethAsc 尾端的 baseline indicator 清理）遇到「上標後面直接
+      // 接空格」時，會整個省略回基線的 " 記號——因為一個空方本身就已經讓讀者
+      // 回到基線，不需要額外指示符。所以反向這裡如果不把空格也當終點，會把
+      // 空格後面「跟這個上標完全無關」的內容也吃進來當成上標內容的一部分
+      // （例如 "2^10 =a" 這種上標後面接等號的算式，不停在空格會把 "=a" 也
+      // 吃進 "10" 的指數裡）。
+      while(k<n && s[k]!=='"' && s[k]!==';' && s[k]!==' '){
+        if(s[k]==='~'){ while(k<n && s[k]==='~') k++; continue; } // 更深一層的 ~ 段落，屬於這層內容，不是終點
+        k++;
+      }
+      var content=s.slice(j,k);
+      var consumed=k;
+      if(consumed<n && s[consumed]==='"') consumed++;
+      out+='^{'+parseNemStr(content)+'}';
+      i=consumed;
+      continue;
+    }
+    out+=c; i++;
+  }
+  return out;
+}
+
 function parseNemLevel(s){
   // Superscript ^expr"（回基線 " 用 "? 設成可有可無——上標/下標如果是整段表達式
   // 最後一個東西，l2n 端不會補回基線符號，這裡也要能認得沒有 " 收尾的情況）
-  s=s.replace(/\^([^"^;]+)"?/g,function(m,e){return '^{'+parseNemStr(e)+'}';});
+  s=_wrapNemSup(s);
   // Subscript ;expr"
   s=s.replace(/;([^";^]+)"?/g,function(m,e){return '_{'+parseNemStr(e)+'}';});
   // Rule 14.6 反向：純數字下標接在字母/縮寫函式名後面時，下標指示符 ; 跟回基線 "
@@ -2165,6 +2278,9 @@ function parseNemStr(s){
 
 function nemBrlToLatex(brl){
   var asc=brl2asc(brl);
+  // 分數的分數線跟 \neg（見 GEO 表旁的說明）共用同一個 "/" 字元，GEO pass
+  // 這時候還沒切開分數結構，先暫時保護真正的分數線，跑完 GEO pass 後再還原。
+  asc=_maskFracSlashes(asc);
   // Apply GEO table nemRe patterns first (geometry)
   for(var gi=0;gi<GEO.length;gi++){
     var g=GEO[gi];
@@ -2175,6 +2291,7 @@ function nemBrlToLatex(brl){
       return g.n2l(args);
     });
   }
+  asc=_unmaskFracSlashes(asc);
   return parseNemStr(asc);
 }
 
@@ -2204,6 +2321,7 @@ var MATH_RE=/\\\(([\s\S]*?)\\\)|\$([^$\n]+?)\$/g;
 // the div corresponding to the cursor / top-visible line.
 // =====================================================================
 var _syncLineMap = {};  // { 'l2n': [...], 'n2l': [...] }
+var _l2nOutLines = [];  // last rendered l2n-out lines, in current display format (unicode/ascii) — used by copy/save so newlines survive
 
 function _syncScrollPreview(prevEl, lineMap, inputLine) {
   if (!lineMap || !lineMap.length) return;
@@ -2259,6 +2377,7 @@ function l2nConvert(){
   if(!input.trim()){
     outEl.innerHTML='';outEl.className='box mono';
     prevEl.innerHTML='';stEl.textContent='';stEl.className='st';
+    _l2nOutLines=[];
     return;
   }
 
@@ -2272,8 +2391,21 @@ function l2nConvert(){
     // Unicode math symbols → LaTeX (inside or outside math delimiters)
     line=line.replace(/×/g,'\\times ').replace(/÷/g,'\\div ');
     var outLine='', prevLine='';
-    MATH_RE.lastIndex=0;
-    var m, last=0;
+    var last=0;
+    // 題號偵測：行首「數字 + . + 空白/行尾」（可有前導縮排），跟 wrapStandaloneNumbers
+    // 排除數學包裹的規則同一套判斷條件，限制在行首是為了避免跟句尾數字（如
+    // 「x = 5.」）混淆。句點本身維持原樣文字、不轉換——跟這一行其餘標點符號
+    // （，？）的處理方式一致，只有數字本體轉成 UEB 上位點字（見 ueQNumBraille
+    // 旁的說明）。「(N)」括號題號格式風險較高（可能跟函式引數 f(3) 或公式標號
+    // 引用混淆，且不像「N.」有天然的行首邊界），這裡先不處理。
+    var qNumM=line.match(/^(\s*)(\d+)\.(?=\s|$)/);
+    if(qNumM){
+      outLine+=qNumM[1]+ueQNumBraille(qNumM[2])+'.';
+      prevLine+=esc(qNumM[0]);
+      last=qNumM[0].length;
+    }
+    MATH_RE.lastIndex=last;
+    var m;
     while((m=MATH_RE.exec(line))!==null){
       var prose=line.slice(last,m.index);
       // If outLine already ends with a space and this prose starts with
@@ -2336,8 +2468,11 @@ function l2nConvert(){
   }
 
   _syncLineMap.l2n=lineMap;
+  var ascii=l2nIsAscii();
+  if(ascii) outLines=outLines.map(brlToAsciiMixed);
+  _l2nOutLines=outLines;
   outEl.innerHTML=outLines.map(function(l,i){return'<div data-line="'+i+'">'+esc(l)+'</div>';}).join('');
-  outEl.className='box mono'+(errMsg?' err':'');
+  outEl.className='box mono'+(errMsg?' err':'')+(ascii?' font-ascii':' font-unicode');
   prevEl.innerHTML=prevLines.map(function(l,i){return'<div data-line="'+i+'">'+l+'</div>';}).join('');
   if(window.MathJax&&mathCount>0){
     MathJax.typesetPromise([prevEl]).then(function(){_syncToCursor('l2n');}).catch(function(){});
@@ -2743,20 +2878,20 @@ initBraillePanel({
 // =====================================================================
 var GRADES=[
   {title:'\u5c0f\u5b78 2\u20136 \u5e74\u7d1a',items:[
-    {l:'\\times',       n:'@*',           name:'\u4e58\u865f \u00d7'},
+    {l:'\\times',       n:'`*',           name:'\u4e58\u865f \u00d7'},
     {l:'\\div',         n:'./',           name:'\u9664\u865f \u00f7'},
     {l:'\\frac{a}{b}',  n:'?a/b#',        name:'\u5206\u6578'},
     {l:'3\\frac{1}{2}', n:'#3_?1/2_#',    name:'\u5e36\u5206\u6578'},
     {l:'\\cdots\\cdots',n:"'''",          name:'\u7701\u7565\u865f(\u9918\u6578)'},
-    {l:'cm^2',          n:'cm^2"',        name:'\u5e73\u65b9\u516c\u5206'},
-    {l:'180^\\circ',    n:'#180^.*',      name:'\u5ea6\u6578 \u00b0'},
-    {l:'\\approx',      n:'@:@:',         name:'\u8fd1\u4f3c\u65bc \u2248'},
+    {l:'cm^2',          n:'cm~2"',        name:'\u5e73\u65b9\u516c\u5206'},
+    {l:'180^\\circ',    n:'#180~.*',      name:'\u5ea6\u6578 \u00b0'},
+    {l:'\\approx',      n:'`:`:',         name:'\u8fd1\u4f3c\u65bc \u2248'},
   ]},
   {title:'\u570b\u4e2d 7 \u5e74\u7d1a\uff08\u5e7e\u4f55\uff09',items:[
-    {l:'\\overline{AB}',           n:'",A,B<:]',     name:'\u7dda\u6bb5 AB'},
-    {l:'\\overrightarrow{CD}',     n:'",C,D<$O]',    name:'\u5c04\u7dda CD'},
-    {l:'\\overleftrightarrow{EF}', n:'",E,F<$[33O]', name:'\u76f4\u7dda EF'},
-    {l:'\\angle{G}',               n:'$[ ,G',        name:'\u89d2 G'},
+    {l:'\\overline{AB}',           n:'",A,B<:}',     name:'\u7dda\u6bb5 AB'},
+    {l:'\\overrightarrow{CD}',     n:'",C,D<$O}',    name:'\u5c04\u7dda CD'},
+    {l:'\\overleftrightarrow{EF}', n:'",E,F<${33O}', name:'\u76f4\u7dda EF'},
+    {l:'\\angle{G}',               n:'${ ,G',        name:'\u89d2 G'},
     {l:'\\triangle{PQR}',          n:'$T ,P,Q,R',    name:'\u4e09\u89d2\u5f62 PQR'},
     {l:'\\perp',                   n:'$P',           name:'\u5782\u76f4 \u22a5'},
     {l:'\\begin{cases}...',        n:'.,( ... .,)',   name:'\u806f\u7acb\u65b9\u7a0b\u5f0f'},
@@ -2765,8 +2900,8 @@ var GRADES=[
     {l:'\\ne',                     n:'/.k',          name:'\u4e0d\u7b49\u65bc \u2260'},
   ]},
   {title:'\u570b\u4e2d 8 \u5e74\u7d1a',items:[
-    {l:'\\sqrt{x}',    n:'>x]',   name:'\u6839\u865f'},
-    {l:'\\fallingdotseq',n:'".k<*]',name:'\u7d04\u7b49\u65bc \u2252'},
+    {l:'\\sqrt{x}',    n:'>x}',   name:'\u6839\u865f'},
+    {l:'\\fallingdotseq',n:'".k<*}',name:'\u7d04\u7b49\u65bc \u2252'},
     {l:'\\pm',         n:'+-',    name:'\u6b63\u8ca0 \u00b1'},
     {l:'a_{10}',       n:'a;10"', name:'\u6578\u5217\u4e0b\u6a19'},
     {l:'\\parallel',   n:'$L',    name:'\u5e73\u884c \u2225'},
@@ -2775,7 +2910,7 @@ var GRADES=[
   {title:'\u570b\u4e2d 9 \u5e74\u7d1a',items:[
     {l:'\\sim',                  n:'`:',        name:'\u76f8\u4f3c \u223c'},
     {l:'\\pi',                   n:'.P',        name:'\u5713\u5468\u7387 \u03c0'},
-    {l:'\\overset{\\frown}{AB}', n:'",A,B<$A]', name:'\u5f27 AB'},
+    {l:'\\overset{\\frown}{AB}', n:'",A,B<$A}', name:'\u5f27 AB'},
   ]},
   {title:'\u9ad8\u4e2d 10 \u5e74\u7d1a\uff08\u96c6\u5408/\u908f\u8f2f\uff09',items:[
     {l:'\\mathbb{N}', n:',_N',  name:'\u81ea\u7136\u6578\u96c6 \u2115'},
@@ -2795,8 +2930,8 @@ var GRADES=[
     {l:'\\infty',     n:',=',   name:'\u7121\u7a6e \u221e'},
     {l:'\\neg',       n:'/',    name:'\u975e \u00ac'},
     {l:'\\implies',   n:'$33O', name:'\u8543\u542b \u27f9'},
-    {l:'\\iff',       n:'$[33O',name:'\u7b49\u50f9 \u27fa'},
-    {l:'\\mid',       n:'\\',   name:'\u689d\u4ef6\u6a5f\u7387 |'},
+    {l:'\\iff',       n:'${33O',name:'\u7b49\u50f9 \u27fa'},
+    {l:'\\mid',       n:'|',   name:'\u689d\u4ef6\u6a5f\u7387 |'},
     {l:'\\sum_{i=1}^{n}',n:'".,S;i .k #1~n"',name:'\u7e3d\u548c \u03a3'},
     {l:'P^{m}_{n}',   n:',P~m;n"',name:'\u6392\u5217 P'},
   ]},
@@ -2998,6 +3133,79 @@ function setMode(m){
   document.getElementById('t-n2l').className='tab'+(m==='n2l'?' on':'');
   document.getElementById('t-l2n').setAttribute('aria-selected',m==='l2n');
   document.getElementById('t-n2l').setAttribute('aria-selected',m==='n2l');
+  ncSaveSessionDebounced();
+}
+
+// =====================================================================
+// 本機存檔（localStorage）── 記住 l2n / n2l 輸入內容，重整頁面不遺失
+// =====================================================================
+var _NC_SESSION_KEY='vi-nc-session';
+var _ncSaveTimer=null;
+
+function ncSaveSession(){
+  var fmtEl=document.querySelector('input[name="l2n-output-format"]:checked');
+  var data={
+    v:1,
+    type:'nc',
+    savedAt:new Date().toISOString(),
+    mode:curMode,
+    l2nInput:document.getElementById('l2n-in').value,
+    n2lInput:document.getElementById('n2l-in').value,
+    l2nOutputFormat:fmtEl?fmtEl.value:'unicode'
+  };
+  try{localStorage.setItem(_NC_SESSION_KEY,JSON.stringify(data));}catch(e){}
+}
+
+function ncSaveSessionDebounced(){
+  clearTimeout(_ncSaveTimer);
+  _ncSaveTimer=setTimeout(ncSaveSession,800);
+}
+
+function _ncValidateSession(data){
+  if(!data||typeof data!=='object') return '不是有效的 JSON 物件。';
+  if(data.v!==1) return '版本不符（需要 v:1），此存檔可能來自不相容的舊版或未來版本。';
+  if(data.type==='bt'||data.type==='b2t'){
+    var names={bt:'文字轉點字',b2t:'點字轉文字'};
+    return '此存檔是「'+names[data.type]+'」的存檔，無法載入至「數學點字」。';
+  }
+  // 備援：bt/b2t 存檔一定有 zhEdits 欄位，nc 沒有
+  if(data.zhEdits!==undefined) return '此存檔不是「數學點字」的存檔，無法載入。';
+  if(typeof data.l2nInput!=='string'||typeof data.n2lInput!=='string') return '存檔缺少 l2nInput/n2lInput 欄位。';
+  return null;
+}
+
+function ncLoadSessionData(data){
+  var err=_ncValidateSession(data);
+  if(err){alert('無法載入存檔：'+err);return;}
+  document.getElementById('l2n-in').value=data.l2nInput||'';
+  document.getElementById('n2l-in').value=data.n2lInput||'';
+  if(data.l2nOutputFormat==='ascii'||data.l2nOutputFormat==='unicode'){
+    var r=document.querySelector('input[name="l2n-output-format"][value="'+data.l2nOutputFormat+'"]');
+    if(r) r.checked=true;
+  }
+  setMode(data.mode==='n2l'?'n2l':'l2n');
+  l2nConvert();
+  n2lConvert();
+}
+
+function ncCheckSavedSession(){
+  try{
+    var raw=localStorage.getItem(_NC_SESSION_KEY); if(!raw) return;
+    var data=JSON.parse(raw);
+    if(!data||!data.savedAt) return;
+    if(!data.l2nInput && !data.n2lInput) return;
+    var date=new Date(data.savedAt).toLocaleString('zh-TW');
+    var banner=document.createElement('div');
+    banner.id='nc-session-banner';
+    banner.style.cssText='padding:8px 14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;margin:0 18px 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.9em;color:#1b1b1b;';
+    banner.innerHTML=
+      '<span>📂 有上次的輸入內容（'+date+'）</span>'
+      +'<button onclick="ncLoadSessionData(JSON.parse(localStorage.getItem(\'vi-nc-session\')));document.getElementById(\'nc-session-banner\').remove();" style="padding:3px 10px;font-size:0.85em;background:#388e3c;color:white;border:none;border-radius:4px;cursor:pointer;">繼續</button>'
+      +'<button onclick="localStorage.removeItem(\'vi-nc-session\');document.getElementById(\'nc-session-banner\').remove();" style="padding:3px 10px;font-size:0.85em;background:#757575;color:white;border:none;border-radius:4px;cursor:pointer;">捨棄</button>'
+      +'<span style="font-size:0.82em;color:#888;">存檔僅保存於本裝置，不會上傳</span>';
+    var header=document.querySelector('header');
+    if(header) header.parentNode.insertBefore(banner,header.nextSibling);
+  }catch(e){}
 }
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setStatus(id,msg,cls,ms){
@@ -3044,8 +3252,8 @@ function n2lSavePrev(){
   a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
   a.download='latex_preview.html'; a.click();
 }
-function l2nCopy(){navigator.clipboard.writeText(document.getElementById('l2n-out').textContent).then(function(){setStatus('l2n-st','\u2713 \u5df2\u8907\u88fd','ok');});}
-function l2nSave(){dl(document.getElementById('l2n-out').textContent,'nemeth.txt');}
+function l2nCopy(){navigator.clipboard.writeText(_l2nOutLines.join('\n')).then(function(){setStatus('l2n-st','\u2713 \u5df2\u8907\u88fd','ok');});}
+function l2nSave(){dl(_l2nOutLines.join('\n'),'nemeth.txt');}
 function l2nClear(){document.getElementById('l2n-in').value='';l2nConvert();}
 
 // Wrap standalone numbers in the L2N input with \(...\) math delimiters.
@@ -3178,6 +3386,11 @@ window.addEventListener('message', function(e) {
 buildSymRef();
 l2nConvert();
 _attachSyncScrollListeners();
+
+document.getElementById('l2n-in').addEventListener('input', ncSaveSessionDebounced);
+document.getElementById('n2l-in').addEventListener('input', ncSaveSessionDebounced);
+document.querySelectorAll('input[name="l2n-output-format"]').forEach(function(r){r.addEventListener('change', ncSaveSessionDebounced);});
+ncCheckSavedSession();
 
 </script>
 
