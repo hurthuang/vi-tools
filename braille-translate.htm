@@ -2320,7 +2320,7 @@ function applySpanTranslation(tokens) {
     // 減去前綴和後綴的翻譯長度，取出中間段。
     for (let i = 0; i < n; i++) {
         const t = result[i];
-        if (!t.isEnglish || t.isCustom || t.isNemeth) continue;
+        if (!t.isEnglish || t.isCustom || t.isNemeth || t.wsNotStandingAlone) continue;
 
         const word = t.text;
 
@@ -3210,9 +3210,58 @@ function translateComp8Mixed(str) {
 // 規則書明訂排除，要退回逐字母拼寫，不能用 wordsign。
 const ALLOWED_APOS_SUFFIXES = new Set(['d', 'll', 're', 's', 't', 've']);
 
+// UEB 10.1.1/10.2.1：alphabetic/strong wordsign 需整詞「standing alone」才能用縮寫
+// （Section 2.6.3：後方緊接逗號/句號/驚嘆號/問號/分號/冒號/閉括號/閉引號仍算 standing alone，
+// 但開括號/開引號不算）。緊接右側是開括號/開引號、中間沒有空格時（如 you(、this{），
+// 不符合 standing alone，須退回逐字母＋groupsign 拼寫（liblouis 官方表格 + abcbraille.com /
+// APH BrailleBlaster 三方交叉驗證確認：you( → y+ou-groupsign 拼出，不是單格 wordsign）。
+// 直引號/直單引號因開閉語意不明確、實務上少見緊貼詞尾的情形，本輪不處理。
+const WS_BREAK_TRAILING = new Set(['(', '[', '{', '‘', '“']);
+
+// UEB 10.5.1：be/his/was/were 是 lower wordsign，限制比一般 wordsign 更嚴格——
+// 除了 standing alone 之外，規則書明訂「緊接任何只有下位點的標點（含連字號/破折號，
+// 任何引號一律視為只有下位點）」就不能用縮寫，即使該標點原本落在 2.6.3 的
+// standing alone 允許清單內（如逗號、句號）也一樣擋。已知例外只有右括號類
+// ) ] }（其完整點字含上位點，不算「只有下位點」）。
+// liblouis 官方表格 Node 交叉驗證：was, / was. / was; / was: / was! / was? /
+// was' / was" / was- / was[ / was{ 全部要退回逐字母拼寫，只有 was)/was]/was} 才
+// 保留縮寫——his/were/be 同一套規則，行為一致。
+// enough/in（10.5.2-10.5.4）規則結構不同（更寬鬆的「lower sign rule」，要看整段
+// 序列裡有沒有上位點訊號，不是單純鄰接判斷），且這輪 liblouis 交叉驗證結果看起來
+// 像是這個 WASM build 的另一個獨立缺陷（enough, 拼出一個跟 enough 拼法對不起來的
+// 點位），未經 abcbraille.com/BrailleBlaster 交叉驗證前不敢照抄，本輪不處理。
+const LOWER_WS_SET = new Set(['be', 'was', 'his', 'were']);
+const LOWER_WS_ALLOW_TRAILING = new Set([')', ']', '}', ' ', '⠀']);
+
+// UEB 10.9.1：shortforms（Appendix 1，「整詞剛好等於 shortform」的情形）也是
+// 「standing alone」才能用縮寫——條文用詞跟 10.1.1/10.2.1 一樣（沒有 10.5.1 那種
+// 額外「只有下位點標點」限制），所以套用同一份 WS_BREAK_TRAILING 開括號/開引號
+// 擋清單，不套用 LOWER_WS 那種更嚴格的擋法。
+// 這 75 個詞從 table/en-ueb-g2.ctb 第 1641-1715 行的 match 規則名稱原文抽出
+// （官方 liblouis 表格原始碼，比手動輸入可靠）；只涵蓋「整詞＝shortform」這一半
+// （Rule 10.9.1），不含「shortform 當作較長複合詞的一部分」（Rule 10.9.2-10.9.5，
+// 如 aboveground/goodafternoon），那半在 G2_WORD 裡跟一般整詞縮寫混在一起、
+// 沒有獨立集合可查，範圍更大、風險更高，這次不動。
+// liblouis oracle 對這些詞＋逗號/句號/右括號的交叉測試顯示「一律退回逐字母拼寫」，
+// 但這跟 10.5.1 be/his/was/were 不同——10.9.1 沒有額外限制的文字依據，逗號/右括號
+// 照理仍該落在 2.6.3 允許清單內；這個 oracle 結果比較像是跟 you,/enough, 同一個
+// WASM build 對 2.6.3 允許清單實作不完整的已知缺陷重演，不是真的規則差異，所以
+// 沒有照抄，維持跟 WS_ALPHA_SET/WS_STRONG_SET 一致的擋法（只擋開括號/開引號）。
+const SHORTFORM_SET = new Set(['about','above','according','across','after','afternoon',
+    'afterward','again','against','almost','already','also','although','altogether',
+    'always','because','before','behind','below','beneath','beside','between','beyond',
+    'blind','braille','children','conceive','conceiving','could','deceive','deceiving',
+    'declare','declaring','either','first','friend','good','great','herself','him',
+    'himself','immediate','its','itself','letter','little','much','must','myself',
+    'necessary','neither','oneself','ourselves','paid','perceive','perceiving','perhaps',
+    'quick','receive','receiving','rejoice','rejoicing','said','should','such',
+    'themselves','thyself','today','together','tomorrow','tonight','would','your',
+    'yourself','yourselves']);
+
 // 翻譯可能含撇號縮寫的詞（如 I'm、they've、don't）
 // run 中的撇號為原始字元（' / ' / '）
-function translateWordWithApos(run, modeVal) {
+// nextCh：run 後方緊接（無空格）的下一個字元，用於 WS_BREAK_TRAILING 的 standing alone 判斷
+function translateWordWithApos(run, modeVal, nextCh) {
     const APOS_RE = /['\u2018\u2019]/;
     const aposIdx = run.search(APOS_RE);
 
@@ -3223,6 +3272,16 @@ function translateWordWithApos(run, modeVal) {
         if (!hasDigit) {
             if (modeVal === 'comp8')  return translateComp8(run);
             if (modeVal === 'ueb-g1') return translateG1(run);
+            const lw = run.toLowerCase();
+            if (LOWER_WS_SET.has(lw) && nextCh && !LOWER_WS_ALLOW_TRAILING.has(nextCh)) {
+                // be/his/was/were：緊接非右括號的標點就不能用 lower wordsign
+                return translateG2Seq(run, getActiveG2Tables());
+            }
+            if ((WS_ALPHA_SET.has(lw) || WS_STRONG_SET.has(lw) || SHORTFORM_SET.has(lw)) &&
+                nextCh && WS_BREAK_TRAILING.has(nextCh)) {
+                // 不 standing alone：跳過整詞 wordsign/shortform 查表，退回逐字元/groupsign 拼寫
+                return translateG2Seq(run, getActiveG2Tables());
+            }
             return translateG2Word(run, getActiveG2Tables());
         } else if (!hasAlpha) {
             let b = UEB_NUMSIGN;
@@ -3650,7 +3709,7 @@ function tokenizeWithCustom(text) {
                 }
             }
         } else {
-            b = translateWordWithApos(run, mode());
+            b = translateWordWithApos(run, mode(), text[i]);
         }
 
         // 偵測是否使用了縮寫（G2/自定模式下，與 G1 輸出不同即為縮寫）
@@ -3659,12 +3718,23 @@ function tokenizeWithCustom(text) {
             const g1b = translateWordWithApos(run, 'ueb-g1');
             isContraction = (b !== g1b);
         }
+            // UEB 10.1.1/10.2.1 standing alone：alphabetic/strong wordsign 緊接開括號/開引號
+            // （無空格）時不能用整詞縮寫，上面 translateWordWithApos 已改走 fallback 拼法；
+            // 這裡標記給 applySpanTranslation，讓它跳過這個 token、不要用 liblouis 整句查詢
+            // 覆蓋掉——liblouis 查詢用「前詞 空格 本詞 空格 後詞」重組 context，本來就無法
+            // 還原「本詞後面其實沒有空格、緊貼著標點」這件事，會把 fallback 又蓋回整詞縮寫。
+            const _lwLower = run.toLowerCase();
+            const wsNotStandingAlone = hasAlpha && !!text[i] && (
+                (LOWER_WS_SET.has(_lwLower) && !LOWER_WS_ALLOW_TRAILING.has(text[i])) ||
+                ((WS_ALPHA_SET.has(_lwLower) || WS_STRONG_SET.has(_lwLower) || SHORTFORM_SET.has(_lwLower)) && WS_BREAK_TRAILING.has(text[i]))
+            );
             pushTok({
                 text: run,
                 braille: b,
                 isEnglish: hasAlpha,
                 isNumber: !hasAlpha && hasDigit,
-                isContraction: isContraction
+                isContraction: isContraction,
+                wsNotStandingAlone: wsNotStandingAlone
             });
             continue;
         }

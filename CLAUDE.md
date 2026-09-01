@@ -394,3 +394,127 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 - 用本機 server + 真實瀏覽器測完整流程（`index.html#math` 觸發按鈕 → 分頁自動
   切到 `#t2b` → bt 輸入框收到內容並自動 `render()` 出正確結果）跟單獨開啟 nc
   時 `window.parent===window` 正確判斷退回剪貼簿模式，兩條路徑都驗證過。
+
+## bt：alphabetic/strong wordsign 緊接開括號/開引號時誤用整詞縮寫（已完成，2026-09-01）
+
+### 背景與發現過程
+使用者觀察到 abcbraille.com 和 APH BrailleBlaster 把 `you(` 轉成 `y|"<`（ASCII 點字，
+`|`=dots1256），而非直覺預期的 `y"<`。用 repo 自己的 `build-no-tables-utf32.js` +
+`en-ueb-g2.ctb` 寫 Node script 直接掛 liblouis WASM 驗證（繞開瀏覽器 fetch，改用
+`fs.readFileSync` 把整個 `table/` 目錄塞進 `M.FS`），結果與兩個外部工具一致：
+`y|"<` 才是對的。查 `document/Rules of Unified English Braille 2024.pdf`
+（`document/2024_nolayout.txt`）Rule 10.1.1／10.2.1：alphabetic/strong wordsign
+只有在整詞「standing alone」（Section 2.6）時才能用單格縮寫；Rule 2.6.3 列出
+後方哪些標點仍算 standing alone（逗號/分號/冒號/句點/驚嘆號/問號/**閉**括號/
+閉引號/撇號…），但**開**括號、開引號不在清單內。緊接開括號時（`you(`），wordsign
+要退回一般拼法（如 "you" → letter Y + "ou" strong groupsign = `⠽⠳`）。
+
+用 Node 腳本大量測試（`you` 後接各種字元）發現：這個 repo 用的 liblouis WASM build
+本身對 Rule 2.6.3 的「允許清單」實作有缺陷，逗號/句點等其實都被錯誤觸發 fallback
+（`you,` 該是 `y1` 卻給 `y|1`）——外部工具（abcbraille/BrailleBlaster）在這點是對的，
+所以 fix 沒有直接照抄這個 WASM 的行為，而是自己重新實作 2.6.3 的允許清單。
+
+### bt 原本的問題與根因
+`translateWordWithApos`／`translateG2Word`（braille-translate.htm）原本用純字典查表
+（`G2_WORD['you']` 等）忽略任何後方 context，一律直接用整詞縮寫。就算補上 context 判斷，
+還會被 `applySpanTranslation`（`_getLineTokens` 在 `tokenizeWithCustom` 之後接著跑）蓋掉：
+這個函式對每個英文 token 用「前一詞 空格 本詞 空格 後一詞」重組字串丟給 `LOU.translateSpan`
+（liblouis WASM）取代 `t.braille`，`nextWord`/`prevWord` 只抓「下一個英文 token」，
+標點完全不會進到這個字串——原文「you(」中間沒有空格的事實整個遺失，liblouis 看到的等於
+「you」單獨一個字，永遠判定 standing alone。這是比 wordsign 查表更上層、更隱蔽的根因，
+一開始只修 `translateWordWithApos` 完全沒用（有測試但看到頁面輸出沒變才發現）。
+
+### 修法
+1. `WS_BREAK_TRAILING`（新常數）＝會讓 standing alone 失效的開括號類字元：`( [ { ' “`
+   （直引號 `"`/`'` 因開閉語意不明確、實務上少見緊貼詞尾，本輪不處理）。
+2. `translateWordWithApos` 新增第三參數 `nextCh`（run 後方緊接、無空格的下一字元）；
+   純字母無撇號分支內，若 `run` 屬於 `WS_ALPHA_SET`（見 `ueb-g2-rules.js`，23 個
+   alphabetic wordsigns）或 `WS_STRONG_SET`（6 個 strong wordsigns：
+   child/shall/this/which/out/still）且 `nextCh` 落在 `WS_BREAK_TRAILING`，改呼叫
+   `translateG2Seq` 逐字元/groupsign 拼寫，不查整詞字典。呼叫端 `tokenizeWithCustom`
+   把 `text[i]`（run 結束後緊接的原始字元）傳進去。
+3. 因為 `applySpanTranslation` 會蓋掉這個 fallback，`tokenizeWithCustom` 同時算出
+   `wsNotStandingAlone` 布林值存進 token，`applySpanTranslation` 的 skip 條件
+   （原本只跳過 `isCustom`/`isNemeth`）加上 `|| t.wsNotStandingAlone`，讓它完全略過
+   這個 token、不要用 liblouis 整句查詢覆蓋掉已經算好的 fallback 拼法。
+4. `and/for/of/the/with`（strong contractions）不在 `WS_ALPHA_SET`/`WS_STRONG_SET`
+   範圍內，這幾個是「anywhere」型 groupsign 本來就沒有 standing alone 限制，不受影響。
+
+### 驗證
+本機 HTTP server + Chrome 瀏覽器跑真實 `render()` pipeline（非單獨呼叫函式，因為
+`applySpanTranslation` 只在完整流程才會生效），涵蓋：`you(` → `⠽⠳⠐⠣`、
+`go(`/`out(`/`this(`/`have(` 都正確退回拼寫、`you,`/`you)`/`you.`/`you!`/`you;`/
+`you:` 維持整詞縮寫不受影響（Rule 2.6.3 允許清單內）、`(you go)` 開括號在前不受影響
+（Rule 2.6.2 本來就允許）、`you're happy`／一般句子（`You can go.`／
+`Do you have it?`／`people like you`／`the cat sat`）均無 regression、
+`ueb-custom` 模式同樣正確。
+
+### 後續追查（同日）：be/his/was/were（Rule 10.5.1）有更嚴格的獨立規則，一併修好
+使用者接著要求「檢查其他類似的規則遺漏」。用同一套 liblouis Node oracle 批次測
+`G2_LOWWORD`（`his`/`was`/`were`/`enough`/`be`/`in`，見 `ueb-g2-rules.js`）發現
+`was,`/`was.`/`was;`/`was:`/`was!`/`was?`/`was'`/`was"`/`was-`/`was[`/`was{` 全部
+要退回逐字母拼寫（`w-a-s`），只有 `was)`/`was]`/`was}`（右括號類）才保留 lower
+wordsign——比對 `document/Rules of Unified English Braille 2024.pdf` Rule 10.5.1
+確認：這條規則比 10.1.1/10.2.1 更嚴，除了 standing alone 之外，「緊接任何**只有
+下位點**的標點（含連字號/破折號，任何引號一律視為只有下位點）」就不能用縮寫，
+即使該標點原本在 2.6.3 允許清單內（逗號、句號等）也一樣擋，因為右括號類完整點字
+含上位點，不算「只有下位點」，是唯一例外。his/were/be 同一條規則、行為一致。
+
+新增 `LOWER_WS_SET`（be/was/his/were）+ `LOWER_WS_ALLOW_TRAILING`（`)]}` 加空格），
+用「允許清單」邏輯（預設擋、白名單放行）跟 alphabetic/strong wordsign 那條「擋清單」
+邏輯（預設放行、黑名單擋）方向相反，接線位置一樣（`translateWordWithApos` 同一個
+分支、`wsNotStandingAlone` 旗標同一個 `applySpanTranslation` skip 機制）。
+**踩過一次坑**：`LOWER_WS_ALLOW_TRAILING` 一開始漏放空格，導致 `his car`／
+`That was right` 這種最常見的「後面接空格」案例被誤判成不能用縮寫，整個退化成逐字母
+拼寫——用瀏覽器測完整句子才抓到（單獨測 `was,` 這類邊界案例看不出來），修法是把
+`' '`／`'⠀'` 加進允許清單。
+
+### 後續追查（同日）：10.9.1 shortforms 同一個 standing alone 缺口，已修
+使用者再要求「查一下 shortforms（10.9）有沒有一樣的缺口」。從 `table/en-ueb-g2.ctb`
+第 1641-1715 行的 `match` 規則原文直接抽出官方 75 個 Rule 10.9.1 shortform 詞
+（比手動輸入可靠），確認 bt 的 `G2_WORD` 早就有這些詞的正確縮寫值（如
+`letter`→`⠇⠗`、`friend`→`⠋⠗`），但完全沒有 standing alone 判斷——跟 `you(` 那次
+同一個缺口。liblouis oracle 交叉測試顯示這些詞緊接逗號/右括號時「一律」退回
+逐字母拼寫，但這點**沒有照抄**：Rule 10.9.1 原文只講「standing alone」，用詞
+跟 10.1.1/10.2.1 一樣，沒有 10.5.1 那種額外限制的文字依據；逗號、右括號照理仍在
+2.6.3 允許清單內，這個 oracle 結果比較像是跟 `you,`/`enough,` 同一個 WASM build
+對 2.6.3 允許清單實作不完整的已知缺陷重演，不是真的規則差異。所以新增的
+`SHORTFORM_SET`（75 詞）套用跟 `WS_ALPHA_SET`/`WS_STRONG_SET` 完全一樣的
+`WS_BREAK_TRAILING`（只擋開括號/開引號）判斷，不套用 `LOWER_WS_SET` 那種更嚴格
+的擋法。範圍刻意只涵蓋 Rule 10.9.1（整詞＝shortform），不含 10.9.2-10.9.5
+（shortform 當作較長複合詞一部分，如 aboveground/goodafternoon）——那半在
+`G2_WORD` 裡跟一般整詞縮寫混在一起沒有獨立集合可查，範圍更大、風險更高，
+呼應舊稽核記憶 #5「shortform 集合沒有乾淨的方式獨立列出來查」的已知限制。
+
+驗證：`letter(`/`friend(`/`could(`/`would(` 都正確退回拼寫；`letter,`/`letter)`/
+`letter a` 維持縮寫；一般句子（`I got your letter.`／`Could you help?`／
+`good friend`／`She said hello.`／`the quick brown fox`）無 regression。
+
+### 後續追查（同日）：liblouis oracle 對逗號類 standing alone 判斷不可信，已釐清根因
+使用者質疑「同樣用 liblouis/wasm 為什麼會跟 abcbraille.com/BrailleBlaster 不一致」。
+用 `C:\Program Files\NVDA\louis\tables`（NVDA 內建、完全不同來源的官方 liblouis 表格）
+重跑 `you,`/`was,`/`enough,`/`letter,` 等測試，結果跟這個 repo 的表格**一模一樣**
+（都退回拼寫），排除「這個 repo 表格版本落後」的假設；順便發現 `en-ueb-g2.ctb` 裡
+be/enough/his/was/were 那幾條規則有個字元類別跟 NVDA 版本語法不同（多一個反斜線），
+但實測結果不受影響，不是根因。也排除字串結尾邊界效應、liblouis mode 參數
+（brute-force 測過 0/1/2/4/8/16/32/64/128/256）。
+
+結論：liblouis 這幾條 match 規則的 trailing-context 判斷只認得「括號」這組字元
+類別例外，沒有把 Section 2.6.3 完整允許清單（逗號/句號/分號/冒號/驚嘆號/問號等）
+也編進判斷——這是兩個獨立 liblouis 來源共有的缺口，比較像共同上游（liblouis 表格
+本身）多年沒補齊的實作限制。使用者直接在 abcbraille.com/BrailleBlaster 上實測
+`you,` 確認是乾淨的 `y1`，符合規則書 10.1.1 條文本身沒有額外限制的讀法——
+**bt 現有的修法（照規則書文字走，不照抄 oracle 對逗號的過度攔截）維持不變是對的**。
+之後任何 wordsign/shortform 的 trailing-punctuation 判斷，遇到 2.6.3 允許清單裡
+的標點，優先信規則書條文，不要照抄 liblouis oracle 對逗號類標點的攔截行為。
+
+### 已知但延後處理：enough / in（Rule 10.5.2-10.5.4）
+`enough`/`in` 的官方規則結構跟 be/his/was/were 不同——是更寬鬆的「Lower sign rule」
+（10.5.4）：只要「整段鄰接的下位點標點序列裡有一個上位點訊號」就仍可用縮寫，
+不是單純看緊鄰的下一個字元。liblouis oracle 對 `enough,` 給出的退回拼字結果
+（多出一個跟 e-n-ou-gh 拼法對不起來的 dots126）看起來像是這個 repo 用的 WASM
+build 另一個獨立缺陷（不是規則本身的行為），沒有 abcbraille.com/BrailleBlaster
+交叉驗證前不敢照抄這個 oracle 的行為直接實作，所以這輪沒有動 `enough`/`in`——
+下次要處理時，先用真實工具（abcbraille.com/BrailleBlaster）測 `enough,`／
+`enough.`／`in,`／`in.` 等案例拿到可信 ground truth，再決定要不要／怎麼實作
+10.5.4 的寬鬆邏輯。
