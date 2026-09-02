@@ -575,6 +575,12 @@
                 <strong style="color:#e65100;">⟨N⟩ Nemeth 數學</strong>
             </label>
         </div>
+        <div class="control-item" title="勾選後，「(單一字母)」選項標籤（如 (B)(C)(D)）省略字母記號，例如 (but)/(can)/(do) 的整詞縮寫寫法；只用於考卷選項標籤，不影響一般文章翻譯">
+            <label style="display:inline; margin:0; cursor:pointer;">
+                <input type="checkbox" id="exam-mode" onchange="render()" style="cursor:pointer; accent-color:#6a1b9a;">
+                <strong style="color:#6a1b9a;">⟨試⟩ 試卷選項</strong>
+            </label>
+        </div>
         <div class="control-item" title="低年級模式：每行之間插入空行，方便製作低年級點字摸讀教材；「空行空方」另外在每個國字間、標點後插入空格（可點擊切換）">
             <label style="display:inline; margin:0; cursor:pointer;">
                 <span style="color:#795548; font-size:.85em;">低年級模式</span>
@@ -1103,6 +1109,11 @@ const NEMETH_MATH_PUNCT = {
 // 在 Nemeth 中，數字串結束後如需字母，加 ⠰ 指示符
 function isNemethMode() {
     const cb = document.getElementById('nemeth-mode');
+    return cb && cb.checked;
+}
+
+function isExamMode() {
+    const cb = document.getElementById('exam-mode');
     return cb && cb.checked;
 }
 
@@ -2813,6 +2824,7 @@ function _btCollectSettings() {
     return {
         enMode:   document.getElementById('en-mode').value,
         nemeth:   document.getElementById('nemeth-mode').checked,
+        exam:     document.getElementById('exam-mode').checked,
         lowGrade: document.getElementById('low-grade-mode').value,
         ucpValues: Array.from(document.querySelectorAll('input[name="ucp"]:checked')).map(el => el.value)
     };
@@ -2822,6 +2834,7 @@ function _btApplySettings(s) {
     if (!s) return;
     if (s.enMode)   document.getElementById('en-mode').value = s.enMode;
     if (s.nemeth   !== undefined) document.getElementById('nemeth-mode').checked   = s.nemeth;
+    if (s.exam     !== undefined) document.getElementById('exam-mode').checked     = s.exam;
     if (s.lowGrade !== undefined) {
         // 相容舊版 boolean 儲存格式（checkbox 年代）
         const lg = typeof s.lowGrade === 'boolean' ? (s.lowGrade ? 'full' : 'off') : s.lowGrade;
@@ -2955,13 +2968,14 @@ function btCheckSavedSession() {
 function _getLineModeKey() {
     const mode = document.getElementById('en-mode').value;
     const nemeth = document.getElementById('nemeth-mode').checked ? '1' : '0';
+    const exam = document.getElementById('exam-mode').checked ? '1' : '0';
     let groups = '';
     if (mode === 'ueb-g2' || mode === 'ueb-custom') {
         groups = Array.from(document.querySelectorAll('.ucp-group-cb'))
                       .map(cb => cb.checked ? '1' : '0').join('');
     }
     const lowGrade = document.getElementById('low-grade-mode').value;
-    return mode + '|' + nemeth + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade;
+    return mode + '|' + nemeth + '|' + exam + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade;
 }
 
 function _getLineTokens(line, modeKey) {
@@ -3585,6 +3599,22 @@ function tokenizeWithCustom(text) {
             pushTok({ text: cr.text, braille: cr.braille, isCustom: true });
             i += cr.text.length;
             continue;
+        }
+
+        // 試卷選項模式：「(單一字母)」整組換成固定簡化記號 dots2356-6-字母-2356，
+        // 不論英文點字選哪種模式（G1/G2/自定/comp8）都套用同一個固定形式——
+        // 選項標籤是結構性標記，不該隨內文的縮寫層級改變寫法。跟一般 UEB 開閉括號
+        // （dot5+dots126／dot5+dots345）、字母記號 ⠰ 都不同，是刻意選的獨立簡化記號。
+        if (isExamMode()) {
+            const examM = text.slice(i).match(/^\(([A-Za-z])\)/);
+            if (examM) {
+                const letter = examM[1].toLowerCase();
+                const capPfx = /[A-Z]/.test(examM[1]) ? CAP1 : '';
+                const b = '⠶' + capPfx + (UEB_ALPHA[letter] || letter) + '⠶';
+                pushTok({ text: examM[0], braille: b });
+                i += examM[0].length;
+                continue;
+            }
         }
 
         // ── 英數混合串（含撇號縮寫 'd/'ll/'re/'s/'t/'ve/'m/'n 等）──
@@ -4571,7 +4601,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     btCheckSavedSession();
     document.getElementById('input-text').addEventListener('input', btSaveSessionDebounced);
-    ['en-mode', 'nemeth-mode', 'low-grade-mode'].forEach(function(id) {
+    ['en-mode', 'nemeth-mode', 'exam-mode', 'low-grade-mode'].forEach(function(id) {
         document.getElementById(id).addEventListener('change', btSaveSessionDebounced);
     });
     document.getElementById('ueb-custom-panel').addEventListener('change', btSaveSessionDebounced);

@@ -478,18 +478,6 @@ function brlToAsciiMixed(s){
   }
   return r;
 }
-// 題號（行首「N. 」）不是數學內容，依慣例要用 UEB「上位」數字點位，不是
-// Nemeth 數學的「下位」數字點位——兩者共用同一個數字起始指示符 ⠼（dots3456），
-// 但接在後面的數字本體點位不一樣（上位＝字母 a-j 那組點位；下位＝整組下移一排，
-// 避開 dot1/dot4，是 nc 內部 Pr 表數字一路在用的那組）。nc 完全是 Nemeth 數學
-// 專用工具，本來沒有上位數字這套點位，這裡另外建一份，只給題號這個特殊情況用。
-var UEB_NUMSIGN='⠼';
-var UEB_DIGIT={'1':'⠁','2':'⠃','3':'⠉','4':'⠙','5':'⠑','6':'⠋','7':'⠛','8':'⠓','9':'⠊','0':'⠚'};
-function ueQNumBraille(digits){
-  var r=UEB_NUMSIGN;
-  for(var i=0;i<digits.length;i++) r+=UEB_DIGIT[digits[i]];
-  return r;
-}
 function l2nIsAscii(){
   var r=document.querySelector('input[name="l2n-output-format"]:checked');
   return !!r && r.value==='ascii';
@@ -2397,13 +2385,16 @@ function l2nConvert(){
     var last=0;
     // 題號偵測：行首「數字 + . + 空白/行尾」（可有前導縮排），跟 wrapStandaloneNumbers
     // 排除數學包裹的規則同一套判斷條件，限制在行首是為了避免跟句尾數字（如
-    // 「x = 5.」）混淆。句點本身維持原樣文字、不轉換——跟這一行其餘標點符號
-    // （，？）的處理方式一致，只有數字本體轉成 UEB 上位點字（見 ueQNumBraille
-    // 旁的說明）。「(N)」括號題號格式風險較高（可能跟函式引數 f(3) 或公式標號
-    // 引用混淆，且不像「N.」有天然的行首邊界），這裡先不處理。
+    // 「x = 5.」）混淆。這裡完全不轉點字，整段原樣照抄——題號的點字化交給 bt
+    // （文字轉點字）處理，bt 自己的題號句點邏輯（isQNum）會在收到純文字「1. 」
+    // 時正確轉成上位 UEB 數字 + ⠲；l2n 若在這裡先轉一半（只轉數字、句點留文字），
+    // 會產生「數字已是點字、句點卻是純文字」的混合狀態，經 liblouis 反向翻譯
+    // 或其他消費端解析會得到亂碼（已用 _louBackTranslate 實測驗證過）。
+    // 「(N)」括號題號格式風險較高（可能跟函式引數 f(3) 或公式標號引用混淆，
+    // 且不像「N.」有天然的行首邊界），這裡先不處理。
     var qNumM=line.match(/^(\s*)(\d+)\.(?=\s|$)/);
     if(qNumM){
-      outLine+=qNumM[1]+ueQNumBraille(qNumM[2])+'.';
+      outLine+=qNumM[0];
       prevLine+=esc(qNumM[0]);
       last=qNumM[0].length;
     }
