@@ -344,12 +344,22 @@ function _isChineseChunk(brailleStr) {
     if (!tokens.length) return false;
     const first = tokens[0];
     if (!(typeof first === 'object' && first !== null && typeof first.bpmf === 'string')) return false;
+    // 整塊都要能拆成合法注音音節，不能有殘留的原始字元——原本只檢查 tokens[0]，
+    // 漏掉「前幾格湊出一個合法注音音節、後面剩下的格子轉不出音節、被當成原始
+    // 字元直接留在 tokens 裡」這種情形（例：英文 "than" 的點字 ⠹⠁⠝，前兩格
+    // ⠹⠁ 剛好是合法注音「ㄧㄣ˙」、最後一格 ⠝ 轉不出音節變成裸字串 "n" 殘留在
+    // tokens[1]，只查 tokens[0] 完全看不出來，會把整個「than」誤判成中文）。
+    for (const t of tokens) {
+        if (!(typeof t === 'object' && t !== null && typeof t.bpmf === 'string')) return false;
+    }
     // 往返驗證：convertBrailleToTokens 不檢查聲母/韻母/調號順序，
     // 英文字母格湊巧也可能被硬讀成不合語法順序的注音（例：調號夾在聲母韻母中間）。
     // 真正合法的注音點字，重新編碼一定跟原始點字完全一致；不一致就不是真的注音。
     try {
-        const canonical = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(first.bpmf).trim();
-        if (canonical !== first.braille) return false;
+        for (const t of tokens) {
+            const canonical = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(t.bpmf).trim();
+            if (canonical !== t.braille) return false;
+        }
     } catch (e) { return false; }
     return true;
 }

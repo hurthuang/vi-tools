@@ -1793,6 +1793,40 @@ function isCJKContext(text, pos) {
     return false;
 }
 
+// UEB 2.6.2：判斷 pos 這個位置的左邊界符不符合「standing alone」的左側條件——
+// 前面（跳過 2.6.2 允許穿透的開括號/開引號/撇號等）緊接空白、連字號、破折號、
+// 或字串開頭。通用的左邊界檢查，目前有兩處在用：
+// 1. 7.5.2-7.5.4：問號 ⠦ 跟「his」lower wordsign／開雙引號共用同一格，只有在
+//    這個位置才會被誤讀，需要加 grade-1 symbol indicator ⠰ 消歧義（用
+//    document/2024_braille.txt 官方例句 ?-1750／(?—1750)／10:30-?／
+//    "Replace each ? with a letter: ?e??u" 驗證過）。
+// 2. 單字母 wordsign（WS_LETTERS，如 e=every、p=people）只有真正 standing alone
+//    時才需要 ⠰，見 translateWordWithApos 內的檢查（"?e??u" 裡的 e/u 前面緊接
+//    的是 "?"，不在 2.6.2 允許清單內，不算 standing alone，不該加 ⠰，官方範例
+//    ⠰⠦⠑⠦⠦⠥ 裡 e/u 都是純字母沒有 ⠰）。
+const Q1_TRANSPARENT = new Set(['(', '[', '{', '"', "'", '‘', '“']);
+// UEB Lesson 25：單字母若有對應的 alphabetic wordsign，standing alone 時前面要加
+// ⠰ grade1 indicator（見 translateG2Word／translateWordWithApos）；a/i/o 三個字母
+// 沒有 wordsign（不在 UEB wordsign 表中），不受這條規則影響。
+const WS_LETTERS = new Set(['b','c','d','e','f','g','h','j','k','l','m','n','p','q','r','s','t','u','v','w','y']);
+function _isStandAloneLeftBoundary(text, pos) {
+    if (text == null || pos == null) return false;
+    let j = pos - 1;
+    while (j >= 0 && Q1_TRANSPARENT.has(text[j])) j--;
+    if (j < 0) return true; // 字串開頭
+    const c = text[j];
+    return /\s/.test(c) || c === '⠀' || c === '-' || (c >= '‐' && c <= '―');
+}
+
+// UEB 6.5.2：pos（單字母 run 開始的位置）前面（可穿過一個句點/逗號，如 "4.b"
+// 的句點）是不是數字——用於單字母 a-j 的 numeric mode grade-1 消歧義判斷
+function _precededByNumericDigit(text, pos) {
+    if (text == null || pos == null || pos <= 0) return false;
+    let j = pos - 1;
+    if (text[j] === '.' || text[j] === ',') j--;
+    return j >= 0 && /[0-9]/.test(text[j]);
+}
+
 // pos：字元在原始 text 中的索引（用於語境判斷）；未傳入時退回純 UEB
 function getPunct(ch, text, pos) {
     const mode = document.getElementById('en-mode').value;
@@ -1800,6 +1834,9 @@ function getPunct(ch, text, pos) {
     // 若此字元在 ZH_CONFLICT_PUNCT 中，且處於中文語境，改用 CTB 值
     if (ch in ZH_CONFLICT_PUNCT && text != null && isCJKContext(text, pos)) {
         return ZH_CONFLICT_PUNCT[ch];
+    }
+    if (ch === '?' && !(text != null && isCJKContext(text, pos)) && _isStandAloneLeftBoundary(text, pos)) {
+        return G1_SYM + UEB_PUNCT['?'];
     }
     return UEB_PUNCT[ch];
 }
@@ -1816,10 +1853,6 @@ function wrapCaps(origWord, braille) {
 // G2 整詞轉換
 function translateG2Word(word, _tables) {
     const lw = word.toLowerCase();
-    // UEB Lesson 25：單字母若有對應的 alphabetic wordsign，前需加 ⠰ grade1 indicator
-    // 但 a / i / o 三個字母沒有 wordsign（不在 UEB wordsign 表中），所以不需要 ⠰
-    // 需要 ⠰ 的單字母 wordsigns：b c d e f g h j k l m n p q r s t u v w y
-    const WS_LETTERS = new Set(['b','c','d','e','f','g','h','j','k','l','m','n','p','q','r','s','t','u','v','w','y']);
     // a / i / o 明確排除：不加 ⠰，直接輸出字母點字（加大寫指示符如有需要）
     if (lw.length === 1 && !WS_LETTERS.has(lw)) {
         // 單字母但不是 wordsign（含 a/i/o 及其大寫）→ 直接輸出，不加 ⠰
@@ -1988,6 +2021,7 @@ function translateG2Seq(word, _tables) {
         for (const k of Object.keys(_t.anywhere)) {
             if (lw.startsWith(k, i) && k.length > bestLen) {
                 if (k === 'en' && typeof blocksEnAnywhere !== 'undefined' && blocksEnAnywhere(lw, i)) continue;
+                if (k === 'in' && typeof blocksInAnywhere !== 'undefined' && blocksInAnywhere(lw, i)) continue;
                 bestType = 'anywhere'; bestLen = k.length; bestBr = _t.anywhere[k]; best = k;
             }
         }
@@ -2087,26 +2121,17 @@ function translateComp8(word) {
     return r;
 }
 
+// UEB 8.6.2 巢狀終止符判斷用：閉合符號 → 對應開啟符號
+const CAPS_CLOSING_OF = { ')': '(', ']': '[', '}': '{', '’': '‘', '”': '“' };
+
 // 大寫後處理：處理 endcapsword 和 capsphrase
 // tokens：render 之後的 token 陣列（有 .braille 和 .isEnglish 標記）
-// enough 後處理：後接標點時展開為 en+ou+gh
-function postProcessEnough(tokens) {
-    const ENOUGH_SINGLE  = '⠢';           // ⠢ lowword
-    const ENOUGH_EXPANDED = '⠢⠳⠣'; // ⠢⠳⠣ always enough
-    for (let i = 0; i < tokens.length; i++) {
-        if (tokens[i].text.toLowerCase() !== 'enough') continue;
-        if (tokens[i].braille !== ENOUGH_SINGLE) continue;
-        // 找下一個非空格 token
-        let next = i + 1;
-        while (next < tokens.length && tokens[next].isSpace) next++;
-        // 若後接標點（非英文、非空格、非行尾）→ 展開
-        if (next < tokens.length && !tokens[next].isEnglish && !tokens[next].isSpace) {
-            tokens[i].braille = ENOUGH_EXPANDED;
-        }
-    }
-    return tokens;
-}
-
+// isCapsProcessed：這裡直接改過 .braille（capsphrase 的 ⠠⠠⠠ 合併、或補上
+// endcaps 終止符 ⠠⠄）的 token 都會標記這個旗標，讓 applySpanTranslation 略過、
+// 不要用 liblouis 的「前詞 空格 本詞 空格 後詞」局部重組覆蓋掉——liblouis 那個
+// span 只看得到緊鄰前後各一詞，看不到整個 3+ 詞的 capsphrase，會用自己的
+// per-word ⠠⠠ 猜測蓋掉這裡算好的合併結果（UEB 8.5：3 個以上連續全大寫詞要用
+// ⠠⠠⠠ 開頭＋⠠⠄ 結尾，中間各詞不用重複 ⠠⠠）。
 function postProcessCaps(tokens) {
     // comp8 大寫靠 dot7，不用大寫指示符
     if (document.getElementById('en-mode').value === 'comp8') return tokens;
@@ -2136,13 +2161,16 @@ function postProcessCaps(tokens) {
     while (i < tokens.length) {
         if (!isAllCapsToken(tokens[i])) { i++; continue; }
 
-        // 找連續大寫詞（中間允許有空格 token）
+        // 找連續大寫詞（UEB 8.5.2：passage 中間允許夾雜非英文標點，不只空格
+        // ——如 "CAUTION: WET PAINT!" 的冒號、"FOR SALE: 1975 FIREBIRD" 的
+        // 數字，只有真正小寫/混合大小寫的英文字才會中斷 passage）
         let run = [i];
         let j = i + 1;
         while (j < tokens.length) {
             if (tokens[j].braille === '\u2800' || tokens[j].isSpace) { j++; continue; }
-            if (isAllCapsToken(tokens[j])) { run.push(j); j++; }
-            else break;
+            if (isAllCapsToken(tokens[j])) { run.push(j); j++; continue; }
+            if (!tokens[j].isEnglish) { j++; continue; }
+            break;
         }
 
         const runLen = run.length;
@@ -2150,7 +2178,24 @@ function postProcessCaps(tokens) {
         // endcaps 附加位置：找最後一個大寫詞之後的位置
         // 若緊接標點 → endcaps 附在標點 token 末尾（UEB規範）
         // 否則附在最後一個大寫詞 token 末尾
-        function attachEndCaps(lastIdx) {
+        // UEB 8.6.2：終止符可以放在標點前面或後面，但「最好」跟巢狀括號/引號
+        // 一樣「後開的先關」——如果 caps 開始前緊接著一個開括號/開引號，caps
+        // 結束後遇到它的閉合對應時，終止符要插在它前面（先結束 caps 再讓外層
+        // 括號/引號閉合），不是整段標點都跑完才放最後面。
+        function _capsFindNestedCloser(firstIdx, p, lastPunct) {
+            let bp = firstIdx - 1;
+            while (bp >= 0 && tokens[bp].isSpace) bp--;
+            const openCh = bp >= 0 ? tokens[bp].text : null;
+            if (!openCh) return -1;
+            for (let k = p; k <= lastPunct; k++) {
+                const ch = tokens[k].text;
+                if (CAPS_CLOSING_OF[ch] === openCh || ((ch === '"' || ch === "'") && ch === openCh)) {
+                    return k;
+                }
+            }
+            return -1;
+        }
+        function attachEndCaps(firstIdx, lastIdx) {
             let p = lastIdx + 1;
             while (p < tokens.length && tokens[p].isSpace) p++;
             if (p < tokens.length && !tokens[p].isEnglish && !tokens[p].isSpace
@@ -2162,9 +2207,17 @@ function postProcessCaps(tokens) {
                        && !tokens[q].isSpace && tokens[q].braille !== '\u2800') {
                     lastPunct = q; q++;
                 }
-                tokens[lastPunct].braille += END_CAPS_STR;
+                const nestIdx = _capsFindNestedCloser(firstIdx, p, lastPunct);
+                if (nestIdx >= 0) {
+                    tokens[nestIdx].braille = END_CAPS_STR + tokens[nestIdx].braille;
+                    tokens[nestIdx].isCapsProcessed = true;
+                } else {
+                    tokens[lastPunct].braille += END_CAPS_STR;
+                    tokens[lastPunct].isCapsProcessed = true;
+                }
             } else {
                 tokens[lastIdx].braille += END_CAPS_STR;
+                tokens[lastIdx].isCapsProcessed = true;
             }
         }
 
@@ -2175,16 +2228,18 @@ function postProcessCaps(tokens) {
                 tokens[first].braille
                     .replace(CAP_WORD_STR, '')
                     .replace(/^\u2820/, '');
+            tokens[first].isCapsProcessed = true;
             for (let k = 1; k < runLen; k++) {
                 tokens[run[k]].braille = tokens[run[k]].braille
                     .replace(CAP_WORD_STR, '')
                     .replace(/^\u2820/, '');
+                tokens[run[k]].isCapsProcessed = true;
             }
             const lastIdx = run[runLen - 1];
             let after = lastIdx + 1;
             while (after < tokens.length && tokens[after].isSpace) after++;
             if (after >= tokens.length || !isAllCapsToken(tokens[after])) {
-                attachEndCaps(lastIdx);
+                attachEndCaps(first, lastIdx);
             }
             i = j;
         } else {
@@ -2202,7 +2257,7 @@ function postProcessCaps(tokens) {
                 // （中間沒有空格 = after === lastIdx+1，因為空格已被跳過）
                 const noSpaceBetween = (after === lastIdx + 1);
                 if (noSpaceBetween && nextTok.isEnglish && /^[a-z]/.test(nextTok.text)) {
-                    attachEndCaps(lastIdx);
+                    attachEndCaps(run[0], lastIdx);
                 }
             }
             i = j;
@@ -2228,7 +2283,15 @@ function translateEnglish(word) {
 // ════════════════════════════════════════════════════════════
 //  分詞 & 渲染
 // ════════════════════════════════════════════════════════════
-const TERMINAL    = new Set(['。','？','！','?','!']);
+// 句末標點後強制插入空格 token——只用在全形中文標點（中文本身無空格分詞，句界
+// 需要靠這個標點自己補一個空格），不能包含半形英文 ?/!：UEB Rule 7.1.2 只要求
+// 「多個空格收斂成一個」，沒有要求「原文沒空格也要生一個」；英文本來就靠原文的
+// 空白分詞，半形 ?/! 緊接下一個字元（如 "What???"、"a?b"、"STOP!!"、
+// "persons?/people?"）時官方範例完全不加空格，加了就是 bug。
+// 2026-09-03 稽核 Section 7.1/7.5 時發現半形 ?/! 曾經混在這個集合裡，導致英文
+// 句尾/字中的 ?/! 一律被塞進一個多餘空格（"Why?" 變成 "Why? "、"a?b" 變成
+// "a? b"），已移除，只保留全形中文標點。
+const TERMINAL    = new Set(['。','？','！']);
 // 不可放在行首的字元（標點跟著前字一起換行）
 // 包含中文標點與英文標點
 const NO_LINE_BEGIN = new Set([
@@ -2331,7 +2394,7 @@ function applySpanTranslation(tokens) {
     // 減去前綴和後綴的翻譯長度，取出中間段。
     for (let i = 0; i < n; i++) {
         const t = result[i];
-        if (!t.isEnglish || t.isCustom || t.isNemeth || t.wsNotStandingAlone) continue;
+        if (!t.isEnglish || t.isCustom || t.isNemeth || t.wsNotStandingAlone || t.isCapsProcessed) continue;
 
         const word = t.text;
 
@@ -2984,7 +3047,6 @@ function _getLineTokens(line, modeKey) {
     let tokens = tokenizeWithCustom(line);
     tokens = postProcessCaps(tokens);
     tokens = applySpanTranslation(tokens);
-    tokens = postProcessEnough(tokens);
     if (_lineCache.size >= 500) _lineCache.delete(_lineCache.keys().next().value);
     _lineCache.set(line, { key: modeKey, tokens });
     return tokens;
@@ -3230,7 +3292,27 @@ const ALLOWED_APOS_SUFFIXES = new Set(['d', 'll', 're', 's', 't', 've']);
 // 不符合 standing alone，須退回逐字母＋groupsign 拼寫（liblouis 官方表格 + abcbraille.com /
 // APH BrailleBlaster 三方交叉驗證確認：you( → y+ou-groupsign 拼出，不是單格 wordsign）。
 // 直引號/直單引號因開閉語意不明確、實務上少見緊貼詞尾的情形，本輪不處理。
-const WS_BREAK_TRAILING = new Set(['(', '[', '{', '‘', '“']);
+//
+// 2026-09-03 Section 3 稽核訂正：這裡原本是「擋清單」（只擋開括號/開引號，其他
+// 一律預設放行），但 2.6.3 原文其實是「允許清單」（只有列出的符號才算 standing
+// alone，沒列出的一律不算）——用官方範例 B&B（⠠⠃⠈⠯⠠⠃，B 不需要 ⠰）交叉驗證，
+// 抓到擋清單邏輯把「&」這種沒列在 2.6.3、也不是開括號的符號誤判成「還算
+// standing alone」，導致 WS_LETTERS 那類單字母 wordsign（如 Q&A 的 Q="quite"、
+// R&D 的 R="rather"）誤加 ⠰。改成正式的允許清單 `STANDALONE_TRAILING_ALLOWED`
+// （2.6.3 條文列出的逗號/分號/冒號/句號/刪節號/驚嘆號/問號/右括號/右引號/
+// 不定向引號/撇號，另外加上連字號/破折號——這兩個本身就是 2.6.1 的終點邊界，
+// 不是「允許穿透的符號」，語意不同但效果一樣要放行）。
+const STANDALONE_TRAILING_ALLOWED = new Set([
+    ' ', '⠀',
+    ',', ';', ':', '.', '…', '!', '?',
+    ')', ']', '}',
+    '"', "'", '’', '”', '»',
+    '-', '‐', '‑', '‒', '–', '—', '―'
+]);
+// 開括號/開引號——只給 enough 的 10.5.2 基本 standing alone 判斷用（見下方
+// _blockOpen），跟 STANDALONE_TRAILING_ALLOWED 是反向查詢但故意不合併，原因見
+// 該處註解
+const WS_OPEN_BLOCKING = new Set(['(', '[', '{', '‘', '“']);
 
 // UEB 10.5.1：be/his/was/were 是 lower wordsign，限制比一般 wordsign 更嚴格——
 // 除了 standing alone 之外，規則書明訂「緊接任何只有下位點的標點（含連字號/破折號，
@@ -3241,16 +3323,80 @@ const WS_BREAK_TRAILING = new Set(['(', '[', '{', '‘', '“']);
 // was' / was" / was- / was[ / was{ 全部要退回逐字母拼寫，只有 was)/was]/was} 才
 // 保留縮寫——his/were/be 同一套規則，行為一致。
 // enough/in（10.5.2-10.5.4）規則結構不同（更寬鬆的「lower sign rule」，要看整段
-// 序列裡有沒有上位點訊號，不是單純鄰接判斷），且這輪 liblouis 交叉驗證結果看起來
-// 像是這個 WASM build 的另一個獨立缺陷（enough, 拼出一個跟 enough 拼法對不起來的
-// 點位），未經 abcbraille.com/BrailleBlaster 交叉驗證前不敢照抄，本輪不處理。
+// 序列裡有沒有上位點訊號，不是單純鄰接判斷）——liblouis WASM oracle 對這兩個字的
+// 交叉驗證結果不可信（見下方 LOWER_WS_SEQ_SET 註解），過去沒有 abcbraille.com/
+// BrailleBlaster 交叉驗證不敢照抄；2026-09-03 改用官方規則書 docx 轉出的文字＋
+// 點字（document/2024_braille.txt）當 ground truth，10.5.2/10.5.3/10.5.4 官方
+// 例句齊全可以直接核對，已實作見下方 LOWER_WS_SEQ_SET。
 const LOWER_WS_SET = new Set(['be', 'was', 'his', 'were']);
 const LOWER_WS_ALLOW_TRAILING = new Set([')', ']', '}', ' ', '⠀']);
 
+// UEB 10.5.2（enough）/10.5.3-10.5.4（in）："lower sign rule"，比 be/his/was/were 寬鬆：
+// enough 仍需「standing alone」（跟一般 wordsign 同一套 2.6.3 開括號/開引號限制，
+// WS_OPEN_BLOCKING）；in 連 standing alone 都不需要（10.5.3 原文「wherever the
+// word it represents occurs」），可以出現在複合詞中間（mother-in-law、listen-in）。
+// 兩者共同受 10.5.4「lower sign rule」約束：緊接的標點序列裡只要有一個訊號含上位點
+// （字母/數字/右括號）就還能用縮寫；連字號/破折號本身視為穿透（繼續往後看）；序列
+// 一路到空白或字串結尾都沒找到，才退回逐字母/groupsign 拼寫。
+// 用 document/2024_braille.txt（Rules of Unified English Braille 2024 官方 docx
+// 轉出的文字＋點字，見 CLAUDE.md「UEB 規則書 docx 突破」）10.5.2/10.5.3/10.5.4 全部
+// 官方例句驗證：it was enough／GIVE MORE THAN ENOUGH／Buy meat (enough for 2).／
+// Enough's happened.／mother-in-law／listen-in／-in／had-enough mood／
+// It was enough–more than enough.／We had enough–5.／Take enough. 全部通過；
+// 「But:」清單裡的 Come in, stay in./"In any case"（逗號、句號、開引號後緊接空白，
+// 序列裡沒有上位點訊號）也正確退回拼寫。
+// **實作範圍：只往右（trailing）掃，不看左邊（leading）**——跟 be/his/was/were 的
+// 2.6.2 前導括號不影響 standing alone 是同一個簡化假設。這個假設對絕大多數案例
+// （不管左邊是空白、字母、還是連字號）都成立，因為左邊的內容不影響「這個詞後面
+// 接不接得下去」；但 10.5.4「一串多個 lower wordsign 相連、整段都沒有上位點時
+// 只擋最後一個」的鏈式情形，剛好需要知道「左邊接回去最終有沒有解圍」——只用
+// 「往右掃」這個簡化模型時，鏈狀情形裡「最後一個 wordsign 後面直接接空白」
+// 會被誤判成獨立、沒有東西緊接的情形（因為它看不到左邊其實是一串同樣沒解圍的
+// 標點/wordsign，一路接回前面的 enough），這正是官方範例
+// `"That's enough!"–in a firm voice`（in 後面接空白，官方仍要求退回拼寫）
+// 會踩到的案例，目前輸出跟官方不同（誤判成可用縮寫）。
+// **踩過的坑**：曾經嘗試往左掃已 push 的 tokens 陣列來補這一刀（遇到空白視為
+// 沒解圍、遇到同類 wordsign 穿透、遇到真正英文字視為解圍），但發現 bt 的引號
+// 配對邏輯會在引號兩側自動插入 isSpace:true 的「顯示用」空格 token（不是原文
+// 真的有空格），導致往左掃的「遇到空白就停」判斷不可靠——會在還沒真正碰到詞界
+// 之前就被這種合成空格提前擋下，得到跟預期不同的結果。修這個「合成空格」的
+// 分辨問題風險/範圍已經超出這輪 enough/in 稽核，且鏈狀多個 wordsign 相連的
+// 案例本身在真實教材文字裡極罕見，評估後刻意收斂範圍、只做往右掃，往左的
+// 鏈式情形記錄在這裡，維持現狀（跟官方不同的已知落差），之後有需要再處理。
+// **另一個已知沒做、故意保守擋掉的部分**：官方「in/out」範例顯示 in 緊接斜線
+// 仍可縮，但「enough/sufficient」範例顯示 enough 緊接斜線不可縮——兩者表面
+// 結構相同、結果相反，推測差異在斜線後第一個字母是否含 dot1，但只有這兩個
+// 範例、沒有第二來源（abcbraille.com/BrailleBlaster）交叉驗證，不敢照抄這個
+// 推論，本輪一律把「緊接斜線」當作「序列裡找不到上位點」處理（enough/sufficient
+// 因此正確，in/out 保守擋掉、跟官方範例不同，之後有第二來源驗證再處理）。
+const LOWER_WS_SEQ_SET = new Set(['enough', 'in']);
+
+function _lowerSeqResolves(text, pos) {
+    if (text === undefined || pos === undefined || pos >= text.length) return true; // 字串結尾，視為沒有東西緊接，可用
+    if (/\s/.test(text[pos]) || text[pos] === '⠀') return true; // 緊接空白＝沒有東西緊接，可用（最常見情形）
+    let j = pos;
+    while (j < text.length) {
+        const c = text[j];
+        if (/\s/.test(c) || c === '⠀') return false; // 掃到空白，序列到此結束仍未找到 → 擋
+        if (c === '/' || c === '／') return false; // 斜線：保守當作找不到（見上方註解）
+        if (c === ')' || c === ']' || c === '}') return true; // 右括號：含上位點
+        // 引號（含直引號/彎引號）：跟右括號同一類，掃到就視為找到——"teach-in" 官方範例
+        // （字尾緊接閉引號、後面沒有其他字了）仍保留 in 縮寫，跟 be/his/was/were 那條
+        // 「任何引號一律視為只有下位點」的更嚴格規則不同（10.5.1 專屬限制，enough/in
+        // 沒有這條文字依據）
+        if (c === '"' || c === "'" || c === '‘' || c === '’' || c === '“' || c === '”') return true;
+        if (/[A-Za-z0-9]/.test(c)) return true; // 字母/數字：含上位點
+        // 連字號/破折號、其他一般標點（逗號句號分號冒號驚嘆問號撇號引號）：穿透繼續看
+        // （"Just enough.)" 這類「句點+右括號」要能找到後面的右括號）
+        j++;
+    }
+    return false; // 一路到字串結尾都沒找到
+}
+
 // UEB 10.9.1：shortforms（Appendix 1，「整詞剛好等於 shortform」的情形）也是
 // 「standing alone」才能用縮寫——條文用詞跟 10.1.1/10.2.1 一樣（沒有 10.5.1 那種
-// 額外「只有下位點標點」限制），所以套用同一份 WS_BREAK_TRAILING 開括號/開引號
-// 擋清單，不套用 LOWER_WS 那種更嚴格的擋法。
+// 額外「只有下位點標點」限制），所以套用同一份 STANDALONE_TRAILING_ALLOWED
+// 允許清單，不套用 LOWER_WS 那種更嚴格的擋法。
 // 這 75 個詞從 table/en-ueb-g2.ctb 第 1641-1715 行的 match 規則名稱原文抽出
 // （官方 liblouis 表格原始碼，比手動輸入可靠）；只涵蓋「整詞＝shortform」這一半
 // （Rule 10.9.1），不含「shortform 當作較長複合詞的一部分」（Rule 10.9.2-10.9.5，
@@ -3274,8 +3420,11 @@ const SHORTFORM_SET = new Set(['about','above','according','across','after','aft
 
 // 翻譯可能含撇號縮寫的詞（如 I'm、they've、don't）
 // run 中的撇號為原始字元（' / ' / '）
-// nextCh：run 後方緊接（無空格）的下一個字元，用於 WS_BREAK_TRAILING 的 standing alone 判斷
-function translateWordWithApos(run, modeVal, nextCh) {
+// nextCh：run 後方緊接（無空格）的下一個字元，用於 STANDALONE_TRAILING_ALLOWED 的 standing alone 判斷
+// seqText/seqPos：完整原文字串跟 run 結束後的位置，供 LOWER_WS_SEQ_SET（enough/in）
+// 的 10.5.4 lower sign rule 序列掃描使用；runStart：run 開始前的位置，供單字母
+// wordsign（WS_LETTERS）的 standing alone 左邊界檢查使用
+function translateWordWithApos(run, modeVal, nextCh, seqText, seqPos, runStart) {
     const APOS_RE = /['\u2018\u2019]/;
     const aposIdx = run.search(APOS_RE);
 
@@ -3292,11 +3441,53 @@ function translateWordWithApos(run, modeVal, nextCh) {
                 return translateG2Seq(run, getActiveG2Tables());
             }
             if ((WS_ALPHA_SET.has(lw) || WS_STRONG_SET.has(lw) || SHORTFORM_SET.has(lw)) &&
-                nextCh && WS_BREAK_TRAILING.has(nextCh)) {
-                // 不 standing alone：跳過整詞 wordsign/shortform 查表，退回逐字元/groupsign 拼寫
+                ((nextCh && !STANDALONE_TRAILING_ALLOWED.has(nextCh)) ||
+                 !_isStandAloneLeftBoundary(seqText, runStart))) {
+                // 不 standing alone（左邊界或右邊界任一不成立）：跳過整詞 wordsign/
+                // shortform 查表，退回逐字元/groupsign 拼寫。左邊界檢查是這輪才補上
+                // 的——官方範例 "persons?/people?" 的 people 緊接在 "/" 後面（不在
+                // 2.6.2 允許清單內，只有開括號/開引號/撇號/typeform/大寫指示符才
+                // 允許穿透），不算 standing alone，應該逐字母拼出，bt 原本完全沒
+                // 檢查左邊界、只查右邊界，一律誤用整詞縮寫。
                 return translateG2Seq(run, getActiveG2Tables());
             }
-            return translateG2Word(run, getActiveG2Tables());
+            if (LOWER_WS_SEQ_SET.has(lw)) {
+                // 注意：這裡故意只查開括號/開引號（WS_OPEN_BLOCKING），不是完整的
+                // STANDALONE_TRAILING_ALLOWED 反向查詢——enough 除了基本 standing
+                // alone 外還有 10.5.4 更寬鬆的序列規則（_lowerSeqResolves 已經
+                // 處理「緊接的標點序列裡有沒有上位點訊號」），如果這裡也用完整
+                // allow-list 反向查詢，會在 _lowerSeqResolves 還沒機會往後掃描
+                // 解圍前，就把「&」這類沒特別意義的符號提前擋掉，跟 10.5.4 的
+                // 寬鬆用意衝突。
+                const _blockOpen = lw === 'enough' && nextCh && WS_OPEN_BLOCKING.has(nextCh);
+                if (_blockOpen || !_lowerSeqResolves(seqText, seqPos)) {
+                    // enough 不 standing alone，或 enough/in 緊接的標點序列裡找不到上位點訊號
+                    return translateG2Seq(run, getActiveG2Tables());
+                }
+            }
+            // UEB 6.5.2：小寫 a-j 緊接在數字/句點/逗號後面（就算中間被外層
+            // tokenizer 拆成不同 token，如 "4.b" 的 4/./b、"report3.doc" 的
+            // report3/./doc 三個 token）時，跟數字的點位共用同一組形狀，字首要
+            // 加 ⠰ 避免誤讀成數字延續——不限單字母（"report3.doc" 的 doc 三個
+            // 字母也要加，只有字首那個 d 的形狀跟數字歧義，⠰ 只需加一次）。
+            const needsNumericG1 = /[a-z]/.test(run[0]) && NUMERIC_AJ.has(lw[0]) &&
+                _precededByNumericDigit(seqText, runStart);
+            if (run.length === 1 && WS_LETTERS.has(lw)) {
+                // UEB 2.6.1：單字母 wordsign 只有真正 standing alone（前後都是空白/
+                // 連字號/破折號，中間可穿過 2.6.2/2.6.3 允許清單）才需要 grade-1
+                // indicator ⠰；不是的話（如 "?e??u" 裡緊貼著問號的 e/u）純字母輸出，
+                // 不能呼叫 translateG2Word——它對單字母 wordsign 沒有 context 判斷，
+                // 一律加 ⠰。needsNumericG1 是另一個、獨立於 wordsign standing
+                // alone 的理由，兩者只要有一個成立就不能退回純字母。
+                const leadOk  = _isStandAloneLeftBoundary(seqText, runStart);
+                const trailOk = !nextCh || STANDALONE_TRAILING_ALLOWED.has(nextCh);
+                if (!(leadOk && trailOk) && !needsNumericG1) {
+                    const capPfx = /[A-Z]/.test(run[0]) ? CAP1 : '';
+                    return capPfx + UEB_ALPHA[lw];
+                }
+            }
+            const _g2wResult = translateG2Word(run, getActiveG2Tables());
+            return (needsNumericG1 && !_g2wResult.startsWith(G1_SYM)) ? G1_SYM + _g2wResult : _g2wResult;
         } else if (!hasAlpha) {
             let b = UEB_NUMSIGN;
             const digitMap = modeVal === 'comp8' ? COMP8_DIGIT : UEB_DIGIT;
@@ -3496,8 +3687,11 @@ function tokenizeWithCustom(text) {
         const ch = text[i];
 
         // 空白
+        // UEB Rule 7.1.2：原文不管有幾個空格，點字一律只留一個空方
         if (ch === ' ' || ch === '\u2800') {
-            pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++; continue;
+            pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++;
+            while (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
+            continue;
         }
         // 換行（重設引號計數，避免跨行污染）
         if (ch === '\n') {
@@ -3620,6 +3814,7 @@ function tokenizeWithCustom(text) {
         // ── 英數混合串（含撇號縮寫 'd/'ll/'re/'s/'t/'ve/'m/'n 等）──
         // 收集連續字母和數字（不含空格），並在其後貪婪地吸收 'suffix
         if (/[a-zA-Z0-9]/.test(ch)) {
+            const runStart = i; // run 開始前的位置，供單字母 wordsign standing alone 前導檢查使用
             let run = '';
             while (i < text.length) {
                 if (/[a-zA-Z0-9]/.test(text[i])) {
@@ -3739,7 +3934,7 @@ function tokenizeWithCustom(text) {
                 }
             }
         } else {
-            b = translateWordWithApos(run, mode(), text[i]);
+            b = translateWordWithApos(run, mode(), text[i], text, i, runStart);
         }
 
         // 偵測是否使用了縮寫（G2/自定模式下，與 G1 輸出不同即為縮寫）
@@ -3754,10 +3949,30 @@ function tokenizeWithCustom(text) {
             // 覆蓋掉——liblouis 查詢用「前詞 空格 本詞 空格 後詞」重組 context，本來就無法
             // 還原「本詞後面其實沒有空格、緊貼著標點」這件事，會把 fallback 又蓋回整詞縮寫。
             const _lwLower = run.toLowerCase();
-            const wsNotStandingAlone = hasAlpha && !!text[i] && (
-                (LOWER_WS_SET.has(_lwLower) && !LOWER_WS_ALLOW_TRAILING.has(text[i])) ||
-                ((WS_ALPHA_SET.has(_lwLower) || WS_STRONG_SET.has(_lwLower) || SHORTFORM_SET.has(_lwLower)) && WS_BREAK_TRAILING.has(text[i]))
+            const _wsSeqBlocked = hasAlpha && LOWER_WS_SEQ_SET.has(_lwLower) && (
+                (_lwLower === 'enough' && !!text[i] && WS_OPEN_BLOCKING.has(text[i])) ||
+                !_lowerSeqResolves(text, i)
             );
+            // 單字母 wordsign 只要不是單純的「standing alone → 呼叫 translateG2Word」
+            // 預設路徑（不管是退回純字母、還是 6.5.2 數字消歧義強制加 ⠰），都要保護
+            // 起來不被 applySpanTranslation 的 liblouis 局部翻譯蓋掉（跟前面 enough/in
+            // 序列判斷、Section 8 capsphrase 同一個根因，liblouis 看不到跨 token 的
+            // 前後文脈判斷依據）
+            const _wsLetterBlocked = hasAlpha && run.length === 1 && WS_LETTERS.has(_lwLower) &&
+                !(_isStandAloneLeftBoundary(text, runStart) && (!text[i] || STANDALONE_TRAILING_ALLOWED.has(text[i])));
+            // 6.5.2 數字消歧義 ⠰ 不限單字母（"report3.doc" 的 doc），同樣要保護
+            const _wsNumericG1 = hasAlpha && /[a-z]/.test(run[0]) && NUMERIC_AJ.has(_lwLower[0]) &&
+                _precededByNumericDigit(text, runStart);
+            // 2.6.1 左邊界：people 這類整詞縮寫緊接在「/」這種不在 2.6.2 允許清單內
+            // 的字元後面（如官方範例 persons?/people?）也不算 standing alone，
+            // 不受 !!text[i]（右邊界）那組判斷式保護，獨立成一條
+            const _wsAlphaLeadBlocked = hasAlpha &&
+                (WS_ALPHA_SET.has(_lwLower) || WS_STRONG_SET.has(_lwLower) || SHORTFORM_SET.has(_lwLower)) &&
+                !_isStandAloneLeftBoundary(text, runStart);
+            const wsNotStandingAlone = (hasAlpha && !!text[i] && (
+                (LOWER_WS_SET.has(_lwLower) && !LOWER_WS_ALLOW_TRAILING.has(text[i])) ||
+                ((WS_ALPHA_SET.has(_lwLower) || WS_STRONG_SET.has(_lwLower) || SHORTFORM_SET.has(_lwLower)) && !STANDALONE_TRAILING_ALLOWED.has(text[i]))
+            )) || _wsSeqBlocked || _wsLetterBlocked || _wsNumericG1 || _wsAlphaLeadBlocked;
             pushTok({
                 text: run,
                 braille: b,

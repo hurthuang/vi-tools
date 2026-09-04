@@ -508,13 +508,532 @@ be/enough/his/was/were 那幾條規則有個字元類別跟 NVDA 版本語法不
 之後任何 wordsign/shortform 的 trailing-punctuation 判斷，遇到 2.6.3 允許清單裡
 的標點，優先信規則書條文，不要照抄 liblouis oracle 對逗號類標點的攔截行為。
 
-### 已知但延後處理：enough / in（Rule 10.5.2-10.5.4）
-`enough`/`in` 的官方規則結構跟 be/his/was/were 不同——是更寬鬆的「Lower sign rule」
-（10.5.4）：只要「整段鄰接的下位點標點序列裡有一個上位點訊號」就仍可用縮寫，
-不是單純看緊鄰的下一個字元。liblouis oracle 對 `enough,` 給出的退回拼字結果
-（多出一個跟 e-n-ou-gh 拼法對不起來的 dots126）看起來像是這個 repo 用的 WASM
-build 另一個獨立缺陷（不是規則本身的行為），沒有 abcbraille.com/BrailleBlaster
-交叉驗證前不敢照抄這個 oracle 的行為直接實作，所以這輪沒有動 `enough`/`in`——
-下次要處理時，先用真實工具（abcbraille.com/BrailleBlaster）測 `enough,`／
-`enough.`／`in,`／`in.` 等案例拿到可信 ground truth，再決定要不要／怎麼實作
-10.5.4 的寬鬆邏輯。
+## UEB 規則書 docx 突破 + enough/in（Rule 10.5.2-10.5.4）補完（已完成，2026-09-03）
+
+### docx 突破：解除「PDF 點字圖形抽不出來」的舊限制
+使用者把官方 `Rules of Unified English Braille 2024.pdf` 轉成
+`document/Rules of Unified English Braille 2024.docx`（未進版控）。確認這份 docx
+裡的點字範例雖然顯示用 `SimBraille` 字型，但 `word/document.xml` 底層文字層存的是
+**真正的 Unicode 點字字元**（U+2800-U+28FF），不是圖形也不是圖片——整份文件約
+24,000 處這類 SimBraille 文字 run，全部可直接讀取比對，直接解掉舊稽核（見上面
+「liblouis oracle 對 standing alone 逗號類判斷不可信」段落之前的稽核記錄）反覆
+卡住的「PDF 裡的點字方格是內嵌字型/圖形，pdftotext 抽不出實際點位」限制。
+
+用 Node 腳本（正規表達式抽取所有 `<w:t>` 文字，含 Unicode 點字）把 docx 轉成乾淨的
+文字＋點字交錯純文字檔，存到 **`document/2024_braille.txt`**（未進版控，跟其他
+`document/` 底下的規則書衍生檔一致）。**踩過的坑**：自封閉的 `<w:t xml:space=
+"preserve"/>` 標籤如果沒排在正規表達式優先順序最前面，會被誤判成開始標籤、非貪婪
+比對一路吃到文件後面很遠的下一個 `</w:t>`，把中間一大段原始 XML 當文字吐出來——
+加了「輸出裡不該殘留任何 `<w:...>` 標籤」的完整性檢查才抓到。
+
+之後任何 UEB 稽核都優先用 `document/2024_braille.txt`（grep 規則編號或關鍵字找
+`Examples:` 段落），比舊的 `document/2024_nolayout.txt`（無點字，只有條文說明）
+更完整可信；10.10-10.13（之前卡住的章節）跟完全沒碰過的 Section 1-9 現在都
+具備重新稽核的條件。
+
+### enough/in（10.5.2-10.5.4）Lower sign rule 已實作
+用 `document/2024_braille.txt` 找到 10.5.2/10.5.3/10.5.4 全部官方例句，取代原本
+「沒有 abcbraille.com/BrailleBlaster 交叉驗證不敢照抄 liblouis oracle」的延後決定。
+規則跟 be/his/was/were（10.5.1，`LOWER_WS_SET`）不同：
+- **enough（10.5.2）**：仍需 standing alone（跟一般 wordsign 同一套 2.6.3 開括號/
+  開引號限制）。
+- **in（10.5.3）**：連 standing alone 都不需要（原文「wherever the word it
+  represents occurs」），可以出現在複合詞中間（mother-in-law、listen-in）。
+- **兩者共同受 10.5.4「lower sign rule」約束**：緊接的標點序列裡只要有一個訊號
+  含上位點（字母/數字/右括號/引號）就還能用縮寫；連字號/破折號/其他一般標點視為
+  穿透（繼續往後看）；序列一路到空白或字串結尾都沒找到，才退回逐字母/groupsign
+  拼寫。
+
+實作在 `braille-translate.htm`：新增 `LOWER_WS_SEQ_SET`（enough/in）+
+`_lowerSeqResolves(text, pos)`（只往右/trailing 掃，不看左邊，跟 be/his/was/were
+的 2.6.2 前導括號不影響 standing alone 同一個簡化假設）；`ueb-g2-rules.js` 新增
+`blocksInAnywhere`（比照既有 `blocksEnAnywhere`）——**這個是連帶抓到的獨立 bug**：
+`translateG2Seq`（wordsign 被擋掉後的逐字母/groupsign 拼寫 fallback）對 2 字母的
+「in」原本會透過 10.6.8 的 ANYWHERE groupsign 把縮寫寫回同一個點位 ⠔，等於白費
+wordsign 那邊擋掉的判斷（`enough`不會踩到，因為`be`已經有`begword`長度限制擋住同類
+問題，但`in`的ANYWHERE規則沒有這層限制）；加了 `blocksInAnywhere` 後才真正生效。
+另外發現並移除了一個跟新邏輯衝突的舊 post-process 函式 `postProcessEnough`（比對
+「下一個 token 是不是標點」就無條件展開，沒有真正做序列判斷，跟新邏輯衝突時
+給出錯誤答案，已刪除）。
+
+**已知、故意保留的落差**（都不敢照抄的原因是樣本太少/沒有第二來源）：
+- `in/out` 官方範例緊接斜線仍可縮，但 `enough/sufficient` 緊接斜線不可縮——兩者
+  表面結構相同、結果相反，推測差異在斜線後第一個字母是否含 dot1，只有這兩個範例
+  無法確認，本輪把「緊接斜線」一律當「找不到上位點」處理（enough/sufficient 正確，
+  in/out 保守擋掉）。
+- 10.5.4「一串多個 lower wordsign 相連、整段都沒有上位點時只擋最後一個」的鏈式
+  情形——只往右掃的簡化模型會在「最後一個 wordsign 後面直接接空白」時誤判成獨立
+  情形（官方範例 `"That's enough!"–in a firm voice` 的 in 應該退回拼寫，目前輸出
+  保留縮寫）。試過往左掃已 push 的 tokens 陣列來補這一刀，但發現 bt 的引號配對
+  邏輯會在引號兩側自動插入 `isSpace:true` 的「顯示用」合成空格 token（不是原文
+  真的有空格），導致「遇到空白就停」的判斷不可靠，會提前誤判——這個坑本身已經
+  超出這輪範圍，加上鏈狀多個 wordsign 相連在真實教材文字裡極罕見，評估後刻意
+  收斂、只做往右掃，回退了往左掃的實作。
+- `"In any case"` 前面緊接開引號、後面接空白，官方仍要退回拼寫，但
+  `Listen!—In this case` 前面緊接破折號、後面也接空白卻保留縮寫——兩個範例
+  方向相反，樣本太少無法歸納規則，沒有實作「前導字元」判斷，維持現狀。
+
+用本機 HTTP server（Node 寫的簡易靜態伺服器，非 python，這台機器沒裝）+ Chrome
+瀏覽器跑真實 `render()` pipeline 驗證，含 be/his/was/were 既有案例、一般句子
+全部無 regression；`reg-bt.html` 446/446 全部通過。
+
+## bt：UEB Section 7（標點）稽核第一輪（進行中，2026-09-03）
+
+### 背景與範圍界定
+使用者要求「先把 t2b（bt）完整處理」，比對整份 UEB 2024 規則書。先盤點 bt 實際
+功能範圍：**沒有實作** Section 9（排版強調/斜體粗體）、12（古英文）、13（外語
+切換）、14（code switching）、15（重音/格律標記）、16（導引點/行模式格式）、
+4（重音字母修飾符）——這些不算稽核範圍，是功能缺口不是規則錯誤；Section 11
+（技術/數學材料）是 nc 的工作。真正要稽核的剩餘範圍：Section 2、3、6、7、8，
+加上 Section 10 沒做完的 10.10-10.13。這輪先做 **Section 7（標點）**。
+
+### 已修好的 4 個真 bug
+1. **半形 `?`/`!` 被誤塞進強制空格**：`TERMINAL` 常數（分詞用，句末標點後自動補
+   一個空格 token）原本混了全形中文標點（。？！）跟半形英文標點（?!），中文
+   本身無空格分詞、句界需要這個補的空格沒問題，但半形英文標點本來就靠原文空白
+   分詞，官方範例（`What??? ⠠⠱⠁⠞⠦⠦⠦`、`STOP!! ⠠⠠⠌⠕⠏⠖⠖`、
+   `persons?/people? ⠏⠻⠎⠕⠝⠎⠦⠸⠌⠏⠑⠕⠏⠇⠑⠦`）完全不加空格，"What???" 之前會被
+   誤譯成三個問號中間各插一個空格，"a?b" 這種無空格黏著寫法也會被拆開。
+   → `TERMINAL` 改成只留全形中文標點，半形 ?/! 移除（Rule 7.1.2 只要求「多個
+   空格收斂成一個」，沒有要求「原文沒空格也要生一個」）。
+2. **問號 grade-1 symbol indicator（Rule 7.5.2-7.5.4）完全沒實作**：問號 ⠦ 跟
+   「his」lower wordsign／開雙引號共用同一格，規則書規定問號緊接（可穿過 2.6.2
+   允許的開括號/開引號/撇號）空白/連字號/破折號/字串開頭時要加 ⠰ 消歧義，緊接
+   字母/數字/其他標點（多數情況）則不用。原本完全沒做，`?-1750`／`(?—1750)`／
+   `10:30-?`／`Replace each ? with a letter: ?e??u` 這類寫法全部漏加 ⠰。
+   → `getPunct` 新增 `_isStandAloneLeftBoundary(text, pos)`（通用的 2.6.2 左邊界
+   檢查函式）+ `Q1_TRANSPARENT`（開括號/開引號/撇號穿透集合），問號命中時前面
+   插入 `G1_SYM`。用官方例句全部驗證通過。
+3. **單字母 wordsign（WS_LETTERS：b c d e f g h j k l m n p q r s t u v w y）
+   完全沒有 standing alone 判斷**：`translateG2Word` 原本只要整個 run 剛好是
+   單一字母就無條件加 ⠰，沒檢查是否真的 standing alone（2.6.1：前後都要是空白/
+   連字號/破折號，可穿過 2.6.2/2.6.3 允許清單）。官方範例 `?e??u` 裡的 e/u
+   緊貼問號、不是 standing alone，不該加 ⠰（官方 `⠰⠦⠑⠦⠦⠥`，e/u 都是純字母），
+   但 bt 原本一律加。
+   → 沿用同一個 `_isStandAloneLeftBoundary`（左邊界）+ `WS_BREAK_TRAILING`
+   （右邊界，跟 alphabetic/strong wordsign 共用）在 `translateWordWithApos`
+   裡攔截，不是 standing alone 時繞過 `translateG2Word`、直接輸出純字母。
+   `WS_LETTERS` 從 `translateG2Word` 內部 hoist 成模組層級常數以便共用。
+4. **多個空格沒有收斂成一個（Rule 7.1.2）**：`Yes,  please.`（兩個空格）原本
+   輸出兩個空方，規則書明訂「不管原文幾個空格，點字只留一個」。
+   → 分詞主迴圈遇到空白時，消耗掉後面連續的空白字元，只 push 一個空格 token。
+   **踩過的坑**：第一版用 Node 腳本直接改字串時漏掉了原本 `continue;` 陳述式，
+   導致跳過 `continue` 後用「已經過期」的 `ch`/`i` 落到後面的分支，"a b" 這種
+   最基本的單一空格案例反而整個壞掉（`b` 憑空消失、後面字全部對不上）——用
+   446 回歸測試沒測出來（reg-bt.html 測的是單詞不是含空格的完整句子），是肉眼
+   測 "a b" 才抓到，**改動空白/分詞這類貫穿全文的核心邏輯，一定要測完整句子，
+   不能只信單詞層級的回歸測試**。
+
+### 技術筆記：braille-translate.htm 是 CRLF 換行
+這次才發現 `braille-translate.htm` 用 `\r\n`（CRLF）換行，不是 `\n`（LF）。
+Edit 工具的多行 `old_string` 比對用 LF 假設，直接複製貼上多行字串當
+`old_string` 會「找不到字串」失敗（單行 `old_string` 不受影響，因為沒有跨行
+比對）。踩到時的排查方法：`node -e "console.log(JSON.stringify(fs.readFileSync(...,'utf8').split('\n')[N]))"` 印出該行 raw 內容，若結尾是 `...\r"` 就是 CRLF。
+繞過方法：改用 Node 腳本直接讀檔、用陣列 index（`split('\n')`，每行結尾自帶
+`\r`）定位要改的行，而不是用多行字串比對；**改完務必整段重讀確認邏輯完整
+（尤其 `continue`/`break` 這類容易被漏掉的陳述式），不能只看 diff 片段**。
+CLAUDE.md 本身也是 CRLF，同一個坑之後改這個檔案時也可能踩到。
+
+### 已知但這輪沒修、記錄供下一輪參考
+- **Rule 7.2.6 雙連字號當破折號**：`an expression--such as this--set apart`
+  官方把 `--` 轉成破折號符號 `⠠⠤`（例：`⠎⠨⠝⠠⠤⠎⠡`），bt 目前原樣輸出兩個獨立
+  連字號 `⠤⠤`，沒有這條轉換。
+- **`persons?/people?` 的 "people" 不該用 alphabetic wordsign**：官方例句裡
+  "people" 前面緊接斜線時是逐字母拼出（`⠏⠑⠕⠏⠇⠑`），不是單格縮寫 `⠏`，但
+  bt 目前直接用縮寫——只有這一個範例，還不確定是「斜線讓 people 不算
+  standing alone」還是別的原因，也可能跟已經記錄的 in/out vs enough/sufficient
+  斜線不對稱屬於同一類問題，需要更多範例才能下手。
+- **Section 2.6.4 範例 `section B2 ⠎⠑⠉⠰⠝ ⠠⠃⠰⠔⠼⠃`**：大寫字母後緊接數字
+  （`B2`）中間官方插入了 `⠰⠔`，bt 完全沒有這個處理，懷疑是 Section 6
+  （Numeric Mode）字母接數字的消歧義規則，這輪沒深入查，留給 Section 6 那輪。
+- **`child-safe` 範例多了一個 `⠨⠂`**：2.6.2 範例列表裡 `child-safe` 開頭比
+  bt 現在輸出多一個 `⠨⠂`，不確定是這個範例本身用來示範某個 2.6.2 情境的
+  合成前綴、還是真的漏規則，需要再查才能判斷，這輪沒動。
+- Section 7.6（引號/撇號）已有大量既有實作跟稽核記錄（見前面「轉換判斷修正
+  一輪」等段落），這輪沒有重新逐條核對；但 7.6.8/7.6.10 有一個新發現的細節
+  沒查證：規則書規定「單獨的引號本身 standing alone 時要讀成 wordsign」
+  （開雙引號⠦=his、閉雙引號⠴=was、開單引號⠠⠦=His、閉單引號⠠⠴=Was、
+  雙向不定引號⠠⠶=Were），如果 bt 有輸出「單獨一個引號字元」的情境（不常見），
+  需要用兩格引號 ⠘⠦/⠘⠴ 避免誤讀，這輪沒有測試 bt 會不會踩到這個情境。
+
+尚未核對的 Section 7 部分：7.2（dash/hyphen 完整規則，只驗證了雙連字號那條
+未做）、7.3（ellipsis 間距）、7.4（solidus 換行處理，bt 沒有分行功能，可能
+不適用）、7.7（multi-line brackets，bt 沒有這個功能）。
+
+## bt：UEB Section 8（大寫）稽核第一輪——capsphrase 合併邏輯被 liblouis 覆蓋掉的重大 bug（已修，2026-09-03）
+
+### 發現過程
+延續 Section 7 稽核往下做 Section 8。`postProcessCaps` 函式裡本來就有處理
+「連續 3 個以上全大寫詞要合併成 ⠠⠠⠠...⠠⠄ capsphrase」（UEB 8.5.2-8.5.3）的
+`runLen >= 3` 分支，邏輯看起來完整，但實際測 `GIVE MORE THAN ENOUGH`／
+`CAUTION: WET PAINT!` 這類官方規則書 4 詞/3 詞範例，輸出完全不對：每個詞各自
+保留自己的 ⠠⠠、詞與詞之間還多出詭異的雙重空格、結尾也沒有 ⠠⠄ 終止符——
+`postProcessCaps` 的合併結果整個看起來像沒生效過一樣。
+
+### 根因（兩個疊加的 bug）
+1. **`applySpanTranslation` 把 `postProcessCaps` 的合併結果蓋掉了**：pipeline
+   順序是 `tokenizeWithCustom → postProcessCaps → applySpanTranslation`，
+   後者對每個 `isEnglish` token（沒有 `isCustom`/`isNemeth`/`wsNotStandingAlone`
+   旗標時）會用「前詞 空格 本詞 空格 後詞」重組字串丟給 liblouis 重新翻譯、
+   直接覆蓋 `.braille`。liblouis 這個 span 只看得到緊鄰前後各一詞，看不到
+   `postProcessCaps` 才知道的「這整段其實是 4 詞的 capsphrase」，會用自己的
+   per-word ⠠⠠ 猜測蓋掉已經合併好的 ⠠⠠⠠ 結果——這正是這個 session 稽核
+   enough/in 時就已經踩過、也用同一套「旗標讓 applySpanTranslation 跳過」機制
+   修過的模式（見前面 enough/in／wordsign standing alone 段落），這次是同一個
+   根因在完全不同的規則（Section 8 大寫）上又發作一次。
+   → `postProcessCaps` 在直接改動 `.braille` 的兩個地方（capsphrase 合併、
+   `attachEndCaps` 補終止符）都新增 `isCapsProcessed = true` 旗標，
+   `applySpanTranslation` 的 skip 條件加上這個旗標。
+2. **run 偵測邏輯遇到標點就中斷，但 8.5.2 明訂 passage 可以夾雜標點**：原本
+   「找連續全大寫詞」的迴圈只放行空格（`isSpace`）中間插入，遇到任何非空格、
+   非全大寫英文的 token（包括純標點如冒號、數字）就直接 `break`，導致
+   `CAUTION: WET PAINT!`（冒號隔開 CAUTION 跟 WET）在偵測階段就被切成三段各自
+   獨立的 1 詞 run，永遠不會湊到 `runLen >= 3` 的門檻。8.5.2 原文明講「a passage
+   is three or more symbols-sequences and **it may include non-alphabetic
+   symbols**」——`FOR SALE: 1975 FIREBIRD`、`A.A. (ALAN ALEXANDER) MILNE` 這類
+   官方範例本身就是明證。
+   → run 偵測迴圈的中斷條件改成只有「真正小寫/混合大小寫的英文字」才會中斷，
+   純標點（`!t.isEnglish`）一律放行、繼續往後找下一個全大寫詞。
+
+### 驗證
+用 `document/2024_braille.txt` 官方例句（`GIVE MORE THAN ENOUGH`／
+`CAUTION: WET PAINT!`／`STOP RUNNING NOW!  It's dangerous.`／
+`Please KEEP OFF THE GRASS in this area.`／`FOR SALE: 1975 FIREBIRD`／
+`THE BBC AFRICA NEWS`）真瀏覽器 render() 跑過，**6/7 逐字元完全吻合**，一般
+非全大寫句子、2 詞以下的 capsword（`NEW YORK`、`PARLIAMENT`）都無 regression，
+446 條回歸測試全過。
+
+### 已知但沒修的殘留問題
+`He shouted "I WILL NOT!"` 這條官方例句裡，終止符 ⠠⠄ 跟閉引號 ⠴ 的先後順序
+跟官方相反：官方是 `...⠝⠖⠠⠄⠴`（終止符在閉引號**之前**，Rule 8.6.2「巢狀
+（nested）」原則——閉引號是在 capsphrase **之前**就開的，所以要在 capsphrase
+**之後**才閉，終止符要先收），bt 目前輸出 `...⠝⠖⠴⠠⠄`（順序相反）。
+`attachEndCaps` 目前的邏輯是「找到 capsphrase 後面第一串連續標點，終止符無條件
+加在這串標點的最後面」，沒有處理「這個標點是不是本來就巢狀包住 capsphrase的
+閉合符號」這個區分，需要額外判斷閉引號/閉括號是否對應到 capsphrase **開始前**
+就已經打開的引號/括號才能正確決定終止符插入位置——範圍比這次的主要 bug 更小、
+更少見（大寫段落剛好被引號整個包住的情況），這輪沒有修，記錄供下一輪參考。
+
+Section 8 還有 8.3（重音字母大寫、Section 4 相關）、8.4.3-8.4.4（行末斷字大寫，
+bt 沒有分行功能，可能不適用）沒有逐條核對。
+
+## bt：UEB Section 6（數字模式）稽核第一輪（進行中，2026-09-03）
+
+### 已修好的 1 個真 bug：6.5.2 數字後 a-j 字母缺 grade-1 indicator（句點/逗號中介的情況）
+Rule 6.5.2：小寫 a-j 緊接在數字/句點/逗號後面時要加 ⠰（跟數字的點位共用同一組
+形狀，避免誤讀）。`3b`（數字直接接字母）這種已經有做，但 `4.b`／
+`report3.doc`（數字→句點→字母）完全沒加——根因是外層 tokenizer 只有「句點前後
+都是數字」才會把句點併入同一個 run（處理小數點），`4.b` 的句點後面是字母，
+三者被切成 `4`／`.`／`b` 三個獨立 token，數字模式的狀態沒有跨 token 傳遞。
+→ 新增 `_precededByNumericDigit(text, pos)`（往前掃過一個句點/逗號檢查是不是
+數字），在 `translateWordWithApos` 算好之後：(1) 單字母 WS_LETTERS 分支跟
+wordsign standing alone 判斷並列成另一個獨立成立條件；(2) 一般多字母詞
+（如 `report3.doc` 的 `doc`）在呼叫 `translateG2Word` 後檢查結果開頭是否已有
+⠰，沒有的話補上——只補一次，不限單字母。用官方例句
+`3b`/`3B`/`3m`/`4.2`/`4.b`/`4.B`/`4.m`/`report3.doc`/`report3.xls`/
+`houses4lease` 全部驗證通過，446 回歸測試全過。
+
+### 發現但沒修的問題
+
+**a. WS_LETTERS/wordsign standing alone 的邊界掃描是「只看下一個字元」的簡化版，
+不是真的掃到底**：Section 7 稽核時建的 `_isStandAloneLeftBoundary`（左邊界）
+跟 `WS_BREAK_TRAILING`（右邊界）用的判斷本質上都是「檢查緊鄰的下一個字元是否
+在允許清單內」，但官方規則 2.6.3 的原文是「這些符號介於字母跟後面的空白/連字號/
+破折號**之間**」——也就是穿過允許的標點後，終點必須真的是空白/連字號/破折號，
+不是「隨便一個允許的標點就好，不管它後面接什麼」。這在大多數情況下沒差（允許
+標點後面接的通常就是空白，一般句子如此），但遇到「允許標點後面接的不是空白，
+是別的內容」時就會誤判：`K.545`（規則書 6.4.1 範例本身）官方是 `⠠⠅⠲⠼⠑⠙⠑⠲`
+（K 不需要 ⠰，因為句點後面接的是數字、不是空白，K 其實不算 standing alone），
+但 bt 目前判斷會誤加 ⠰（因為只檢查「緊接的是不是允許清單內的句點」就判定
+standing alone，沒有再往後確認句點後面是不是真的到空白）。
+**這個簡化假設貫穿這個 session 好幾個 fix**（WS_ALPHA_SET/WS_STRONG_SET/
+SHORTFORM_SET 的 trailing 判斷、LOWER_WS_SET 的 trailing 判斷、這次的
+WS_LETTERS），但目前只在 `K.545` 這種「單一大寫字母+句點+數字」的罕見縮寫/
+目錄編號場景抓到反例；範圍太大、風險太高，這輪沒有動手改成真正的「穿透掃描到底」
+版本，記錄下來——如果之後陸續發現更多類似的假陽性（standing alone 誤判成立），
+要考慮把這幾個 trailing 判斷統一換成掃描到底的版本。
+
+**b. Rule 6.6 numeric space 完全沒實作**：`population: 3 245 000`（用空格分隔的
+單一大數字）、電話號碼、日期等，官方規則要求用特殊的「數字空格」符號
+（⠐+數字，10 個專屬符號）把整串視為**同一個數字**，而不是遇到空格就當作獨立
+數字各自重下數字指示符。bt 目前完全沒有這個功能，`population: 3 245 000` 會
+被錯誤拆成三個獨立數字。這是一個**新功能**而不是單純修 bug——規則本身要求
+「不確定是不是同一個數字的分隔空格時當一般空格處理」，需要判斷邏輯（純數字
+之間、且看起來像同一串大數字/電話/日期格式，才套用），不是機械式字元轉換，
+風險/範圍評估後這輪沒有實作，記錄供之後參考。
+
+尚未核對的 Section 6 部分：6.7（日期/時間/幣值格式，部分已對，但跟 6.6 numeric
+space 有交集的案例還沒測）、6.8（spaced numeric indicator，⠼ 後面接空白再接
+數字，較罕見）、6.9（numeric passage，跟 Section 8 capsphrase 類似的大量數字
+段落標記，bt 應該也沒實作）、6.10（跨行數字切分，bt 沒有分行功能，不適用）。
+
+## bt：UEB Section 3（一般符號）稽核抓到的重大 bug——standing alone 右邊界判斷是「擋清單」不是「允許清單」（已修，2026-09-03）
+
+### 背景
+Section 3 大部分是符號對照表（©®±貨幣符號等），逐一跟 `document/2024_braille.txt`
+比對後發現 bt 現有 `UEB_PUNCT` 擴充表本身是對的（先前已對照 liblouis ctb 原始碼
+校正過）。但測 Rule 3.1（ampersand）官方範例 `B&B` 時發現 bt 輸出多了一個不該有
+的 grade-1 indicator（`⠰⠠⠃⠈⠯⠠⠃`，官方是 `⠠⠃⠈⠯⠠⠃`，B 前面不該有 ⠰）。
+
+### 根因：`WS_BREAK_TRAILING` 從一開始的設計方向就反了
+`WS_BREAK_TRAILING`（Section 7/8 這幾輪陸續建立、給 WS_ALPHA_SET/WS_STRONG_SET/
+SHORTFORM_SET/WS_LETTERS 共用的 standing alone 右邊界判斷）原本只是一個「擋
+清單」：`new Set(['(', '[', '{', '‘', '“'])`，邏輯是「預設放行，只擋開括號/
+開引號」。但 UEB 2.6.3 原文其實是「允許清單」：只有明列的符號（逗號/分號/冒號/
+句號/刪節號/驚嘆號/問號/右括號/右引號/不定向引號/撇號）才算 standing alone，
+沒列出的symbol 一律不算——`&`（ampersand）沒有在 2.6.3 清單裡，也不是開括號，
+用擋清單邏輯會誤判成「還算 standing alone」，導致 `B&B`、`Q&A`、`R&D` 這類
+常見縮寫的字母被誤加 ⠰。
+
+這個方向性錯誤在 Section 7/8 稽核時沒被抓到，因為當時測試案例全部集中在 2.6.3
+清單內、且是「開括號/開引號 vs 逗號/句號等」這組已知對比的標點，沒有測過完全
+不在清單內、也不是開括號的符號（ampersand、星號、波浪號等 Section 3 的一般符號）
+——直到這輪核對 Section 3 才第一次測到 `&`，暴露這個方向性問題。
+
+### 修法
+把 `WS_BREAK_TRAILING`（擋清單）換成 `STANDALONE_TRAILING_ALLOWED`（允許清單，
+2.6.3 條文列出的符號＋連字號/破折號本身——後者是 2.6.1 的終點邊界本身，不是
+「允許穿透」的符號，但效果一樣要放行，跟空白同一類），6 處使用點全部從
+「有沒有命中擋清單」反轉成「沒命中允許清單」。**enough 的 `_blockOpen` 判斷
+故意沒有套用同一份允許清單**，維持原本只查開括號/開引號的窄範圍（新命名
+`WS_OPEN_BLOCKING`）——因為 enough 除了基本 standing alone，還有 10.5.4 更
+寬鬆的序列規則（`_lowerSeqResolves` 會繼續往後掃描找上位點訊號），如果這裡也
+套用完整允許清單反查，會在 `_lowerSeqResolves` 還沒機會解圍前就把「&」這類
+符號提前擋掉，跟 10.5.4 的寬鬆用意衝突。
+
+**修的過程中自己踩了一個坑，測試才抓到**：第一版 `STANDALONE_TRAILING_ALLOWED`
+忘記把空白字元本身放進允許清單（只顧著加 2.6.3 條文列出的標點），導致
+`nextCh` 是空白時「不在允許清單內」被誤判成「不是 standing alone」——這比
+原本的 bug 嚴重得多，`That was right!`、`it was enough`、`people like you`、
+`Do you have it?` 這種最基本、後面接空白的句子全部被打壞（wordsign 全部退化
+成逐字母拼寫）。**教訓：改動 standing alone 這類貫穿全文的核心判斷邏輯，
+換套用整個句子測，不能只測改動動機本身的那個案例（`B&B`），基本款案例
+（單純接空白）反而最容易因為「以為已經涵蓋、其實漏掉」而漏測。**
+
+### 驗證
+用官方範例 `B&B`／`AT&T`／`Q&A`／`R&D` 確認 ⠰ 正確消失；同時完整重測這個
+session 這幾輪累積的所有案例（be/his/was/were、enough/in、單字母 wordsign、
+capsphrase、一般句子）確認零 regression；446 條回歸測試全過。
+
+## bt：UEB 10.10-10.13 稽核（進行中，2026-09-03）
+
+### 10.11.1（複合詞不可跨界縮寫）/ 10.11.2（h 不發音時照常縮寫）/ 10.11.3（be/con/dis 字首）：抽測全過，確認已正確
+用 `document/2024_braille.txt` 抓出官方範例逐條測（compound word 25 個、
+aspirated-h 8 個+3 個「But」反例、be/con/dis 字首 7 個），**全部逐字元吻合**，
+沒有動手改任何東西——這幾條規則本質是「哪些詞的縮寫要被特定字母組合擋掉」的
+詞彙表資料，bt 現有的 `G2_WORD`/blocking predicate 顯然已經是從可靠來源（很可能
+liblouis 字典本身）建的，不是需要重新推導的規則邏輯，這輪確認品質已經很好。
+
+### 10.10.10「Lower sign rule」（多個 lower wordsign 相連時只擋最後一個）：找到新證據，釐清但仍未修
+這條就是稽核 enough/in（10.5.2-10.5.4）時多次遇到、最後決定不修的「鏈狀多個
+lower wordsign 相連」限制的正式規則編號跟完整條文。這輪讀到官方例句
+`"Enough!" ⠦⠠⠢⠳⠣⠖⠴` 才第一次抓到一個**修正了之前理解的重要新事實**：
+- 條文明文規定「任何引號一律視為只有下位點」（跟 10.5.1 be/his/was/were 用的
+  同一句話），這代表 `_lowerSeqResolves` 裡把「閉引號視為解圍訊號」這個判斷
+  **理論上是錯的**——引號本身沒有上位點，不該算解圍。
+- 但這個判斷當初是靠 `teach-in`（⠦⠞⠂⠡⠤⠔⠴）這個範例反推出來的，這次重新分析
+  才發現：`teach-in` 真正解圍的原因其實是 `teach` 本身是有上位點字母的真實
+  單字（透過連字號穿透掃描找到），閉引號只是剛好也在後面、從未真正是解圍的
+  原因——「引號解圍」是誤歸因，只是巧合對過。
+- 兩個要求互相衝突：拿掉「引號解圍」會讓 `"Enough!"` 這種案例修對，但因為
+  bt 目前是「只往右掃」的簡化模型看不到 `teach-in` 左邊的 `teach`，會連帶
+  讓 `teach-in` 變成誤判（bt 看不到左邊解圍，唯一撐住它的是那個其實不該存在
+  的「引號解圍」）。要兩個都對，必須做雙向掃描＋能分辨「這串字母是不是已經
+  要被壓成 wordsign、其實不含上位點」——這正是先前評估過、因為 bt 的引號配對
+  邏輯會插入合成空格 token 而放棄的雙向掃描（見 enough/in 那段的「已知但沒做」
+  記錄）。
+- **這輪的判斷**：`teach-in` 這類「連字號複合詞」在真實文字裡遠比
+  `"Enough!"` 這種「整句只有一個獨立 wordsign、外層剛好包一層引號」常見，
+  兩害相權，維持現狀（保留引號解圍，`teach-in` 對、`"Enough!"` 錯）風險
+  比反過來小。沒有修改程式碼，只更新了對這個限制成因的理解，記錄下來。
+
+### 10.10.1-10.10.9（groupsign 選用優先序、發音相關判斷）：確認為詞彙表資料，不深入
+這幾條規則本質是「同一個詞有多種可能縮寫時該選哪個」的原則（省空間優先、
+strong 優先於 lower、避免扭曲發音等），例字都是個別單字的縮寫選擇結果，
+性質跟 G2_WORD 巨表一樣屬於「機械化資料」，不是可以獨立稽核的規則邏輯
+——維持先前稽核（Section 10 contractions 第一輪）就定調的判斷：優先度低，
+不逐條核對。
+
+### 10.12（Miscellaneous）：規則本身是「原則說明」，非機械可測試規則
+10.12.1-10.12.14 大部分是「不確定發音時怎麼辦」「方言/縮寫/暱稱等特殊詞彙
+沿用一般規則」這類**原則性、需要人工判斷**的說明文字，沒有新的、獨立於
+10.1-10.11 之外的機械規則需要另外實作。10.12.3（電腦資料如 email/URL 內嵌
+一般文字要照常用縮寫）先前稽核 bt→nc 銜接時已確認過行為一致（見「nc → bt
+銜接工作流程調查」段落）。
+
+### 10.13（Word division，跨行斷字）：確認不適用
+整節都是「點字換行時單字/連字號怎麼斷」的規則，bt 沒有逐行分頁/換行功能，
+不適用，維持先前稽核就已經做的判斷。
+
+**10.10-10.13 這輪到此告一段落**——已經涵蓋規則書裡跟 bt 現有實作直接相關的
+部分；剩下沒動的都是（a）詞彙表資料（10.10.1-10.10.9、G2_WORD 巨表本身）或
+（b）需要雙向+dot-pattern-aware 掃描才能完整解決、已經評估過風險大於效益
+的深層限制（10.10.10 lower sign rule 鏈式情形）。
+
+## bt：殘留問題處理輪（已完成 2 個真 bug + 釐清 1 個誤會，2026-09-03）
+
+### 修好：WS_ALPHA_SET/WS_STRONG_SET/SHORTFORM_SET 完全沒檢查左邊界（2.6.1/2.6.2）
+Section 7.5.1 官方範例 `persons?/people?` 裡的 "people" 緊接在 "/" 後面（不在
+2.6.2 允許清單內，只有開括號/開引號/撇號/typeform/大寫指示符才允許穿透），
+不算 standing alone，官方逐字母拼出（`⠏⠑⠕⠏⠇⠑`），但 bt 一直都用整詞縮寫
+（`⠏`）——根因是 `translateWordWithApos` 對 WS_ALPHA_SET/WS_STRONG_SET/
+SHORTFORM_SET 這條路徑從頭到尾**只查右邊界**（`nextCh`），完全沒有查左邊界，
+只有 WS_LETTERS（單字母 wordsign，Section 7 稽核時才補上）才有用
+`_isStandAloneLeftBoundary` 查左邊界。補上左邊界檢查（跟 WS_LETTERS 共用同一個
+函式），`wsNotStandingAlone` 旗標也對應加了獨立的 `_wsAlphaLeadBlocked` 判斷
+（不能放進原本被 `!!text[i]` 包住的判斷式，因為左邊界問題不需要「後面有沒有
+接東西」這個前提）。用 `persons?/people?` 官方範例 + 一般句子（people like
+you、Do you have it? 等）+ 446 回歸測試驗證，零 regression。
+
+### 修好：Rule 8.6.2 巢狀終止符順序
+`He shouted "I WILL NOT!"` 官方是 `...⠝⠖⠠⠄⠴`（終止符在閉引號**之前**），
+bt 原本輸出 `...⠝⠖⠴⠠⠄`（順序相反）——見上一輪（Section 8 稽核）記錄的殘留
+問題。`attachEndCaps` 新增 `_capsFindNestedCloser`：檢查 capsphrase/capsword
+開始前緊接的 token 是不是開括號/開引號，如果 caps 結束後的標點串裡有它的
+閉合對應，終止符插在那個閉合符號前面（`CAPS_CLOSING_OF` 對照表 + 直引號同
+字元比對），不是插在整段標點最後面。用官方範例驗證，446 回歸測試全過。
+
+### 釐清（非 bug）：`child-safe` 的 `⠨⠂` 不是遺漏，是範例本身帶 typeform 指示符
+重新對照原文才發現 2.6.2 那組例子（`p ⠨⠆⠰⠏`、`people ⠘⠂⠏`、`enough ⠸⠂⠢`、
+`child-safe ⠨⠂⠡⠤⠎⠁⠋⠑`）每一個前面都帶了不同的 typeform symbol indicator
+（斜體/粗體/底線），用來示範 2.6.2「開啟的 typeform 指示符可以穿透」這條，
+不是單獨的 "child-safe" 該有的輸出。bt 沒有實作 typeform（Section 9，前面已
+確認不適用），所以 bt 現在的純輸出（不含 typeform 前綴）本來就是對的，之前
+稽核記錄誤把帶 typeform 前綴的範例當成純文字比對，已訂正、不用修任何程式碼。
+
+### 仍未處理（評估後維持現狀）
+- Rule 6.6（numeric space，新功能非 bug）
+- K.545 型 standing alone 假陽性（左/右邊界判斷都是「只看下一個字元」的簡化
+  版，沒有掃到真正的空白/連字號/破折號終點；風險/範圍評估後仍未動手）
+- in/out vs enough/sufficient 斜線不對稱（需要第二來源驗證）
+- 10.10.10 lower sign rule 鏈式情形（`"Enough!"`），需要雙向+dot-pattern-aware
+  掃描才能完整解決，已評估過風險大於效益
+- 7.2.6 雙連字號當破折號：規則本身「有疑慮就用雙連字號」，bt 現在的行為
+  已經是規則允許的保守預設，不需要額外實作
+
+## bt「ueb自定」模式 + query（UEB-g2-query.html）稽核（已完成主要部分，2026-09-04）
+
+### bt ueb自定 模式：確認繼承這個 session 全部修好的 bug，沒有額外問題
+`ueb-custom` 模式跟 `ueb-g2` 模式共用同一套 `tokenizeWithCustom`/
+`translateWordWithApos`/`postProcessCaps`/`applySpanTranslation` pipeline，
+差別只在 `getActiveG2Tables()` 回傳全表還是 `buildFilteredTables(ucpEnabled())`
+篩選過的表。全部 13 個規則類別開啟時，跑這個 session 修過的全部測試案例
+（you(、was,、B&B、persons?/people?、4.b、enough/in、capsphrase 等）逐字元
+比對，跟 `ueb-g2` 模式輸出完全一致；個別關閉某類別（測了 lw_words）也正確
+回退成逐字母拼寫，沒有錯誤或例外。**這輪沒有在 bt 本身抓到新 bug**，但意外
+發現一個很重要的方法論教訓，見下面「重大發現」。
+
+### 重大發現：bt 在 `ueb-g2` 模式的「正確」有一部分是 liblouis 補救出來的，不是自己的規則邏輯真的對
+`applySpanTranslation` 對每個沒有 skip 旗標的英文 token 都會送去 liblouis 重新
+翻譯、覆蓋掉 `translateG2Seq`/`translateG2Word` 自己算出來的結果——這件事在
+Section 8 稽核 capsphrase 時就抓到一次（那次是「該保護的沒保護，liblouis 誤蓋
+好結果」），這次反過來發現「不該掩蓋的地方也被掩蓋了」：`preamplifier`／
+`hideaway` 這類詞，bt 自己的 `blocksEaGroupsign`/`_BLOCKED_EA` 邏輯其實有漏洞
+（會誤用 ea groupsign），但 `ueb-g2` 模式測起來完全正常——因為這些 token 沒有
+命中任何 skip 旗標，`applySpanTranslation` 照樣把它們送去 liblouis 重新翻譯、
+liblouis 給出正確答案、蓋掉了 bt 自己算錯的中間結果。**只有切到 `ueb-custom`
+模式（liblouis rescue 一樣會跑，但因為兩者這次剛好都测出同樣的錯誤結果，才
+確認 bt 自己的規則引擎跟 query 共用同一批漏洞）或 query.html（完全沒有
+liblouis 覆蓋自己輸出的機制，只用來跟自己結果比對顯示徽章）才會真正暴露**。
+**How to apply**：以後懷疑 bt 的 `ueb-g2-rules.js` 規則邏輯（不是 standing
+alone 那類、而是 groupsign 選用本身）有沒有 bug，`ueb-g2` 模式測不準，要用
+`ueb-custom` 模式（`ucpSetAll(true)` 全開）或直接測 query.html 才會看到真正
+未經 liblouis 補救的結果。
+
+### 用這個方法論抓到、修好的 4 個真 bug（ueb-g2-rules.js，bt/query 共用）
+1. **`_BLOCKED_EA` 沒有整批擋 'prea'**：liblouis ctb 928 行有一條通用 fallback
+   規則「沒有專屬字典條目的 prea- 開頭字一律不縮 ea」，只有 preach/
+   preachiev(e)/preakness 三個字根有專屬條目、真的縮 ea。原本這裡故意不整批擋
+   'prea'（誤以為會連累 preach 系列），但 preach 系列其實是靠自己的專屬
+   sufword 規則、優先序更高、根本不會走到這個 predicate——沒整批擋的後果反而是
+   `preamplifier`/`preamble` 這類真正該擋的字被漏掉。已修：整批擋 'prea'，
+   額外加 `_EA_PREA_UNBLOCKED_PREFIXES=['preach','preakness']` 用前綴比對排除
+   兩個字根的所有衍生詞（preacher/preaching/preachable 等），不用窮舉。
+2. **`blocksEaGroupsign` 的 `pfxLen` 寫死只有 re-(2)/pre-(3) 兩種前綴長度**：
+   一般複合詞（非 re-/pre- 前綴，兩個獨立單字併成一個詞，如 hide+away）字首
+   長度不是 2 或 3，寫死的假設會讓 `pos < pfxLen` 判斷式失效、永遠不會擋。改成
+   從命中的 pattern 本身推導：`pfxLen = p.indexOf('ea') + 1`，通用適用任何
+   長度的字首。同時把 `hidea`（hideaway）加進 `_BLOCKED_EA`。
+3. **query 的 gg/bb/cc/ff「讓給 always」lookahead 沒有檢查那個 always 候選會
+   不會被複合詞跨界規則擋掉**：`egghead` 在位置 1 的 gg 因為位置 2 湊得出
+   "gh"（GA 表裡存在）而被錯誤放棄「讓給」，但 gh 在 egghead 這裡實際上會被
+   `blocksCrossCompound` 擋掉（跨 egg/head 複合詞界）——結果變成兩個都沒縮
+   （逐字母拼出 g-g）。已修：yield 前先確認那個 always 候選不會被
+   `blocksCrossCompound` 擋，會被擋就不讓，繼續用原本的 gg。
+4. **`_GH_BLOCKED_STEMS` 缺 'egg'**：這是第 3 點的根本原因之一——
+   `blocksCrossCompound('gh','egghead',2)` 本來因為 'egg' 不在停用字根清單裡
+   而回傳 false（不擋），egghead 官方規則書 10.10.5「But:」例外清單明確要求
+   gg 不要 gh。加入 'egg' 到 `_GH_BLOCKED_STEMS`。
+
+用官方規則書例句（egghead/preamplifier/hideaway 等）+ 既有的 40+ 個
+compound/aspirated-h/be-con-dis 測試詞批次重測 + 446 條回歸測試，全數通過、
+零 regression。
+
+### query 額外發現、還沒修的問題
+- **`dishonest`**：query 顯示 `⠙⠊⠩⠕⠝⠑⠌`（sh+onest，錯），官方是 `⠲⠓⠐⠕⠌`
+  （dis 開頭縮寫）。根因追查到 `LL_MATCH_SUF` 有一條 "onest" 條目（大概是為了
+  honest 這個字本身），比對時用 `lw.indexOf('onest')` 找到 dishonest 裡的
+  "onest" 子字串、把前段 "dish" 遞迴丟回 `translateWord` 當獨立單字翻譯——但
+  "dish" 剛好自己就是一個真實單字（餐盤），有自己的整詞字典條目，於是被錯誤
+  當成「dish」這個詞翻譯（用 sh 縮寫），而不是「dis-」前綴+"h"。**這是一個
+  potentially 系統性的架構風險**：`LL_MATCH_SUF`／LL_MATCH 這類「切一段字根、
+  前后段遞迴丟回 translateWord」的機制，只要切出來的片段剛好巧合等於另一個
+  真實單字，就可能被那個字的整詞字典條目劫走、失去「這其實是某個更大詞的
+  片段」的資訊。這次沒有修（範圍不確定多大、需要先弄清楚 LL_MATCH_SUF 遞迴
+  呼叫時要怎麼標記「這是片段不是完整詞」才能安全排除整詞字典查詢，风险較高），
+  記錄下來，之後如果還發現類似案例（切出來的片段剛好是別的真實單字）可以
+  參考這個根因。
+- query 沒有實作 Section 7 一般標點的翻譯（`cat.`/`Hello, world!` 這類句子，
+  句號/逗號/驚嘆號都是原樣輸出 ASCII 字元，不轉點字）——**這是設計範圍內的
+  限制，不是 bug**：query 的定位是「輸入英文單字，查詢用了哪條縮寫規則」的
+  教學工具（UI placeholder 明講），不是像 bt 一樣的全文翻譯工具，句子層級的
+  標點翻譯本來就不是它的功能範圍。
+
+## b2t（braille-to-text.html）稽核：往返測試法 + 修好一個真 bug（2026-09-04）
+
+### 方法論：往返測試（round-trip），不是逐條規則比對
+b2t 是反方向工具（點字→文字），架構上跟 bt/nc/query 完全不同——它**不是**自己
+重新實作一套 UEB 規則引擎，核心解碼直接呼叫 liblouis WASM 的
+`_lou_backTranslateString`（`_louBackTranslate`），bt 那幾輪抓到的「規則判斷
+邏輯錯誤」類 bug 基本上不適用（b2t 沒有自己的規則判斷邏輯，是 liblouis 的
+責任）。b2t 自己的程式碼主要是「中文注音 vs 英文 UEB 分段」跟少數已知 WASM
+解碼缺陷的後製修正（如既有的撇號亂碼修正 `_fixBackTranslateMojibake`）。
+因此這輪稽核方法改成：**用這個 session 已經驗證過的 bt 正確輸出（英文句子→
+確認過的正確點字）反向丟進 b2t，檢查解碼回來的文字跟原文是否一致**——這樣
+同時測得到 b2t 自己的分段邏輯、也測得到 liblouis 反向翻譯本身的正確性。
+
+### 修好的真 bug：`_isChineseChunk` 只驗證 tokens[0]，沒驗證整塊
+`_segmentLine` 把一行依空格切塊，每一塊呼叫 `_isChineseChunk` 判斷是中文注音
+還是英文 UEB，再合併相鄰同類型塊。`_isChineseChunk` 原本（見
+`project_braille_to_text` 記憶「中文注音/英文 UEB 誤判」那次修復）已經有做
+「往返驗證」防止 McBopomofoWeb 誤讀語法順序不合法的注音——但**只驗證了
+`tokens[0]`**，如果一個 chunk 的前幾格剛好湊出一個合法注音音節、後面剩下的
+格子轉不出音節而變成裸字串殘留在 `tokens[1]` 之後，完全沒被檢查到。
+**具體案例**：英文 "than" 的點字 `⠹⠁⠝`（th-groupsign+a+n），前兩格 `⠹⠁`
+剛好是合法注音「ㄧㄣ˙」、往返驗證通過，但最後一格 `⠝` 轉不出音節、變成裸
+字串 `"n"` 留在 `tokens[1]`——只查 `tokens[0]` 完全看不出這個殘留，導致
+`than` 整個被誤判成中文注音，送進 McBopomofo 解碼引擎，輸出完全錯誤的內容。
+這在 `GIVE MORE THAN ENOUGH` 這種真實句子的往返測試中直接現形
+（"than" 憑空消失、輸出跑掉）。
+→ 修法：檢查迴圈改成 `tokens` 裡**每一個**元素都要是合法 `BopomofoSyllable`
+物件（沒有殘留裸字串），且**每一個**都要通過往返驗證，不是只查第一個。
+測過 18 個常見英文詞（than/that/this/with/the/and/for/of/was/were/more/
+some/time/name/here/there/where/one）確認只有 than 誤判、其餉都正常，這輪
+修完後 than 正確判回英文，單音節/多音節真正的中文注音（用 mcbopomofo 自己的
+編碼函式反向產生的測試資料）都還是正確判成中文，沒有 regression。
+
+### 發現但沒修：liblouis WASM 反向翻譯把「enough + capsphrase 終止符」讀成 "en"
+`_louBackTranslate('en-ueb-g2.ctb', '⠢⠠⠄')` 回傳 `"en"`（應為 `"enough"`；
+`⠢` 單獨測是對的，加上終止符 `⠠⠄` 之後才錯）——這是 liblouis WASM build
+本身反向翻譯表的缺陷（跟已知的撇號 mojibake 問題同一個性質，repo 位元組層級
+原封不動載入的問題，不是 b2t 分段邏輯造成的）。**沒有修**：跟 mojibake 那次
+不同，mojibake 是「固定、任何情況下都錯」的位元組序列，可以安全地做無條件
+字串取代；但這裡 "en" 是非常常見、合法的一般輸出（en 本身也是合法縮寫/單字
+片段），沒辦法用簡單的字串取代規則安全修正，需要知道「這個 en 是不是剛好對應
+輸入點字裡的 enough+終止符」這種輸入感知的修正，風險/複雜度較高，這輪沒有
+動手，記錄下來供之後參考。只在 capsphrase/capsword 結尾剛好是 enough 時才會
+踩到，範圍窄。
+
+用這個 session 稽核 bt 時建立的完整驗證句子批次（含大寫段落、撇號、標點、
+wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正確，沒有 b2t 專屬
+的其他新問題。

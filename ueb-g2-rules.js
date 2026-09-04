@@ -281,10 +281,26 @@ function buildFilteredTables(enabledSet) {
 // ════════════════════════════════════════════════════════════
 
 const _BLOCKED_EA = [
-    // pre- prefix（不用 'prea' 整批：會破壞 preach/preachable 等根詞）
-    'preadm',                  // preadmit, preadmission
-    'preapp','preap',          // preapprove, preappoint, preapplication
-    'prear',                   // prearrange, prearrest（不含 preach：ch 不匹配）
+    // pre- prefix：liblouis en-ueb-g2.ctb 928 行「match ... pre [Aa] = default
+    // case for prea- words」是通用 fallback 規則（沒有專屬 word/sufword 條目的
+    // prea- 開頭字一律不縮 ea），只有 preach/preachiev(e)/preakness 三個字根有
+    // 專屬條目、真的縮 ea（ctb 925-927 行）。原本這裡沒有整批擋 'prea'，是因為
+    // 誤以為會連累 preach 系列，但 preach 系列有自己的專屬 sufword 規則、根本
+    // 不會走到這個 blocking predicate（sufword 比對優先序更高）；沒整批擋的
+    // 後果反而是 preamble/preamplifier 這類真正該擋的字被漏掉（稽核 query 時
+    // 用官方例句交叉比對才抓到，liblouis oracle 確認 preamplifier 要擋、
+    // preach 不受影響）。
+    'prea',
+    'preadm',                  // preadmit, preadmission（'prea' 已涵蓋，保留供對照）
+    'preapp','preap',          // preapprove, preappoint, preapplication（同上）
+    'prear',                   // prearrange, prearrest（同上）
+    // 一般複合詞（非 re-/pre- 前綴，是兩個獨立單字併成一個詞，如 hide+away）：
+    // ea 剛好落在複合詞邊界（Rule 10.11.1）不可縮。這類詞沒有規律可循、只能
+    // 個別列舉，目前只確認 hideaway 這一個（bt ueb-g2 模式因為有 liblouis
+    // rescue 掩蓋掉這個缺口，稽核 query 時才用官方例句抓到；bt 的 ueb-custom
+    // 模式和 query 都會直接暴露這個 predicate 本身的缺口，之後如果還有發現
+    // 類似案例，加在這裡）
+    'hidea',                   // hideaway（hide+away）
     // re- prefix
     'reab',                    // line 929: reabsorb
     'reacc','reack','reacq',   // line 930: reaccustom, reacknowledge
@@ -314,16 +330,24 @@ const _EA_UNBLOCKED = new Set([
     'readme','readmes',
     'readonly','readout',
 ]);
+// 'prea' 整批擋掉後的例外字根——這兩個字根在 ctb 有專屬 sufword 條目、真的縮
+// ea（preach/preachiev(e)/preachable/preacher/preaching…、preakness），用
+// 前綴比對涵蓋衍生詞，不用窮舉每個變化形
+const _EA_PREA_UNBLOCKED_PREFIXES = ['preach', 'preakness'];
 
 function blocksEaGroupsign(word, pos) {
     const lw = word.toLowerCase();
     if (_EA_UNBLOCKED.has(lw)) return false;
+    if (_EA_PREA_UNBLOCKED_PREFIXES.some(p => lw.startsWith(p))) return false;
     for (const p of _BLOCKED_EA) {
         if (!lw.startsWith(p)) continue;
         // pos omitted (backward compat): blanket block
         if (pos === undefined) return true;
-        // block only if 'ea' starts before the prefix boundary
-        const pfxLen = lw.startsWith('pre') ? 3 : 2; // pre-=3, re-=2
+        // block only if 'ea' starts before the prefix boundary——pfxLen 從命中
+        // 的 p 本身推導（p.indexOf('ea')+1），不要寫死只有 re-(2)/pre-(3) 兩種
+        // 長度：'hidea' 這類一般複合詞字首是 4 個字母，寫死會把它排除在判斷式外
+        // （稽核 query 時發現 hideaway 因此漏擋，是這裡的死角）
+        const pfxLen = p.indexOf('ea') + 1;
         return pos < pfxLen;
     }
     return false;
@@ -332,6 +356,19 @@ function blocksEaGroupsign(word, pos) {
 // UEB 10.6.9：'en' 單獨成詞時不可用 lower groupsign（跟 enough 同一格 ⠢，會誤讀成 enough）
 function blocksEnAnywhere(word, pos) {
     return pos === 0 && word.length === 2 && word.toLowerCase() === 'en';
+}
+
+// 'in' 單獨成詞時同樣不可用 lower groupsign（10.6.8）：不是規則書 10.6.9 明文規定
+// （10.6.9 原文只提到 'en'，因為 en/enough 是不同詞、需要防誤讀；'in' 的 groupsign
+// 跟 'in' 的 wordsign 是同一個字、同一個點位，規則書沒特別提防呆是因為兩者讀出來
+// 結果一樣，不會誤讀），但 10.5.3/10.5.4 的 lower wordsign 規則會在特定標點情境
+// （如 "Come in," "stay in."）判斷「in」不能用 wordsign、要退回逐字母拼寫——這時
+// 如果 ANYWHERE groupsign 沒有這條防呆，會用同一個點位的 groupsign 把縮寫寫回去，
+// 等於完全沒退到逐字母、白費 wordsign 那邊擋掉的判斷。用官方規則書 docx 例句
+// （document/2024_braille.txt："Come in, stay in." → in,/in. 都是逐字母 ⠊⠝，
+// 不是 groupsign ⠔）驗證這個防呆是必要的，2026-09-03 補上。
+function blocksInAnywhere(word, pos) {
+    return pos === 0 && word.length === 2 && word.toLowerCase() === 'in';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -416,7 +453,7 @@ function blocksOfAlways(word, pos) {
 const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat','cart','sweet','goat']);
 const _WH_BLOCKED_STEMS = new Set(['raw']);
 const _SH_BLOCKED_STEMS = new Set(['trans','mis']);
-const _GH_BLOCKED_STEMS = new Set(['fog','pig']);
+const _GH_BLOCKED_STEMS = new Set(['fog','pig','egg']);
 const _ER_BLOCKED_STEMS = new Set(['state']);
 
 // k = 縮寫鍵, pos = 在整詞中的起始 index

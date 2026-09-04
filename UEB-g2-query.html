@@ -716,6 +716,11 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             // g 開頭的 match 規則（ghous/ghorn/ghead 等）：
             // 若前一字是 n（構成 ong+h 結構），不應觸發（ong 不縮時 g 屬於 ong）
             if(r.s[0]==='g'&&lw[idx-1]==='n')continue;
+            // 若前一字也是 g（構成 gg+head 結構，如 egghead），這個 g 應該屬於
+            // gg lower groupsign（10.11.8），不應該被這條 match 規則搶走整段
+            // 當成 g+head 處理——實測發現的真 bug，egghead 原本兩個 g 都變成
+            // 逐字母、gg 完全沒有縮寫（liblouis oracle 確認要用 gg）
+            if(r.s[0]==='g'&&lw[idx-1]==='g')continue;
             // 複合詞邊界：th/wh/sh/gh 開頭的 pattern 若跨詞界則跳過，讓主循環處理
             {const k2=r.s.slice(0,2);if((k2==='th'||k2==='wh'||k2==='sh'||k2==='gh')&&blocksCrossCompound(k2,lw,idx))continue;}
             const stemEnd=idx+r.s.length;
@@ -1067,10 +1072,20 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                     }
                     if(k==='ea'&&typeof blocksEaGroupsign!=='undefined'&&blocksEaGroupsign(lw))continue;
                     // 其他 lower groupsigns: lookahead 若下一格能形成 always 縮寫則放棄
+                    // ——但要先確認那個 always 候選不會被複合詞跨界規則擋掉，否則
+                    // 「讓給」一個實際上會被擋的候選，會變成兩個都沒縮（真 bug：
+                    // egghead 的 gg 在位置1本該用，卻因為位置2「ggh...」湊得出
+                    // gh（實際上會被 blocksCrossCompound 擋，跨 egg/head 複合詞界）
+                    // 而被錯誤放棄，liblouis oracle 確認要用 gg，見
+                    // CLAUDE.md「query：gg/bb/cc/ff 的 yieldToAlways」）
                     if(k!=='ea'){
                         let yieldToAlways=false;
                         for(const ak of Object.keys(GA)){
-                            if(lw.startsWith(ak,i+1)){yieldToAlways=true;break;}
+                            if(!lw.startsWith(ak,i+1))continue;
+                            const ak2=ak.slice(0,2);
+                            if((ak2==='th'||ak2==='wh'||ak2==='sh'||ak2==='gh'||ak2==='er'||ak2==='ow'||ak2==='ed'||ak2==='ou')
+                               &&typeof blocksCrossCompound!=='undefined'&&blocksCrossCompound(ak2,lw,i+1))continue;
+                            yieldToAlways=true;break;
                         }
                         if(yieldToAlways)continue;
                     }
