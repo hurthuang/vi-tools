@@ -230,7 +230,10 @@ const CTB_ENDWORD={"namese":"=","namesian":"="};
 const CTB_MIDENDWORD={"eance":"\u2811\u2828\u2811","eand":"\u2811\u282f","eaway":"\u2811\u2801\u283a\u2801\u283d","eness":"\u2811\u2830\u280e","iness":"\u280a\u2830\u280e"};
 
 // GA = always groupsigns + strong（dot-5 / 4-5 / 4-5-6 prefixed）groupsigns
-const GA=G2_ALWAYS;
+// 用淺拷貝而非直接指向 G2_ALWAYS：下面會併入 LL_ALWAYS_SEG 的整詞 always 規則，
+// 這些規則只給 query 用（LL_ALWAYS_SEG 過去完全沒接線，是死碼），不能直接改到
+// G2_ALWAYS 本體，否則會連帶影響共用同一個物件的 braille-translate.htm（bt）
+const GA={...G2_ALWAYS};
 
 // === liblouis en-ueb-g2.ctb 規則模擬 ===
 // 從 liblouis-3.29.0/tables/en-ueb-g2.ctb 抽取
@@ -351,7 +354,7 @@ const LL_MATCH=[{stem:"boulevers",re:new RegExp("boulevers[ei]"),brl:"\u2803\u28
 {stem:"oon",re:new RegExp("oon[e]"),brl:null,isAlpha:true},
 {stem:"re",re:new RegExp("re[a][c][t]"),brl:null,isAlpha:true}];
 
-const LL_MATCH_SUF=[{s:"thead",b:"\u281e\u2813\u2802\u2819",i:false,t:"any"},{s:"thear",b:"\u281e\u2813\u2811\u281c",i:false,t:"pattern",r:"[Tt]"},{s:"theim",b:"",i:true,t:"any"},{s:"edale",b:"",i:true,t:"boundary",m:"([Ss]|(['\u2019][Ss]))?"},{s:"edown",b:"\u2811\u2819\u282a\u281d",i:false,t:"any"},{s:"ghead",b:"\u281b\u2813\u2802\u2819",i:false,t:"any"},{s:"gheap",b:"\u281b\u2813\u2802\u280f",i:false,t:"any"},{s:"ghear",b:"\u281b\u2813\u2811\u281c",i:false,t:"pattern",r:"[Tt]"},{s:"ghill",b:"",i:true,t:"any"},{s:"ghol",b:"",i:true,t:"pattern",r:"[DETZdetz]"},{s:"ghorn",b:"",i:true,t:"any"},{s:"ghound",b:"\u281b\u2813\u2828\u2819",i:false,t:"any"},{s:"ghous",b:"\u281b\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"ghur",b:"",i:true,t:"pattern",r:"[Ss][Tt]"},{s:"shead",b:"\u280e\u2813\u2802\u2819",i:false,t:"any"},{s:"sheim",b:"",i:true,t:"any"},{s:"shole",b:"",i:true,t:"boundary",m:"([Ss]|(['\u2019][Ss]))?"},{s:"shood",b:"",i:true,t:"any"},{s:"shound",b:"\u280e\u2813\u2828\u2819",i:false,t:"any"},{s:"shous",b:"\u280e\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"thand",b:"\u281e\u2813\u282f",i:false,t:"any"},{s:"thill",b:"",i:true,t:"any"},{s:"thold",b:"",i:true,t:"any"},{s:"thoo",b:"",i:true,t:"pattern",r:"[DKdk]"},{s:"thors",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"thound",b:"\u281e\u2813\u2828\u2819",i:false,t:"any"},{s:"thous",b:"\u281e\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"whead",b:"\u283a\u2813\u2802\u2819",i:false,t:"any"},{s:"whood",b:"",i:true,t:"any"},{s:"whors",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"whound",b:"\u283a\u2813\u2828\u2819",i:false,t:"any"},{s:"whous",b:"\u283a\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"bb",b:"\u2806",i:false,t:"pattern",r:"[a-zA-Z]"},{s:"motherap",b:"\u280d\u2815\u282e\u2817\u2801\u280f",i:false,t:"pattern",r:"[EIYeiy]"},{s:"mothere",b:"\u280d\u2815\u282e\u2817\u2811",i:false,t:"boundary",m:""},{s:"motherium",b:"\u280d\u2815\u282e\u2817\u280a\u2825\u280d",i:false,t:"any"},{s:"motherm",b:"\u280d\u2815\u282e\u2817\u280d",i:false,t:"any"},{s:"onea",b:"",i:true,t:"boundary",m:""},{s:"onea",b:"\u2815\u281d\u2802",i:false,t:"boundary",m:"[ELNSelns]"},{s:"onea",b:"\u2815\u281d\u2802",i:false,t:"pattern",r:"[DTdt][AEIOUaeiou]"},{s:"oned",b:"\u2815\u281d\u282b",i:false,t:"any"},{s:"one",b:"\u2815\u281d\u2811",i:false,t:"pattern",r:"[Ee]"},{s:"onei",b:"",i:true,t:"boundary",m:""},{s:"one",b:"",i:true,t:"pattern",r:"[Ii][Ss][MTmt]"},{s:"one",b:"",i:true,t:"pattern",r:"[Ii][Tt][IYiy]"},{s:"onel",b:"",i:true,t:"boundary",m:"[AIOUaiou]?[Ss]?"},{s:"onell",b:"",i:true,t:"boundary",m:""},{s:"onema",b:"",i:true,t:"boundary",m:"[ESes]?"},{s:"onemal",b:"",i:true,t:"boundary",m:""},{s:"onemat",b:"",i:true,t:"pattern",r:"[AIOUaioU]"},{s:"oneme",b:"",i:true,t:"boundary",m:"[Ss]?"},{s:"onemer",b:"\u2815\u281d\u2811\u280d\u283b",i:false,t:"pattern",r:"[Tt][EIei]"},{s:"onemi",b:"",i:true,t:"pattern",r:"[ACac]"},{s:"onen",b:"\u2815\u281d\u2822",i:false,t:"boundary",m:"[Ss]?"},{s:"onence",b:"\u2815\u281d\u2830\u2811",i:false,t:"any"},{s:"onen",b:"\u2815\u281d\u2822",i:false,t:"pattern",r:"[CDTcdt]"},{s:"onene",b:"\u2815\u281d\u2822\u2811",i:false,t:"boundary",m:"[Ss]?"},{s:"one",b:"",i:true,t:"pattern",r:"[Oo]"},{s:"oneph",b:"\u2815\u281d\u2811\u280f\u2813",i:false,t:"any"},{s:"oner",b:"\u2815\u281d\u283b",i:false,t:"any"},{s:"onese",b:"\u2815\u281d\u2811\u280e\u2811",i:false,t:"any"},{s:"onesia",b:"\u2815\u281d\u2811\u280e\u280a\u2801",i:false,t:"any"},{s:"onesis",b:"",i:true,t:"boundary",m:""},{s:"onesqu",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"oness",b:"\u2815\u2830\u280e",i:false,t:"any"},{s:"onest",b:"\u2815\u281d\u2811\u280c",i:false,t:"any"},{s:"onet",b:"",i:true,t:"boundary",m:""},{s:"oneta",b:"",i:true,t:"boundary",m:""},{s:"oneti",b:"",i:true,t:"pattern",r:"[ACSZacsz]"},{s:"onet",b:"",i:true,t:"pattern",r:"[STZstz]"},{s:"oneu",b:"\u2815\u281d\u2811\u2825",i:false,t:"pattern",r:"[MRSTmrst]"},{s:"one",b:"",i:true,t:"boundary",m:"[FVXZfvxz][Ss]?"},{s:"onex",b:"",i:true,t:"pattern",r:"[Ii]"},{s:"ought",b:"\u2833\u2823\u281e",i:false,t:"pattern",r:"[Aa][Ii][Ll]"},{s:"ance",b:"\u2828\u2811",i:false,t:"any"},{s:"ence",b:"\u2830\u2811",i:false,t:"any"},{s:"ful",b:"\u2830\u2807",i:false,t:"any"},{s:"ity",b:"\u2830\u283d",i:false,t:"any"},{s:"less",b:"\u2828\u280e",i:false,t:"any"},{s:"ment",b:"\u2830\u281e",i:false,t:"any"},{s:"ness",b:"\u2830\u280e",i:false,t:"any"},{s:"ong",b:"\u2830\u281b",i:false,t:"any"},{s:"ound",b:"\u2828\u2819",i:false,t:"any"},{s:"ount",b:"\u2828\u281e",i:false,t:"any"},{s:"sion",b:"\u2828\u281d",i:false,t:"any"},{s:"tion",b:"\u2830\u281d",i:false,t:"any"}];
+const LL_MATCH_SUF=[{s:"thead",b:"\u281e\u2813\u2802\u2819",i:false,t:"any"},{s:"thear",b:"\u281e\u2813\u2811\u281c",i:false,t:"pattern",r:"[Tt]"},{s:"theim",b:"",i:true,t:"any"},{s:"edale",b:"",i:true,t:"boundary",m:"([Ss]|(['\u2019][Ss]))?"},{s:"edown",b:"\u2811\u2819\u282a\u281d",i:false,t:"any"},{s:"ghead",b:"\u281b\u2813\u2802\u2819",i:false,t:"any"},{s:"gheap",b:"\u281b\u2813\u2802\u280f",i:false,t:"any"},{s:"ghear",b:"\u281b\u2813\u2811\u281c",i:false,t:"pattern",r:"[Tt]"},{s:"ghill",b:"",i:true,t:"any"},{s:"ghol",b:"",i:true,t:"pattern",r:"[DETZdetz]"},{s:"ghorn",b:"",i:true,t:"any"},{s:"ghound",b:"\u281b\u2813\u2828\u2819",i:false,t:"any"},{s:"ghous",b:"\u281b\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"ghur",b:"",i:true,t:"pattern",r:"[Ss][Tt]"},{s:"shead",b:"\u280e\u2813\u2802\u2819",i:false,t:"any"},{s:"sheim",b:"",i:true,t:"any"},{s:"shole",b:"",i:true,t:"boundary",m:"([Ss]|(['\u2019][Ss]))?"},{s:"shood",b:"",i:true,t:"any"},{s:"shound",b:"\u280e\u2813\u2828\u2819",i:false,t:"any"},{s:"shous",b:"\u280e\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"thand",b:"\u281e\u2813\u282f",i:false,t:"any"},{s:"thill",b:"",i:true,t:"any"},{s:"thold",b:"",i:true,t:"any"},{s:"thoo",b:"",i:true,t:"pattern",r:"[DKdk]"},{s:"thors",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"thound",b:"\u281e\u2813\u2828\u2819",i:false,t:"any"},{s:"thous",b:"\u281e\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"whead",b:"\u283a\u2813\u2802\u2819",i:false,t:"any"},{s:"whood",b:"",i:true,t:"any"},{s:"whors",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"whound",b:"\u283a\u2813\u2828\u2819",i:false,t:"any"},{s:"whous",b:"\u283a\u2813\u2833\u280e",i:false,t:"pattern",r:"[EIei]"},{s:"bb",b:"\u2806",i:false,t:"pattern",r:"[a-zA-Z]"},{s:"somer",b:"\u280e\u2815\u280d\u283b",i:false,t:"pattern",r:"[a-zA-Z]"},{s:"motherap",b:"\u280d\u2815\u282e\u2817\u2801\u280f",i:false,t:"pattern",r:"[EIYeiy]"},{s:"mothere",b:"\u280d\u2815\u282e\u2817\u2811",i:false,t:"boundary",m:""},{s:"motherium",b:"\u280d\u2815\u282e\u2817\u280a\u2825\u280d",i:false,t:"any"},{s:"motherm",b:"\u280d\u2815\u282e\u2817\u280d",i:false,t:"any"},{s:"onea",b:"",i:true,t:"boundary",m:""},{s:"onea",b:"\u2815\u281d\u2802",i:false,t:"boundary",m:"[ELNSelns]"},{s:"onea",b:"\u2815\u281d\u2802",i:false,t:"pattern",r:"[DTdt][AEIOUaeiou]"},{s:"oned",b:"\u2815\u281d\u282b",i:false,t:"any"},{s:"one",b:"\u2815\u281d\u2811",i:false,t:"pattern",r:"[Ee]"},{s:"onei",b:"",i:true,t:"boundary",m:""},{s:"one",b:"",i:true,t:"pattern",r:"[Ii][Ss][MTmt]"},{s:"one",b:"",i:true,t:"pattern",r:"[Ii][Tt][IYiy]"},{s:"onel",b:"",i:true,t:"boundary",m:"[AIOUaiou]?[Ss]?"},{s:"onell",b:"",i:true,t:"boundary",m:""},{s:"onema",b:"",i:true,t:"boundary",m:"[ESes]?"},{s:"onemal",b:"",i:true,t:"boundary",m:""},{s:"onemat",b:"",i:true,t:"pattern",r:"[AIOUaioU]"},{s:"oneme",b:"",i:true,t:"boundary",m:"[Ss]?"},{s:"onemer",b:"\u2815\u281d\u2811\u280d\u283b",i:false,t:"pattern",r:"[Tt][EIei]"},{s:"onemi",b:"",i:true,t:"pattern",r:"[ACac]"},{s:"onen",b:"\u2815\u281d\u2822",i:false,t:"boundary",m:"[Ss]?"},{s:"onence",b:"\u2815\u281d\u2830\u2811",i:false,t:"any"},{s:"onen",b:"\u2815\u281d\u2822",i:false,t:"pattern",r:"[CDTcdt]"},{s:"onene",b:"\u2815\u281d\u2822\u2811",i:false,t:"boundary",m:"[Ss]?"},{s:"one",b:"",i:true,t:"pattern",r:"[Oo]"},{s:"oneph",b:"\u2815\u281d\u2811\u280f\u2813",i:false,t:"any"},{s:"oner",b:"\u2815\u281d\u283b",i:false,t:"any"},{s:"onese",b:"\u2815\u281d\u2811\u280e\u2811",i:false,t:"any"},{s:"onesia",b:"\u2815\u281d\u2811\u280e\u280a\u2801",i:false,t:"any"},{s:"onesis",b:"",i:true,t:"boundary",m:""},{s:"onesqu",b:"",i:true,t:"pattern",r:"[Ee]"},{s:"oness",b:"\u2815\u2830\u280e",i:false,t:"any"},{s:"onest",b:"\u2815\u281d\u2811\u280c",i:false,t:"any"},{s:"onet",b:"",i:true,t:"boundary",m:""},{s:"oneta",b:"",i:true,t:"boundary",m:""},{s:"oneti",b:"",i:true,t:"pattern",r:"[ACSZacsz]"},{s:"onet",b:"",i:true,t:"pattern",r:"[STZstz]"},{s:"oneu",b:"\u2815\u281d\u2811\u2825",i:false,t:"pattern",r:"[MRSTmrst]"},{s:"one",b:"",i:true,t:"boundary",m:"[FVXZfvxz][Ss]?"},{s:"onex",b:"",i:true,t:"pattern",r:"[Ii]"},{s:"ought",b:"\u2833\u2823\u281e",i:false,t:"pattern",r:"[Aa][Ii][Ll]"},{s:"ance",b:"\u2828\u2811",i:false,t:"any"},{s:"ence",b:"\u2830\u2811",i:false,t:"any"},{s:"ful",b:"\u2830\u2807",i:false,t:"any"},{s:"ity",b:"\u2830\u283d",i:false,t:"any"},{s:"less",b:"\u2828\u280e",i:false,t:"any"},{s:"ment",b:"\u2830\u281e",i:false,t:"any"},{s:"ness",b:"\u2830\u280e",i:false,t:"any"},{s:"ong",b:"\u2830\u281b",i:false,t:"any"},{s:"ound",b:"\u2828\u2819",i:false,t:"any"},{s:"ount",b:"\u2828\u281e",i:false,t:"any"},{s:"sion",b:"\u2828\u281d",i:false,t:"any"},{s:"tion",b:"\u2830\u281d",i:false,t:"any"}];
 
 const LL_ALWAYS_SEG=[{en:"vinedress",brl:"\u2827\u2814\u2811\u2819\u2817\u2811\u280e\u280e",isAlpha:false},
 {en:"pineapple",brl:"\u280f\u2814\u2811\u2801\u280f\u280f\u2807\u2811",isAlpha:false},
@@ -393,6 +396,26 @@ const LL_ALWAYS_SEG=[{en:"vinedress",brl:"\u2827\u2814\u2811\u2819\u2817\u2811\u
 {en:"phad",brl:"\u280f\u2813\u2801\u2819",isAlpha:false},
 {en:"cch",brl:"\u2809\u2821",isAlpha:false},
 {en:"ear",brl:"\u2811\u281c",isAlpha:false}];
+// \u7a3d\u6838\u5099\u8a3b\uff082026-09-07\uff09\uff1aLL_ALWAYS_SEG \u9019 40 \u7b46\u5f9e\u672a\u88ab\u8b80\u53d6\u904e\uff08\u7d14\u6b7b\u78bc\uff09\uff0c\u9010\u7b46\u6bd4\u5c0d
+// G2_ALWAYS \u5f8c\u767c\u73fe 34 \u7b46\u65e9\u5df2\u539f\u5c01\u4e0d\u52d5\u5b58\u5728\u65bc G2_ALWAYS\uff08GA\uff09\u88e1\u3001\u5c6c\u65bc\u7121\u5bb3\u91cd\u8907\u8cc7\u6599\uff1b
+// isAlpha:true \u7684 5 \u7b46\uff08battleax/wideawak/wiseacr/coronet/poleax\uff09\u6539\u7528
+// `_BLOCKED_EA`\uff08ueb-g2-rules.js\uff09\u8655\u7406\uff08coronet \u672c\u4f86\u5c31\u5df2\u7d93\u6b63\u78ba\uff0c\u5176\u9918 4 \u7b46\u5df2\u52a0\u5165\uff09\uff1b
+// \u53ea\u6709 isomer \u662f\u771f\u7684\u7f3a\u53e3\uff0c\u4e14\u6c92\u6709\u73fe\u6210\u7684\u4e00\u822c\u5316\u898f\u5247\u53ef\u5957\u7528\uff0c\u76f4\u63a5\u88dc\u9032 GA\uff08\u53ea\u88dc\u9019\u88e1\uff0c
+// \u4e0d\u52d5 G2_ALWAYS \u672c\u9ad4\uff0c\u7406\u7531\u898b\u4e0a\u9762 `const GA={...G2_ALWAYS}` \u8a3b\u89e3\uff09
+GA['isomer']=LL_ALWAYS_SEG.find(e=>e.en==='isomer').brl;
+// LL_WORD\uff0861 \u7b46\uff0cbegword \u5224\u65b7\u5c08\u7528\u5c0f\u5b57\u5178\uff09\u9010\u7b46\u6bd4\u5c0d CTB_WORD \u5f8c\u767c\u73fe\u540c\u6b3e\u6b7b\u78bc\u6a21\u5f0f\uff1a
+// 53 \u7b46\u65e9\u5c31\u8ddf CTB_WORD \u4e00\u81f4\uff08\u7121\u5bb3\u91cd\u8907\uff09\uff0c\u53ea\u6709\u9019 3 \u7b46\u662f\u771f\u7684\u6c92\u88ab\u4e00\u822c\u67e5\u8a62\u8def\u5f91\u7528\u5230
+// \uff082026-09-08\uff0c\u8ddf liblouis \u5927\u91cf\u5dee\u5206\u6e2c\u8a66\u6642\u767c\u73fe\uff09\u3002\u9019 3 \u7b46\u653e\u9032 CTB_WORD \u6c92\u7528\u2014\u2014
+// "pensione"/"pensiones" \u90fd\u542b "sion" \u5b50\u5b57\u4e32\uff0c\u6703\u88ab LL_MATCH_SUF \u7684 bestM \u6a5f\u5236\u6436\u5148
+// \u6514\u622a\uff08\u8ddf monetary \u90a3\u6b21\u540c\u4e00\u7a2e\u300c\u5207\u5b57\u6839\u6436\u5148\u65bc\u6574\u8a5e\u898f\u5247\u300d\u554f\u984c\uff09\uff0cCTB_WORD \u7684
+// "2. word" \u6574\u8a5e\u67e5\u8868\u6839\u672c\u6c92\u6a5f\u6703\u57f7\u884c\u5230\uff1b"moneth" \u540c\u7406\u542b "one"\u3002\u653e\u9032 GA \u5247\u53ef\u4ee5\u76f4\u63a5
+// \u501f\u7528\u5df2\u7d93\u505a\u597d\u7684 bestM-vs-GA \u8d77\u59cb\u4f4d\u7f6e\u512a\u5148\u5e8f\u5224\u65b7\uff08\u898b\u4e0b\u65b9 bestM \u5340\u584a\uff09\uff0c\u4e0d\u7528\u518d\u53e6\u5916
+// \u6253\u901a bestM-vs-CTB_WORD \u9019\u689d\u8def\u2014\u2014CTB_WORD \u6709 1280 \u7b46\u3001\u5176\u4e2d 48 \u7b46\u662f\u300c=\u300d\uff08\u4e0d\u7e2e\u5beb\uff09
+// \u7279\u6b8a\u503c\uff0c\u8981\u901a\u7528\u5316\u9019\u500b\u6a5f\u5236\u53bb\u6db5\u84cb CTB_WORD \u9700\u8981\u53e6\u5916\u8655\u7406\uff0c\u7bc4\u570d/\u98a8\u96aa\u6bd4\u53ea\u501f\u7528 GA
+// \u5927\u5f97\u591a\uff0c\u9019 3 \u500b\u5b57\u5f88\u7f55\u898b\uff0c\u4e0d\u503c\u5f97\u70ba\u6b64\u64f4\u5927\u6539\u52d5\u7bc4\u570d\u3002
+GA['moneth']='\u280d\u2815\u281d\u2811\u2839';
+GA['pensione']='\u280f\u2822\u280e\u280a\u2815\u281d\u2811';
+GA['pensiones']='\u280f\u2822\u280e\u280a\u2815\u281d\u2811\u280e';
 const LL_BE='\u2806', LL_CON='\u2812', LL_DIS='\u2832';
 
 // 判斷 begword (be/con/dis) 是否應該縮寫
@@ -526,6 +549,35 @@ const SFXP_VOWEL_OK=SFXP_EXTENSIONS;
 // SFXP_SUFFIX_OK: 嚴格 shortform 在「字尾位置」允許的詞 whitelist
 const SFXP_SUFFIX_OK=SFXP_EXTENSIONS;
 const SFXP_VOWEL=new Set(['a','e','i','o','u','y']);
+// 判斷 shortform sf 在 lw 的第 i 個位置能不能用（跟主掃描迴圈 996-1039 行
+// 的條件完全一樣，抽成獨立函式讓 bestM-vs-shortform 搶先判斷（見下方）可以
+// 共用，不用重複一份邏輯、之後改規則才不會兩邊漏改）
+function _sfxpValidAt(lw,i,sf,total){
+    if(!lw.startsWith(sf,i))return false;
+    const after=lw[i+sf.length];
+    const atStart=(i===0);
+    const atEnd=(i+sf.length===total);
+    if(SFXP_STRICT.has(sf)){
+        if(!atStart&&!atEnd)return false;
+        if(atStart&&after&&SFXP_VOWEL.has(after)){
+            const wl=SFXP_VOWEL_OK[sf];
+            if(!wl||!wl.has(lw))return false;
+        }
+        if(!atStart&&atEnd){
+            const wl=SFXP_SUFFIX_OK[sf];
+            if(!wl||!wl.has(lw))return false;
+        }
+    }else if(SFXP_UNRESTRICTED.has(sf)){
+        if(sf==='children'&&after&&SFXP_VOWEL.has(after))return false;
+    }else{
+        if(atStart&&after&&SFXP_VOWEL.has(after)){
+            const wl=SFXP_VOWEL_OK[sf];
+            if(!wl||!wl.has(lw))return false;
+        }
+        if(!atStart&&!atEnd)return false;
+    }
+    return true;
+}
 const GW=G2_WORD;
 
 const GW_REV=new Map();
@@ -602,7 +654,7 @@ function canBegword(prefix,rest,isProper){
     return /[aeiouy]/.test(rest);
 }
 
-function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
+function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign,trailingHint){
     const total=lw.length,segs=[];
 
     // CTB Match 規則：在 token 中尋找 stem + 後接 pattern 的匹配
@@ -621,7 +673,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
         // 後段 [matchStart+stemLen, ...] 用正常翻譯
         const prefix=lw.slice(0,matchStart);
         const suffix=lw.slice(matchStart+stemLen);
-        const rPre=prefix?translateWord(prefix,isProper,isAllUpper,isContinuation):{br:'',segs:[]};
+        const rPre=prefix?translateWord(prefix,isProper,isAllUpper,isContinuation,false,lw.slice(matchStart)):{br:'',segs:[]};
         let stemBr,stemSegs;
         if(r.isAlpha){
             // 字母拼字
@@ -642,7 +694,11 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
     // 0. CTB_SUFWORD 整詞匹配（cation/baronet/colonel 等字典項）
     // 這些在 ctb 中是 sufword 規則：token 開頭是 stem + 任意後綴
     // 必須在 LL_MATCH_SUF (tion/oner) 等規則之前處理
-    if(!isContinuation){
+    // 但若整個 lw 剛好等於一個 GA 整字 always 規則（如 monetary），那條優先權更高、
+    // 不該被這裡「開頭 4-15 字元湊出一個較短 sufword stem」的猜測搶先劫走
+    // （真實案例：monetary 前 5 字元 "monet" 剛好是 CTB_SUFWORD 的字典項，
+    // 若不擋下來會把 monetary 誤譯成 monet(逐字母)+ary，蓋掉正確的整字 always 規則）
+    if(!isContinuation&&!Object.prototype.hasOwnProperty.call(GA,lw)){
         for(let sLen=Math.min(total,15);sLen>=4;sLen--){
             const stem=lw.slice(0,sLen);
             if(!Object.prototype.hasOwnProperty.call(CTB_SUFWORD,stem))continue;
@@ -751,12 +807,118 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 bestM=r;bestPos=idx;
             }
         }
+        // bestM（LL_MATCH_SUF 切字根規則）跟另外三種「整詞/複合詞前綴」機制
+        // ——begword（be/con/dis）、shortform（SFXP）、GA 整詞 always 規則
+        // ——命中範圍常常重疊，而且 bestM 一旦命中就直接 return，這三種機制
+        // 完全沒機會執行到（它們都活在後面的主掃描迴圈或更下面的檢查裡）。
+        // liblouis 全語料庫差分測試陸續抓到的真實案例：
+        //   - dishonest：GA 的 "honest"（起點3）該贏 bestM 的 "onest"（起點4）
+        //   - questionnaire/unquestionable：GA 的 "question"（起點0）該贏
+        //     bestM 的 "tion"（起點4）
+        //   - chemotherapy：bestM 專屬的 "motherap"（起點3，長度8）該贏 GA
+        //     的 "mother"（起點3，長度6）——起點相同時比長度
+        //   - firsthand/greathearted：SFXP 的 "first"/"great"（起點0）該贏
+        //     bestM 的 "thand"/其他樣式
+        //   - conestoga（規則書 10.6.1/10.6.4 官方範例）：begword 的 "con"
+        //     （起點0）該贏 bestM 的 "onest"（起點1）
+        // 判斷準則統一是「起始位置早者優先，同起始位置則長度長者優先」——
+        // 四種機制（bestM 自己也算一種候選）都算出各自「最早、最長」的候選，
+        // 一次性互相比較選出唯一贏家，不能像最早的版本那樣分開、依序各自
+        // 「跟 bestM 比一次就 return」：那樣 begword 的 "be"（起點0，長度2）
+        // 會在跟 bestM 比較時獲勝，但其實 GA 的 "before"（起點0，長度6）
+        // 更長更該贏——beforementioned/belowmentioned 就是这样被begword
+        // 搶先攔截、退化成錯誤答案的真實 regression，靠全語料庫差分測試
+        // 抓到才發現「分開比較」這個做法本身不夠、必須四個候選一起比。
+        if(bestM){
+            const candidates=[{kind:'bestM',pos:bestPos,len:bestM.s.length}];
+            // begword 候選（只在字首）
+            for(const k of Object.keys(G2_BEGWORD)){
+                if(!lw.startsWith(k))continue;
+                const rest=lw.slice(k.length);
+                if(!rest)continue;
+                if(!canBegword(k,rest,isProper))continue;
+                candidates.push({kind:'begword',pos:0,len:k.length,key:k});
+            }
+            // GW 複合詞前綴候選（after/above/before/behind/below/beneath/
+            // beside/between/beyond，跟下面 1027 行 GW_COMPOUND_PREFIXES 同一份
+            // 清單/條件）：跟 begword 一樣只在字首，長度通常比 be/con/dis 長，
+            // 兩者在同一起點（0）競爭時要能正確比出長度較長的贏——
+            // beforementioned/belowmentioned 原本被 begword 的 "be" 搶先攔截
+            // 就是缺了這個候選類別（"before"/"below" 沒被當成候選跟 "be" 比較）
+            const _GW_CPFX=['after','above','before','behind','below','beneath','beside','between','beyond'];
+            for(const pre of _GW_CPFX){
+                if(pre.length>=lw.length||!lw.startsWith(pre)||!GW[pre])continue;
+                const rest=lw.slice(pre.length);
+                if(rest.length<2||'aeiouy'.includes(rest[0]))continue;
+                candidates.push({kind:'gwprefix',pos:0,len:pre.length,key:pre});
+            }
+            // shortform 候選（起始位置 <= bestPos 才有搶先意義）
+            for(const[sf,br]of SFXP){
+                const p=lw.indexOf(sf);
+                if(p<0||p>bestPos)continue;
+                if(!_sfxpValidAt(lw,p,sf,total))continue;
+                candidates.push({kind:'sfxp',pos:p,len:sf.length,key:sf,br});
+            }
+            // GA 整詞候選（排除本身另有 blocksXxx 判斷的 key，範圍收斂到單純
+            // 整詞 always 規則，降低誤觸險；起始位置 <= bestPos 才有搶先意義）
+            const _GA_SPECIAL=new Set(['gh','here','ever','mother','one','under','had','of','st','the','ear','there','those','th','wh','sh','er','ow','ed','ou']);
+            for(const k of Object.keys(GA)){
+                if(k.length<4||_GA_SPECIAL.has(k))continue;
+                const p=lw.indexOf(k);
+                if(p<0||p>bestPos)continue;
+                candidates.push({kind:'ga',pos:p,len:k.length,key:k});
+            }
+            // 挑贏家：起始位置早者優先，同起始位置則長度長者優先，
+            // 同起始同長度時 bestM 本身當 tiebreak（維持既有行為不變動）
+            let winner=candidates[0];
+            for(const c of candidates.slice(1)){
+                const better=c.pos<winner.pos||(c.pos===winner.pos&&c.len>winner.len);
+                if(better)winner=c;
+            }
+            if(winner.kind==='begword'){
+                const rest=lw.slice(winner.len);
+                const rSuf=translateWord(rest,false,isAllUpper,true);
+                const begSeg=[{en:winner.key,br:G2_BEGWORD[winner.key],cat:'begword'}];
+                return{br:G2_BEGWORD[winner.key]+rSuf.br,segs:[...begSeg,...rSuf.segs]};
+            }
+            if(winner.kind==='gwprefix'){
+                const rest=lw.slice(winner.len);
+                const rRest=translateWord(rest,false);
+                const preSeg=[{en:winner.key,br:GW[winner.key],cat:'shortform'}];
+                return{br:GW[winner.key]+rRest.br,segs:[...preSeg,...rRest.segs]};
+            }
+            if(winner.kind==='sfxp'){
+                const prefix=lw.slice(0,winner.pos);
+                const suffix=lw.slice(winner.pos+winner.len);
+                const rPre=prefix?translateWord(prefix,isProper,isAllUpper,false,false,lw.slice(winner.pos)):{br:'',segs:[]};
+                const rSuf=suffix?translateWord(suffix,false,isAllUpper,true):{br:'',segs:[]};
+                const sfSeg=[{en:winner.key,br:winner.br,cat:'shortform'}];
+                return{br:rPre.br+winner.br+rSuf.br,segs:[...rPre.segs,...sfSeg,...rSuf.segs]};
+            }
+            if(winner.kind==='ga'){
+                const prefix=lw.slice(0,winner.pos);
+                const suffix=lw.slice(winner.pos+winner.len);
+                // suppressWordsign 用 false（不是 bestM 那條路徑慣用的 true）：
+                // 這裡切出來的 prefix 常常本身就是合法的複合詞前綴（如
+                // abovementioned 的 "above"、aftermentioned 的 "after"），
+                // 需要正常查 GW shortform/CTB_WORD 整詞表才能正確縮寫；
+                // 用 true 會把 GW_COMPOUND_PREFIXES（876 行）那段一起擋掉，
+                // "above" 就會退化成逐字母拼寫。"dis" 這類短前綴不受影響，
+                // 因為它本來就不是 CTB_WORD/GW 的字典項，沒有被劫走的風險
+                // （見 dishonest 案例）。
+                const rPre=prefix?translateWord(prefix,isProper,isAllUpper,false,false,lw.slice(winner.pos)):{br:'',segs:[]};
+                const rSuf=suffix?translateWord(suffix,false,isAllUpper,true):{br:'',segs:[]};
+                const gaSeg=[{en:winner.key,br:GA[winner.key],cat:'always'}];
+                return{br:rPre.br+GA[winner.key]+rSuf.br,segs:[...rPre.segs,...gaSeg,...rSuf.segs]};
+            }
+            // winner.kind==='bestM' → 落到下面既有的 bestM 處理邏輯
+        }
         if(bestM&&bestPos<earliestFinal){
             const stemStart=bestPos;
             const stemEnd=bestPos+bestM.s.length;
             const prefix=lw.slice(0,stemStart);
             const suffix=lw.slice(stemEnd);
-            const rPre=prefix?translateWord(prefix,isProper,isAllUpper,false,true):{br:'',segs:[]};
+            const rPre=prefix?translateWord(prefix,isProper,isAllUpper,false,true,lw.slice(stemStart)):{br:'',segs:[]};
             let stemBr,stemSegs;
             if(bestM.i){
                 stemBr='';stemSegs=[];
@@ -913,6 +1075,22 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             return{br:aforeBr+rRest.br,segs};
         }
     }
+    // somer 在字首也是特例：對照 en-ueb-g2.ctb `match - somer %a`（後面至少
+    // 一個字母），"somer" 整段用 s+o+m+er 表示（不是 some+r，官方在後面
+    // 還有更多字母時要求這個拼法）；LL_MATCH_SUF 的 bestM 機制本身排除
+    // idx<1（字首）的命中，所以跟 afore 一樣需要獨立處理（somers/somerset/
+    // somersault 這類字首直接是 somer 的詞，isomers/isomeric 這類 somer
+    // 不在字首的詞由下面 LL_MATCH_SUF 新增的 "somer" pattern 條目處理，
+    // 兩邊分工涵蓋 idx===0 跟 idx>0 兩種情況；isomer 本身（後面沒有更多
+    // 字母，word-final）維持既有 GA['isomer'] 整詞覆寫不受影響）
+    if(lw.startsWith('somer')&&lw.length>5){
+        const rest=lw.slice(5);
+        const rRest=translateWord(rest,false);
+        const somerBr='⠎⠕⠍⠻';
+        segs.push({en:'somer',br:somerBr,cat:'always'});
+        segs.push(...rRest.segs);
+        return{br:somerBr+rRest.br,segs};
+    }
 
     let result='',i=0;
     while(i<total){
@@ -924,38 +1102,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
         if(total>2){
             let used=false;
             for(const[sf,br]of SFXP){
-                if(lw.startsWith(sf,i)){
-                    const after=lw[i+sf.length];
-                    const atStart=(i===0);
-                    const atEnd=(i+sf.length===total);
-                    if(SFXP_STRICT.has(sf)){
-                        // 嚴格：字首位置或字尾位置（i+sf.length===total，整詞結束）
-                        if(!atStart&&!atEnd)continue;
-                        // 字首位置：後接母音/y 時，整詞必須在 extension whitelist 才允許
-                        if(atStart&&after&&SFXP_VOWEL.has(after)){
-                            const wl=SFXP_VOWEL_OK[sf];
-                            if(!wl||!wl.has(lw))continue;
-                        }
-                        // 字尾位置：必須整詞在 SFXP_SUFFIX_OK whitelist 內
-                        // 避免 purblind→p+u+r+blind, greatness→g+r+great+ness 等過度縮寫
-                        if(!atStart&&atEnd){
-                            const wl=SFXP_SUFFIX_OK[sf];
-                            if(!wl||!wl.has(lw))continue;
-                        }
-                    }else if(SFXP_UNRESTRICTED.has(sf)){
-                        // great/braille: wherever it occurs
-                        // children: provided not followed by vowel/y
-                        if(sf==='children'&&after&&SFXP_VOWEL.has(after))continue;
-                    }else{
-                        // 非嚴格 shortform：字首位置如果後接母音/y，
-                        // 要求整詞在 whitelist 內才允許
-                        if(atStart&&after&&SFXP_VOWEL.has(after)){
-                            const wl=SFXP_VOWEL_OK[sf];
-                            if(!wl||!wl.has(lw))continue;
-                        }
-                        // 字中位置 (非字首非字尾)：不可使用
-                        if(!atStart&&!atEnd)continue;
-                    }
+                if(_sfxpValidAt(lw,i,sf,total)){
                     // 通過條件，使用
                     segs.push({en:sf,br,cat:'shortform'});result+=br;i+=sf.length;used=true;break;
                 }
@@ -983,6 +1130,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
             if(k==='had'   &&blocksHadAlways(lw,i))          continue;
             if(k==='of'    &&blocksOfAlways(lw,i))           continue;
             if(k==='st'    &&blocksStAlways(lw,i,isProper))  continue;
+            if(k==='name'  &&blocksNameAlways(lw,i))         continue;
             // th/wh/sh/gh/er/ow/ed/ou：複合詞跨形態邊界 → 不縮
             if((k==='th'||k==='wh'||k==='sh'||k==='gh'||k==='er'||k==='ow'||k==='ed'||k==='ou')&&blocksCrossCompound(k,lw,i))continue;
             if(k==='the'&&blocksCrossCompound('th',lw,i))continue;
@@ -1025,6 +1173,16 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 // lookahead：若保留 lw[i] 為字母、從 i+1 起能形成 GA 縮寫，則讓位
                 let yieldToAlways=false;
                 for(const ak of Object.keys(GA)){
+                    // "name" 只在 i===0 時排除：liblouis 對「en 在字首（enamel）」
+                    // vs「en 不在字首、後面接的字母剛好巧合湊出 name（rename/
+                    // codename 的 re-/code- + name）」處理方向不同——字首的 en
+                    // 優先於巧合的 name（enamel 該用 en+amel，不是 e+name+l），
+                    // 但非字首時 name 這個更長的整詞規則優先於 en（rename 該用
+                    // r+e+name，不是 r+en+a+m+e）。原本不分 i 一律排除 name，
+                    // 會把 rename/codename 這類正常案例也一起改壞（liblouis
+                    // 全語料庫差分測試抓到，見 project_ueb_rulebook_audit
+                    // 記憶第十七輪）
+                    if(ak==='name'&&i===0)continue;
                     if(lw.startsWith(ak,i+1)&&GA[ak].length>=2){
                         // 只對 strong groupsigns (2 格以上) 讓位，避免被 ar/er 等單格小縮寫亂搶
                         yieldToAlways=true;break;
@@ -1039,12 +1197,22 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 // 但 GA 縮寫 (>=2 cells) 仍只在字尾 yield
                 let yieldToFinal=false;
                 const FINAL_MIDEND=new Set(['ness','ment','tion','sion','ence','ance','ound','ount','less','ful','ity','ong']);
-                for(const mk of Object.keys(G2_MIDEND)){
-                    if(lw.startsWith(mk,i+1)){
-                        // 'ness' 等 final-letter 允許中段
-                        if(FINAL_MIDEND.has(mk)){yieldToFinal=true;break;}
-                        // 其他 G2_MIDEND (ing) 仍只在字尾
-                        if(i+1+mk.length===total){yieldToFinal=true;break;}
+                // i===0 時不讓位：跟上面 yieldToAlways 排除 "name" 同一個道理，
+                // 字首的 ANYWHERE 縮寫（in/en 等）通常是真正的字首語素，優先於
+                // 巧合湊出的字尾縮寫樣式。inessential 的 "in"（i=0）原本會讓給
+                // 位置1巧合湊出的 "ness"（i-n-e-s-s 的 n-e-s-s），變成
+                // i+ness+en+t+i+a+l，但官方是 in+e+s+s+en+t+i+a+l——in 這個
+                // 字首語素該優先。abrasiveness 的 "en"（不在字首，i>0）不受
+                // 影響，繼續正確讓給 ness（liblouis 全語料庫差分測試找到，見
+                // project_ueb_rulebook_audit 記憶第十七輪）
+                if(i>0){
+                    for(const mk of Object.keys(G2_MIDEND)){
+                        if(lw.startsWith(mk,i+1)){
+                            // 'ness' 等 final-letter 允許中段
+                            if(FINAL_MIDEND.has(mk)){yieldToFinal=true;break;}
+                            // 其他 G2_MIDEND (ing) 仍只在字尾
+                            if(i+1+mk.length===total){yieldToFinal=true;break;}
+                        }
                     }
                 }
                 if(yieldToFinal)continue;
@@ -1054,9 +1222,20 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
 
         if(isS&&!isContinuation){
             for(const k of Object.keys(G2_BEGWORD)){
-                if(lw.startsWith(k,i)&&i+k.length<total&&k.length>bLen){
+                // i+k.length===total 且有 trailingHint：代表這個 begword 候選剛好用光
+                // 整個（被截斷的）prefix fragment，但原始字其實還有更多內容接在後面
+                // （見 trailingHint 傳入處）——begword 仍然成立，不能因為在這個截斷
+                // 片段裡「看起來沒有後面的字」就被 i+k.length<total 這個邊界擋掉
+                const hasMore=i+k.length<total||(i+k.length===total&&trailingHint);
+                if(lw.startsWith(k,i)&&hasMore&&k.length>bLen){
                     const rest=lw.slice(i+k.length);
-                    if(!canBegword(k,rest,isProper))continue;
+                    // trailingHint：這個 fragment 若是 LL_MATCH/LL_MATCH_SUF 切出的 prefix
+                    // （見 translateWord 遞迴呼叫處），真正的詞尾被切掉了，rest 到這裡已經是
+                    // 目前（被截斷的）字串尾端，看不到完整續字（如 dishonest 被切成
+                    // dish+onest，rest 只剩 'h'）；接上 trailingHint 還原真正續字，避免
+                    // canBegword 誤用被截斷字串本身的字典整詞條目（如 dish）否決縮寫判斷
+                    const restForJudge=trailingHint?rest+trailingHint:rest;
+                    if(!canBegword(k,restForJudge,isProper))continue;
                     bCat='begword';bLen=k.length;bBr=G2_BEGWORD[k];best=k;
                 }
             }
@@ -1064,13 +1243,35 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
 
         if(!isS||isContinuation){
             for(const k of Object.keys(GM)){
-                if(lw.startsWith(k,i)&&i+k.length<total&&k.length>bLen){
+                // 同一個「片段被截斷、trailingHint 補真實續字」的邊界問題（見上面
+                // begword 那段註解）：bb/cc/ff/gg/ea 這幾個 midword groupsign
+                // 也要求「後面還有字元」，creation 被 bestM 的 "tion" 切成
+                // prefix="crea" 遞迴翻譯時，"ea" 剛好落在被截斷片段的尾端，
+                // i+k.length===total 讓這個縮寫整個沒被考慮，"ea" 因此漏縮
+                // （liblouis 全語料庫差分測試找到）
+                const hasMore=i+k.length<total||(i+k.length===total&&trailingHint);
+                if(lw.startsWith(k,i)&&hasMore&&k.length>bLen){
                     // ea 特殊規則：在 ear 字串中，ar 永遠優先（bear, bearing, tear, tearing...）
                     // 不縮 ea，走 e + ar 路線
                     if(k==='ea'&&lw[i+2]==='r'){
                         continue;
                     }
                     if(k==='ea'&&typeof blocksEaGroupsign!=='undefined'&&blocksEaGroupsign(lw))continue;
+                    // ea 對 G2_MIDEND 字尾縮寫（ance/ence/tion/sion 等）的讓位：
+                    // vengeance 的 "ea"（位置4）跟 "ance"（位置5）互相重疊，
+                    // "ea" 搶先吃掉會讓 "ance" 永遠沒機會被掃到（外層迴圈直接
+                    // 跳過位置5）。跟 G2_ANYWHERE 迴圈裡的 yieldToFinal 是同一個
+                    // 家族的問題，"ea" 原本完全沒有這層 lookahead（1251 行的
+                    // yieldToAlways 特意排除 k==='ea'，但那邊只管 GA 不管
+                    // G2_MIDEND），liblouis 全語料庫差分測試找到
+                    if(k==='ea'){
+                        const _EA_FINAL_MIDEND=new Set(['ness','ment','tion','sion','ence','ance','ound','ount','less','ful','ity','ong']);
+                        let yieldToFinalMidend=false;
+                        for(const mk of Object.keys(G2_MIDEND)){
+                            if(_EA_FINAL_MIDEND.has(mk)&&lw.startsWith(mk,i+1)){yieldToFinalMidend=true;break;}
+                        }
+                        if(yieldToFinalMidend)continue;
+                    }
                     // 其他 lower groupsigns: lookahead 若下一格能形成 always 縮寫則放棄
                     // ——但要先確認那個 always 候選不會被複合詞跨界規則擋掉，否則
                     // 「讓給」一個實際上會被擋的候選，會變成兩個都沒縮（真 bug：
@@ -1093,6 +1294,7 @@ function translateWord(lw,isProper,isAllUpper,isContinuation,suppressWordsign){
                 }
             }
             for(const k of Object.keys(G2_MIDEND)){
+                if(k==='ong'&&typeof blocksOngMidend!=='undefined'&&blocksOngMidend(lw))continue;
                 if(lw.startsWith(k,i)&&k.length>bLen){
                     bCat='midend';bLen=k.length;bBr=G2_MIDEND[k];best=k;
                 }

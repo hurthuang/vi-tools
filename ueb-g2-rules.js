@@ -301,6 +301,12 @@ const _BLOCKED_EA = [
     // 模式和 query 都會直接暴露這個 predicate 本身的缺口，之後如果還有發現
     // 類似案例，加在這裡）
     'hidea',                   // hideaway（hide+away）
+    'battlea',                 // battleax(e)（battle+ax(e)）
+    'widea',                   // wideawake/wideawaken（wide+awake）
+    'wisea',                   // wiseacre（wise+acre）
+    'polea',                   // poleax(e)（pole+ax(e)）
+    // de- prefix（跟 re-/pre- 同性質，liblouis oracle 全語料庫差分測試找到）
+    'deact',                   // deactivate, deactivation…
     // re- prefix
     'reab',                    // line 929: reabsorb
     'reacc','reack','reacq',   // line 930: reaccustom, reacknowledge
@@ -451,7 +457,7 @@ function blocksOfAlways(word, pos) {
 
 // 以「contraction 的首字母位置（含）前的詞幹」為索引鍵
 const _TH_BLOCKED_STEMS = new Set(['pot','adult','boat','bolt','flat','rat','coat','cart','sweet','goat']);
-const _WH_BLOCKED_STEMS = new Set(['raw']);
+const _WH_BLOCKED_STEMS = new Set(['raw', 'arrow']); // arrowhead：ow 優先於 wh 的 whead 片段規則
 const _SH_BLOCKED_STEMS = new Set(['trans','mis']);
 const _GH_BLOCKED_STEMS = new Set(['fog','pig','egg']);
 const _ER_BLOCKED_STEMS = new Set(['state']);
@@ -505,13 +511,39 @@ function blocksEverAlways(word, pos, isProper) {
     const bc = pos > 0 ? lw[pos - 1] : '';
     const ac = lw[pos + 4] || '';
     if (bc === 'e' || bc === 'i') return true;           // lever, river, fever
-    if (ac === 'e' && !isProper) return true;            // severe, revere（非專有名詞）
+    // severe/revere（非專有名詞）要擋，但只限「ever+e 剛好是整個字的結尾」——
+    // 原本沒有 word-final 檢查，reverence/severed/reverend/irreverence/
+    // neverending 這些「ever+e 後面還有字母」的字全部被誤擋（liblouis
+    // 全語料庫差分測試找到：這些字官方都正常用 ever 縮寫，只有真正字尾
+    // 剛好是 "...evere" 的 severe/revere 這類字才不縮）
+    if (ac === 'e' && pos + 5 === lw.length && !isProper) return true;
     return false;
+}
+
+// 對照 en-ueb-g2.ctb：`begword nong =`（1593行，nongaseous/nongraphical/
+// nongovernmental）+ `match - moon [Gg]%a =`（1592行，moonglow/moongod）
+// 兩條專屬規則，字首「non-」「moon-」接 g 開頭的字時 ong 整批擋掉、逐字母拼，
+// liblouis 全語料庫差分測試找到（nongaseous/moongod 都被誤縮 ong）
+function blocksOngMidend(word) {
+    const lw = word.toLowerCase();
+    return lw.startsWith('nong') || lw.startsWith('moong');
 }
 
 function blocksMotherAlways(word, pos) {
     const bc = pos > 0 ? word.toLowerCase()[pos - 1] : '';
     return bc === 'e';                                   // chemotherapy
+}
+
+// 對照 en-ueb-g2.ctb「match ^|!%a unam [Ee]%a」：字首「unam」+e/E+後面還有
+// 更多字母時，name 縮寫整批擋掉，逐字母拼（unameliorated/unamendable/
+// unamerce/unamended）。pos===1 代表 name 的 n 緊接在單一 'u' 後面，
+// 即「u+name」剛好等於「unam+e」，且 name 本身第4個字母保證是 'e'，
+// 不用另外檢查；lw.length>pos+4 確認 name 結束後還有更多字母（"more" 條件），
+// 不影響 unnamed（name 在 pos=2，n+n+ame，不受影響，正確保留 name 縮寫）
+function blocksNameAlways(word, pos) {
+    const lw = word.toLowerCase();
+    if (pos === 1 && lw[0] === 'u' && lw.length > pos + 4) return true;
+    return false;
 }
 
 function blocksOneAlways(word, pos, isProper) {
@@ -523,7 +555,12 @@ function blocksOneAlways(word, pos, isProper) {
     if (ac === 'd' || ac === 'r') return true;                               // boned, donor
     if (ac === 'n' && lw.includes('oness')) return true;                     // baroness
     if (ac && 'aeiou'.includes(ac)) return true;                             // pioneer, ionetic
-    if (ac === 's' && ac2 && 'aeiou'.includes(ac2)) return true;             // Cantonese
+    // 對照 en-ueb-g2.ctb 1243 行 `match %a onese -`：只有 "one"+s+e 剛好拼出
+    // "onese" 這個精確樣式才擋（Cantonese/Japanese 這類 -onese 字尾），原本用
+    // 「s 後面任何母音」太寬，會連累 lonesome（one+some，s 後面是 'o' 不是
+    // 'e'）誤擋，liblouis 全語料庫差分測試找到
+    if (ac === 's' && ac2 === 'e') return true;                             // Cantonese
+
     if (ac && 'gltc'.includes(ac) && (!ac2 || 'aeiou'.includes(ac2))) return true; // Conestoga
     if (isProper && pos > 0 && !ac) {
         if (bc && 'aeiouy'.includes(bc)) return true;                        // Dione, Alcyone
@@ -553,11 +590,16 @@ function blocksStAlways(word, pos, isProper) {
     }
     // st 後接 ion → 讓 tion 縮寫優先（MIDEND）
     if (lw.startsWith('ion', pos + 2)) return true;
-    // 專有名詞：stown（Cookstown）、stag（Bundestag）字尾
-    if (isProper && pos > 0) {
-        if (lw.slice(pos, pos + 5) === 'stown') return true;
-        if (lw.slice(pos, pos + 5) === 'stag')  return true;
-    }
+    // stown 字尾（Jamestown/Youngstown/Cookstown…）：對照 en-ueb-g2.ctb 572 行
+    // `match %a stown -`，原文只要求「前面至少一個字母」，沒有限定專有名詞／
+    // 大小寫，原本多加的 isProper 條件是誤加的限制——lonwercase 的 jamestown/
+    // youngstown 一樣要擋，liblouis 全語料庫差分測試找到（isProper 只是
+    // 這個工具自己判斷「有沒有大寫」的旗標，跟 ctb 規則本身的適用範圍無關）
+    if (pos > 0 && lw.slice(pos, pos + 5) === 'stown') return true;
+    // stag 字尾目前只有 Bundestag/Kreistag/Reichstag 三個 sufword 專屬條目
+    // （德文借詞），不是通用 match 規則，這裡的 isProper 分支範圍本來就沒有
+    // ctb 依據、也沒有失敗案例佐證，這輪不動
+    if (isProper && pos > 0 && lw.slice(pos, pos + 4) === 'stag') return true;
     return false;
 }
 
@@ -577,7 +619,13 @@ function blocksThereAlways(word, pos) {
 }
 
 function blocksThoseAlways(word, pos) {
-    if (pos > 0 && /[a-z]/.test(word.toLowerCase()[pos - 1])) return true;
+    const lw = word.toLowerCase();
+    if (pos > 0 && /[a-z]/.test(lw[pos - 1])) return true;
+    // 對照 en-ueb-g2.ctb 1437 行 `match ^|!%a those ^|!%a`（註解明講「in
+    // practice only the word "those" uses the sign」）：those 縮寫只在整個字
+    // 剛好就是 "those" 本身才成立，兩側都要是字界——原本只查左邊界，右邊界
+    // （thoseby 這類 those+X 複合詞）完全沒擋，liblouis 全語料庫差分測試找到
+    if (pos + 5 < lw.length) return true;
     return false;
 }
 
