@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NC Engine Regression</title>
+<style>
+  :root{--ac:#1565c0;--ok:#2e7d32;--fail:#c62828;--warn:#e65100;--bg:#f5f5f5;--sf:#fff;--bd:#e0e0e0;--tx:#212121;--tx2:#666;}
+  body{margin:0;font-family:sans-serif;background:var(--bg);font-size:.875rem;display:flex;flex-direction:column;height:100vh;}
+  .header{padding:10px 20px;background:var(--ac);color:#fff;display:flex;align-items:center;gap:16px;flex-shrink:0;}
+  .header h1{margin:0;font-size:1rem;}
+  .note{font-size:.78rem;opacity:.75;}
+  .summary{padding:10px 20px;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;gap:20px;align-items:center;flex-shrink:0;}
+  .stat{font-weight:600;}
+  .stat.ok{color:var(--ok);}
+  .stat.fail{color:var(--fail);}
+  .run-btn{padding:5px 16px;border-radius:6px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;font-size:.85rem;}
+  .run-btn:disabled{opacity:.5;cursor:default;}
+  table{width:100%;border-collapse:collapse;font-size:.82rem;}
+  th{background:#e8eaf6;padding:6px 10px;text-align:left;position:sticky;top:0;z-index:1;font-weight:500;}
+  td{padding:5px 10px;border-bottom:1px solid var(--bd);}
+  tr.fail td{background:#ffebee;}
+  .brl{font-family:serif;font-size:1.1em;}
+  .tag-ok{color:var(--ok);font-weight:600;}
+  .tag-fail{color:var(--fail);font-weight:600;}
+  #result-wrap{flex:1;overflow:auto;}
+  #stage-frame{display:none;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>NC Engine Regression</h1>
+  <span class="note">nemeth_converter.html 實際引擎（iframe 載入）— l2n（LaTeX→Nemeth）；ground truth 取自「Nemeth-數學點字教材-CH1-9.md」已逐輪人工＋MathCAT 驗算過的範例</span>
+  <button class="run-btn" id="runBtn" onclick="run()" disabled>載入中…</button>
+</div>
+
+<div class="summary" id="summary">尚未執行</div>
+<div id="result-wrap">
+  <table id="tbl" style="display:none">
+    <thead><tr><th>LaTeX 輸入</th><th>nc 輸出</th><th>期望點字</th><th>結果</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<iframe id="stage-frame" src="nemeth_converter.html"></iframe>
+
+<script src="reg-nc-cases.js"></script>
+<script>
+// CASES 來自 reg-nc-cases.js（從教材 md 檔自動抽取，見該檔開頭註解說明抽取方式）
+
+let iframeWin = null;
+
+function setStatus(el, msg) { el.textContent = msg; }
+
+async function waitReady() {
+  const frame = document.getElementById('stage-frame');
+  return new Promise((resolve) => {
+    const check = () => {
+      try {
+        const w = frame.contentWindow;
+        if (w && typeof w.latexToNemethAsc === 'function' && typeof w.asc2brl === 'function') {
+          iframeWin = w;
+          resolve(true);
+          return;
+        }
+      } catch (e) {}
+      setTimeout(check, 200);
+    };
+    frame.addEventListener('load', () => setTimeout(check, 200));
+  });
+}
+
+async function init() {
+  const btn = document.getElementById('runBtn');
+  setStatus(document.getElementById('summary'), 'nc 引擎載入中…');
+  await waitReady();
+  btn.disabled = false;
+  btn.textContent = '▶ 執行';
+  setStatus(document.getElementById('summary'), 'nc 引擎就緒，' + CASES.length + ' 筆測試案例');
+}
+
+function run() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  document.getElementById('tbl').style.display = '';
+  let pass = 0, fail = 0;
+  for (const c of CASES) {
+    let got = '';
+    let err = null;
+    try {
+      const asc = iframeWin.latexToNemethAsc(c.latex);
+      got = iframeWin.asc2brl(asc);
+    } catch (e) {
+      err = e.message;
+    }
+    const ok = !err && got === c.brl;
+    if (ok) pass++; else fail++;
+    const tr = document.createElement('tr');
+    if (!ok) tr.className = 'fail';
+    tr.innerHTML =
+      '<td>' + escHtml(c.latex) + '</td>' +
+      '<td class="brl">' + escHtml(err ? ('ERROR: ' + err) : got) + '</td>' +
+      '<td class="brl">' + escHtml(c.brl) + '</td>' +
+      '<td class="' + (ok ? 'tag-ok' : 'tag-fail') + '">' + (ok ? '✓ PASS' : '✗ FAIL') + '</td>';
+    tbody.appendChild(tr);
+  }
+  const summary = document.getElementById('summary');
+  summary.innerHTML = '共 ' + CASES.length + ' 筆　' +
+    '<span class="stat ok">✓ ' + pass + ' 通過</span>　' +
+    '<span class="stat fail">✗ ' + fail + ' 失敗</span>';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

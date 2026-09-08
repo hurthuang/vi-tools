@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B2T Engine Regression</title>
+<style>
+  :root{--ac:#1565c0;--ok:#2e7d32;--fail:#c62828;--warn:#e65100;--bg:#f5f5f5;--sf:#fff;--bd:#e0e0e0;--tx:#212121;--tx2:#666;}
+  body{margin:0;font-family:sans-serif;background:var(--bg);font-size:.875rem;display:flex;flex-direction:column;height:100vh;}
+  .header{padding:10px 20px;background:var(--ac);color:#fff;display:flex;align-items:center;gap:16px;flex-shrink:0;}
+  .header h1{margin:0;font-size:1rem;}
+  .note{font-size:.78rem;opacity:.75;}
+  .summary{padding:10px 20px;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;gap:20px;align-items:center;flex-shrink:0;}
+  .stat{font-weight:600;}
+  .stat.ok{color:var(--ok);}
+  .stat.fail{color:var(--fail);}
+  .run-btn{padding:5px 16px;border-radius:6px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;font-size:.85rem;}
+  .run-btn:disabled{opacity:.5;cursor:default;}
+  table{width:100%;border-collapse:collapse;font-size:.82rem;}
+  th{background:#e8eaf6;padding:6px 10px;text-align:left;position:sticky;top:0;z-index:1;font-weight:500;}
+  td{padding:5px 10px;border-bottom:1px solid var(--bd);}
+  tr.fail td{background:#ffebee;}
+  .brl{font-family:serif;font-size:1.1em;}
+  .tag-ok{color:var(--ok);font-weight:600;}
+  .tag-fail{color:var(--fail);font-weight:600;}
+  .tag-skip{color:var(--warn);font-weight:600;}
+  #result-wrap{flex:1;overflow:auto;}
+  #stage-frame{display:none;}
+  .cat-hdr td{background:#e8eaf6;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>B2T Engine Regression</h1>
+  <span class="note">braille-to-text.html 實際引擎（iframe 載入）— 點字→文字往返測試，ground truth 來自 liblouis 正向翻譯</span>
+  <button class="run-btn" id="runBtn" onclick="run()" disabled>載入中…</button>
+</div>
+
+<div class="summary" id="summary">尚未執行</div>
+<div id="result-wrap">
+  <table id="tbl" style="display:none">
+    <thead><tr><th>輸入點字</th><th>b2t 輸出</th><th>期望文字</th><th>結果</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<iframe id="stage-frame" src="braille-to-text.html"></iframe>
+
+<script>
+// ── 測試資料 ──────────────────────────────────────────────
+// 每筆 {text, braille}：braille 是用 liblouis en-ueb-g2.ctb 正向翻譯 text
+// 產生的 ground truth（Node 版 oracle，見 project_ueb_rulebook_audit 記憶），
+// 反過來餵給 b2t 的 _convertLine()，檢查解碼回來的文字是否等於原始 text。
+// 這是「往返測試」而非「跟第二套引擎比對」——b2t 本身沒有獨立的規則判斷
+// 邏輯（核心是呼叫 liblouis 的 _lou_backTranslateString），往返測試同時
+// 驗證 b2t 自己的分段/組裝邏輯，也間接驗證 liblouis 反向翻譯本身。
+const CASES = [
+  // 一般句子：wordsign、標點、大小寫
+  { group: '一般句子', text: 'the cat sat on the mat.', braille: '⠮⠀⠉⠁⠞⠀⠎⠁⠞⠀⠕⠝⠀⠮⠀⠍⠁⠞⠲' },
+  { group: '一般句子', text: 'You can go now.', braille: '⠠⠽⠀⠉⠀⠛⠀⠝⠪⠲' },
+  { group: '一般句子', text: 'Do you have it?', braille: '⠠⠙⠀⠽⠀⠓⠀⠊⠞⠦' },
+  { group: '一般句子', text: 'It was enough.', braille: '⠠⠭⠀⠴⠀⠢⠳⠣⠲' },
+  { group: '一般句子', text: 'This is a test.', braille: '⠠⠹⠀⠊⠎⠀⠁⠀⠞⠑⠌⠲' },
+  // 撇號（所有格、縮寫）
+  { group: '撇號', text: "I can't believe it.", braille: '⠠⠊⠀⠉⠄⠞⠀⠆⠇⠊⠑⠧⠑⠀⠊⠞⠲' },
+  { group: '撇號', text: "The students' books are here.", braille: '⠠⠮⠀⠌⠥⠙⠢⠞⠎⠄⠀⠃⠕⠕⠅⠎⠀⠜⠑⠀⠐⠓⠲' },
+  // 引號、逗號、驚嘆號
+  { group: '引號標點', text: 'She said, "Hello, world!"', braille: '⠠⠩⠑⠀⠎⠁⠊⠙⠂⠀⠦⠠⠓⠑⠇⠇⠕⠂⠀⠸⠺⠖⠴' },
+  // 大寫（2 詞 capsword，each word ⠠⠠ 前綴——3+ 詞的 capsphrase 往返測試
+  // 有 liblouis WASM 已知限制，見下方「已知限制」說明，這裡改用 2 詞驗證
+  // 一般大寫往返正常）
+  { group: '大寫', text: 'NEW YORK', braille: '⠠⠠⠝⠑⠺⠀⠠⠠⠽⠕⠗⠅' },
+  // "than" 誤判中文注音迴歸測試（2026-09-04 修復，_isChineseChunk 只驗 tokens[0]
+  // 沒驗全部的 bug；⠹⠁ 剛好是合法注音音節，⠝ 落單成裸字串才是漏洞所在）
+  { group: 'than 迴歸', text: 'than', braille: '⠹⠁⠝' },
+  { group: 'than 迴歸', text: 'that', braille: '⠞' },
+  { group: 'than 迴歸', text: 'this', braille: '⠹' },
+  { group: 'than 迴歸', text: 'with', braille: '⠾' },
+  { group: 'than 迴歸', text: 'the', braille: '⠮' },
+  { group: 'than 迴歸', text: 'and', braille: '⠯' },
+  { group: 'than 迴歸', text: 'for', braille: '⠿' },
+  { group: 'than 迴歸', text: 'of', braille: '⠷' },
+  { group: 'than 迴歸', text: 'was', braille: '⠴' },
+  { group: 'than 迴歸', text: 'were', braille: '⠶' },
+  // 這個 session（UEB 規則書稽核第十二~十九輪）新修好的字，往返測試附帶驗證
+  { group: 'UEB稽核字彙', text: 'dishonest people', braille: '⠲⠓⠐⠕⠌⠀⠏' },
+  { group: 'UEB稽核字彙', text: 'the monetary policy', braille: '⠮⠀⠍⠐⠕⠞⠜⠽⠀⠏⠕⠇⠊⠉⠽' },
+  { group: 'UEB稽核字彙', text: 'an isomer of the compound', braille: '⠁⠝⠀⠊⠎⠕⠍⠻⠀⠷⠀⠮⠀⠉⠕⠍⠏⠨⠙' },
+  { group: 'UEB稽核字彙', text: 'firsthand experience', braille: '⠋⠌⠓⠯⠀⠑⠭⠏⠻⠊⠰⠑' },
+  { group: 'UEB稽核字彙', text: 'great hearted people', braille: '⠛⠗⠞⠀⠓⠑⠜⠞⠫⠀⠏' },
+  { group: 'UEB稽核字彙', text: 'conestoga wagon', braille: '⠒⠑⠌⠕⠛⠁⠀⠺⠁⠛⠕⠝' },
+  { group: 'UEB稽核字彙', text: 'the questionnaire was long', braille: '⠮⠀⠐⠟⠝⠁⠊⠗⠑⠀⠴⠀⠇⠰⠛' },
+  { group: 'UEB稽核字彙', text: 'before mentioned facts', braille: '⠆⠋⠀⠍⠢⠰⠝⠫⠀⠋⠁⠉⠞⠎' },
+  { group: 'UEB稽核字彙', text: 'chemotherapy treatment', braille: '⠡⠑⠍⠕⠮⠗⠁⠏⠽⠀⠞⠗⠂⠞⠰⠞' },
+  { group: 'UEB稽核字彙', text: 'we went to the arrowhead', braille: '⠺⠑⠀⠺⠢⠞⠀⠞⠕⠀⠮⠀⠜⠗⠪⠓⠂⠙' },
+  { group: 'UEB稽核字彙', text: 'a lonesome cowboy', braille: '⠁⠀⠇⠐⠕⠐⠎⠀⠉⠪⠃⠕⠽' },
+];
+
+// ── 已知限制：不放進上面 CASES，避免規則測試永遠紅字 ──────────
+// 1. "GIVE MORE THAN ENOUGH" 這類 capsphrase 結尾剛好是 enough 的往返測試
+//    會失敗：liblouis WASM 反向翻譯把 "en"+capsphrase 終止符（⠢⠠⠄）讀成
+//    "en" 不是 "enough"，是這個 repo 用的 liblouis WASM build 本身的反向
+//    翻譯表缺陷（見 project_braille_to_text 記憶），不是 b2t 分段邏輯的
+//    問題，範圍窄（只有 capsphrase/capsword 結尾剛好是 enough 時才會踩到）
+//    評估後沒有修。
+// 2. 全大寫 capsphrase（STOP RUNNING NOW / CAUTION WET PAINT 這類 3 詞以上
+//    全大寫段落）往返測試會失敗：liblouis WASM 的 `_lou_backTranslateString`
+//    只把 capsphrase 開頭第一個字母還原成大寫（"Stop running now"），沒有
+//    把整段全大寫還原——2026-09-08 用 Node oracle 直接呼叫
+//    `_lou_backTranslateString`（不經過 b2t）驗證過，同樣結果，證實是
+//    liblouis WASM 反向翻譯本身的限制，不是 b2t 的 `_convertLine`/
+//    `_louBackTranslate` 包裝層造成的，這裡也故意不測。
+
+let iframeWin = null;
+
+function setStatus(el, msg) { el.textContent = msg; }
+
+async function waitReady() {
+  const frame = document.getElementById('stage-frame');
+  return new Promise((resolve) => {
+    const check = () => {
+      try {
+        const w = frame.contentWindow;
+        if (w && typeof w._isReady === 'function' && w._isReady() && typeof w._convertLine === 'function') {
+          iframeWin = w;
+          resolve(true);
+          return;
+        }
+      } catch (e) {}
+      setTimeout(check, 200);
+    };
+    frame.addEventListener('load', () => setTimeout(check, 200));
+  });
+}
+
+async function init() {
+  const btn = document.getElementById('runBtn');
+  setStatus(document.getElementById('summary'), 'b2t 引擎（liblouis + McBopomofo）載入中…');
+  await waitReady();
+  btn.disabled = false;
+  btn.textContent = '▶ 執行';
+  setStatus(document.getElementById('summary'), 'b2t 引擎就緒，' + CASES.length + ' 筆測試案例');
+}
+
+function run() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  document.getElementById('tbl').style.display = '';
+  let pass = 0, fail = 0;
+  let lastGroup = null;
+  for (const c of CASES) {
+    if (c.group !== lastGroup) {
+      lastGroup = c.group;
+      const gtr = document.createElement('tr');
+      gtr.className = 'cat-hdr';
+      gtr.innerHTML = '<td colspan="4">' + c.group + '</td>';
+      tbody.appendChild(gtr);
+    }
+    let got = '';
+    let err = null;
+    try {
+      got = iframeWin._convertLine(c.braille).text;
+    } catch (e) {
+      err = e.message;
+    }
+    const ok = !err && got === c.text;
+    if (ok) pass++; else fail++;
+    const tr = document.createElement('tr');
+    if (!ok) tr.className = 'fail';
+    tr.innerHTML =
+      '<td class="brl">' + escHtml(c.braille) + '</td>' +
+      '<td>' + escHtml(err ? ('ERROR: ' + err) : got) + '</td>' +
+      '<td>' + escHtml(c.text) + '</td>' +
+      '<td class="' + (ok ? 'tag-ok' : 'tag-fail') + '">' + (ok ? '✓ PASS' : '✗ FAIL') + '</td>';
+    tbody.appendChild(tr);
+  }
+  const summary = document.getElementById('summary');
+  summary.innerHTML = '共 ' + CASES.length + ' 筆　' +
+    '<span class="stat ok">✓ ' + pass + ' 通過</span>　' +
+    '<span class="stat fail">✗ ' + fail + ' 失敗</span>';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
