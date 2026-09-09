@@ -720,6 +720,13 @@ function renderParallel() {
         const tDiv = document.createElement('div');
         tDiv.className = 'token-text';
         const bDiv = document.createElement('div');
+        // 點字 Unicode 碼位（U+2800-28FF）本身沒有對應的字母/文字語意，螢幕
+        // 報讀軟體遇到通常只會唸出「空白」或跳過，逐格插在每個字之間會變成
+        // 干擾雜訊；這個對照區存在的目的（雙視校對）是給看得到畫面的使用者
+        // 比對點字跟文字用，對螢幕報讀使用者來說有意義的內容只有旁邊 tDiv
+        // 的解碼文字，把 bDiv 標成 aria-hidden 讓報讀軟體整段讀起來就是乾淨
+        // 的文字內容，不受點字符號干擾。
+        bDiv.setAttribute('aria-hidden', 'true');
 
         if (t.isSpace) {
             g.className = 'token-group token-space';
@@ -736,6 +743,15 @@ function renderParallel() {
             bDiv.textContent = isAscii ? unicodeToAscii(brlKey) : brlKey;
             tDiv.textContent = editedText !== undefined ? editedText : origText;
             tDiv.contentEditable = 'true';
+            // 這格 contenteditable 天生就能用 Tab 鍵盤到達（瀏覽器對
+            // contenteditable="true" 元素預設給隱含 tabIndex=0），但沒有
+            // role/aria-label 時螢幕報讀軟體只會唸出目前顯示的單一國字，
+            // 使用者聽不出「這是可以修正同音異字誤判的欄位」也不知道原本
+            // 判讀是什麼——補上明確的 role="textbox" + aria-label（含原始
+            // 判讀，即使之後被使用者編輯過，這個原始值仍然是有用的參考）
+            tDiv.setAttribute('role', 'textbox');
+            tDiv.setAttribute('aria-multiline', 'false');
+            tDiv.setAttribute('aria-label', '注音校對，原判讀「' + origText + '」，可編輯修正為正確國字');
             let _composing = false;
             tDiv.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') e.preventDefault();

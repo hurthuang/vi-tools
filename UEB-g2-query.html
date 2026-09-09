@@ -120,10 +120,10 @@ kbd{background:var(--sf2);border:1px solid var(--bd2);border-radius:3px;padding:
         </div>
     </div>
 </div>
-<div id="disp-toggle-row" style="margin-bottom:.5rem;display:flex;align-items:center;gap:8px;">
+<div id="disp-toggle-row" role="group" aria-label="點字顯示格式" style="margin-bottom:.5rem;display:flex;align-items:center;gap:8px;">
     <span style="font-size:.75rem;color:var(--tx3)">點字顯示：</span>
-    <button class="mbtn active" id="disp-unicode" onclick="setDispMode('unicode')">Unicode ⠃</button>
-    <button class="mbtn" id="disp-ascii" onclick="setDispMode('ascii')">ASCII b</button>
+    <button class="mbtn active" id="disp-unicode" aria-pressed="true" onclick="setDispMode('unicode')">Unicode ⠃</button>
+    <button class="mbtn" id="disp-ascii" aria-pressed="false" onclick="setDispMode('ascii')">ASCII b</button>
 </div>
 <div id="result-area" aria-live="polite" aria-label="查詢結果"></div>
 </div>
@@ -2450,8 +2450,11 @@ function dBrl(str){
 }
 function setDispMode(m){
     _displayAscii=(m==='ascii');
-    document.getElementById('disp-unicode').classList.toggle('active',!_displayAscii);
-    document.getElementById('disp-ascii').classList.toggle('active',_displayAscii);
+    const _du=document.getElementById('disp-unicode'), _da=document.getElementById('disp-ascii');
+    _du.classList.toggle('active',!_displayAscii);
+    _da.classList.toggle('active',_displayAscii);
+    _du.setAttribute('aria-pressed',String(!_displayAscii));
+    _da.setAttribute('aria-pressed',String(_displayAscii));
     document.body.classList.toggle('ascii-brl-mode',_displayAscii);
     const ra=document.getElementById('result-area');
     if(ra.innerHTML.trim()){

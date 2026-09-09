@@ -557,22 +557,23 @@ function initBraillePanel(opts) {
     panel.className = 'brlp-panel';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'false');
+    panel.setAttribute('aria-label', '六點點字輸入面板');
     panel.innerHTML = `
         <div class="brlp-kbd-row">
             <span class="brlp-kbd-label">六點鍵盤</span>
-            <button type="button" class="brlp-kbd-btn">關</button>
+            <button type="button" class="brlp-kbd-btn" aria-pressed="false">關</button>
         </div>
         <div class="brlp-kbd-hint">F=1 D=2 S=3 ｜ J=4 K=5 L=6<br>Space=空白格 ｜ Ctrl+B 切換</div>
         <hr class="brlp-divider">
-        <div class="brlp-dot-label">點陣輸入</div>
+        <div class="brlp-dot-label" id="brlp-dot-label">點陣輸入</div>
         <div class="brlp-body">
-            <div class="brlp-grid">
-                <button type="button" class="brlp-dot" data-dot="1">1</button>
-                <button type="button" class="brlp-dot" data-dot="4">4</button>
-                <button type="button" class="brlp-dot" data-dot="2">2</button>
-                <button type="button" class="brlp-dot" data-dot="5">5</button>
-                <button type="button" class="brlp-dot" data-dot="3">3</button>
-                <button type="button" class="brlp-dot" data-dot="6">6</button>
+            <div class="brlp-grid" role="group" aria-labelledby="brlp-dot-label">
+                <button type="button" class="brlp-dot" data-dot="1" aria-pressed="false" aria-label="點1">1</button>
+                <button type="button" class="brlp-dot" data-dot="4" aria-pressed="false" aria-label="點4">4</button>
+                <button type="button" class="brlp-dot" data-dot="2" aria-pressed="false" aria-label="點2">2</button>
+                <button type="button" class="brlp-dot" data-dot="5" aria-pressed="false" aria-label="點5">5</button>
+                <button type="button" class="brlp-dot" data-dot="3" aria-pressed="false" aria-label="點3">3</button>
+                <button type="button" class="brlp-dot" data-dot="6" aria-pressed="false" aria-label="點6">6</button>
             </div>
             <div class="brlp-prev" aria-live="polite">⠀</div>
             <div class="brlp-acts">
@@ -603,11 +604,23 @@ function initBraillePanel(opts) {
         panel.classList.add('open');
         const tb = document.getElementById(opts.triggerId);
         if (tb) tb.setAttribute('aria-expanded', 'true');
+        // 面板在 DOM 上是 body 的最後一個子元素（見下方 appendChild），跟觸發
+        // 按鈕的視覺位置無關；鍵盤使用者按下觸發按鈕後如果不主動把焦點移進面板，
+        // 下一個 Tab 會落在頁面上距離觸發按鈕很遠的其他元素，而不是面板本身
+        // （螢幕報讀軟體使用者甚至不會知道面板已經打開）。role="dialog" 的
+        // 慣例本來就要求開啟時把焦點移進去，移到鍵盤開關鈕（面板裡第一個
+        // 可互動元素）。
+        kbdBtn.focus();
     }
     function closePanel() {
+        const hadFocusInside = panel.contains(document.activeElement);
         panel.classList.remove('open');
         const tb = document.getElementById(opts.triggerId);
         if (tb) tb.setAttribute('aria-expanded', 'false');
+        // 只有焦點原本就在面板裡（例如按 Escape 關閉）才搶回焦點；如果是點擊
+        // 面板外面的其他地方觸發的關閉（焦點已經在使用者點的地方了），不要
+        // 硬把焦點搶回觸發按鈕，蓋掉使用者剛剛的操作意圖。
+        if (tb && hadFocusInside) tb.focus();
     }
     document.addEventListener('click', e => {
         const tb = document.getElementById(opts.triggerId);
@@ -625,6 +638,7 @@ function initBraillePanel(opts) {
         kbdOn = on;
         kbdBtn.textContent = on ? '開' : '關';
         kbdBtn.classList.toggle('on', on);
+        kbdBtn.setAttribute('aria-pressed', String(on));
         const tb = document.getElementById(opts.triggerId);
         if (tb) tb.classList.toggle('kbd-on', on);
     }
@@ -679,8 +693,8 @@ function initBraillePanel(opts) {
         const btn = e.target.closest('.brlp-dot');
         if (!btn) return;
         const d = +btn.dataset.dot;
-        if (dots.has(d)) { dots.delete(d); btn.classList.remove('on'); }
-        else             { dots.add(d);    btn.classList.add('on'); }
+        if (dots.has(d)) { dots.delete(d); btn.classList.remove('on'); btn.setAttribute('aria-pressed', 'false'); }
+        else             { dots.add(d);    btn.classList.add('on');    btn.setAttribute('aria-pressed', 'true'); }
         preview.textContent = String.fromCodePoint(0x2800 + [...dots].reduce((b, x) => b | DOT_BITS[x], 0));
     });
     panel.querySelector('.brlp-insert').addEventListener('click', () => {
@@ -708,7 +722,7 @@ function initBraillePanel(opts) {
 
     function clearDots() {
         dots.clear();
-        panel.querySelectorAll('.brlp-dot').forEach(b => b.classList.remove('on'));
+        panel.querySelectorAll('.brlp-dot').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
         preview.textContent = '⠀';
     }
     function doInsert(bits) {
@@ -1168,10 +1182,10 @@ function initPanelResizer(opts) {
                     <span style="font-weight:bold;font-size:0.88em;white-space:nowrap;">🔍 合併強制換行</span>
                     <div id="fmt-wrap-controls">
                         <div id="fwp-mode-btns" role="group" aria-label="合併模式">
-                            <button class="fwp-mode-btn" data-mode="conservative" onclick="fwpSetMode(this)">保守</button>
-                            <button class="fwp-mode-btn active" data-mode="standard" onclick="fwpSetMode(this)">標準</button>
-                            <button class="fwp-mode-btn" data-mode="aggressive" onclick="fwpSetMode(this)">積極</button>
-                            <button class="fwp-mode-btn fwp-mode-all" data-mode="all" onclick="fwpSetMode(this)" title="移除所有換行，整份文字合成一行">全部合併</button>
+                            <button class="fwp-mode-btn" data-mode="conservative" aria-pressed="false" onclick="fwpSetMode(this)">保守</button>
+                            <button class="fwp-mode-btn active" data-mode="standard" aria-pressed="true" onclick="fwpSetMode(this)">標準</button>
+                            <button class="fwp-mode-btn" data-mode="aggressive" aria-pressed="false" onclick="fwpSetMode(this)">積極</button>
+                            <button class="fwp-mode-btn fwp-mode-all" data-mode="all" aria-pressed="false" onclick="fwpSetMode(this)" title="移除所有換行，整份文字合成一行">全部合併</button>
                         </div>
                         <span id="fwp-linelen-wrap" style="display:flex;align-items:center;gap:4px;">
                             <label class="fwp-ctrl-label" for="fwp-linelen">行長：</label>
@@ -1327,7 +1341,11 @@ function initPanelResizer(opts) {
 
     window.fwpSetMode = function(btn) {
         _fwpMode = btn.dataset.mode;
-        document.querySelectorAll('.fwp-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.fwp-mode-btn').forEach(b => {
+            const sel = b === btn;
+            b.classList.toggle('active', sel);
+            b.setAttribute('aria-pressed', String(sel));
+        });
         fwpRefresh();
     };
 
