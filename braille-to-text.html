@@ -156,6 +156,11 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
         <label><input type="radio" name="input-disp" value="ascii"   onchange="setInputDisp(this.value)"> ASCII ,k</label>
         <label><input type="radio" name="input-disp" value="sim"     onchange="setInputDisp(this.value)"> ASCII+點字字型</label>
     </div>
+    <div class="control-item">
+        <label for="font-size-slider" style="margin:0;display:inline;font-weight:bold;">字體大小：</label>
+        <input type="range" id="font-size-slider" min="16" max="48" value="20" style="vertical-align: middle;">
+        <span id="font-size-val" aria-live="polite">20px</span>
+    </div>
     <div class="btn-group">
         <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf,.html,.htm" style="display:none"
                aria-hidden="true" tabindex="-1"
@@ -342,21 +347,38 @@ function _isChineseChunk(brailleStr) {
     if (brailleStr[0] === '⠐') return false;
     const tokens = mcbopomofo.BopomofoBrailleConverter.convertBrailleToTokens(brailleStr);
     if (!tokens.length) return false;
-    const first = tokens[0];
-    if (!(typeof first === 'object' && first !== null && typeof first.bpmf === 'string')) return false;
-    // 整塊都要能拆成合法注音音節，不能有殘留的原始字元——原本只檢查 tokens[0]，
-    // 漏掉「前幾格湊出一個合法注音音節、後面剩下的格子轉不出音節、被當成原始
-    // 字元直接留在 tokens 裡」這種情形（例：英文 "than" 的點字 ⠹⠁⠝，前兩格
-    // ⠹⠁ 剛好是合法注音「ㄧㄣ˙」、最後一格 ⠝ 轉不出音節變成裸字串 "n" 殘留在
-    // tokens[1]，只查 tokens[0] 完全看不出來，會把整個「than」誤判成中文）。
+    // 中文句子的標點緊貼在漢字後面、沒有空格（例：「你好，世界！」），跟英文
+    // 一樣會被 _segmentLine 併進同一個 chunk。convertBrailleToTokens 對這種
+    // 混了標點的 chunk 其實能正確拆解（如 [你,好,"，",世,界,"！"]，標點是
+    // 已解碼好的字串 token），所以不能再像原本一樣「chunk 裡只要有一個字串
+    // token 就整塊判定不是中文」——那樣會把整句中文（只因為夾了標點）誤判成
+    // 英文，送去 liblouis 反向翻譯，整句變亂碼（例："你好，世界！這是測試。"
+    // 曾實測輸出 "nch\4/rsh\4/;iwhknowinglord..."）。
+    // 但字串 token 也可能是「轉不出音節、殘留的原始垃圾」——原本只檢查
+    // tokens[0]，漏掉「前幾格湊出一個合法注音音節、後面剩下的格子轉不出音節、
+    // 被當成原始字元直接留在 tokens 裡」這種情形（例：英文 "than" 的點字
+    // ⠹⠁⠝，前兩格 ⠹⠁ 剛好是合法注音「ㄧㄣ˙」、最後一格 ⠝ 轉不出音節變成裸
+    // 字串 "n" 殘留在 tokens[1]）。這類殘留垃圾要嘛混了英文字母（如 "n"／
+    // "wi⠹"／"en⠳gh"），要嘛是完全沒轉譯的原始點字格本身（U+2800-28FF，如單獨
+    // 一格 "⠮"／"⠿"）——真正解碼成功的中文標點字串兩者都不會有，用這個特徵
+    // 分辨「合法嵌入的標點」跟「誤判殘留」。
+    let hasSyllable = false;
     for (const t of tokens) {
-        if (!(typeof t === 'object' && t !== null && typeof t.bpmf === 'string')) return false;
+        if (typeof t === 'object' && t !== null && typeof t.bpmf === 'string') {
+            hasSyllable = true;
+            continue;
+        }
+        if (typeof t !== 'string' || !t || /[A-Za-z]/.test(t) || /[⠀-⣿]/.test(t)) return false;
     }
-    // 往返驗證：convertBrailleToTokens 不檢查聲母/韻母/調號順序，
-    // 英文字母格湊巧也可能被硬讀成不合語法順序的注音（例：調號夾在聲母韻母中間）。
+    // 整塊沒有任何一個真正的注音音節（例如純標點自成一塊）交給 UEB 那邊判斷比較安全
+    if (!hasSyllable) return false;
+    // 往返驗證：只驗證真正的注音音節 token（標點字串沒有 convertBpmfToBraille
+    // 可比對）。convertBrailleToTokens 不檢查聲母/韻母/調號順序，英文字母格
+    // 湊巧也可能被硬讀成不合語法順序的注音（例：調號夾在聲母韻母中間）。
     // 真正合法的注音點字，重新編碼一定跟原始點字完全一致；不一致就不是真的注音。
     try {
         for (const t of tokens) {
+            if (typeof t !== 'object' || t === null || typeof t.bpmf !== 'string') continue;
             const canonical = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(t.bpmf).trim();
             if (canonical !== t.braille) return false;
         }
@@ -996,6 +1018,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('input-text').addEventListener('keydown', function(e) {
         if ((e.ctrlKey||e.metaKey) && e.key === 'Enter') { e.preventDefault(); doConvert(); }
+    });
+    document.getElementById('font-size-slider').addEventListener('input', e=>{
+        document.documentElement.style.setProperty('--base-font-size', e.target.value+'px');
+        document.getElementById('font-size-val').textContent = e.target.value+'px';
     });
 });
 </script>
