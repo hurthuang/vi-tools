@@ -3174,6 +3174,9 @@ function render() {
     outArea.value = isAscii ? unicodeToAscii(resultUnicode) : resultUnicode;
     clearTimeout(_parallelViewTimer);
     _parallelViewTimer = setTimeout(() => { if (!brailleInputMode) renderParallelView(renderTokens); }, 600);
+    // 報讀區塊的「點字讀音」依這份 token（每段的點字、原文、中英數學類別）轉成讀音
+    window._btRenderTokens = renderTokens;
+    document.dispatchEvent(new Event('bt-output-changed'));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4849,6 +4852,68 @@ loadRules();
 
 </script>
 <script src="shared.js"></script>
+<script src="desktop-audio.js"></script>
+<script src="brl-reading-data.js"></script>
+<script src="brl-reading.js"></script>
+<script src="speech-block.js"></script>
+<script>
+// 🔊 報讀：朗讀「原文」，或「點字讀音」——照轉出來的點字實際代表的音念，用耳朵抓多音字選錯、縮寫用錯
+//   中文：每個注音音節換成念法固定的同音常用字（brl-reading.js）
+//   英文：用目前選的英文點字表把點字反向翻譯回英文；數學（Nemeth）先念「數學」帶過
+function btBrailleReading() {
+    if (brailleInputMode) throw new Error('點字直接輸入模式沒有對照資料，請改用點字轉文字頁的「點字讀音」');
+    if (!mcbReady) throw new Error('注音點字引擎載入中，請稍後再試');
+    const tokens = window._btRenderTokens || [];
+    const mode = document.getElementById('en-mode').value;
+    const enTable = { 'comp8': 'en-us-comp8.ctb', 'ueb-g1': 'en-ueb-g1.ctb' }[mode] || 'en-ueb-g2.ctb';
+    let out = '', enBuf = '', inMath = false, zhCount = 0, enCount = 0, mathCount = 0;
+    const fallbacks = new Set();
+    const flushEn = () => {
+        if (!enBuf) return;
+        const t = vitoolsBrlReading.backTranslate(enBuf, enTable);
+        out += t !== null ? t : '（英文點字無法反向翻譯）';
+        enCount++;
+        enBuf = '';
+    };
+    for (const t of tokens) {
+        if (t.isLineBreak && t.isExplicitBreak) { flushEn(); out += '\n'; inMath = false; continue; }
+        // 點字每行格數滿了自動換行：行尾的空格被藏起來、另插一個換行；朗讀時當成一般的詞間空格
+        if (t._hiddenTrailingSpace || t.isLineBreak || t.isAutoBreak) { flushEn(); out += ' '; continue; }
+        if (t.isEnglish) { enBuf += t.braille; inMath = false; continue; }
+        flushEn();
+        if (t.isSpace) { out += ' '; continue; }
+        if (t.isNemeth || (isNemethMode() && t.isNumber)) {
+            if (!inMath) { out += '（數學）'; mathCount++; inMath = true; }
+            continue;
+        }
+        inMath = false;
+        if (t.isZhChar) {
+            const r = vitoolsBrlReading.zh(t.braille);
+            zhCount += r.count;
+            r.fallbacks.forEach(f => fallbacks.add(f));
+            out += r.text;
+        } else {
+            out += t.text || '';   // 標點、數字等照原文
+        }
+    }
+    flushEn();
+    const note = [];
+    if (zhCount) note.push(`注音 ${zhCount} 個音節`);
+    if (enCount) note.push(`英文 ${enCount} 段（反向翻譯）`);
+    if (mathCount) note.push(`數學 ${mathCount} 段（念成「數學」）`);
+    if (fallbacks.size) note.push(`以下音節字典沒有，改用候選字（可能念不準）：${[...fallbacks].join('、')}`);
+    return { text: out.replace(/ {2,}/g, ' '), note: note.join('；') };
+}
+createSpeechBlock(document.getElementById('output-text').closest('.container'), {
+    id: 'bt-speech', title: '報讀（朗讀原文或點字讀音）',
+    sources: [
+        { id: 'text', label: '原文', getText: () => document.getElementById('input-text').value },
+        // 點字讀音的內容來自 render() 的 token，這裡只用輸出點字判斷有沒有變
+        { id: 'reading', label: '點字讀音（校對用）', getText: () => document.getElementById('output-text').value, transform: () => btBrailleReading() },
+    ],
+    watch: update => document.addEventListener('bt-output-changed', update),
+});
+</script>
 <script>
 brlPanelCtrl = initBraillePanel({
     triggerId:   'bt-brl-btn',

@@ -342,6 +342,14 @@ select.setting-select {
 }
 .tts-rate-row { display: flex; align-items: center; gap: 10px; font-size: .88rem; }
 .tts-rate-row input[type=range] { flex: 1; max-width: 200px; accent-color: var(--accent2); }
+/* 朗讀內容（文件有算式時才顯示）、狀態、桌面版語音提示 */
+#tts-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; border: none; font-size: .9rem; }
+#tts-mode[hidden] { display: none; }
+#tts-mode legend { float: left; margin-right: 6px; padding: 0; font-weight: 600; }
+#tts-mode label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+#tts-status { min-height: 1.4em; font-size: .85rem; }
+#tts-status.err, #tts-voice-warn { color: #e53935; }
+#tts-voice-warn { font-size: .85rem; }
 
 /* Status bar */
 #status-bar {
@@ -550,6 +558,9 @@ input[type=range] { accent-color: var(--accent2); }
 #drop-zone:focus-visible { outline: 3px solid var(--accent2); outline-offset: 2px; }
 </style>
 <script src="shared.js"></script>
+<!-- 朗讀的算式報讀（MathJax + MathCAT）；desktop-audio.js 只在桌面版提供語音提示等共用函式，這頁不會加浮動面板 -->
+<script src="math-speech.js"></script>
+<script src="desktop-audio.js"></script>
 </head>
 <body>
 
@@ -760,6 +771,8 @@ input[type=range] { accent-color: var(--accent2); }
         <button class="btn btn-green" id="btn-tts-play" onclick="ttsPlay()"><span aria-hidden="true">▶</span> 播放</button>
         <button class="btn btn-neutral" id="btn-tts-pause" onclick="ttsPause()" disabled><span aria-hidden="true">⏸</span> 暫停</button>
         <button class="btn btn-neutral" onclick="ttsStop()"><span aria-hidden="true">⏹</span> 停止</button>
+        <!-- 只在桌面版（有 window.vitoolsDesktop）顯示 -->
+        <button class="btn btn-green" id="btn-tts-export" hidden title="以目前的朗讀內容、語音、速度、音量存成 MP3 或 WAV 音檔（Alt+Shift+A）"><span aria-hidden="true">💾</span> 匯出音檔…</button>
         <div class="tb-sep" style="display:inline-block;"></div>
         <div class="tts-rate-row">
           <label for="tts-rate">速度</label>
@@ -781,6 +794,14 @@ input[type=range] { accent-color: var(--accent2); }
           </select>
         </div>
       </div>
+      <p id="tts-voice-warn" hidden></p>
+      <fieldset id="tts-mode" hidden>
+        <legend>朗讀內容</legend>
+        <label><input type="radio" name="tts-mode" value="speech"> 報讀文字</label>
+        <label><input type="radio" name="tts-mode" value="render"> 數學式（聽報讀）</label>
+        <label><input type="radio" name="tts-mode" value="raw"> 原文</label>
+      </fieldset>
+      <div id="tts-status" role="status" aria-live="polite"></div>
       <div id="tts-text-display" aria-live="polite" aria-label="朗讀文字顯示區"></div>
     </div>
 
@@ -1442,16 +1463,23 @@ function buildTtsDisplay() {
   const el = document.getElementById('tts-text-display');
   if (!txt.trim()) { el.textContent = '（無文字）'; return; }
 
+  // 文件有算式時，依「朗讀內容」模式取得每句的顯示（display）與朗讀（speak）文字；沒有算式回傳 null，照原本方式切句
+  const ext = ttsMathSentences(txt);
+
   // 切分句子
-  const segs = txt.split(/(?<=[。！？!?\n])|(?=\n)/);
-  const merged = [];
-  for (const s of segs) {
-    if (!s) continue;
-    if (merged.length && s.trim().length < 3 && !/[。！？!?]/.test(s))
-      merged[merged.length-1] += s;
-    else merged.push(s);
+  if (ext) {
+    _ttsSentences = ext.map(s => s.speak);
+  } else {
+    const segs = txt.split(/(?<=[。！？!?\n])|(?=\n)/);
+    const merged = [];
+    for (const s of segs) {
+      if (!s) continue;
+      if (merged.length && s.trim().length < 3 && !/[。！？!?]/.test(s))
+        merged[merged.length-1] += s;
+      else merged.push(s);
+    }
+    _ttsSentences = merged;
   }
-  _ttsSentences = merged;
 
   // charIndex → sentIdx 對照表
   _ttsCharMap = [];
@@ -1465,7 +1493,7 @@ function buildTtsDisplay() {
     const sp = document.createElement('span');
     sp.className = 'tts-sent';
     sp.dataset.idx = i;
-    sp.textContent = _ttsSentences[i];
+    sp.textContent = ext ? ext[i].display : _ttsSentences[i];
     sp.tabIndex = 0;
     sp.setAttribute('role', 'button');
     sp.setAttribute('aria-label', `第 ${i+1} 句，點擊從此朗讀`);
@@ -1503,6 +1531,7 @@ function buildTtsDisplay() {
   }
   _ttsStartIdx = 0;
   document.getElementById('btn-tts-play').textContent = '▶ 播放';
+  if (ext) ttsAfterBuild(el);
 }
 
 function ttsHighlight(charIndex) {
@@ -1540,6 +1569,11 @@ let _ttsStartCharOffset = 0;
 function ttsPlay() {
   if (!window.speechSynthesis) { alert('此瀏覽器不支援語音合成'); return; }
   if (ttsPlaying) return;
+  // 算式還在轉報讀文字：等轉完（朗讀區會重建）再播
+  if (_ttsMathConverting && _ttsMathConverting.txt === getEditorText()) {
+    _ttsMathConverting.promise.then(() => ttsPlay());
+    return;
+  }
   if (!_ttsSentences.length) { buildTtsDisplay(); }
   const fullTxt = getEditorText();
   if (!fullTxt.trim()) return;
@@ -1601,6 +1635,232 @@ function updateTtsButtons() {
   document.getElementById('btn-tts-play').disabled  = ttsPlaying;
   document.getElementById('btn-tts-pause').disabled = !ttsPlaying;
 }
+
+// ════════════════════════════════════════════════════════════
+//  朗讀內容：文件裡有算式時可切換
+//    報讀文字（預設）：算式轉成 MathCAT 報讀文字，朗讀區顯示與朗讀都用它
+//    數學式（聽報讀）：朗讀區顯示渲染後的數學式，朗讀報讀文字
+//    原文：照 LaTeX 原文顯示和朗讀（可用來校對原始碼）
+//  算式由 math-speech.js（MathJax + MathCAT）轉換；認 \( \)、\[ \]、$$ $$ 與單個 $（Pandoc 規則，避免把金額當算式）
+//  三種模式用同一份句子清單（先用原文切句、避開算式內部，再逐句轉換），切換時起始句可以保留
+// ════════════════════════════════════════════════════════════
+const TTS_MODES = { speech: '報讀文字', render: '數學式（聽報讀）', raw: '原文' };
+const TTS_MODE_KEY = 'p2a-tts-mode';
+const TTS_MATH_OPTS = { dollar: true };
+let ttsMode = 'speech';
+try { if (TTS_MODES[localStorage.getItem(TTS_MODE_KEY)]) ttsMode = localStorage.getItem(TTS_MODE_KEY); } catch (e) {}
+let _ttsMathCache = null;      // { txt, sentences: [{ raw, speak }], count, failed, error }
+let _ttsMathConverting = null; // { txt, promise }
+let _ttsBuiltKey = null;       // 朗讀區目前是依哪份文字、哪個模式建的（匯出音檔判斷用）
+let _ttsKeep = null;           // 重建前的起始句，重建後還原
+let _ttsTypeset = Promise.resolve();
+
+function ttsSetStatus(msg, isErr) {
+  const el = document.getElementById('tts-status');
+  el.textContent = msg;
+  el.classList.toggle('err', !!isErr);
+}
+const ttsViewActive = () => document.getElementById('view-tts').classList.contains('active');
+const ttsHasMath = txt => !!window.vitoolsMathSpeech && vitoolsMathSpeech.hasMath(txt, TTS_MATH_OPTS);
+
+// 切句規則同 buildTtsDisplay 原本的做法，但先把算式換成等長的佔位字元，避免 n! 這類符號被當成句尾
+function ttsSplitSentences(txt) {
+  let masked = txt;
+  for (const m of vitoolsMathSpeech.findMath(txt, TTS_MATH_OPTS))
+    masked = masked.slice(0, m.start) + ''.repeat(m.end - m.start) + masked.slice(m.end);
+  const out = [];
+  let pos = 0;
+  for (const s of masked.split(/(?<=[。！？!?\n])|(?=\n)/)) {
+    if (!s) continue;
+    const raw = txt.slice(pos, pos + s.length);
+    pos += s.length;
+    if (out.length && s.trim().length < 3 && !/[。！？!?]/.test(s)) out[out.length - 1] += raw;
+    else out.push(raw);
+  }
+  return out;
+}
+
+function ttsMathSummary() {
+  const c = _ttsMathCache;
+  if (!c || c.error) return '';
+  return `${c.count} 個算式已轉成報讀文字` +
+    (c.failed.length ? `（${c.failed.length} 個無法轉換，念成「無法轉換的算式」：${c.failed.join('、')}）` : '');
+}
+
+// 逐句轉報讀文字，依文件內容快取；編輯後內容不同才重新轉換
+function ttsEnsureConverted(txt) {
+  if (_ttsMathCache && _ttsMathCache.txt === txt) return Promise.resolve(_ttsMathCache);
+  if (_ttsMathConverting && _ttsMathConverting.txt === txt) return _ttsMathConverting.promise;
+  const job = { txt };
+  _ttsMathConverting = job;
+  ttsSetStatus('算式轉報讀文字中…');
+  job.promise = (async () => {
+    const sentences = [], failed = [];
+    let count = 0, error = null;
+    try {
+      for (const raw of ttsSplitSentences(txt)) {
+        if (!ttsHasMath(raw)) { sentences.push({ raw, speak: raw }); continue; }
+        const r = await vitoolsMathSpeech.toSpeech(raw, TTS_MATH_OPTS);
+        count += r.count;
+        failed.push(...r.failed);
+        sentences.push({ raw, speak: r.text });
+      }
+    } catch (e) { error = e; }
+    const result = error ? { txt, error, sentences: ttsSplitSentences(txt).map(raw => ({ raw, speak: raw })) }
+                         : { txt, sentences, count, failed };
+    if (_ttsMathConverting === job) {
+      _ttsMathConverting = null;
+      _ttsMathCache = result;
+      ttsSetStatus(error ? '算式轉換失敗，改念原文：' + error.message : ttsMathSummary(), !!error);
+      if (ttsViewActive()) ttsRebuild();
+    }
+    return result;
+  })();
+  return job.promise;
+}
+
+// 給 buildTtsDisplay 用：回傳 [{ display, speak }]；文件沒有算式時回傳 null（照原本方式）
+function ttsMathSentences(txt) {
+  const modeBox = document.getElementById('tts-mode');
+  _ttsBuiltKey = null;
+  if (!ttsHasMath(txt)) {
+    if (!modeBox.hidden) { modeBox.hidden = true; ttsSetStatus(''); }
+    _ttsBuiltKey = txt + '|plain';
+    return null;
+  }
+  modeBox.hidden = false;
+  if (!_ttsMathCache || _ttsMathCache.txt !== txt) {
+    ttsEnsureConverted(txt);
+    return [{ display: '（算式轉報讀文字中…）', speak: '' }];
+  }
+  _ttsBuiltKey = txt + '|' + ttsMode;
+  const m = _ttsMathCache.error ? 'raw' : ttsMode;
+  return _ttsMathCache.sentences.map(s => ({
+    display: m === 'speech' ? s.speak : m === 'render' ? ttsRenderable(s.raw) : s.raw,
+    speak: m === 'raw' ? s.raw : s.speak,
+  }));
+}
+
+// 「數學式」模式：MathJax 只認 \( \)、\[ \]、$$ $$，單個 $...$ 換成 \( \) 再交給它渲染
+function ttsRenderable(raw) {
+  let out = '', last = 0;
+  for (const m of vitoolsMathSpeech.findMath(raw, TTS_MATH_OPTS)) {
+    if (raw[m.start] !== '$' || raw[m.start + 1] === '$') continue;
+    out += raw.slice(last, m.start) + '\\(' + m.tex + '\\)';
+    last = m.end;
+  }
+  return out + raw.slice(last);
+}
+
+// buildTtsDisplay 建好句子之後：還原起始句；「數學式」模式渲染算式
+function ttsAfterBuild(el) {
+  if (_ttsKeep && _ttsBuiltKey) {
+    if (_ttsKeep.idx < el.children.length) {
+      _ttsStartIdx = _ttsKeep.idx;
+      if (_ttsKeep.cursor) el.children[_ttsKeep.idx].classList.add('tts-cursor');
+    }
+    _ttsKeep = null;
+  }
+  if (ttsMode === 'render' && _ttsBuiltKey && _ttsMathCache && !_ttsMathCache.error) {
+    _ttsTypeset = _ttsTypeset.then(() => vitoolsMathSpeech.loadMathJax()).then(MJ => MJ.typesetPromise([el]))
+      .catch(e => ttsSetStatus('數學式渲染失敗：' + e.message, true));
+  }
+}
+
+// 重建朗讀區（切換模式、轉換完成時）：播放中先停止，保留起始句
+function ttsRebuild() {
+  if (ttsPlaying) ttsStop();
+  _ttsKeep = { idx: _ttsStartIdx, cursor: !!document.querySelector('#tts-text-display .tts-cursor') };
+  buildTtsDisplay();
+}
+
+(function initTtsMode() {
+  const box = document.getElementById('tts-mode');
+  box.querySelector(`input[value="${ttsMode}"]`).checked = true;
+  box.addEventListener('change', e => {
+    ttsMode = e.target.value;
+    try { localStorage.setItem(TTS_MODE_KEY, ttsMode); } catch (err) {}
+    if (ttsViewActive()) ttsRebuild(); else _ttsBuiltKey = null;
+    ttsSetStatus(`已切換為${TTS_MODES[ttsMode]}` + (ttsMode !== 'raw' && ttsMathSummary() ? '；' + ttsMathSummary() : ''));
+  });
+})();
+
+// ════════════════════════════════════════════════════════════
+//  桌面版（desktop/，有 window.vitoolsDesktop）：匯出音檔
+//  沿用這頁選好的語音、速度、音量；內容和「播放」一致：照目前的朗讀內容模式，點過某一句就從該句到結尾
+// ════════════════════════════════════════════════════════════
+(function initDesktopExport() {
+  function onDesktop(fn) {
+    if (window.vitoolsDesktop) fn(window.vitoolsDesktop);
+    else window.addEventListener('vitoolsdesktop-ready', () => fn(window.vitoolsDesktop), { once: true });
+  }
+  onDesktop(api => {
+    const btn = document.getElementById('btn-tts-export');
+    const warnEl = document.getElementById('tts-voice-warn');
+    const shared = window.vitoolsDesktopAudio;
+    btn.hidden = false;
+    let voices = [];
+    api.getVoices().then(list => {
+      voices = list;
+      const warn = shared ? shared.voiceWarning(voices) : '';
+      warnEl.textContent = warn;
+      warnEl.hidden = !warn;
+      if (warn) ttsSetStatus(warn, true);
+    }).catch(e => ttsSetStatus('無法取得語音清單：' + e.message, true));
+
+    // 網頁語音名稱像「Microsoft Hanhan - Chinese (Traditional, Taiwan)」，Windows 語音叫「Microsoft Hanhan」
+    function nativeVoice() {
+      const webName = document.getElementById('tts-voice').value || '';
+      const hit = voices.find(v => webName === v.name || webName.startsWith(v.name + ' '));
+      if (hit) return { id: hit.id };
+      const fallback = voices.find(v => /^zh-TW/i.test(v.lang)) || voices.find(v => v.isDefault) || voices[0];
+      return { id: fallback && fallback.id, note: webName ? `「${webName}」無法匯出，改用 ${fallback ? fallback.name : '預設語音'}` : '' };
+    }
+
+    async function exportText() {
+      const txt = getEditorText();
+      if (!txt.trim()) throw new Error('沒有可匯出的文字');
+      const math = ttsHasMath(txt);
+      if (math && ttsMode !== 'raw') {
+        const r = await ttsEnsureConverted(txt);
+        if (r.error) throw r.error;
+      }
+      const key = txt + '|' + (math ? ttsMode : 'plain');
+      let list, from = 0;
+      if (_ttsBuiltKey === key && _ttsSentences.length) {
+        list = _ttsSentences;
+        if (_ttsStartIdx > 0 && _ttsStartIdx < list.length) { from = _ttsStartIdx + 1; list = list.slice(_ttsStartIdx); }
+      } else if (math) {
+        list = ttsMode === 'raw' ? ttsSplitSentences(txt) : _ttsMathCache.sentences.map(s => s.speak);
+      } else {
+        list = [txt];
+      }
+      return { text: list.join(''), from, note: math && ttsMode !== 'raw' ? ttsMathSummary() : '' };
+    }
+
+    async function doExport() {
+      btn.disabled = true;
+      try {
+        const { text, from, note } = await exportText();
+        const v = nativeVoice();
+        const num = id => Number(document.getElementById(id).value) || 1;
+        const fileName = document.getElementById('fi-name').textContent.trim().replace(/\.[^.]+$/, '');
+        const base = fileName || getEditorText().trim().slice(0, 12).replace(/\s+/g, '');
+        ttsSetStatus([from ? `從第 ${from} 句開始匯出` : '', note, v.note, '請選擇存檔位置…'].filter(Boolean).join('；'));
+        const r = await api.exportAudio({ text, voiceId: v.id, rate: num('tts-rate'), volume: num('tts-vol'), fileName: base },
+          p => ttsSetStatus(p.stage === 'encode' ? '轉成 MP3 中…' : `合成中… ${p.done} / ${p.total} 段`));
+        ttsSetStatus(r.saved ? '已儲存：' + r.path + (note ? '；' + note : '') : '已取消');
+      } catch (e) { ttsSetStatus('錯誤：' + e.message, true); }
+      btn.disabled = false;
+    }
+    btn.addEventListener('click', doExport);
+    // Alt+Shift+A：匯出（桌面版首頁的快捷鍵也會轉給 __vtdToggle）
+    window.__vtdToggle = () => { btn.focus(); doExport(); };
+    document.addEventListener('keydown', e => {
+      if (e.altKey && e.shiftKey && !e.ctrlKey && e.code === 'KeyA') { e.preventDefault(); window.__vtdToggle(); }
+    });
+  });
+})();
 
 // ════════════════════════════════════════════════════════════
 //  Find / Replace

@@ -684,6 +684,7 @@ function doConvert() {
             '<span style="color:#999;font-size:0.9em;">轉換後顯示對照</span>';
         _zhEdits.clear();
         setStatus('');
+        _notifyOutputChanged();
         return;
     }
 
@@ -703,6 +704,12 @@ function doConvert() {
     window._parallelTimer = setTimeout(renderParallel, 600);
     setStatus('✓ 轉換完成', 'ok');
     b2tSaveSessionDebounced();
+    _notifyOutputChanged();
+}
+
+// 輸出改變時通知（報讀區塊用來更新）
+function _notifyOutputChanged() {
+    document.dispatchEvent(new Event('b2t-output-changed'));
 }
 
 // ── 從 token 重建輸出文字（套用手動修改）────────────────────────
@@ -810,6 +817,7 @@ function renderParallel() {
                 }
                 document.getElementById('output-text').value = _buildOutputFromTokens();
                 b2tSaveSessionDebounced();
+                _notifyOutputChanged();
             };
         } else {
             // UEB 段：綠色
@@ -982,6 +990,46 @@ window.addEventListener('message', function(e) {
 </script>
 
 <script src="shared.js"></script>
+<script src="desktop-audio.js"></script>
+<script src="brl-reading-data.js"></script>
+<script src="brl-reading.js"></script>
+<script src="speech-block.js"></script>
+<script>
+// 🔊 報讀：朗讀「轉出的文字」，或「點字讀音」——照點字實際代表的音念，用耳朵校對點字
+//   注音點字：每個音節換成念法固定的同音常用字（brl-reading.js）；UEB 英文：liblouis 反向翻譯後念
+function b2tBrailleReading(uni) {
+    if (!svcMcB) throw new Error('注音點字引擎載入中，請稍後再試');
+    if (!_isReady()) throw new Error('liblouis 尚未就緒');
+    let zhCount = 0, enCount = 0;
+    const fallbacks = new Set();
+    const out = uni.split('\n').map(line => {
+        if (!line.trim()) return '';
+        return _segmentLine(line).map(seg => {
+            if (seg.type === 'zh') {
+                const r = vitoolsBrlReading.zh(seg.braille, svcMcB);
+                zhCount += r.count;
+                r.fallbacks.forEach(f => fallbacks.add(f));
+                return r.text;
+            }
+            enCount++;
+            return _louBackTranslate('en-ueb-g2.ctb', seg.braille) ?? '';
+        }).join(' ');
+    });
+    const note = [];
+    if (zhCount) note.push(`注音 ${zhCount} 個音節`);
+    if (enCount) note.push(`英文 ${enCount} 段（反向翻譯）`);
+    if (fallbacks.size) note.push(`以下音節字典沒有，改用候選字（可能念不準）：${[...fallbacks].join('、')}`);
+    return { text: out.join('\n'), note: note.join('；') };
+}
+createSpeechBlock(document.getElementById('status-bar'), {
+    id: 'b2t-speech', title: '報讀（朗讀轉出的文字或點字讀音）',
+    sources: [
+        { id: 'text', label: '轉出的文字', getText: () => document.getElementById('output-text').value },
+        { id: 'reading', label: '點字讀音（校對用）', getText: () => _taRead(), transform: b2tBrailleReading },
+    ],
+    watch: update => document.addEventListener('b2t-output-changed', update),
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const _b2tPanelCtrl = initBraillePanel({
