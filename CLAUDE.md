@@ -5,6 +5,32 @@
 GitHub：https://github.com/hurthuang/vi-tools
 網址：https://hurthuang.github.io/vi-tools/
 
+## 桌面版（desktop/）
+`desktop/` 是 Windows 桌面版（C# .NET 10 + WebView2，app 名稱 ViTools），包裝本 repo 的網頁，另加網頁做不到的「匯出音檔」（Windows 內建語音，MP3/WAV）。細節、建置、打包、待辦都在 `desktop/README.md`；自動測試在 `desktop/tests/`（`node desktop/tests/run.mjs`）。
+
+### 方向（2026-09-25 定案）
+- 網頁版是主體，主要使用者留在網頁；桌面版的目的是離線使用 + 匯出音檔
+- 介面交給網頁：桌面版只提供 `window.vitoolsDesktop`（版本號、語音清單、試聽、匯出），網頁偵測到才顯示桌面專用按鈕，並依版本號隱藏需要新版 app 的功能。網頁在瀏覽器裡的行為不能因此改變
+- 桌面版優先載入線上網頁（https://hurthuang.github.io/vi-tools/），離線才用打包時內附的 `web\`
+- Release 放本 repo，標籤 `desktop-v*`；累積一定更新才發版，小修不發
+
+### 順序（一步一步做，每步跑完 `desktop/tests` 確認不會崩潰）
+1. 把原本的 `E:\Project\vi-desktop` 搬進 `desktop/`（已完成，尚未 commit；舊資料夾等全部確認後才刪）
+2. 定義 `window.vitoolsDesktop`（已完成 2a：API v1，說明在 `desktop/README.md`「給網頁用的介面」；2b：文字轉點字、點字轉文字的匯出面板已搬到網頁 `desktop-audio.js`；2c：數學點字頁的「🔊 報讀」區塊，瀏覽器也能用；2d：文件整理三種朗讀模式與匯出寫進 `pdf-to-accessible.html`，`bridge.js` 只剩 API），再逐一把桌面版 `bridge.js` 的功能搬進網頁：匯出按鈕、算式轉 MathCAT 報讀文字、文件整理三種朗讀模式（報讀文字／數學式（聽報讀）／原文）、單個 `$` 判斷、缺語音提示
+3. 線上優先、離線內附，並攔截 CDN 函式庫（pdf.js、JSZip、MathJax）改讀內附檔（已完成 2026-09-25；Ctrl+Shift+O 切換；**網頁要先推上 GitHub，app 的線上版才看得到新功能**）
+4. 檢查更新（照 6d-IME 的 GitHub releases 做法）+ GitHub Actions 發佈
+5. 中英夾雜分語音，做在網頁（多段 utterance 各指定語音），播放與匯出都能用
+
+另外已完成（2026-09-25）：nc 報讀區塊改逐行清單；bt、b2t 報讀區塊與「點字讀音」（見下方接點）
+
+### 目前網頁與桌面版的接點
+- `desktop-audio.js`：桌面版共用小工具（`onDesktop`、缺語音提示 `voiceWarning`）；原本的右下角浮動面板已由各頁報讀區塊取代
+- `speech-block.js`「🔊 報讀」區塊：nc、bt、b2t 都有（逐行清單點一行從那行念、存報讀檔、朗讀內容選單 `sources`；桌面版多匯出音檔與缺語音提示）
+- `brl-reading.js` + `brl-reading-data.js`「點字讀音」（bt、b2t）：注音點字每個音節換成念法固定的同音常用字（資料由 `tools/build-brl-reading.mjs` 從 NVDA-DictSwitcher 的 `brl_dict.dic` 產生，以注音為鍵查，涵蓋約 96%，查不到用 McBopomofo 候選字並列在狀態列）；英文用 liblouis 反向翻譯；Nemeth 先念「數學」。bt 的 `render()` 會存 `window._btRenderTokens` 並發 `bt-output-changed`；b2t 輸出改變時發 `b2t-output-changed`
+- `math-speech.js`（算式 → MathCAT 報讀文字，`mathcat/` 是 WASM）與 `speech-block.js`（「🔊 報讀」區塊：瀏覽器語音朗讀，桌面版多匯出）：數學點字頁用，認算式沿用該頁的 `MATH_RE`、逐行處理
+- **發佈順序**：介面在網頁、功能在 app，所以網頁要先推上線，再發佈需要它的 app 版本；網頁改用 app 的新功能時，要先檢查 `vitoolsDesktop` 有沒有該功能（舊版 app 可能沒有）
+- `pdf-to-accessible.html` 朗讀分頁本身有「朗讀內容」三種模式（文件有算式時出現；用 `math-speech.js`，認單個 `$` 照 Pandoc 規則），瀏覽器也能用；偵測到 `vitoolsDesktop` 才顯示「匯出音檔」與缺語音提示（提示文字來自 `desktop-audio.js` 的 `voiceWarning`）。原本給桌面版的 `ttsSentenceHook` 掛鉤已移除
+
 ## UEB G2 規則整合（已完成，2026-06-10）
 
 ### 背景

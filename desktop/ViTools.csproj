@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ViTools</AssemblyName>
+    <!-- app 版本：發佈 Release（標籤 desktop-v*）時更新；網頁從 window.vitoolsDesktop.appVersion 讀取 -->
+    <Version>0.1.0</Version>
+    <RootNamespace>ViTools</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="bridge.js" LogicalName="bridge.js" />
+    <!-- MathJax 3.2.2（離線時網頁改用這份），執行時由 MainForm 對應到 https://vitools-desktop.local/ -->
+    <None Include="desktop-assets\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 可攜版發佈後：把上層 vi-tools 的網頁（只取執行時用得到的檔案）複製到 web\，再壓成 zip -->
+  <PropertyGroup>
+    <WebSource>$(MSBuildProjectDirectory)\..</WebSource>
+  </PropertyGroup>
+  <Target Name="BundleWebAndZip" AfterTargets="Publish" Condition="'$(PublishProfile)' == 'Portable'">
+    <ItemGroup>
+      <WebRootFiles Include="$(WebSource)\*.html;$(WebSource)\*.htm;$(WebSource)\*.js;$(WebSource)\*.json;$(WebSource)\*.TTF"
+                    Exclude="$(WebSource)\reg-*" />
+      <WebTableFiles Include="$(WebSource)\table\**" />
+      <WebMathcatFiles Include="$(WebSource)\mathcat\**" />
+    </ItemGroup>
+    <RemoveDir Directories="$(PublishDir)web" />
+    <Copy SourceFiles="@(WebRootFiles)" DestinationFolder="$(PublishDir)web" />
+    <Copy SourceFiles="@(WebTableFiles)" DestinationFiles="@(WebTableFiles->'$(PublishDir)web\table\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(WebMathcatFiles)" DestinationFiles="@(WebMathcatFiles->'$(PublishDir)web\mathcat\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <ZipDirectory SourceDirectory="$(PublishDir)" DestinationFile="$(MSBuildProjectDirectory)\dist\ViTools-portable.zip" Overwrite="true" />
+    <Message Importance="high" Text="可攜版：$(PublishDir) 與 dist\ViTools-portable.zip" />
+  </Target>
+
+</Project>
