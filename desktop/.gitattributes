@@ -1,0 +1,2 @@
+# desktop-assets 是從 npm 取來、內容要和 CDN 完全相同的檔案：不做換行轉換
+desktop-assets/** -text
