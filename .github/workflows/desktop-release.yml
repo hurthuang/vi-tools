@@ -1,11 +1,13 @@
 # 桌面版（desktop/，ViTools）發佈：推送 desktop-vX.Y.Z 標籤時，建立可攜版 zip 並上傳到同名 Release
 # 步驟：先把 desktop/ViTools.csproj 的 <Version> 改成 X.Y.Z 並 commit，再推送標籤 desktop-vX.Y.Z
+# 手動執行（Actions 頁面的 Run workflow）只建置、不發佈，用來確認流程沒壞
 # 網頁要先推送：app 優先載入線上網頁，發佈需要新網頁功能的 app 之前，網頁必須已經上線
 name: 桌面版發佈
 
 on:
   push:
     tags: ['desktop-v*']
+  workflow_dispatch:   # 只建置測試，不檢查版本、不發佈
 
 permissions:
   contents: write   # 建立 Release、上傳 zip
@@ -18,14 +20,15 @@ jobs:
         shell: pwsh
         working-directory: desktop
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       - name: 檢查版本號（標籤要和 ViTools.csproj 的 Version 相同，app 的檢查更新靠它比對）
         id: ver
+        if: github.event_name == 'push'
         run: |
           $tag = '${{ github.ref_name }}'
           $ver = $tag.Substring('desktop-v'.Length)
@@ -38,6 +41,7 @@ jobs:
         run: dotnet publish -p:PublishProfile=Portable
 
       - name: 發佈 Release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

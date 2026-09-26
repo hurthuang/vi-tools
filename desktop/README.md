@@ -46,6 +46,7 @@ dotnet publish -p:PublishProfile=Portable
   1. 網頁的修改先推送上線（app 優先載入線上網頁）
   2. 把 `ViTools.csproj` 的 `<Version>` 改成新版本號（例如 0.2.0），commit 並推送
   3. 推送標籤 `desktop-v0.2.0`：GitHub Actions（`../.github/workflows/desktop-release.yml`）自動建立可攜版，上傳成 Release 的 `ViTools-0.2.0-portable.zip`；標籤和 `<Version>` 不同時會中止
+- 只想確認打包流程沒壞（例如升級 Actions 元件後）：在 GitHub 的 Actions 頁面對「桌面版發佈」按 Run workflow，只建置、不發佈（`gh workflow run desktop-release.yml`）
 - 程式沒有數位簽章，下載後第一次執行 Windows SmartScreen 會警告，要按「其他資訊」→「仍要執行」
 
 網頁資料夾搜尋順序：`--web <資料夾>` 參數 → 執行檔旁的 `web\` → 往上層找含 `braille-translate.htm` 的資料夾（開發時就是 vi-tools 根目錄）。
