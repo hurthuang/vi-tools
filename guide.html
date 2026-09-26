@@ -214,6 +214,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#common-open" class="sub">開啟檔案</a>
     <a href="#common-format" class="sub">格式調整視窗</a>
     <a href="#common-theme" class="sub">深色/淺色主題</a>
+    <a href="#common-speech" class="sub">🔊 報讀（朗讀）</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">各工具說明</div>
@@ -223,6 +224,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#p2a">📄 文件整理</a>
     <a href="#query">🔍 UEB 查詢</a>
   </div>
+  <div class="sidebar-group">
+    <div class="sidebar-heading">桌面版</div>
+    <a href="#app">💻 Windows 桌面版</a>
+  </div>
 </nav>
 
 <main id="main-content">
@@ -231,6 +236,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <section id="overview">
   <h2 class="section-title">工具總覽</h2>
   <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。以下五項工具主要供視障教育教師製作教材使用。</p>
+  <p>另有 <a href="#app">Windows 桌面版</a>，可在沒有網路時使用，並能把朗讀內容存成 MP3 音檔。</p>
   <table class="ov-table">
     <thead>
       <tr><th>工具</th><th>用途</th><th>典型使用情境</th></tr>
@@ -300,6 +306,27 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <div class="applies">適用：全部五項工具</div>
     <p>所有工具均支援深色與淺色主題切換，設定存於瀏覽器 localStorage，下次開啟自動套用。</p>
     <p><b>文件整理</b>另提供<b>高對比</b>與<b>黃底黑字</b>兩種低視力友善配色，從左側「顯示設定 → 主題」選擇。</p>
+  </div>
+
+  <div class="feat common" id="common-speech">
+    <div class="feat-title">🔊 報讀（朗讀）</div>
+    <div class="applies">適用：<b>文字轉點字</b>、<b>點字轉文字</b>、<b>數學點字</b>（文件整理的朗讀在「朗讀」分頁，用法相近）</div>
+    <p>在狀態列下方展開「🔊 報讀」，用電腦的語音把內容念出來，方便用耳朵檢查。</p>
+    <ul>
+      <li><b>朗讀</b>：按「▶ 朗讀」從頭念；也可以在下方的報讀文字點一行，從那一行開始念。念到的那一行會反白，按 <kbd>Esc</kbd> 停止。</li>
+      <li><b>快速鍵</b>：<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> 展開報讀並移到「朗讀」按鈕。</li>
+      <li><b>朗讀內容</b>（文字轉點字、點字轉文字）：可選「原文／轉出的文字」或「<b>點字讀音（校對用）</b>」。點字讀音會照點字實際代表的音，換成念法固定的字來念，例如「銀行」的「行」念成「航」、「行走」的「行」念成「型」；選錯多音字或英文縮寫用錯，一聽就知道。</li>
+      <li><b>數學式</b>（數學點字）：算式會轉成口語念出來，例如 <code>x^2-5x+6=0</code> 念成「x 平方 減 5 x 加 6 等於 0」。</li>
+      <li><b>📄 存報讀檔</b>：把要念的文字存成 .txt 檔。</li>
+      <li><b>語音設定</b>（預設收合）：選語音、調速度。</li>
+    </ul>
+    <p><b>中英夾雜</b>：語音設定裡可以讓英文用英文語音念，中文用中文語音念，聽起來比較自然。</p>
+    <ul>
+      <li><b>英文語音</b>：「自動」（預設，電腦有英文語音就會切換）、「不切換」，或指定某一個英文語音。</li>
+      <li><b>切換條件</b>：「兩個以上英文單字」（預設，像 PDF、NVDA 這種單獨的縮寫還是用中文語音念）或「每個英文字」。</li>
+      <li>這個設定各工具共用，改一次就好。</li>
+    </ul>
+    <div class="note">可用的語音依電腦和瀏覽器而不同。電腦沒有英文語音時，可到 Windows「設定 → 時間與語言 → 語音 → 新增語音」加裝 English (United States)；沒有中文語音時加裝「中文(台灣)」。</div>
   </div>
 </section>
 
@@ -398,6 +425,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li><b>儲存點字</b>：輸出區點字儲存為 .txt 檔。</li>
     <li><b>匯出雙視 HTML</b>：印刷字與對應點字上下交互排列的 HTML，供教師校對或附於教材。</li>
   </ul>
+
+  <h3>報讀</h3>
+  <p>可朗讀原文，或選「點字讀音」聽點字實際的念法來校對，見<a href="#common-speech">報讀（朗讀）</a>。</p>
 </section>
 
 
@@ -436,6 +466,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>注音格的譯文可直接點擊修改（限一個漢字），修改過的格子顯示為橘色，右側輸出框同步更新。</li>
   </ul>
   <div class="note">McBopomofoWeb 引擎內含語言模型，注音轉換通常正確；少數同音詞可在對照視圖手動修正。</div>
+
+  <h3>報讀</h3>
+  <p>可朗讀轉出的文字，或選「點字讀音」照點字實際的念法念，英文點字會依目前的點字表念回英文，見<a href="#common-speech">報讀（朗讀）</a>。</p>
 </section>
 
 
@@ -489,7 +522,18 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <ul>
     <li><b>編輯</b>：直接修改文字的原始編輯區。</li>
     <li><b>預覽</b>：以格式化方式顯示，方便確認排版。</li>
-    <li><b>朗讀</b>：使用瀏覽器語音合成（Web Speech API）朗讀全文。可調整速度（0.5x–4x）、音量，並選擇系統語音（中文、英文等）。朗讀時逐句高亮顯示，方便核對。</li>
+    <li><b>朗讀</b>：用電腦的語音朗讀全文。可調整速度（0.5x–4x）、音量，並選擇語音。朗讀時逐句反白；點某一句可從那一句開始念。</li>
+  </ul>
+  <p>朗讀分頁的其他功能：</p>
+  <ul>
+    <li><b>朗讀內容</b>（文件裡有數學式時才出現）：
+      <ul>
+        <li><b>報讀文字</b>（預設）：數學式改成口語，例如「x 平方 等於 16」，顯示和朗讀都一樣。</li>
+        <li><b>數學式（聽報讀）</b>：畫面顯示排好的數學式，念的是口語。</li>
+        <li><b>原文</b>：照 LaTeX 原文顯示和念，用來檢查原始碼。</li>
+      </ul>
+      數學式要用 <code>\( \)</code>、<code>\[ \]</code>、<code>$$ $$</code> 或 <code>$ $</code> 包住；像「$100」這種金額不會被當成數學式。</li>
+    <li><b>中英語音設定</b>：英文用英文語音念，用法同<a href="#common-speech">報讀（朗讀）</a>的「中英夾雜」。</li>
   </ul>
 
   <h3>顯示設定</h3>
@@ -523,14 +567,18 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <p>在左側輸入含 LaTeX 數學式的文件，數學式以 <code>\( \)</code> 包住（行中式）或 <code>$$ $$</code>（獨立式）：</p>
   <pre>設 \(\overline{AB}\perp\overline{CD}\)，則 \(\angle ABC=90^\circ\)。</pre>
   <ul>
-    <li>右側即時顯示 MathJax 算式預覽（可驗證 LaTeX 語法），下方顯示 Nemeth ASCII 輸出。</li>
+    <li>右側即時顯示 MathJax 算式預覽（可驗證 LaTeX 語法）。</li>
+    <li>下方的 Nemeth 輸出預設收合，按「▶ 展開」顯示；可選 Unicode 或 ASCII+SimBraille 格式。收合時照樣可以複製、儲存。</li>
     <li>三個面板可同步捲動（勾選「同步」）。</li>
     <li>「<b>標示數字</b>」：自動掃描文件，將獨立出現的數字加上 <code>\( \)</code> 標示，免去逐一手動標記。</li>
     <li>點擊「<b>複製</b>」將 Nemeth 輸出複製到剪貼簿。</li>
   </ul>
 
   <h3>Nemeth → LaTeX（反向轉換）</h3>
-  <p>切換到「Nemeth → LaTeX」頁籤，貼入 Unicode Nemeth 點字，即時還原為 LaTeX 語法。可搭配六點鍵盤輸入面板（<kbd>Ctrl</kbd>+<kbd>B</kbd>）逐格輸入。</p>
+  <p>切換到「Nemeth → LaTeX」頁籤，貼入 Unicode Nemeth 點字，即時還原為 LaTeX 語法。可搭配六點鍵盤輸入面板（<kbd>Ctrl</kbd>+<kbd>B</kbd>）逐格輸入。LaTeX 輸出預設收合，按「▶ 展開」顯示。</p>
+
+  <h3>報讀</h3>
+  <p>兩個方向都有「🔊 報讀」，把數學式轉成口語念出來，方便確認算式有沒有打錯，見<a href="#common-speech">報讀（朗讀）</a>。數學式要用 <code>\( \)</code> 或 <code>$ $</code> 包住。</p>
 
   <h3>數學編輯器</h3>
   <p>點擊「📝 數學編輯器」開啟獨立視窗，提供圖形化介面輸入分數、根號、矩陣等結構，並支援 MathML 輸出。編輯完成後按「✓ 套用到轉換器」帶入輸入框。</p>
@@ -610,6 +658,47 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       </tr>
     </tbody>
   </table>
+</section>
+
+
+<!-- ════════════ 桌面版 ════════════ -->
+<section id="app">
+  <h2 class="section-title">Windows 桌面版</h2>
+  <p>桌面版就是這個網站的工具，另外多了兩件事：</p>
+  <ul>
+    <li><b>沒有網路也能用</b>：有網路時用網站上最新的版本，沒網路時自動改用程式內附的版本。</li>
+    <li><b>存成音檔</b>：報讀和文件整理的朗讀內容，可以存成 MP3 或 WAV，放到手機或播放器聽。</li>
+  </ul>
+  <p>只需要在網頁上朗讀、不需要離線或音檔的話，用網頁版就可以了。</p>
+
+  <h3>下載與開啟</h3>
+  <ol>
+    <li>到 <a href="https://github.com/hurthuang/vi-tools/releases/latest" target="_blank" rel="noopener">下載頁面</a>，下載 <b>ViTools-版本-portable.zip</b>。</li>
+    <li>解壓縮到任一資料夾（例如「文件」或隨身碟），不需要安裝。</li>
+    <li>執行資料夾裡的 <b>ViTools.exe</b>。</li>
+  </ol>
+  <div class="note">第一次執行時，Windows 可能顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。適用 Windows 10、11。</div>
+
+  <h3>存成音檔</h3>
+  <ul>
+    <li><b>文字轉點字、點字轉文字、數學點字</b>：展開「🔊 報讀」，按「💾 匯出音檔…」。</li>
+    <li><b>文件整理</b>：在「朗讀」分頁按「💾 匯出音檔…」。有點選某一句時，從那一句存到結尾。</li>
+    <li>也可以按 <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>。</li>
+    <li>存檔時可選 <b>MP3</b>（檔案小，一小時約 28MB）或 <b>WAV</b>。</li>
+    <li>音檔用的是 Windows 內建的語音，會盡量用和網頁上選的同一個語音。</li>
+    <li>中英夾雜時，英文段會用英文語音（見<a href="#common-speech">報讀（朗讀）</a>）。語音設定裡多一項「匯出時換語音的停頓」，可調整中英文交界處的停頓長短，一般用預設的「縮短」即可。</li>
+  </ul>
+  <div class="note">電腦沒有臺灣中文語音時，程式會提示安裝方法：Windows「設定 → 時間與語言 → 語音 → 新增語音 → 中文(台灣)」。要讓英文用英文語音念，另外加裝 English (United States)。</div>
+
+  <h3>更新</h3>
+  <p>程式每天會自動檢查一次有沒有新版，有的話會詢問是否前往下載。網頁上的工具有改進時，桌面版連上網路就會直接用到，不需要更新程式；只有桌面版本身的功能改變時才需要下載新版。</p>
+
+  <h3>快速鍵</h3>
+  <ul>
+    <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>：報讀／匯出音檔。</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd>：立即檢查更新。</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>：切換線上版和離線版（標題列顯示「（離線版）」時表示目前用的是內附版本）。</li>
+  </ul>
 </section>
 
 </main>

@@ -8,6 +8,7 @@ dotnet build
 node tests/run.mjs                                   # 測開發版（bin\Debug）
 node tests/run.mjs --exe dist\ViTools\ViTools.exe    # 測可攜版（先 dotnet publish -p:PublishProfile=Portable）
 node tests/run.mjs --only doc                        # 只跑檔名或名稱含 doc 的測試
+node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號分隔
 ```
 
 需要 Node.js 22 以上（用內建的 `fetch`、`WebSocket`）。測試期間 app 視窗會自己開關，**不要操作滑鼠鍵盤**，存檔視窗由測試自動填寫。

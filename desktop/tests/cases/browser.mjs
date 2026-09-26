@@ -57,6 +57,9 @@ export default {
       await sleep(1500);
 
       check('首頁沒有 vitoolsDesktop', await cdp.ev(`typeof window.vitoolsDesktop`) === 'undefined');
+      check('首頁下方有桌面版下載連結', await cdp.ev(`(document.querySelector('#app-download a') || {}).href`) === 'https://github.com/hurthuang/vi-tools/releases/latest');
+      const guideApp = await cdp.ev(`(() => { const g = document.getElementById('frame-guide').contentDocument; return !!g.getElementById('app') && !!g.getElementById('common-speech') && !!g.querySelector('.sidebar a[href="#app"]'); })()`);
+      check('說明有「Windows 桌面版」與「報讀（朗讀）」', guideApp);
       for (const [frame, label] of [['frame-bt', '文字轉點字'], ['frame-g2', '點字轉文字']]) {
         const W = `document.getElementById('${frame}').contentWindow`, D = `${W}.document`;
         const info = await cdp.ev(`({ desktop: typeof ${W}.vitoolsDesktop, audio: typeof ${W}.vitoolsDesktopAudio,

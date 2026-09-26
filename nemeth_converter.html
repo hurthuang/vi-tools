@@ -69,8 +69,7 @@ main{flex:1;padding:13px 18px;display:flex;flex-direction:column;gap:9px}
 .ph{font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   color:var(--dim);display:flex;align-items:center;gap:5px}
 .dot{width:5px;height:5px;border-radius:50%;background:var(--blue);aria-hidden:true}
-.dot.g{background:var(--green)}.dot.p{background:var(--purple)}
-textarea{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:7px;
+.dot.g{background:var(--green)}.dot.p{background:var(--purple)}textarea{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:7px;
   color:var(--text);font-family:var(--mono);font-size:15px;padding:10px;
   resize:vertical;height:200px;min-height:130px;transition:border-color .15s;line-height:1.65;
   overflow-y:auto;}
@@ -91,6 +90,8 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
 /* n2l panels taller when LaTeX output is collapsed */
 #p-n2l.out-collapsed #n2l-in,
 #p-n2l.out-collapsed #n2l-prev{height:300px;}
+#p-l2n.out-collapsed #l2n-in,
+#p-l2n.out-collapsed #l2n-prev{height:300px;}
 /* each data-line div gets at least one line height so empty lines show */
 [data-line]{min-height:1.65em;}
 .info{font-size:.71rem;color:var(--dim);padding:5px 8px;background:var(--surf2);
@@ -294,7 +295,7 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
 
 
 <!-- LaTeX → Nemeth panel -->
-<main id="p-l2n" id="main-content" role="tabpanel" aria-labelledby="t-l2n">
+<main id="p-l2n" id="main-content" class="out-collapsed" role="tabpanel" aria-labelledby="t-l2n">
   <div class="grid">
     <div class="pane">
       <div class="ph" id="l2n-in-label">
@@ -324,8 +325,11 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
         <label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;"><input type="radio" name="l2n-output-format" value="unicode" checked onchange="l2nConvert()" style="accent-color:var(--blue);cursor:pointer;"> Unicode</label>
         <label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;"><input type="radio" name="l2n-output-format" value="ascii" onchange="l2nConvert()" style="accent-color:var(--blue);cursor:pointer;"> ASCII+SimBraille</label>
       </span>
+      <button id="l2n-out-toggle" onclick="toggleL2nOut()"
+        aria-expanded="false" aria-controls="l2n-out"
+        style="margin-left:10px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:.65rem;font-weight:700;letter-spacing:.05em;padding:0">&#x25B6; &#x5C55;&#x958B;</button>
     </div>
-    <div class="box mono" id="l2n-out"
+    <div class="box mono" id="l2n-out" style="display:none"
       role="region" aria-labelledby="l2n-out-label"
       aria-live="polite"></div>
   </div>
@@ -3149,10 +3153,12 @@ function buildSymRef(){
 // UI
 // =====================================================================
 var curMode='l2n';
-function toggleN2lOut() {
-  var out = document.getElementById('n2l-out');
-  var btn = document.getElementById('n2l-out-toggle');
-  var main = document.getElementById('p-n2l');
+function toggleL2nOut() { toggleOut('l2n'); }
+function toggleN2lOut() { toggleOut('n2l'); }
+function toggleOut(m) {
+  var out = document.getElementById(m + '-out');
+  var btn = document.getElementById(m + '-out-toggle');
+  var main = document.getElementById('p-' + m);
   var expand = out.style.display === 'none';
   out.style.display = expand ? '' : 'none';
   btn.setAttribute('aria-expanded', String(expand));
@@ -3310,7 +3316,6 @@ function l2nCopyForBt(){
 }
 function l2nSave(){dl(_l2nOutLines.join('\n'),'nemeth.txt');}
 function l2nClear(){document.getElementById('l2n-in').value='';l2nConvert();}
-
 // Wrap standalone numbers in the L2N input with \(...\) math delimiters.
 // Skips:
 //   - Numbers that are already inside \(...\) or $...$

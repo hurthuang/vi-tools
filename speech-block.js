@@ -73,8 +73,6 @@
       <div class="sb-body">
         ${config.sources && config.sources.length > 1
           ? `<div class="sb-row"><label>朗讀內容 <select id="${id}-source"></select></label></div>` : ''}
-        <div class="sb-label" id="${id}-label">報讀文字：點一行從那行朗讀（方向鍵移動，Enter 朗讀，Esc 停止）</div>
-        <div class="sb-list" id="${id}-list" role="group" aria-labelledby="${id}-label"></div>
         <div class="sb-row acts">
           <button type="button" class="btn pri" id="${id}-play">▶ 朗讀</button>
           <button type="button" class="btn" id="${id}-stop" disabled>⏹ 停止</button>
@@ -90,6 +88,8 @@
           <div class="sb-row" id="${id}-bilingual"></div>
         </details>
         <p class="sb-warn" id="${id}-voice-warn" hidden></p>
+        <div class="sb-label" id="${id}-label">報讀文字：點一行從那行朗讀（方向鍵移動，Enter 朗讀，Esc 停止）</div>
+        <div class="sb-list" id="${id}-list" role="group" aria-labelledby="${id}-label"></div>
         <div class="st" id="${id}-st" role="status" aria-live="polite"></div>
       </div>`;
     anchor.after(el);

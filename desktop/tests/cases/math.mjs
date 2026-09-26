@@ -89,5 +89,21 @@ export default {
     await setInput('l2n-in', String.raw`若 $x^2$ 和 \(y^2\)。`);
     const sp3 = await waitFor(cdp, `/共 2 個算式/.test(${D}.getElementById('l2n-speech-st').textContent) && ${D}.getElementById('l2n-speech').speechText`, 10000);
     check('單個 $ 也當算式（和轉點字一致）', /x 平方/.test(sp3 || '') && /y 平方/.test(sp3 || '') && !(sp3 || '').includes('$'), sp3);
+
+    // Nemeth 輸出和 n2l 的 LaTeX 輸出一樣：預設收合（輸入、預覽加高），收合時轉換與報讀照常
+    const st = m => cdp.ev(`({ shown: ${D}.getElementById('${m}-out').style.display !== 'none', exp: ${D}.getElementById('${m}-out-toggle').getAttribute('aria-expanded'),
+      label: ${D}.getElementById('${m}-out-toggle').textContent.trim(), tall: ${D}.getElementById('p-${m}').classList.contains('out-collapsed') })`);
+    let s = await st('l2n');
+    check('Nemeth 輸出預設收合（同 n2l）', !s.shown && s.exp === 'false' && s.label === '▶ 展開' && s.tall, JSON.stringify(s));
+    await setInput('l2n-in', String.raw`解 \(z^2=4\)。`);
+    const sp4 = await waitFor(cdp, `/z 平方/.test(${D}.getElementById('l2n-speech').speechText) && ${D}.getElementById('l2n-out').textContent`, 10000);
+    check('收合時照常轉點字、報讀', /[⠀-⣿]/.test(sp4 || ''), sp4);
+    await cdp.ev(`${D}.getElementById('l2n-out-toggle').click()`);
+    s = await st('l2n');
+    check('按「展開」顯示 Nemeth 輸出', s.shown && s.exp === 'true' && s.label === '▼ 收合' && !s.tall, JSON.stringify(s));
+    await cdp.ev(`${D}.getElementById('l2n-out-toggle').click()`);
+    s = await st('l2n');
+    const n = await st('n2l');
+    check('再按一次收合；n2l 不受影響', !s.shown && s.exp === 'false' && s.tall && !n.shown && n.tall, JSON.stringify({ s, n }));
   },
 };

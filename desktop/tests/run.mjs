@@ -1,4 +1,4 @@
-// 桌面版冒煙測試：node tests/run.mjs [--exe <ViTools.exe>] [--only <關鍵字>]
+// 桌面版冒煙測試：node tests/run.mjs [--exe <ViTools.exe>] [--only <關鍵字,關鍵字…>]
 // 預設測開發版（bin\Debug）；執行檔旁有 web\ 資料夾時視為可攜版
 import { existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -23,7 +23,7 @@ const files = readdirSync(join(here, 'cases')).filter(f => f.endsWith('.mjs'))
 const pageErrors = [];
 for (const f of files) {
   const { default: test } = await import(pathToFileURL(join(here, 'cases', f)).href);
-  if (only && !f.includes(only) && !test.name.includes(only)) continue;
+  if (only && !only.split(',').some(k => f.includes(k) || test.name.includes(k))) continue;
   console.log(`■ ${test.name}（${f}）`);
   lib.setCurrentTest(test.name);
   let app = null, ctx_teardown = null;

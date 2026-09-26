@@ -10,6 +10,8 @@ export default {
       check(`${where}：有 vitoolsDesktop（apiVersion 1、appVersion 0.1.0、三個函式）`,
         info && info.api === 1 && info.app === '0.1.0' && info.fns, JSON.stringify(info));
     }
+    const dl = await cdp.ev(`document.getElementById('app-download').textContent`);
+    check('首頁下方的下載連結改成顯示目前版本', /目前使用 Windows 桌面版 v0\.1\.0/.test(dl) && !(await cdp.ev(`!!document.querySelector('#app-download a')`)), dl);
 
     const D = `${win('frame-p2a')}.vitoolsDesktop`;
     const voices = await cdp.ev(`${D}.getVoices()`);
