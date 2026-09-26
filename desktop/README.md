@@ -37,6 +37,17 @@ dotnet publish -p:PublishProfile=Portable
 - **發佈順序**：線上網頁是 GitHub 上目前推送的版本。網頁功能改了要先推上去，app 的線上版才會有；還沒推送前，線上版看不到新功能（可按 Ctrl+Shift+O 或用 `--offline` 改用內附版）
 - CDN 函式庫：網頁向 cdnjs／jsDelivr 要 pdf.js、JSZip、MathJax 時，app 改給 `desktop-assets\cdn\` 的同一份檔案（內容已確認和 CDN 相同）；沒內附的照常走網路
 
+### 檢查更新與發佈
+
+- app 檢查 GitHub 上 vi-tools 的 Release，只看標籤 `desktop-v*`（略過草稿、預先發行與網頁版的標籤），和 `ViTools.csproj` 的 `<Version>` 比較
+  - 啟動後在背景檢查，一天最多一次，沒有新版不出聲；**Ctrl+Shift+U** 手動檢查，已是最新版或檢查失敗也會告知
+  - 有新版時詢問是否開啟下載頁面（解壓縮覆蓋原本資料夾即可更新）
+- **發佈新版**：
+  1. 網頁的修改先推送上線（app 優先載入線上網頁）
+  2. 把 `ViTools.csproj` 的 `<Version>` 改成新版本號（例如 0.2.0），commit 並推送
+  3. 推送標籤 `desktop-v0.2.0`：GitHub Actions（`../.github/workflows/desktop-release.yml`）自動建立可攜版，上傳成 Release 的 `ViTools-0.2.0-portable.zip`；標籤和 `<Version>` 不同時會中止
+- 程式沒有數位簽章，下載後第一次執行 Windows SmartScreen 會警告，要按「其他資訊」→「仍要執行」
+
 網頁資料夾搜尋順序：`--web <資料夾>` 參數 → 執行檔旁的 `web\` → 往上層找含 `braille-translate.htm` 的資料夾（開發時就是 vi-tools 根目錄）。
 
 ## 使用

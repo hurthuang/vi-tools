@@ -1,0 +1,57 @@
+# 桌面版（desktop/，ViTools）發佈：推送 desktop-vX.Y.Z 標籤時，建立可攜版 zip 並上傳到同名 Release
+# 步驟：先把 desktop/ViTools.csproj 的 <Version> 改成 X.Y.Z 並 commit，再推送標籤 desktop-vX.Y.Z
+# 網頁要先推送：app 優先載入線上網頁，發佈需要新網頁功能的 app 之前，網頁必須已經上線
+name: 桌面版發佈
+
+on:
+  push:
+    tags: ['desktop-v*']
+
+permissions:
+  contents: write   # 建立 Release、上傳 zip
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 檢查版本號（標籤要和 ViTools.csproj 的 Version 相同，app 的檢查更新靠它比對）
+        id: ver
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $ver = $tag.Substring('desktop-v'.Length)
+          [xml]$proj = Get-Content ViTools.csproj
+          $projVer = @($proj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
+          if ($projVer -ne $ver) { Write-Error "標籤 $tag 的版本 $ver 和 ViTools.csproj 的 <Version>$projVer</Version> 不同"; exit 1 }
+          "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: 建立可攜版（單一執行檔內含 .NET，加上 web\ 與 desktop-assets\）
+        run: dotnet publish -p:PublishProfile=Portable
+
+      - name: 發佈 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ver = '${{ steps.ver.outputs.version }}'
+          $zip = "ViTools-$ver-portable.zip"
+          Copy-Item dist/ViTools-portable.zip $zip
+          $notes = @"
+          視障輔助工具集 桌面版 v$ver
+
+          **安裝**：下載 $zip，解壓縮後執行 ViTools.exe（不用安裝 .NET）。更新時解壓縮覆蓋原本的資料夾即可。
+          需要 Windows 10（1809 以上）或 11、Microsoft Edge WebView2 Runtime（通常已內建）、Windows 臺灣中文語音。
+
+          第一次執行時 Windows 可能顯示「Windows 已保護您的電腦」：按「其他資訊」→「仍要執行」（程式沒有數位簽章）。
+
+          快捷鍵：Alt+Shift+A 報讀／匯出、Ctrl+Shift+O 線上版與離線版互換、Ctrl+Shift+U 檢查更新。
+          "@
+          gh release create $env:GITHUB_REF_NAME $zip --title "桌面版 v$ver" --notes $notes --generate-notes

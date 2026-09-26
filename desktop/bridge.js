@@ -24,9 +24,11 @@
     });
   }
 
-  // Ctrl+Shift+O：線上網頁與內附離線版互換（原生層處理，停在同一頁）
+  // 桌面版快捷鍵（原生層處理）：Ctrl+Shift+O 線上網頁與內附離線版互換（停在同一頁）；Ctrl+Shift+U 檢查更新
   document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyO') { e.preventDefault(); host.postMessage({ type: 'toggleWebSource' }); }
+    if (!e.ctrlKey || !e.shiftKey || e.altKey) return;
+    if (e.code === 'KeyO') { e.preventDefault(); host.postMessage({ type: 'toggleWebSource' }); }
+    else if (e.code === 'KeyU') { e.preventDefault(); host.postMessage({ type: 'checkUpdate' }); }
   });
 
   // 各分頁共用最上層的 chrome.webview，用 fid 分辨回覆屬於哪一頁

@@ -9,7 +9,7 @@ export default {
     check('內附版的桌面功能正常', await cdp.ev(`window.vitoolsDesktop.getVoices().then(v => v.length > 0)`));
 
     await cdp.key('KeyO', 'O', 2 | 8);
-    const msg = closeAppMessageBox();
+    const msg = await closeAppMessageBox();
     check('Ctrl+Shift+O：連不上時提示並維持離線版', /連不上線上網頁/.test(msg || ''), msg);
     await sleep(500);
     check('仍然是內附離線版', (await cdp.ev('location.href')).startsWith('https://vitools.local/'));

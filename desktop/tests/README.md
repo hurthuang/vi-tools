@@ -16,6 +16,7 @@ node tests/run.mjs --only doc                        # 只跑檔名或名稱含 
 
 - 用 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` 開 app，透過 CDP 操作頁面
 - 每個測試用新的 WebView2 設定資料夾（環境變數 `VITOOLS_USER_DATA`），**不會動到使用者平常的設定與網頁本機資料**
+- 預設 `VITOOLS_UPDATE_URL=none` 不自動檢查更新（不連真正的 GitHub）；`update.mjs` 改指向本機假伺服器
 - 預設 `VITOOLS_WEB=local` 用內附網頁，結果不受線上網頁內容影響；`VITOOLS_SIMULATE_OFFLINE=1` 模擬斷線（除了本機網頁與內附檔案，對外請求都失敗）。這兩個環境變數只給測試用
 - 視窗標題與訊息視窗網頁裡看不到，用 PowerShell 讀（`appTitle()`、`closeAppMessageBox()`）
 - 存檔視窗用 `save-dialog.ps1`（Win32 API 找「匯出音檔」視窗、填檔名、按存檔），以 `powershell -Command` 執行，不需要改執行原則
@@ -37,6 +38,7 @@ node tests/run.mjs --only doc                        # 只跑檔名或名稱含 
 | `math.mjs` | 數學點字的報讀區塊：舊面板已移除、Alt+Shift+A、轉報讀文字、朗讀與停止、逐行清單（點第 2 行從那行念、反白、Esc、方向鍵）、存報讀檔、自動更新、匯出 MP3、點字→數學方向、單個 `$`（和轉點字一致） |
 | `offline.mjs` | 模擬斷線：數學點字頁的 MathJax 預覽、報讀區塊（含 `\ratio`）、文件整理開 PDF（pdf.js 與 worker）與 DOCX（JSZip）、數學式模式都用內附檔案，頁面沒有錯誤 |
 | `online.mjs` | 線上優先（需要網路）：載入線上網頁、那裡也能用桌面功能、Ctrl+Shift+O 與離線版互換（保留位置、標題加「（離線版）」） |
+| `update.mjs` | 檢查更新（本機假伺服器模擬 Release 清單）：啟動自動檢查有新版會詢問（略過網頁版標籤、預先發行、草稿）、Ctrl+Shift+U 已是最新版／檢查失敗／有新版 |
 | `online-fallback.mjs` | 線上網頁載不到時自動改用內附；這時 Ctrl+Shift+O 提示連不上並維持離線版 |
 | `voice-warning.mjs` | 模擬沒有臺灣中文語音，面板與文件整理顯示安裝方法 |
 

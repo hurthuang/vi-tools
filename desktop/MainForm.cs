@@ -53,6 +53,7 @@ public class MainForm : Form
         string dataDir = Environment.GetEnvironmentVariable("VITOOLS_USER_DATA") is { Length: > 0 } testDir
             ? testDir
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ViTools", "WebView2");
+        _dataDir = dataDir;
         var env = await CoreWebView2Environment.CreateAsync(null, dataDir);
         await _web.EnsureCoreWebView2Async(env);
         var core = _web.CoreWebView2;
@@ -104,6 +105,12 @@ public class MainForm : Form
                 UpdateTitle();
                 core.Navigate(ToLocal(core.Source));
             }
+            // 第一頁載好後，在背景安靜地檢查更新（一天最多一次）
+            else if (!failed && !_startupUpdateChecked)
+            {
+                _startupUpdateChecked = true;
+                _ = CheckForUpdatesAsync(manual: false);
+            }
         };
 
         string bridge = LoadBridgeScript();
@@ -122,6 +129,76 @@ public class MainForm : Form
 
     readonly bool _simulateOffline = Environment.GetEnvironmentVariable("VITOOLS_SIMULATE_OFFLINE") == "1";
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(3) };
+
+    // ── 檢查更新：GitHub 上 vi-tools 的 Release，只看標籤 desktop-v*（略過草稿與預先發行）
+    //   manual=false：啟動後在背景檢查，一天最多一次，沒有新版就不出聲
+    //   manual=true：Ctrl+Shift+U（網頁送來 checkUpdate），沒有新版或檢查失敗也告訴使用者
+    //   VITOOLS_UPDATE_URL：測試用，改用別的 Release 清單網址；設成 none 不自動檢查
+    const string ReleasesApi = "https://api.github.com/repos/hurthuang/vi-tools/releases?per_page=30";
+    const string TagPrefix = "desktop-v";
+    static readonly HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+    string _dataDir = "";
+    bool _startupUpdateChecked;
+
+    async Task CheckForUpdatesAsync(bool manual)
+    {
+        string? custom = Environment.GetEnvironmentVariable("VITOOLS_UPDATE_URL");
+        if (!manual && custom == "none") return;
+        string api = custom is { Length: > 0 } && custom != "none" ? custom : ReleasesApi;
+        if (!manual)
+        {
+            string stamp = Path.Combine(_dataDir, "vitools-update-check.txt");
+            try
+            {
+                if (File.Exists(stamp) && DateTime.UtcNow - File.GetLastWriteTimeUtc(stamp) < TimeSpan.FromDays(1)) return;
+                Directory.CreateDirectory(_dataDir);
+                File.WriteAllText(stamp, DateTime.UtcNow.ToString("o"));
+            }
+            catch { }
+        }
+        try
+        {
+            if (_simulateOffline && custom is not { Length: > 0 }) throw new HttpRequestException("沒有網路連線");
+            using var req = new HttpRequestMessage(HttpMethod.Get, api);
+            req.Headers.UserAgent.ParseAdd($"ViTools/{AppVersion}");
+            req.Headers.Accept.ParseAdd("application/vnd.github+json");
+            using var res = await UpdateHttp.SendAsync(req);
+            res.EnsureSuccessStatusCode();
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+
+            Version? latest = null;
+            string latestUrl = "";
+            foreach (var r in doc.RootElement.EnumerateArray())
+            {
+                if (r.TryGetProperty("draft", out var d) && d.GetBoolean()) continue;
+                if (r.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
+                string tag = r.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
+                if (!tag.StartsWith(TagPrefix, StringComparison.Ordinal) || !Version.TryParse(tag[TagPrefix.Length..], out var v)) continue;
+                if (latest == null || v > latest)
+                {
+                    latest = v;
+                    latestUrl = r.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "";
+                }
+            }
+
+            var current = Version.Parse(AppVersion);
+            if (latest != null && latest > current)
+            {
+                var answer = MessageBox.Show(this,
+                    $"有新版本 v{latest.ToString(3)}（目前使用 v{AppVersion}）。\n\n要開啟下載頁面嗎？下載後解壓縮，覆蓋原本的資料夾即可。",
+                    "視障輔助工具集", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                if (answer == DialogResult.Yes && latestUrl.StartsWith("https://github.com/", StringComparison.Ordinal))
+                    OpenExternal(latestUrl);
+            }
+            else if (manual)
+                MessageBox.Show(this, $"目前已是最新版本（v{AppVersion}）。", "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            if (manual)
+                MessageBox.Show(this, $"檢查更新失敗：{ex.Message}", "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
 
     async Task<bool> OnlineReachableAsync()
     {
@@ -247,6 +324,9 @@ public class MainForm : Form
                     break;
                 case "toggleWebSource":
                     await ToggleWebSourceAsync();
+                    break;
+                case "checkUpdate":
+                    await CheckForUpdatesAsync(manual: true);
                     break;
             }
         }

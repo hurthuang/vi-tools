@@ -47,6 +47,7 @@ async function waitPortClosed(port, ms = 15000) {
 // 每次用新的 WebView2 設定資料夾（VITOOLS_USER_DATA），測試不會影響使用者平常的設定
 // opts.env：額外的環境變數（例如 VITOOLS_SIMULATE_OFFLINE: '1' 模擬斷線）
 // 預設 VITOOLS_WEB=local：用內附網頁，測試結果不受線上網頁內容影響（測線上時傳 VITOOLS_WEB: '' 或 'online'）
+// 預設 VITOOLS_UPDATE_URL=none：不自動檢查更新，不去連真正的 GitHub
 export async function startApp(exe, opts = {}) {
   killApp();
   await sleep(1500);
@@ -54,7 +55,7 @@ export async function startApp(exe, opts = {}) {
   while (await portAlive(port)) port = nextPort++;
   const userData = mkdtempSync(join(tmpdir(), 'vitools-test-profile-'));
   const child = spawn(exe, [], {
-    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`, VITOOLS_USER_DATA: userData, VITOOLS_WEB: 'local', ...(opts.env || {}) },
+    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`, VITOOLS_USER_DATA: userData, VITOOLS_WEB: 'local', VITOOLS_UPDATE_URL: 'none', ...(opts.env || {}) },
     detached: true, stdio: 'ignore',
   });
   child.unref();
@@ -210,8 +211,9 @@ export function appTitle() {
   } catch { return ''; }
 }
 
-// app 跳出的訊息視窗（標題「視障輔助工具集」）：回傳內文並按「確定」關掉；沒有就回傳 null
-export function closeAppMessageBox() {
+// app 跳出的訊息視窗（標題「視障輔助工具集」）：回傳內文並按按鈕關掉（預設 1「確定」；7 是「否」）；等不到就回傳 null
+// 非同步執行：等視窗時測試程式（例如同一個程序裡的假伺服器）要能照常運作
+export async function closeAppMessageBox(button = 1) {
   const script = `
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -234,10 +236,9 @@ $h = [IntPtr]::Zero
 for ($i = 0; $i -lt 40 -and $h -eq [IntPtr]::Zero; $i++) { $h = [VtdMsg]::FindWindow('#32770', $title); if ($h -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 250 } }
 if ($h -eq [IntPtr]::Zero) { 'NONE'; exit }
 [VtdMsg]::Text($h)
-[void][VtdMsg]::SendMessage($h, 0x0111, [IntPtr]1, [IntPtr]::Zero)
+[void][VtdMsg]::SendMessage($h, 0x0111, [IntPtr]${button}, [IntPtr]::Zero)
 `;
-  try {
-    const out = execFileSync('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' }).trim();
-    return out === 'NONE' ? null : out;
-  } catch { return null; }
+  const out = await new Promise(r => execFile('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' },
+    (e, stdout) => r((stdout || '').trim())));
+  return !out || out === 'NONE' ? null : out;
 }

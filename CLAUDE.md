@@ -18,7 +18,7 @@ GitHub：https://github.com/hurthuang/vi-tools
 1. 把原本的 `E:\Project\vi-desktop` 搬進 `desktop/`（已完成，尚未 commit；舊資料夾等全部確認後才刪）
 2. 定義 `window.vitoolsDesktop`（已完成 2a：API v1，說明在 `desktop/README.md`「給網頁用的介面」；2b：文字轉點字、點字轉文字的匯出面板已搬到網頁 `desktop-audio.js`；2c：數學點字頁的「🔊 報讀」區塊，瀏覽器也能用；2d：文件整理三種朗讀模式與匯出寫進 `pdf-to-accessible.html`，`bridge.js` 只剩 API），再逐一把桌面版 `bridge.js` 的功能搬進網頁：匯出按鈕、算式轉 MathCAT 報讀文字、文件整理三種朗讀模式（報讀文字／數學式（聽報讀）／原文）、單個 `$` 判斷、缺語音提示
 3. 線上優先、離線內附，並攔截 CDN 函式庫（pdf.js、JSZip、MathJax）改讀內附檔（已完成 2026-09-25；Ctrl+Shift+O 切換；**網頁要先推上 GitHub，app 的線上版才看得到新功能**）
-4. 檢查更新（照 6d-IME 的 GitHub releases 做法）+ GitHub Actions 發佈
+4. 檢查更新（照 6d-IME 的 GitHub releases 做法）+ GitHub Actions 發佈（已完成 2026-09-26：Ctrl+Shift+U；`.github/workflows/desktop-release.yml` 推送 `desktop-vX.Y.Z` 標籤時建立可攜版 Release，標籤要和 `ViTools.csproj` 的 `<Version>` 相同）
 5. 中英夾雜分語音，做在網頁（多段 utterance 各指定語音），播放與匯出都能用
 
 另外已完成（2026-09-25）：nc 報讀區塊改逐行清單；bt、b2t 報讀區塊與「點字讀音」（見下方接點）

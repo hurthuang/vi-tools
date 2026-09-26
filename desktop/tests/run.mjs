@@ -16,7 +16,7 @@ console.log(`執行檔：${exe}（${portable ? '可攜版' : '開發版'}）`);
 console.log(`輸出資料夾：${lib.OUT}\n`);
 
 // 固定順序：先跑不需要 app 的
-const order = ['findmath', 'cli-tts', 'browser', 'web-root', 'api', 'doc', 'math', 'b2t-speech', 'bt-speech', 'offline', 'online', 'online-fallback', 'voice-warning'];
+const order = ['findmath', 'cli-tts', 'browser', 'web-root', 'api', 'doc', 'math', 'b2t-speech', 'bt-speech', 'offline', 'online', 'online-fallback', 'update', 'voice-warning'];
 const files = readdirSync(join(here, 'cases')).filter(f => f.endsWith('.mjs'))
   .sort((a, b) => (order.indexOf(a.replace('.mjs', '')) + 1 || 99) - (order.indexOf(b.replace('.mjs', '')) + 1 || 99));
 
@@ -26,11 +26,13 @@ for (const f of files) {
   if (only && !f.includes(only) && !test.name.includes(only)) continue;
   console.log(`■ ${test.name}（${f}）`);
   lib.setCurrentTest(test.name);
-  let app = null;
+  let app = null, ctx_teardown = null;
   try {
     const ctx = { ...lib, exe, portable };
+    // test.setup()：開 app 前的準備（例如起本機假伺服器），回傳 { env, teardown }
+    if (test.setup) { Object.assign(ctx, await test.setup()); ctx_teardown = ctx.teardown || null; }
     if (test.needsApp) {
-      app = await lib.startApp(exe, { env: test.env });
+      app = await lib.startApp(exe, { env: { ...(test.env || {}), ...(ctx.env || {}) } });
       ctx.cdp = app.cdp;
     }
     await Promise.race([
@@ -46,6 +48,7 @@ for (const f of files) {
     lib.check('測試執行完成', false, e.message);
   } finally {
     if (app) await app.stop();
+    if (ctx_teardown) await ctx_teardown();
   }
   console.log();
 }
