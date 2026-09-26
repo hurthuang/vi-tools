@@ -1,5 +1,5 @@
 // 點字讀音：把點字照「實際代表的音」轉成可以念的文字，用耳朵校對點字
-//   注音點字：每個音節換成念法固定的同音常用字（brl-reading-data.js，來源 NVDA-DictSwitcher 的 brl_dict.dic），
+//   注音點字：每個音節換成念法固定的同音常用字（brl-reading-data.js，來源 NVDA-DictSwitcher 的 brl_dict.dic，加上 tools/build-brl-reading.mjs 補的音節），
 //             例：⠏⠵⠄（ㄆㄥ）→「烹」；字典沒有的音節改用 McBopomofo 的候選字（可能是多音字，列在 fallbacks 讓使用者知道）
 //   英文點字：backTranslate() 用 liblouis 反向翻譯
 // 需要：mcbopomofo-service.js（全域 mcbopomofo）、brl-reading-data.js（window.VITOOLS_BRL_READING）、

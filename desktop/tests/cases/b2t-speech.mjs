@@ -35,6 +35,13 @@ export default {
     check('改輸入後自動更新；字典沒有的音節列在狀態列', /ㄟˋ/.test(note2 || ''), note2 || await cdp.ev(`${D}.getElementById('b2t-speech-st').textContent`));
     check('字典沒有的音節仍念出候選字（不是空白）', (await cdp.ev(`${D}.getElementById('b2t-speech').speechText`)).length >= 3);
 
+    // brl_dict.dic 沒收、由 vi-tools 補上的音節（ㄘㄡˋ 湊、ㄆㄧㄥˋ 聘）與改過的 ㄏㄞˊ（孩），不再列在狀態列
+    const sup = await cdp.ev(`['ㄘㄡˋ', 'ㄆㄧㄥˋ', 'ㄏㄞˊ'].map(s => ${W}.mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(s).trim()).join('')`);
+    await setInput(sup);
+    const supText = await waitFor(cdp, `/湊聘孩/.test(${D}.getElementById('b2t-speech').speechText) && ${D}.getElementById('b2t-speech').speechText`, 8000);
+    const supNote = await cdp.ev(`${D}.getElementById('b2t-speech-st').textContent`);
+    check('補上的音節念成單一讀音字（湊、聘、孩），不列在狀態列', /湊聘孩/.test(supText || '') && !/改用候選字/.test(supNote), `${supText}｜${supNote}`);
+
     // 點一行朗讀
     await realClick(cdp, 'frame-g2', '#b2t-speech-list .sb-line[data-idx="0"]');
     check('點一行開始朗讀', await waitFor(cdp, `${W}.speechSynthesis.speaking`, 5000));

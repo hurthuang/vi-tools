@@ -1,7 +1,9 @@
 // 檢查 NVDA-DictSwitcher 的 brl_dict.dic（國語點字音節 → 同音常用字）涵蓋率，列出缺漏與可疑的項目
 // 完整音節清單取自 6d-IME 的 Phn.tbl（每 3 行一組：音節點字、注音大千鍵、可用聲調）；以注音比對（點字寫法可能有變體）
 // 用法（在 vi-tools 根目錄）：node tools/check-brl-dict.mjs [brl_dict.dic] [Phn.tbl] > 缺漏清單.tsv
-// 已知問題（2026-09-25）：ㄏㄞˊ 的 Unicode 寫法對到多音字「還」（ASCII 寫法是「骸」）；約 60 個罕見音節沒收
+// 已知問題（2026-09-25）：ㄏㄞˊ 的 Unicode 寫法對到多音字「還」（ASCII 寫法是「骸」）；57 個罕見音節沒收
+// 這裡只檢查字典本身；網頁用的資料另外由 tools/build-brl-reading.mjs 的 SUPPLEMENT 補上 21 個（2026-09-26，涵蓋約 97%），
+// 其餘沒有單一讀音的字，不補
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';

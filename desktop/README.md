@@ -56,7 +56,7 @@ dotnet publish -p:PublishProfile=Portable
 **文字轉點字／點字轉文字**：網頁本身的「🔊 報讀」區塊（在輸入／輸出區下方，預設收合），瀏覽器版也有，桌面版多「匯出音檔」（這兩頁因此不再加右下角浮動面板）。「朗讀內容」選單：
 - 文字轉點字：「原文」或「點字讀音（校對用）」；點字轉文字：「轉出的文字」或「點字讀音（校對用）」
 - **點字讀音**：照點字實際代表的音念，用耳朵校對點字
-  - 注音點字：每個音節換成念法固定的同音常用字（`../brl-reading.js` + `../brl-reading-data.js`，資料來自 NVDA-DictSwitcher 的 `brl_dict.dic`，涵蓋約 96% 的音節），字典沒有的音節改用 McBopomofo 候選字並列在狀態列。例：「銀行」的 ㄏㄤˊ 念「航」、「行走」的 ㄒㄧㄥˊ 念「型」，多音字選錯一聽就知道
+  - 注音點字：每個音節換成念法固定的同音常用字（`../brl-reading.js` + `../brl-reading-data.js`，資料來自 NVDA-DictSwitcher 的 `brl_dict.dic`，加上 vi-tools 自己補的 21 個音節，涵蓋約 97%），字典沒有的音節改用 McBopomofo 候選字並列在狀態列。例：「銀行」的 ㄏㄤˊ 念「航」、「行走」的 ㄒㄧㄥˊ 念「型」，多音字選錯一聽就知道
   - 英文：用目前的英文點字表（liblouis）反向翻譯回英文再念，可以抓出縮寫用錯
   - 數學（Nemeth）：先念「數學」帶過
   - 資料檔用 `node ../tools/build-brl-reading.mjs <brl_dict.dic>` 重新產生
@@ -127,7 +127,6 @@ function onDesktop(fn) {
 
 ## 待辦
 
-- **`brl_dict.dic` 的小問題**（NVDA-DictSwitcher，另一個專案，沒改）：ㄏㄞˊ 的 Unicode 寫法對到多音字「還」（ASCII 寫法是「骸」，網頁資料已改用「骸」）；約 60 個罕見音節沒收（例：ㄟˋ、ㄓㄨㄞ、ㄗㄣˋ），網頁改用 McBopomofo 候選字。要補字典時用 `node ../tools/check-brl-dict.mjs > 缺漏清單.tsv` 重新列出（2026-09-25：涵蓋 95.7%，缺 57 個，寫法不同字 1 個），補完後再用 `../tools/build-brl-reading.mjs` 重新產生網頁資料。
 - **刪除舊資料夾 `E:\Project\vi-desktop`**：桌面版搬進 vi-tools 的 `desktop/` 之前的副本。等搬移後的所有步驟都確認沒問題、commit 之後才刪。
 - **數學點字頁「整理」按鈕的包覆記號問題**（上層 `nemeth_converter.html` 數學編輯器的 `convertAllDelimiters()`，屬於網頁部分，非桌面版）：遇到 `$` 就切換進出算式，沒有判斷上下文：
   - 金額會被誤判：「$100 和 $200」→ `\(100 和 \)200`

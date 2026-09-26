@@ -27,7 +27,7 @@ GitHub：https://github.com/hurthuang/vi-tools
 - `voice-settings.js`（`window.vitoolsVoiceSettings`，localStorage `vitools-voice-settings`，各頁共用）+ `lang-segments.js`：中英分語音；三頁與 `pdf-to-accessible.html` 要在 `speech-block.js` 之前載入。匯出時 `exportArgs()` 只在 app 有 `segments` 功能時才帶 `segments`／`pause`
 - `desktop-audio.js`：桌面版共用小工具（`onDesktop`、缺語音提示 `voiceWarning`）；原本的右下角浮動面板已由各頁報讀區塊取代
 - `speech-block.js`「🔊 報讀」區塊：nc、bt、b2t 都有（逐行清單點一行從那行念、存報讀檔、朗讀內容選單 `sources`；桌面版多匯出音檔與缺語音提示）
-- `brl-reading.js` + `brl-reading-data.js`「點字讀音」（bt、b2t）：注音點字每個音節換成念法固定的同音常用字（資料由 `tools/build-brl-reading.mjs` 從 NVDA-DictSwitcher 的 `brl_dict.dic` 產生，以注音為鍵查，涵蓋約 96%，查不到用 McBopomofo 候選字並列在狀態列）；英文用 liblouis 反向翻譯；Nemeth 先念「數學」。bt 的 `render()` 會存 `window._btRenderTokens` 並發 `bt-output-changed`；b2t 輸出改變時發 `b2t-output-changed`
+- `brl-reading.js` + `brl-reading-data.js`「點字讀音」（bt、b2t）：注音點字每個音節換成念法固定的同音常用字（資料由 `tools/build-brl-reading.mjs` 從 NVDA-DictSwitcher 的 `brl_dict.dic` 產生，加上該腳本 `SUPPLEMENT` 補的音節（不改 brl_dict.dic），以注音為鍵查，涵蓋約 97%，查不到用 McBopomofo 候選字並列在狀態列）；英文用 liblouis 反向翻譯；Nemeth 先念「數學」。bt 的 `render()` 會存 `window._btRenderTokens` 並發 `bt-output-changed`；b2t 輸出改變時發 `b2t-output-changed`
 - `math-speech.js`（算式 → MathCAT 報讀文字，`mathcat/` 是 WASM）與 `speech-block.js`（「🔊 報讀」區塊：瀏覽器語音朗讀，桌面版多匯出）：數學點字頁用，認算式沿用該頁的 `MATH_RE`、逐行處理
 - **發佈順序**：介面在網頁、功能在 app，所以網頁要先推上線，再發佈需要它的 app 版本；網頁改用 app 的新功能時，要先檢查 `vitoolsDesktop` 有沒有該功能（舊版 app 可能沒有）
 - `pdf-to-accessible.html` 朗讀分頁本身有「朗讀內容」三種模式（文件有算式時出現；用 `math-speech.js`，認單個 `$` 照 Pandoc 規則），瀏覽器也能用；偵測到 `vitoolsDesktop` 才顯示「匯出音檔」與缺語音提示（提示文字來自 `desktop-audio.js` 的 `voiceWarning`）。原本給桌面版的 `ttsSentenceHook` 掛鉤已移除

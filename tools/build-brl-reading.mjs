@@ -4,6 +4,7 @@
 // ASCII→Unicode 用 braille-to-text.html 裡的 BR_TO_ASCII 表
 // 用法（在 vi-tools 根目錄）：node tools/build-brl-reading.mjs <brl_dict.dic 路徑>
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,10 +17,26 @@ const ASCII_TO_UNI = {};
 for (const [u, a] of Object.entries(BR_TO_ASCII)) ASCII_TO_UNI[a] = u;
 const toUni = s => [...s.toLowerCase()].map(c => ASCII_TO_UNI[c] || null);
 
-// 同一音節兩種寫法對到不同字時，用這裡指定的字（多音字念法不固定，要避開）
-const OVERRIDE = {
-  '⠗⠺⠂': '骸',   // ㄏㄞˊ：Unicode 寫法原本是「還」（多音字，可能念成 ㄏㄨㄢˊ）
+// vi-tools 自己的補充與修正，以注音為鍵（不改 brl_dict.dic）；優先於字典
+// 選字原則：McBopomofo 的字→讀音表（webBpmfvsVariants）裡只有這一個讀音的字，同分時取 McBopomofo 的首選
+// 字典沒收、又找不到單一讀音字的音節（如 ㄟˇ、ㄓㄨㄞ、ㄌㄥ，多半沒有實際的字或只有多音字）不補，
+// 網頁會改用 McBopomofo 候選字並列在狀態列，校對時這類音節通常是點字打錯
+const SUPPLEMENT = {
+  'ㄏㄞˊ': '孩',   // 字典兩種寫法不同字：ASCII「骸」、Unicode「還」（多音字 ㄏㄨㄢˊ）；「孩」較常用且只有一個讀音
+  'ㄔㄨㄞˊ': '膗', 'ㄔㄣˇ': '磣', 'ㄙㄨㄣˋ': '愻', 'ㄒㄧㄣˇ': '伈', 'ㄊㄡˇ': '黈', 'ㄖㄨㄢˊ': '壖',
+  'ㄗㄣˋ': '譖', 'ㄗㄤˇ': '駔', 'ㄕㄨㄤˋ': '灀', 'ㄘㄡˋ': '湊', 'ㄘㄨㄛˇ': '脞', 'ㄎㄨㄞ': '咼',
+  'ㄎㄣˋ': '掯', 'ㄋㄧㄝˊ': '苶', 'ㄆㄞˇ': '俖', 'ㄆㄤˇ': '嗙', 'ㄆㄧㄥˋ': '聘', 'ㄈㄡˊ': '芣',
+  'ㄈㄧㄠˋ': '覅', 'ㄣ˙': '嗯',
 };
+globalThis.self = globalThis;   // McBopomofo 是瀏覽器用的打包檔，要有 self
+const conv = createRequire(import.meta.url)(join(root, 'mcbopomofo-service.js')).BopomofoBrailleConverter;
+const OVERRIDE = {};
+for (const [bpmf, ch] of Object.entries(SUPPLEMENT)) {
+  const brl = conv.convertBpmfToBraille(bpmf).trim();
+  const back = conv.convertBrailleToTokens(brl);
+  if (back.length !== 1 || back[0].bpmf !== bpmf) throw new Error(`${bpmf} 轉點字 ${brl} 後解不回同一個注音`);
+  OVERRIDE[brl] = ch;
+}
 
 const map = new Map();
 const conflicts = [];
@@ -42,7 +59,7 @@ for (const [k, v] of Object.entries(OVERRIDE)) map.set(k, v);
 const entries = [...map.entries()].sort(([a], [b]) => a < b ? -1 : 1);
 const body = entries.map(([k, v]) => `${JSON.stringify(k)}:${JSON.stringify(v)}`).join(',\n');
 const out = `// 自動產生，請勿手改：node tools/build-brl-reading.mjs <brl_dict.dic>
-// 國語點字音節（Unicode 點字，含聲調格）→ 念法固定的同音常用字；來源 NVDA-DictSwitcher 的 brl_dict.dic
+// 國語點字音節（Unicode 點字，含聲調格）→ 念法固定的同音常用字；來源 NVDA-DictSwitcher 的 brl_dict.dic，加上 tools/build-brl-reading.mjs 的 SUPPLEMENT
 // 共 ${entries.length} 筆
 window.VITOOLS_BRL_READING = {
 ${body}
