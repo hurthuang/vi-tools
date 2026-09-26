@@ -9,6 +9,7 @@
 //   sources      選用：多個朗讀內容 [{ id, label, getText, transform }]，區塊會多一個「朗讀內容」選單（取代 getText/transform）
 //   watch(update) 選用：原文改變時呼叫 update()（區塊展開時才會真的重新轉換）
 //   fileName()   選用：存報讀檔與匯出音檔的預設檔名（不含副檔名）
+// 頁面有載入 lang-segments.js 與 voice-settings.js 時，「語音設定」裡多中英分語音的選項，朗讀與匯出時英文段用英文語音
 // 區塊元素（details）的 speechText 屬性是目前完整的報讀文字
 (function () {
   'use strict';
@@ -35,6 +36,10 @@
     .speech-block .sb-row label { display: inline-flex; align-items: center; gap: 4px; }
     .speech-block select { max-width: 16em; font: inherit; }
     .speech-block .sb-warn { font-size: .78rem; color: var(--red, #c62828); }
+    .speech-block .sb-settings > summary { cursor: pointer; font-size: .8rem; }
+    .speech-block .sb-settings > .sb-row { margin-top: 6px; }
+    .speech-block .vs-controls { display: contents; }
+    .speech-block .vs-controls label[hidden] { display: none; }
   `;
   let styled = false;
 
@@ -75,9 +80,15 @@
           <button type="button" class="btn" id="${id}-stop" disabled>⏹ 停止</button>
           <button type="button" class="btn" id="${id}-save">📄 存報讀檔</button>
           <button type="button" class="btn" id="${id}-export" hidden>💾 匯出音檔…</button>
-          <label>語音 <select id="${id}-voice"><option value="">（預設）</option></select></label>
-          <label>速度 <input type="range" id="${id}-rate" min="0.5" max="3" step="0.1" value="1"> <span id="${id}-rate-val">1.0</span> 倍</label>
         </div>
+        <details class="sb-settings" id="${id}-settings">
+          <summary>語音設定</summary>
+          <div class="sb-row">
+            <label>語音 <select id="${id}-voice"><option value="">（預設）</option></select></label>
+            <label>速度 <input type="range" id="${id}-rate" min="0.5" max="3" step="0.1" value="1"> <span id="${id}-rate-val">1.0</span> 倍</label>
+          </div>
+          <div class="sb-row" id="${id}-bilingual"></div>
+        </details>
         <p class="sb-warn" id="${id}-voice-warn" hidden></p>
         <div class="st" id="${id}-st" role="status" aria-live="polite"></div>
       </div>`;
@@ -86,6 +97,9 @@
     const $ = s => document.getElementById(`${id}-${s}`);
     const list = $('list'), playBtn = $('play'), stopBtn = $('stop'), exportBtn = $('export'), saveBtn = $('save');
     const voiceSel = $('voice'), rate = $('rate'), rateVal = $('rate-val'), status = $('st');
+    // 中英分語音設定（voice-settings.js，頁面有載入才有）
+    const VS = window.vitoolsVoiceSettings || null;
+    if (VS) VS.mount($('bilingual'), `${id}-vs`);
     const setStatus = (msg, cls) => { status.textContent = msg; status.className = 'st' + (cls ? ' ' + cls : ''); };
     const prefs = loadPrefs();
 
@@ -223,15 +237,20 @@
       speaking = true;
       playBtn.disabled = true; stopBtn.disabled = false;
       const voice = speechSynthesis.getVoices().find(v => v.name === voiceSel.value);
+      const enVoice = VS ? VS.englishVoice() : null;
       const note = /^(朗讀|已停止|已存報讀檔|已儲存|已取消)/.test(status.textContent) ? '' : status.textContent;
       setStatus(from ? `從第 ${from + 1} 行開始朗讀…` : '朗讀中…');
       const els = lineEls();
       for (let i = from; i < lines.length; i++) {
-        const parts = chunks(lines[i]);
-        parts.forEach((t, k) => {
-          const u = new SpeechSynthesisUtterance(t);
-          u.lang = voice ? voice.lang : 'zh-TW';
-          if (voice) u.voice = voice;
+        // 每行照標點切小塊，再切成中英段：英文段用英文語音（語音設定裡可關掉）
+        const parts = [];
+        for (const c of chunks(lines[i]))
+          for (const s of (VS ? VS.segments(c) : [{ lang: 'zh', text: c }])) if (s.text.trim()) parts.push(s);
+        parts.forEach((seg, k) => {
+          const u = new SpeechSynthesisUtterance(seg.text);
+          const v = seg.lang === 'en' && enVoice ? enVoice : voice;
+          u.lang = v ? v.lang : 'zh-TW';
+          if (v) u.voice = v;
           u.rate = Number(rate.value);
           if (k === 0) u.onstart = () => {
             if (!speaking) return;
@@ -288,9 +307,12 @@
           const web = voiceSel.value;
           const hit = natives.find(v => web === v.name || web.startsWith(v.name + ' '))
             || natives.find(v => /^zh-TW/i.test(v.lang)) || natives[0];
-          const note = status.textContent;
+          // 中英分語音：英文段用對應的 Windows 英文語音（語音設定裡的英文語音與停頓）
+          const bi = VS ? VS.exportArgs(spokenText, hit && hit.id, natives, api) : {};
+          const note = [status.textContent, bi.note].filter(Boolean).join('；');
           setStatus('請選擇存檔位置…');
-          const r = await api.exportAudio({ text: spokenText, voiceId: hit && hit.id, rate: Number(rate.value), fileName: baseName() },
+          const r = await api.exportAudio({ text: spokenText, voiceId: hit && hit.id, rate: Number(rate.value), fileName: baseName(),
+            segments: bi.segments, pause: bi.pause },
             p => setStatus(p.stage === 'encode' ? '轉成 MP3 中…' : `合成中… ${p.done} / ${p.total} 段`));
           setStatus(r.saved ? '已儲存：' + r.path + (note ? '；' + note : '') : '已取消', r.saved ? 'ok' : '');
         } catch (e) { setStatus('錯誤：' + e.message, 'err'); }

@@ -371,7 +371,12 @@ public class MainForm : Form
 
         var progress = new Progress<(int done, int total)>(p =>
             reply(new { type = "progress", done = p.done, total = p.total }));
-        byte[] audio = await TtsService.SynthesizeWavAsync(text, voiceId, rate, progress, volume);
+        // segments：中英分語音，每段指定語音（features 含 'segments'）；沒有就整段用同一個語音
+        var segments = ReadSegments(msg);
+        string pause = msg.TryGetProperty("pause", out var pz) ? pz.GetString() ?? "natural" : "natural";
+        byte[] audio = segments.Count > 0
+            ? await TtsService.SynthesizeSegmentsWavAsync(segments, rate, pause, progress, volume)
+            : await TtsService.SynthesizeWavAsync(text, voiceId, rate, progress, volume);
         if (mp3)
         {
             reply(new { type = "encoding" });
@@ -388,6 +393,18 @@ public class MainForm : Form
         string? voiceId = msg.TryGetProperty("voiceId", out var v) ? v.GetString() : null;
         double rate = msg.TryGetProperty("rate", out var r) && r.TryGetDouble(out var d) ? d : 1.0;
         return (text, voiceId, rate);
+    }
+
+    static List<(string text, string? voiceId)> ReadSegments(JsonElement msg)
+    {
+        var list = new List<(string, string?)>();
+        if (msg.TryGetProperty("segments", out var segs) && segs.ValueKind == JsonValueKind.Array)
+            foreach (var s in segs.EnumerateArray())
+            {
+                string t = s.TryGetProperty("text", out var tt) ? tt.GetString() ?? "" : "";
+                if (!string.IsNullOrWhiteSpace(t)) list.Add((t, s.TryGetProperty("voiceId", out var v) ? v.GetString() : null));
+            }
+        return list;
     }
 
     static double ReadVolume(JsonElement msg) =>

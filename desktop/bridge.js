@@ -68,14 +68,18 @@
   const api = Object.freeze({
     apiVersion: API_VERSION,
     appVersion: '__VITOOLS_APP_VERSION__',
+    // 新增的功能（網頁先檢查再用，舊版 app 沒有）：
+    //   'segments' exportAudio 可傳 segments（中英分語音，每段指定語音）與 pause
+    features: Object.freeze(['segments']),
     // Windows 語音清單：[{ id, name, lang, isDefault }]
     getVoices: () => call('getVoices', {}),
     // 試聽：合成前 300 字，回傳 WAV 的 base64
     previewAudio: ({ text, voiceId, rate = 1, volume = 1 }) => call('preview', { text, voiceId, rate, volume }),
     // 匯出：跳出存檔視窗（MP3／WAV），回傳 { saved: true, path } 或 { saved: false }（取消）
+    // segments：[{ text, voiceId }] 時每段用各自的語音（text 仍要傳全文）；pause：'natural'（預設）｜'original'｜'min'，換語音處的停頓
     // onProgress({ stage: 'synthesize', done, total }｜{ stage: 'encode' })
-    exportAudio: ({ text, voiceId, rate = 1, volume = 1, fileName = '' }, onProgress) =>
-      call('export', { text, voiceId, rate, volume, fileName }, onProgress),
+    exportAudio: ({ text, voiceId, rate = 1, volume = 1, fileName = '', segments, pause }, onProgress) =>
+      call('export', { text, voiceId, rate, volume, fileName, segments, pause }, onProgress),
   });
   window.vitoolsDesktop = api;
   window.dispatchEvent(new Event('vitoolsdesktop-ready'));

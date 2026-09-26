@@ -350,6 +350,10 @@ select.setting-select {
 #tts-status { min-height: 1.4em; font-size: .85rem; }
 #tts-status.err, #tts-voice-warn { color: #e53935; }
 #tts-voice-warn { font-size: .85rem; }
+#tts-bilingual > summary { cursor: pointer; font-size: .88rem; }
+#tts-bilingual-controls .vs-controls { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: .88rem; }
+#tts-bilingual-controls label[hidden] { display: none; }
+#tts-bilingual-controls select { font: inherit; font-size: .82rem; max-width: 220px; }
 
 /* Status bar */
 #status-bar {
@@ -560,6 +564,9 @@ input[type=range] { accent-color: var(--accent2); }
 <script src="shared.js"></script>
 <!-- 朗讀的算式報讀（MathJax + MathCAT）；desktop-audio.js 只在桌面版提供語音提示等共用函式，這頁不會加浮動面板 -->
 <script src="math-speech.js"></script>
+<!-- 中英分語音：朗讀時英文段用英文語音（設定各頁共用） -->
+<script src="lang-segments.js"></script>
+<script src="voice-settings.js"></script>
 <script src="desktop-audio.js"></script>
 </head>
 <body>
@@ -794,6 +801,10 @@ input[type=range] { accent-color: var(--accent2); }
           </select>
         </div>
       </div>
+      <details id="tts-bilingual">
+        <summary>中英語音設定</summary>
+        <div id="tts-bilingual-controls"></div>
+      </details>
       <p id="tts-voice-warn" hidden></p>
       <fieldset id="tts-mode" hidden>
         <legend>朗讀內容</legend>
@@ -893,6 +904,7 @@ let pageCount = 0;
 let history = [];
 const MAX_HIST = 30;
 let ttsUtterance = null;
+let _ttsRun = 0;   // 播放的編號（ttsPlay 每次加 1）
 let ttsPlaying = false;
 
 // ════════════════════════════════════════════════════════════
@@ -1586,33 +1598,44 @@ function ttsPlay() {
   const playTxt = _ttsSentences.slice(_ttsStartIdx).join('');
 
   speechSynthesis.cancel();
-  ttsUtterance = new SpeechSynthesisUtterance(playTxt);
-  ttsUtterance.rate   = parseFloat(document.getElementById('tts-rate').value);
-  ttsUtterance.volume = parseFloat(document.getElementById('tts-vol').value);
-  ttsUtterance.lang   = 'zh-TW';
   // 套用選擇的語音角色
   const selVoice = document.getElementById('tts-voice').value;
-  if (selVoice && window.speechSynthesis) {
-    const v = speechSynthesis.getVoices().find(v => v.name === selVoice);
-    if (v) ttsUtterance.voice = v;
-  }
-
-  ttsUtterance.onboundary = (e) => {
-    if (e.name === 'sentence' || e.name === 'word') ttsHighlight(e.charIndex);
-  };
-  ttsUtterance.onend = () => {
-    ttsPlaying = false;
-    ttsClearHighlight();
-    _ttsStartIdx = 0;
-    updateTtsButtons();
-  };
-  ttsUtterance.onerror = () => {
-    ttsPlaying = false;
-    ttsClearHighlight();
-    updateTtsButtons();
-  };
-
-  speechSynthesis.speak(ttsUtterance);
+  const zhVoice = selVoice ? speechSynthesis.getVoices().find(v => v.name === selVoice) : null;
+  // 中英分語音（voice-settings.js）：英文段用英文語音，每段一個 utterance；
+  // 記下每段在 playTxt 裡的起點，朗讀位置標示（onboundary 的 charIndex）照常對得上
+  const VS = window.vitoolsVoiceSettings;
+  const segs = VS ? VS.segments(playTxt) : [{ lang: 'zh', text: playTxt }];
+  const enVoice = VS ? VS.englishVoice() : null;
+  const run = ++_ttsRun;   // 這一次播放的編號：上一次播放被取消時的事件不影響這一次
+  let base = 0;
+  segs.forEach((seg, i) => {
+    const u = new SpeechSynthesisUtterance(seg.text);
+    u.rate   = parseFloat(document.getElementById('tts-rate').value);
+    u.volume = parseFloat(document.getElementById('tts-vol').value);
+    const v = seg.lang === 'en' && enVoice ? enVoice : zhVoice;
+    u.lang = v ? v.lang : 'zh-TW';
+    if (v) u.voice = v;
+    const offset = base;
+    u.onboundary = (e) => {
+      if (run === _ttsRun && (e.name === 'sentence' || e.name === 'word')) ttsHighlight(offset + e.charIndex);
+    };
+    if (i === segs.length - 1) u.onend = () => {
+      if (run !== _ttsRun) return;
+      ttsPlaying = false;
+      ttsClearHighlight();
+      _ttsStartIdx = 0;
+      updateTtsButtons();
+    };
+    u.onerror = () => {
+      if (run !== _ttsRun) return;
+      ttsPlaying = false;
+      ttsClearHighlight();
+      updateTtsButtons();
+    };
+    if (i === 0) ttsUtterance = u;
+    base += seg.text.length;
+    speechSynthesis.speak(u);
+  });
   ttsPlaying = true;
   _ttsLastIdx = -1;
   updateTtsButtons();
@@ -1774,6 +1797,9 @@ function ttsRebuild() {
   buildTtsDisplay();
 }
 
+// 中英語音設定（英文語音、切換條件；桌面版多匯出時的停頓），設定和其他頁的報讀區塊共用
+if (window.vitoolsVoiceSettings) vitoolsVoiceSettings.mount(document.getElementById('tts-bilingual-controls'), 'tts-vs');
+
 (function initTtsMode() {
   const box = document.getElementById('tts-mode');
   box.querySelector(`input[value="${ttsMode}"]`).checked = true;
@@ -1846,8 +1872,11 @@ function ttsRebuild() {
         const num = id => Number(document.getElementById(id).value) || 1;
         const fileName = document.getElementById('fi-name').textContent.trim().replace(/\.[^.]+$/, '');
         const base = fileName || getEditorText().trim().slice(0, 12).replace(/\s+/g, '');
-        ttsSetStatus([from ? `從第 ${from} 句開始匯出` : '', note, v.note, '請選擇存檔位置…'].filter(Boolean).join('；'));
-        const r = await api.exportAudio({ text, voiceId: v.id, rate: num('tts-rate'), volume: num('tts-vol'), fileName: base },
+        // 中英分語音：英文段用對應的 Windows 英文語音（中英語音設定裡的英文語音與停頓）
+        const bi = window.vitoolsVoiceSettings ? vitoolsVoiceSettings.exportArgs(text, v.id, voices, api) : {};
+        ttsSetStatus([from ? `從第 ${from} 句開始匯出` : '', note, v.note, bi.note, '請選擇存檔位置…'].filter(Boolean).join('；'));
+        const r = await api.exportAudio({ text, voiceId: v.id, rate: num('tts-rate'), volume: num('tts-vol'), fileName: base,
+          segments: bi.segments, pause: bi.pause },
           p => ttsSetStatus(p.stage === 'encode' ? '轉成 MP3 中…' : `合成中… ${p.done} / ${p.total} 段`));
         ttsSetStatus(r.saved ? '已儲存：' + r.path + (note ? '；' + note : '') : '已取消');
       } catch (e) { ttsSetStatus('錯誤：' + e.message, true); }

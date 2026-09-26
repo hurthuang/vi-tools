@@ -126,7 +126,7 @@ export default {
       const saved = await takeDownload(cdp, 'frame-nc');
       check('數學點字：存報讀檔（瀏覽器）', saved && /\.txt$/.test(saved.name) && saved.text === sp, JSON.stringify(saved && saved.name));
 
-      const mine = cdp.exceptions.filter(e => /desktop-audio|math-speech|speech-block|mathcat|brl-reading|BrailleReading|ttsMath|ttsAfterBuild|ttsSplit|ttsEnsure|ttsRebuild|ttsRenderable|initTtsMode|initDesktopExport/.test(e));
+      const mine = cdp.exceptions.filter(e => /desktop-audio|math-speech|speech-block|mathcat|brl-reading|voice-settings|lang-segments|BrailleReading|ttsMath|ttsAfterBuild|ttsSplit|ttsEnsure|ttsRebuild|ttsRenderable|initTtsMode|initDesktopExport/.test(e));
       check('桌面與報讀相關的檔案沒有丟出錯誤', mine.length === 0, mine.join('；'));
       if (cdp.exceptions.length) console.log(`  （頁面其他錯誤 ${cdp.exceptions.length} 個，與桌面版無關：${cdp.exceptions.map(e => e.split('\n')[0]).join('；').slice(0, 300)}）`);
       cdp.close();

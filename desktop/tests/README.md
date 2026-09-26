@@ -28,6 +28,7 @@ node tests/run.mjs --only doc                        # 只跑檔名或名稱含 
 | 檔案 | 內容 |
 |---|---|
 | `findmath.mjs` | `findMath()` 算式判斷規則（網頁 `math-speech.js`：單個 `$` 的 Pandoc 規則、金額、`\$`、`$$`、數學點字頁的 `MATH_RE`），不開 app |
+| `langseg.mjs` | `lang-segments.js` 中英切段規則（兩個以上英文單字才切、縮寫、夾數字、標點跟著前一段、撇號），不開 app |
 | `cli-tts.mjs` | `ViTools.exe --tts-test` 直接合成 WAV／MP3，不開視窗 |
 | `browser.mjs` | 一般瀏覽器（無視窗 Edge + 本機網頁伺服器）開網頁版：`desktop-audio.js` 不加面板；數學點字報讀區塊與存報讀檔、文件整理三種朗讀模式都能用，但沒有匯出按鈕；網頁照常轉換、相關檔案沒有錯誤，不開 app |
 | `web-root.mjs` | 網頁來源：開發版用 vi-tools 根目錄，可攜版用內附 `web\` |
@@ -40,6 +41,8 @@ node tests/run.mjs --only doc                        # 只跑檔名或名稱含 
 | `online.mjs` | 線上優先（需要網路）：載入線上網頁、那裡也能用桌面功能、Ctrl+Shift+O 與離線版互換（保留位置、標題加「（離線版）」） |
 | `update.mjs` | 檢查更新（本機假伺服器模擬 Release 清單）：啟動自動檢查有新版會詢問（略過網頁版標籤、預先發行、草稿）、Ctrl+Shift+U 已是最新版／檢查失敗／有新版 |
 | `online-fallback.mjs` | 線上網頁載不到時自動改用內附；這時 Ctrl+Shift+O 提示連不上並維持離線版 |
+| `segments.mjs` | 原生層分段匯出：`exportAudio` 帶 `segments` 時各段用各自的 Windows 語音、三種停頓的長度差異、舊格式（沒有 segments）照常 |
+| `bilingual.mjs` | 中英分語音：語音設定介面（預設自動、桌面版有停頓選項）、播放時英文段用英文語音、切換條件、不切換、各頁設定同步、匯出送出 segments 與停頓；文件整理的播放、位置標示、停止、匯出 |
 | `voice-warning.mjs` | 模擬沒有臺灣中文語音，面板與文件整理顯示安裝方法 |
 
 新增測試：在 `cases/` 放一個 `export default { name, needsApp, run(ctx) }` 的檔案，`ctx` 內有 `cdp`（`ev()` 在首頁執行運算式）、`check()`、`win()`／`doc()`（首頁分頁 iframe）、`waitFor()`、`saveDialog()`、`outPath()`、`audioKind()` 等，見 `lib.mjs`。

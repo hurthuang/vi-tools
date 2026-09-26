@@ -19,11 +19,12 @@ GitHub：https://github.com/hurthuang/vi-tools
 2. 定義 `window.vitoolsDesktop`（已完成 2a：API v1，說明在 `desktop/README.md`「給網頁用的介面」；2b：文字轉點字、點字轉文字的匯出面板已搬到網頁 `desktop-audio.js`；2c：數學點字頁的「🔊 報讀」區塊，瀏覽器也能用；2d：文件整理三種朗讀模式與匯出寫進 `pdf-to-accessible.html`，`bridge.js` 只剩 API），再逐一把桌面版 `bridge.js` 的功能搬進網頁：匯出按鈕、算式轉 MathCAT 報讀文字、文件整理三種朗讀模式（報讀文字／數學式（聽報讀）／原文）、單個 `$` 判斷、缺語音提示
 3. 線上優先、離線內附，並攔截 CDN 函式庫（pdf.js、JSZip、MathJax）改讀內附檔（已完成 2026-09-25；Ctrl+Shift+O 切換；**網頁要先推上 GitHub，app 的線上版才看得到新功能**）
 4. 檢查更新（照 6d-IME 的 GitHub releases 做法）+ GitHub Actions 發佈（已完成 2026-09-26：Ctrl+Shift+U；`.github/workflows/desktop-release.yml` 推送 `desktop-vX.Y.Z` 標籤時建立可攜版 Release，標籤要和 `ViTools.csproj` 的 `<Version>` 相同）
-5. 中英夾雜分語音，做在網頁（多段 utterance 各指定語音），播放與匯出都能用
+5. 中英夾雜分語音，做在網頁（多段 utterance 各指定語音），播放與匯出都能用（已完成 2026-09-26：`lang-segments.js` 切段、`voice-settings.js` 設定與介面（英文語音預設「自動」、切換條件、桌面版的停頓），報讀區塊「語音設定」與文件整理「中英語音設定」；app 端 `features: ['segments']`、`TtsService.SynthesizeSegmentsWavAsync` 分段合成並修剪交界靜音）
 
 另外已完成（2026-09-25）：nc 報讀區塊改逐行清單；bt、b2t 報讀區塊與「點字讀音」（見下方接點）
 
 ### 目前網頁與桌面版的接點
+- `voice-settings.js`（`window.vitoolsVoiceSettings`，localStorage `vitools-voice-settings`，各頁共用）+ `lang-segments.js`：中英分語音；三頁與 `pdf-to-accessible.html` 要在 `speech-block.js` 之前載入。匯出時 `exportArgs()` 只在 app 有 `segments` 功能時才帶 `segments`／`pause`
 - `desktop-audio.js`：桌面版共用小工具（`onDesktop`、缺語音提示 `voiceWarning`）；原本的右下角浮動面板已由各頁報讀區塊取代
 - `speech-block.js`「🔊 報讀」區塊：nc、bt、b2t 都有（逐行清單點一行從那行念、存報讀檔、朗讀內容選單 `sources`；桌面版多匯出音檔與缺語音提示）
 - `brl-reading.js` + `brl-reading-data.js`「點字讀音」（bt、b2t）：注音點字每個音節換成念法固定的同音常用字（資料由 `tools/build-brl-reading.mjs` 從 NVDA-DictSwitcher 的 `brl_dict.dic` 產生，以注音為鍵查，涵蓋約 96%，查不到用 McBopomofo 候選字並列在狀態列）；英文用 liblouis 反向翻譯；Nemeth 先念「數學」。bt 的 `render()` 會存 `window._btRenderTokens` 並發 `bt-output-changed`；b2t 輸出改變時發 `b2t-output-changed`

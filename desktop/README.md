@@ -79,6 +79,14 @@ dotnet publish -p:PublishProfile=Portable
 - 朗讀用瀏覽器內建語音；「📄 存報讀檔」存完整報讀文字（.txt，瀏覽器下載）；匯出音檔用同名的 Windows 語音，也是全文；缺臺灣中文語音時顯示提示
 - MathCAT（`../mathcat/`，約 3.5MB）第一次展開才載入；頁面的 MathJax 從 CDN 載入，桌面版離線載不到時改用內附的 MathJax 3.2.2
 
+**中英夾雜分語音**（`../voice-settings.js` + `../lang-segments.js`，瀏覽器版也有）：報讀區塊的「語音設定」、文件整理朗讀分頁的「中英語音設定」（都預設收合），設定各頁共用、記在瀏覽器：
+- **英文語音**：「自動」（預設；有英文語音就用，名稱寫在括號裡，沒有時寫「這台電腦沒有英文語音」並照舊全用中文）、「不切換」或指定某個英文語音
+- **切換條件**：「兩個以上英文單字」（預設；單獨的縮寫如 PDF、NVDA 仍用中文語音念）或「每個英文字」；數字、標點跟著前一段
+- 播放時每段各用各的語音（多段 utterance，朗讀位置標示照常）；匯出時每段各用同名的 Windows 語音合成再接起來
+- **匯出時換語音的停頓**（只有桌面版顯示）：「縮短（建議）」把兩段交界的靜音縮成 0.1 秒（句末標點後 0.35 秒）、「保留原本」、「最短」（0.05 秒）
+- 英文語音要另外安裝：設定 → 時間與語言 → 語音 → 新增語音 → English (United States)
+- 桌面版需要 `vitoolsDesktop.features` 含 `'segments'`；舊版 app 沒有時照原本整段單一語音匯出
+
 存檔視窗可選 MP3（單聲道 64kbps，約每小時 28MB）或 WAV，會記住上次選的格式。
 
 測試語音合成：`ViTools.exe --tts-test out.wav`（或 `out.mp3`）
@@ -98,9 +106,10 @@ function onDesktop(fn) {
 |---|---|
 | `apiVersion` | 目前 `1`。只有不相容的改變才加 1；新增功能不加，網頁用 `'功能名' in vitoolsDesktop` 判斷 |
 | `appVersion` | app 版本（`ViTools.csproj` 的 `<Version>`），例如 `'0.1.0'` |
+| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（分段匯出） |
 | `getVoices()` | → `[{ id, name, lang, isDefault }]`，Windows 內建語音 |
 | `previewAudio({ text, voiceId, rate, volume })` | 合成前 300 字 → WAV 的 base64（`new Audio('data:audio/wav;base64,' + 結果)`）。播放要在使用者操作之後，否則瀏覽器會擋 |
-| `exportAudio({ text, voiceId, rate, volume, fileName }, onProgress)` | 跳出存檔視窗（MP3／WAV）→ `{ saved: true, path }` 或 `{ saved: false }`（取消）。`onProgress({ stage: 'synthesize', done, total })`、`onProgress({ stage: 'encode' })` |
+| `exportAudio({ text, voiceId, rate, volume, fileName }, onProgress)` | 跳出存檔視窗（MP3／WAV）→ `{ saved: true, path }` 或 `{ saved: false }`（取消）。有 `segments: [{ text, voiceId }]` 時忽略 `text`、`voiceId`，逐段用各自的語音合成再接起來，`pause`（`natural`／`original`／`min`）決定段落交界的靜音長度。`onProgress({ stage: 'synthesize', done, total })`、`onProgress({ stage: 'encode' })` |
 
 錯誤（例如沒有文字）以 Promise reject 回報。原生層只接受本工具網頁（`https://vitools.local/`、`https://hurthuang.github.io/vi-tools/`）送來的訊息。
 
@@ -125,8 +134,3 @@ function onDesktop(fn) {
   - `\[ \]` 被轉成行內的 `\( \)`，失去獨立算式
   - 沒處理 `\$`（錢字號本身）
   - 可參考桌面版 `bridge.js` 的 `findMath()`（Pandoc 規則）。這段程式碼源自外部「通用數學文件編輯器」，授權不明，修改前留意
-- **中英夾雜分語音**：合成前把文字切成中文段、英文段，各用各的語音合成再接起來。
-  - 前提：Windows 要安裝英文語音（設定 → 時間與語言 → 語音 → 新增語音 → English (United States)）。本機已裝好 David、Zira、Mark（2026-09-25 確認）。
-  - 規則：數字、標點跟著前一段；連續兩個以上的英文單字才切換（單獨的縮寫如 PDF、NVDA 仍用中文語音），門檻可設定。
-  - 介面：面板加「英文語音」選單，含「不切換」。
-  - 範圍：三頁的匯出、兩頁的試聽；文件整理原本的「播放」是網頁語音，無法切換。

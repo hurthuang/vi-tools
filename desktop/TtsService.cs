@@ -49,6 +49,86 @@ public static class TtsService
         return BuildWav(fmt, pcm.ToArray());
     }
 
+    // 中英分語音：每段用各自的語音合成後接成一個 WAV（網頁已切好段，相鄰兩段語音不同）
+    // pause：換語音處（段與段之間）頭尾的靜音怎麼處理
+    //   "original" 保留語音引擎原本的靜音
+    //   "natural"  縮短到 0.1 秒；段落以句末標點結尾時保留 0.35 秒（建議）
+    //   "min"      縮短到 0.05 秒
+    public static async Task<byte[]> SynthesizeSegmentsWavAsync(IReadOnlyList<(string text, string? voiceId)> segments,
+        double rate, string pause, IProgress<(int done, int total)>? progress = null, double volume = 1.0)
+    {
+        // 每段再照標點切小塊；記下每塊屬於第幾段、是不是該段的頭或尾
+        var pieces = new List<(string text, string? voiceId, int seg, bool first, bool last)>();
+        for (int s = 0; s < segments.Count; s++)
+        {
+            var chunks = SplitText(segments[s].text);
+            for (int i = 0; i < chunks.Count; i++)
+                pieces.Add((chunks[i], segments[s].voiceId, s, i == 0, i == chunks.Count - 1));
+        }
+        if (pieces.Count == 0) throw new InvalidOperationException("沒有可合成的文字");
+
+        using var synth = new SpeechSynthesizer();
+        synth.Options.SpeakingRate = Math.Clamp(rate, 0.5, 6.0);
+        synth.Options.AudioVolume = Math.Clamp(volume, 0.0, 1.0);
+        byte[]? fmt = null;
+        using var pcm = new MemoryStream();
+        int firstSeg = pieces[0].seg, lastSeg = pieces[^1].seg;
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            var p = pieces[i];
+            var voice = SpeechSynthesizer.AllVoices.FirstOrDefault(v => v.Id == p.voiceId);
+            if (voice != null) synth.Voice = voice;
+            using var stream = await synth.SynthesizeTextToStreamAsync(p.text);
+            using var input = stream.AsStreamForRead();
+            using var buf = new MemoryStream();
+            await input.CopyToAsync(buf);
+            var (pieceFmt, data) = ParseWav(buf.ToArray());
+            fmt ??= pieceFmt;
+            if (!pieceFmt.AsSpan().SequenceEqual(fmt)) throw new InvalidOperationException("語音的聲音格式不同，無法接在一起");
+            if (pause != "original")
+            {
+                bool trimHead = p.first && p.seg != firstSeg;      // 換語音處：這段的開頭
+                bool trimTail = p.last && p.seg != lastSeg;        // 換語音處：這段的結尾
+                bool sentenceEnd = p.text.TrimEnd().Length > 0 && "。！？.!?；;".Contains(p.text.TrimEnd()[^1]);
+                double keep = pause == "min" ? 0.05 : 0.1;
+                double keepTail = pause == "natural" && sentenceEnd ? 0.35 : keep;
+                data = TrimSilence(fmt, data, trimHead ? keep : -1, trimTail ? keepTail : -1);
+            }
+            pcm.Write(data);
+            progress?.Report((i + 1, pieces.Count));
+        }
+        return BuildWav(fmt!, pcm.ToArray());
+    }
+
+    // 修剪 16 位元 PCM 頭尾的靜音（振幅 < 600 視為靜音），各留 keepHead／keepTail 秒；負數表示那一端不修剪
+    static byte[] TrimSilence(byte[] fmt, byte[] data, double keepHead, double keepTail)
+    {
+        int channels = BitConverter.ToInt16(fmt, 2), rate = BitConverter.ToInt32(fmt, 4), bits = BitConverter.ToInt16(fmt, 14);
+        if (bits != 16) return data;
+        int frame = 2 * channels, frames = data.Length / frame;
+        const int threshold = 600;
+        bool Loud(int f)
+        {
+            for (int c = 0; c < channels; c++)
+                if (Math.Abs((int)BitConverter.ToInt16(data, f * frame + c * 2)) >= threshold) return true;
+            return false;
+        }
+        int start = 0, end = frames;   // [start, end)
+        if (keepHead >= 0)
+        {
+            int a = 0;
+            while (a < frames && !Loud(a)) a++;
+            start = Math.Max(0, a - (int)(keepHead * rate));
+        }
+        if (keepTail >= 0)
+        {
+            int b = frames - 1;
+            while (b > start && !Loud(b)) b--;
+            end = Math.Min(frames, b + 1 + (int)(keepTail * rate));
+        }
+        return data[(start * frame)..(end * frame)];
+    }
+
     // 用 Windows 內建的 Media Foundation 編碼器把 WAV 轉成 MP3（取樣率不符時會自動轉換）
     public static async Task<byte[]> WavToMp3Async(byte[] wav)
     {
