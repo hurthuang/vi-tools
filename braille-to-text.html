@@ -141,6 +141,7 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
 }
 </style>
 <script src="build-no-tables-utf32.js"></script>
+<script src="brl-syllables.js"></script>
 </head>
 <body>
 
@@ -340,12 +341,90 @@ function _onMcBLoad() {
     }
 }
 
+// ── 注音點字切音節 ────────────────────────────────────────────
+// 不直接用 McBopomofo 的 convertBrailleToTokens 切整段：
+//   1. 它會把音節後面的 ⠱（ㄦ）當成兒化韻併進前一個音節，聲調記號落單，例：⠷⠈⠱⠈（偶爾）→ [ㄡˇ(⠷⠈⠱), '⠈']，
+//      整個詞被判成英文（嬰兒、幼兒、偶爾、因而、愛爾蘭、獨一無二…）
+//   2. 共用點位解錯：⠅⠴⠈ 解成不存在的 ㄐㄟˇ，查不到字，「給」會消失（給予→與、交給→教）；⠴⠄ 解成 ㄟ（應為 ㄧㄛ 唷）
+// 改用 brl-syllables.js（Unicode 點字 → 注音，已依共用點位規則改正）從左到右、每個位置先試最長的音節；
+// 其他片段（標點、數字、空格）交給 McBopomofo。回傳和 convertBrailleToTokens 相同格式的 token：{bpmf, braille} 或字串
+function _zhTokens(brailleStr) {
+    const table = window.VITOOLS_BRL_SYLLABLES || {};
+    const conv = mcbopomofo.BopomofoBrailleConverter;
+    const out = [];
+    let rest = '', lastSyl = '';
+    // McBopomofo 依前後文解標點（音節後面的 ⠇ 是「！」，單獨的 ⠇ 是英文字母 l），
+    // 所以前面有音節時連同那個音節一起解，再去掉那個音節
+    const flush = () => {
+        if (!rest) return;
+        let toks = null;
+        if (lastSyl) {
+            const t = conv.convertBrailleToTokens(lastSyl + rest);
+            if (t.length && typeof t[0] === 'object' && t[0] !== null && t[0].braille === lastSyl) toks = t.slice(1);
+        }
+        for (const t of toks || conv.convertBrailleToTokens(rest)) out.push(t);
+        rest = '';
+    };
+    for (let i = 0; i < brailleStr.length;) {
+        let len = Math.min(3, brailleStr.length - i), bpmf;
+        for (; len >= 2; len--) { bpmf = table[brailleStr.substr(i, len)]; if (bpmf) break; }
+        if (len < 2) { rest += brailleStr[i++]; continue; }
+        flush();
+        lastSyl = brailleStr.substr(i, len);
+        out.push({ bpmf, braille: lastSyl });
+        i += len;
+    }
+    flush();
+    return out;
+}
+
+// 注音 token → 每個 token 的文字：以空格分段，每段的注音（和標點等字串）交給 McBopomofo 的 convertBpmfToText，
+// 依前後文選字。沒有字的音節（例：ㄌㄥ）McBopomofo 會直接略過，這裡改成顯示注音，逐格對照才不會錯位
+const _bpmfHasChar = new Map();
+function _bpmfCharOK(bpmf) {
+    if (!_bpmfHasChar.has(bpmf)) _bpmfHasChar.set(bpmf, !!svcMcB.convertBpmfToText(bpmf));
+    return _bpmfHasChar.get(bpmf);
+}
+// 輕聲音節 McBopomofo 常沒有字（它的詞把「時候」記成 ㄕˊ ㄏㄡˋ），改用同一個音節的其他聲調選字（先試四聲）
+function _bpmfForText(bpmf) {
+    if (_bpmfCharOK(bpmf) || !bpmf.endsWith('˙')) return bpmf;
+    const base = bpmf.slice(0, -1);
+    return ['ˋ', '', 'ˊ', 'ˇ'].map(t => base + t).find(_bpmfCharOK) || bpmf;
+}
+function _zhTokenTexts(tokens) {
+    const isSyl = t => typeof t === 'object' && t !== null && typeof t.bpmf === 'string';
+    const texts = new Array(tokens.length);
+    let run = [];
+    const flushRun = () => {
+        if (!run.length) return;
+        const parts = run.map(i => isSyl(tokens[i]) ? _bpmfForText(tokens[i].bpmf) : String(tokens[i]));
+        const lens = run.map((i, k) => isSyl(tokens[i]) ? 1 : Array.from(parts[k]).length);
+        // 以空格分隔音節：一聲沒有調號，直接接起來分不出音節界線（ㄙㄧˋ），詞就配不到（思議→司意）；
+        // convertBpmfToText 裡空格只是音節界線，仍會依詞選字，輸出也不含空格
+        const out = Array.from(svcMcB.convertBpmfToText(parts.join(' ')));
+        if (out.length === lens.reduce((a, b) => a + b, 0)) {
+            let p = 0;
+            run.forEach((i, k) => { texts[i] = out.slice(p, p + lens[k]).join(''); p += lens[k]; });
+        } else {   // 對不上（不應該發生）就逐一轉
+            run.forEach((i, k) => { texts[i] = isSyl(tokens[i]) ? (svcMcB.convertBpmfToText(parts[k]) || parts[k]) : parts[k]; });
+        }
+        run = [];
+    };
+    tokens.forEach((t, i) => {
+        if (!isSyl(t) && !String(t).trim()) { flushRun(); texts[i] = ' '; }
+        else if (isSyl(t) && !_bpmfCharOK(_bpmfForText(t.bpmf))) { flushRun(); texts[i] = t.bpmf; }
+        else run.push(i);
+    });
+    flushRun();
+    return texts;
+}
+
 // ── 分段：偵測注音點字 vs UEB ────────────────────────────────
 function _isChineseChunk(brailleStr) {
     if (!svcMcB || !brailleStr) return false;
     // ⠐ (dots 4) 是 UEB 縮寫前綴指示符，不可能是中文音節開頭
     if (brailleStr[0] === '⠐') return false;
-    const tokens = mcbopomofo.BopomofoBrailleConverter.convertBrailleToTokens(brailleStr);
+    const tokens = _zhTokens(brailleStr);
     if (!tokens.length) return false;
     // 中文句子的標點緊貼在漢字後面、沒有空格（例：「你好，世界！」），跟英文
     // 一樣會被 _segmentLine 併進同一個 chunk。convertBrailleToTokens 對這種
@@ -417,21 +496,18 @@ function _segmentLine(uniLine) {
 }
 
 // ── 注音點字逐字對照 ──────────────────────────────────────────
-// 回傳 [{braille, text, isSpace}] 給 renderParallel 逐格顯示
+// 回傳 { text, cells: [{braille, text, isSpace}] }：整段文字，以及給 renderParallel 逐格顯示的對照
 function _buildChineseCharTokens(brailleStr) {
-    const tokens = mcbopomofo.BopomofoBrailleConverter.convertBrailleToTokens(brailleStr);
-    const fullText = svcMcB.convertBrailleToText(brailleStr);
+    const tokens = _zhTokens(brailleStr);
+    const texts = _zhTokenTexts(tokens);
     const result = [];
-    let textIdx = 0;
 
-    for (const token of tokens) {
+    tokens.forEach((token, k) => {
         if (typeof token === 'object' && token !== null && typeof token.bpmf === 'string') {
-            // BopomofoSyllable → 一個中文字
-            const char = textIdx < fullText.length ? fullText[textIdx] : '';
+            // 音節 → 一個中文字（沒有字的音節是注音）
             // token.braille 就是這個音節在原始輸入裡實際佔用的點字格，直接用，
             // 不必再用 convertBpmfToBraille 重新編碼（重編碼可能跟原始點字不同順序）
-            result.push({ braille: token.braille || '', text: char, isSpace: false });
-            textIdx++;
+            result.push({ braille: token.braille || '', text: texts[k], isSpace: false });
         } else {
             // 標點、數字、字母（string token，已是解碼後文字）
             const tokenStr = typeof token === 'string' ? token : String(token);
@@ -442,12 +518,11 @@ function _buildChineseCharTokens(brailleStr) {
                 // 標點/數字：反推點字格
                 let brl = '';
                 try { brl = mcbopomofo.BopomofoBrailleConverter.convertBpmfToBraille(tokenStr).trim(); } catch(e) {}
-                result.push({ braille: brl, text: tokenStr, isSpace: false });
+                result.push({ braille: brl, text: texts[k], isSpace: false });
             }
-            textIdx += tokenStr.length;
         }
-    }
-    return result;
+    });
+    return { text: texts.join(''), cells: result };
 }
 
 // ── Init ──────────────────────────────────────────────────────
@@ -650,9 +725,9 @@ function _convertLine(line) {
         if (!firstSeg) tokens.push({ isSpace: true, braille: '⠀' });
         firstSeg = false;
         if (seg.type === 'zh') {
-            const text = svcMcB.convertBrailleToText(seg.braille);
+            const { text, cells } = _buildChineseCharTokens(seg.braille);
             lineParts.push(text);
-            for (const ct of _buildChineseCharTokens(seg.braille)) {
+            for (const ct of cells) {
                 tokens.push(ct.isSpace
                     ? { isSpace: true, braille: '⠀' }
                     : { type: 'zh', braille: ct.braille, text: ct.text, isSpace: false });
@@ -1003,14 +1078,14 @@ function b2tBrailleReading(uni) {
     if (!svcMcB) throw new Error('注音點字引擎載入中，請稍後再試');
     if (!_isReady()) throw new Error('liblouis 尚未就緒');
     let zhCount = 0, enCount = 0;
-    const fallbacks = new Set();
+    const spelled = new Set();
     const out = uni.split('\n').map(line => {
         if (!line.trim()) return '';
         return _segmentLine(line).map(seg => {
             if (seg.type === 'zh') {
-                const r = vitoolsBrlReading.zh(seg.braille, svcMcB);
+                const r = vitoolsBrlReading.zh(seg.braille);
                 zhCount += r.count;
-                r.fallbacks.forEach(f => fallbacks.add(f));
+                r.spelled.forEach(f => spelled.add(f));
                 return r.text;
             }
             enCount++;
@@ -1020,7 +1095,7 @@ function b2tBrailleReading(uni) {
     const note = [];
     if (zhCount) note.push(`注音 ${zhCount} 個音節`);
     if (enCount) note.push(`英文 ${enCount} 段（反向翻譯）`);
-    if (fallbacks.size) note.push(`以下音節字典沒有，改用候選字（可能念不準）：${[...fallbacks].join('、')}`);
+    if (spelled.size) note.push(`以下音節沒有對應的字，改念注音（可能是點字打錯）：${[...spelled].join('、')}`);
     return { text: out.join('\n'), note: note.join('；') };
 }
 createSpeechBlock(document.getElementById('status-bar'), {

@@ -16,7 +16,7 @@ console.log(`執行檔：${exe}（${portable ? '可攜版' : '開發版'}）`);
 console.log(`輸出資料夾：${lib.OUT}\n`);
 
 // 固定順序：先跑不需要 app 的
-const order = ['findmath', 'langseg', 'cli-tts', 'browser', 'web-root', 'api', 'doc', 'math', 'b2t-speech', 'bt-speech', 'offline', 'online', 'online-fallback', 'update', 'segments', 'bilingual', 'voice-warning'];
+const order = ['findmath', 'langseg', 'cli-tts', 'browser', 'b2t-convert', 'web-root', 'api', 'doc', 'math', 'b2t-speech', 'bt-speech', 'offline', 'online', 'online-fallback', 'update', 'segments', 'bilingual', 'voice-warning'];
 const files = readdirSync(join(here, 'cases')).filter(f => f.endsWith('.mjs'))
   .sort((a, b) => (order.indexOf(a.replace('.mjs', '')) + 1 || 99) - (order.indexOf(b.replace('.mjs', '')) + 1 || 99));
 

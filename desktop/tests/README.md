@@ -32,6 +32,7 @@ node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號
 | `langseg.mjs` | `lang-segments.js` 中英切段規則（兩個以上英文單字才切、縮寫、夾數字、標點跟著前一段、撇號），不開 app |
 | `cli-tts.mjs` | `ViTools.exe --tts-test` 直接合成 WAV／MP3，不開視窗 |
 | `browser.mjs` | 一般瀏覽器（無視窗 Edge + 本機網頁伺服器）開網頁版：`desktop-audio.js` 不加面板；數學點字報讀區塊與存報讀檔、文件整理三種朗讀模式都能用，但沒有匯出按鈕；網頁照常轉換、相關檔案沒有錯誤，不開 app |
+| `b2t-convert.mjs` | 點字轉文字主轉換（無視窗 Edge，不開 app）：reg-b2t.html 回歸測試全部通過；「給」不消失、ㄦ 接在音節後（偶爾、嬰兒、愛爾蘭）不被判成英文、唷／崖、輕聲（時候）、一聲音節（思議）、詞間空格、英文點字仍是英文 |
 | `web-root.mjs` | 網頁來源：開發版用 vi-tools 根目錄，可攜版用內附 `web\` |
 | `api.mjs` | `window.vitoolsDesktop`：每個頁面都有、版本號、`getVoices`、`previewAudio`（含錯誤）、同時多個請求、`exportAudio` 取消 |
 | `b2t-speech.mjs` | 點字轉文字的報讀區塊：朗讀內容切換、點字讀音（同音字、英文反向翻譯、字典沒有的音節）、自動更新、點一行朗讀 |
