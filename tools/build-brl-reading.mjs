@@ -17,18 +17,11 @@ const ASCII_TO_UNI = {};
 for (const [u, a] of Object.entries(BR_TO_ASCII)) ASCII_TO_UNI[a] = u;
 const toUni = s => [...s.toLowerCase()].map(c => ASCII_TO_UNI[c] || null);
 
-// vi-tools 自己的補充與修正，以注音為鍵（不改 brl_dict.dic）；優先於字典
-// 選字原則：Windows 臺灣中文語音 Hanhan 單獨念這個字時，念法（SAPI PhonemeReached 的音素＋聲調）和同音節的
-// 常用字一致；有多個時取只有一個讀音、較常用的字。2026-09-26 用 Hanhan 逐字校對
-// 字典沒收、又找不到 Hanhan 念對的字的音節（如 ㄟˇ、ㄓㄨㄞ、ㄎㄨㄞ、ㄆㄞˇ、ㄆㄧㄥˋ）不補，
-// 網頁會改用 McBopomofo 候選字並列在狀態列，校對時這類音節通常是點字打錯
-const SUPPLEMENT = {
-  'ㄏㄞˊ': '孩',   // 字典兩種寫法不同字：ASCII「骸」、Unicode「還」（多音字 ㄏㄨㄢˊ）；「孩」較常用且只有一個讀音
-  'ㄔㄨㄞˊ': '膗', 'ㄔㄣˇ': '磣', 'ㄙㄨㄣˋ': '潠', 'ㄒㄧㄣˇ': '伈', 'ㄊㄡˇ': '黈', 'ㄖㄨㄢˊ': '壖',
-  'ㄗㄣˋ': '譖', 'ㄗㄤˇ': '駔', 'ㄕㄨㄤˋ': '灀', 'ㄘㄡˋ': '湊', 'ㄘㄨㄛˇ': '脞',
-  'ㄎㄣˋ': '掯', 'ㄋㄧㄝˊ': '苶', 'ㄆㄤˇ': '嗙', 'ㄈㄡˊ': '紑',
-  'ㄈㄧㄠˋ': '覅', 'ㄣ˙': '嗯',   // 輕聲單獨念不出來，Hanhan 念 ㄣˊ，和字典裡其他輕聲音節一樣
-};
+// vi-tools 自己的補充與修正，以注音為鍵，優先於字典。2026-09-26 起補字都改在 brl_dict.dic（DictSwitcher 1.4.1 起），這裡保留機制、目前是空的
+// 選字原則：Windows 臺灣中文語音 Hanhan 單獨念這個字時，念法（tools/hanhan-phonemes.ps1）和同音節的常用字一致；
+// 有多個時取只有一個讀音、較常用的字。找不到 Hanhan 念對的字的音節寫成注音加聲調（例：ㄌㄥ第一聲）
+// 字典沒有的音節，網頁（brl-reading.js）也念注音加聲調並列在狀態列
+const SUPPLEMENT = {};
 globalThis.self = globalThis;   // McBopomofo 是瀏覽器用的打包檔，要有 self
 const conv = createRequire(import.meta.url)(join(root, 'mcbopomofo-service.js')).BopomofoBrailleConverter;
 const OVERRIDE = {};

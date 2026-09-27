@@ -56,10 +56,10 @@ dotnet publish -p:PublishProfile=Portable
 **文字轉點字／點字轉文字**：網頁本身的「🔊 報讀」區塊（在輸入／輸出區下方，預設收合），瀏覽器版也有，桌面版多「匯出音檔」（這兩頁因此不再加右下角浮動面板）。「朗讀內容」選單：
 - 文字轉點字：「原文」或「點字讀音（校對用）」；點字轉文字：「轉出的文字」或「點字讀音（校對用）」
 - **點字讀音**：照點字實際代表的音念，用耳朵校對點字
-  - 注音點字：每個音節換成念法固定的同音常用字（`../brl-reading.js` + `../brl-reading-data.js`，資料來自 NVDA-DictSwitcher 的 `brl_dict.dic`，加上 vi-tools 自己補的 18 個音節，涵蓋約 97%），字典沒有的音節改用 McBopomofo 候選字並列在狀態列。例：「銀行」的 ㄏㄤˊ 念「航」、「行走」的 ㄒㄧㄥˊ 念「型」，多音字選錯一聽就知道
+  - 注音點字：每個音節換成念法固定的同音常用字（`../brl-reading.js` + `../brl-reading-data.js`，資料來自 NVDA-DictSwitcher 1.5.0 起的 `brl_dict.dic`，字都用 Windows 臺灣中文語音 Hanhan 確認過念法）；沒有對應字的音節念注音加聲調（例：「ㄌㄥ第一聲」），並列在狀態列（這類音節常是點字打錯）。例：「銀行」的 ㄏㄤˊ 念「航」、「行走」的 ㄒㄧㄥˊ 念「型」，多音字選錯一聽就知道
   - 英文：用目前的英文點字表（liblouis）反向翻譯回英文再念，可以抓出縮寫用錯
   - 數學（Nemeth）：先念「數學」帶過
-  - 資料檔用 `node ../tools/build-brl-reading.mjs <brl_dict.dic>` 重新產生
+  - 資料檔用 `node ../tools/build-brl-reading.mjs <brl_dict.dic>` 重新產生；改字典前後用 `node ../tools/sim-brl-dict.mjs <現行版.dic> <修正版.dic>` 模擬 DictSwitcher 逐條取代的結果（每個音節單獨、兩個音節相連），`../tools/hanhan-phonemes.ps1` 取得 Hanhan 實際的念法
 - 逐行清單、存報讀檔、Alt+Shift+A 同數學點字頁
 
 **文件整理**：網頁本身（`../pdf-to-accessible.html`）的功能，瀏覽器版也有；桌面版在「朗讀」分頁的播放控制列多一顆「💾 匯出音檔…」（或 Alt+Shift+A），缺臺灣中文語音時顯示提示：

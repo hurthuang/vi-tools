@@ -4869,7 +4869,7 @@ function btBrailleReading() {
     const mode = document.getElementById('en-mode').value;
     const enTable = { 'comp8': 'en-us-comp8.ctb', 'ueb-g1': 'en-ueb-g1.ctb' }[mode] || 'en-ueb-g2.ctb';
     let out = '', enBuf = '', inMath = false, zhCount = 0, enCount = 0, mathCount = 0;
-    const fallbacks = new Set();
+    const spelled = new Set();
     const flushEn = () => {
         if (!enBuf) return;
         const t = vitoolsBrlReading.backTranslate(enBuf, enTable);
@@ -4892,7 +4892,7 @@ function btBrailleReading() {
         if (t.isZhChar) {
             const r = vitoolsBrlReading.zh(t.braille);
             zhCount += r.count;
-            r.fallbacks.forEach(f => fallbacks.add(f));
+            r.spelled.forEach(f => spelled.add(f));
             out += r.text;
         } else {
             out += t.text || '';   // 標點、數字等照原文
@@ -4903,7 +4903,7 @@ function btBrailleReading() {
     if (zhCount) note.push(`注音 ${zhCount} 個音節`);
     if (enCount) note.push(`英文 ${enCount} 段（反向翻譯）`);
     if (mathCount) note.push(`數學 ${mathCount} 段（念成「數學」）`);
-    if (fallbacks.size) note.push(`以下音節字典沒有，改用候選字（可能念不準）：${[...fallbacks].join('、')}`);
+    if (spelled.size) note.push(`以下音節沒有對應的字，改念注音（可能是點字打錯）：${[...spelled].join('、')}`);
     return { text: out.replace(/ {2,}/g, ' '), note: note.join('；') };
 }
 createSpeechBlock(document.getElementById('output-text').closest('.container'), {

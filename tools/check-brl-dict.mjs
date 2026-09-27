@@ -1,9 +1,9 @@
 // 檢查 NVDA-DictSwitcher 的 brl_dict.dic（國語點字音節 → 同音常用字）涵蓋率，列出缺漏與可疑的項目
 // 完整音節清單取自 6d-IME 的 Phn.tbl（每 3 行一組：音節點字、注音大千鍵、可用聲調）；以注音比對（點字寫法可能有變體）
 // 用法（在 vi-tools 根目錄）：node tools/check-brl-dict.mjs [brl_dict.dic] [Phn.tbl] > 缺漏清單.tsv
-// 已知問題（2026-09-25）：ㄏㄞˊ 的 Unicode 寫法對到多音字「還」（ASCII 寫法是「骸」）；57 個罕見音節沒收
-// 這裡只檢查字典本身；網頁用的資料另外由 tools/build-brl-reading.mjs 的 SUPPLEMENT 補上 18 個（2026-09-26，用 Hanhan 逐字校對，涵蓋約 97%），
-// 其餘沒有單一讀音的字，不補
+// 2026-09-26 DictSwitcher 1.4.1：補 17 個音節（Hanhan 校對）、37 個寫成注音加聲調、ㄏㄞˊ 統一為「孩」；
+// 2026-09-27 DictSwitcher 1.5.0：tools/fix-brl-dict-hanhan.mjs 重建（Hanhan 校對換字、補齊輕聲與缺漏音節、共用點位標籤改正），Phn.tbl 音節全數收錄；
+// 注音點字字庫改為從左到右切音節，點 1 輕聲與ㄓ不再混淆（tools/sim-brl-dict.mjs --tokenize 模擬）
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
