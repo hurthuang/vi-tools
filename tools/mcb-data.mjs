@@ -2,7 +2,9 @@
 //   readings：字 → [注音]（webBpmfvsVariants，約 1.2 萬字，含多音字的每個讀音）
 //   words：詞 → { bpmf: [每個字的注音], score }（webData 語言模型；鍵是編碼過的注音，每個音節 2 個字元）
 //   syllableScore：單字 → 單字詞在語言模型裡最高的分數（越大越常用）
-// 語言模型的音節編碼不直接解：用「鍵裡的單字、它們在 readings 裡的讀音」多數決，得到每個 2 字元編碼對應的注音
+// 語言模型的音節編碼照 McBopomofo 的 BopomofoSyllable::absoluteOrderString() 解：
+//   order = 聲母 + 介音×22 + 韻母×88 + 聲調×1232，編成 2 字元（order % 79 + 48、order / 79 + 48）
+//   （先前用「編碼下的單字的讀音」多數決，多音字會投給每個讀音，常解錯：一個 → ㄍㄜˇ、我們 → ㄇㄣˊ）
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,22 +32,24 @@ for (const k of Object.keys(grab('webBpmfvsVariants'))) {
 const D = grab('webData');
 const parse = v => { const p = String(v).split(' '), out = []; for (let i = 0; i + 1 < p.length; i += 2) out.push({ w: p[i], score: Number(p[i + 1]) }); return out; };
 
-// 單音節：2 字元編碼 → 注音（多數決）
+// 單音節：2 字元編碼 → 注音
+const CONS = ' ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙ', MID = ' ㄧㄨㄩ', VOW = ' ㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ', TONES = ['', 'ˊ', 'ˇ', 'ˋ', '˙'];
+function decodeSyllable(k) {
+  const o = (k.charCodeAt(1) - 48) * 79 + (k.charCodeAt(0) - 48);
+  const s = [CONS[o % 22], MID[Math.floor(o / 22) % 4], VOW[Math.floor(o / 88) % 14]].join('').replace(/ /g, '');
+  return s ? s + TONES[Math.floor(o / 1232) % 5] : null;
+}
 const codeToBpmf = new Map();
 export const syllableScore = new Map();
 for (const [k, v] of Object.entries(D)) {
   if (k.length !== 2 || k.startsWith('_')) continue;
-  const vote = new Map();
-  for (const { w, score } of parse(v)) {
-    if ([...w].length !== 1) continue;
-    syllableScore.set(w, Math.max(syllableScore.get(w) ?? -99, score));
-    for (const r of readings.get(w) || []) vote.set(r, (vote.get(r) || 0) + 1);
-  }
-  const best = [...vote].sort((a, b) => b[1] - a[1])[0];
-  if (best) codeToBpmf.set(k, best[0]);
+  for (const { w, score } of parse(v)) if ([...w].length === 1) syllableScore.set(w, Math.max(syllableScore.get(w) ?? -99, score));
+  const b = decodeSyllable(k);
+  if (b) codeToBpmf.set(k, b);
 }
 
-// 多音節詞：鍵每 2 字元一個音節，全部解得出來、字數和音節數相同才收；同一個詞有多個讀音時留分數高的
+// 多音節詞：鍵每 2 字元一個音節，全部解得出來、字數和音節數相同才收；同一個詞有多個讀音時留分數高的，
+//   其他讀音放 alts（McBopomofo 是輸入法，常收錄口語或容易打錯的念法，例：我們 ㄇㄣˊ／ㄇㄣ˙）
 export const words = new Map();
 for (const [k, v] of Object.entries(D)) {
   if (k.length < 4 || k.length % 2 || k.startsWith('_')) continue;
@@ -55,7 +59,11 @@ for (const [k, v] of Object.entries(D)) {
   for (const { w, score } of parse(v)) {
     if ([...w].length !== bpmf.length) continue;
     const old = words.get(w);
-    if (!old || score > old.score) words.set(w, { bpmf, score });
+    if (!old) words.set(w, { bpmf, score, alts: [bpmf] });
+    else {
+      old.alts.push(bpmf);
+      if (score > old.score) Object.assign(old, { bpmf, score });
+    }
   }
 }
 
