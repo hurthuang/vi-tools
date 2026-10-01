@@ -34,6 +34,23 @@
     --control: #85847d;
   }
 }
+/* 放在視障輔助工具集裡時，跟著網站的深色／淺色切換 */
+:root[data-theme="dark"] {
+  --bg: #1b1c1e;
+  --panel: #232427;
+  --ink: #ecebe6;
+  --muted: #a7a69f;
+  --line: #3a3b3f;
+  --accent: #6fb3e0;
+  --accent-ink: #10181f;
+  --hl: #7a6420;
+  --hl-ink: #ffffff;
+  --play: #2f6b41;
+  --warn: #ffc27a;
+  --warn-bg: #3a2c16;
+  --focus: #e0761a;
+  --control: #85847d;
+}
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
