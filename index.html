@@ -286,6 +286,10 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-gq">
     <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
   </div>
+  <div class="tab" role="tab" id="tab-music" data-target="frame-music"
+       tabindex="-1" aria-selected="false" aria-controls="frame-music">
+    <span class="icon" aria-hidden="true">♪</span> 點字樂譜
+  </div>
   <div class="tab" role="tab" id="tab-guide" data-target="frame-guide"
        tabindex="-1" aria-selected="false" aria-controls="frame-guide">
     <span class="icon" aria-hidden="true">📖</span> 說明
@@ -431,6 +435,30 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#fb923c" onclick="switchTo('frame-music')"
+             role="button" tabindex="0" aria-label="開啟點字樂譜工具" aria-describedby="desc-music"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-music')}">
+          <div class="tool-icon" aria-hidden="true">♪</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              點字樂譜
+              <span class="tool-badge" style="background:#fb923c">測試版</span>
+            </div>
+            <div class="tool-desc" id="desc-music">
+              ABC 記譜或 MusicXML 與點字樂譜（BANA Music Braille Code 2015）雙向轉換，支援單音、鋼琴雙手與和弦；
+              五線譜預覽、MIDI 試聽與逐音報讀。規則仍在請點字樂譜老師確認中。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">ABC ⇄ 點字</span>
+              <span class="feat-tag">MusicXML 匯入匯出</span>
+              <span class="feat-tag">五線譜預覽</span>
+              <span class="feat-tag">MIDI 試聽</span>
+              <span class="feat-tag">六點輸入</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
       </div>
 
       <div class="addon-section-title">NVDA 附加元件</div>
@@ -485,6 +513,7 @@
   <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
   <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="文件整理"></iframe>
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"    title="UEB 查詢"></iframe>
+  <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="點字樂譜"></iframe>
   <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
 
 </div>
@@ -537,7 +566,7 @@
   const HASH_MAP = {
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
-    'frame-guide': 'guide'
+    'frame-music': 'music', 'frame-guide': 'guide'
   };
   const HASH_TO_TARGET = {};
   for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;
