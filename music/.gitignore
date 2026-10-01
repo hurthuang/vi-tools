@@ -1,0 +1,7 @@
+# 使用者自己的樂譜與參考資料（不屬於程式碼）
+/Score/
+/score/
+Music_Braille_Code_2015.pdf
+# 測試時產生的暫存檔
+node_modules/
+*.log

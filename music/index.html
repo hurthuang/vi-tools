@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>點字樂譜轉換器</title>
+  <link rel="stylesheet" href="css/style.css?v=13">
+</head>
+<body>
+  <header class="site-header">
+    <h1>點字樂譜轉換器</h1>
+    <p class="subtitle">ABC 記譜 ⇄ 點字樂譜（BANA Music Braille Code 2015）・五線譜預覽・MIDI 試聽・語音報讀</p>
+  </header>
+
+  <nav class="toolbar" aria-label="檔案與範例">
+    <label>範例
+      <select id="sample"></select>
+    </label>
+    <button type="button" id="btn-open" title="可開啟 ABC、點字（BRF）、MusicXML（.musicxml、.xml、.mxl）">開啟檔案…</button>
+    <input type="file" id="file" accept=".abc,.brf,.brl,.txt,.musicxml,.xml,.mxl" hidden>
+    <label id="part-wrap" hidden title="MusicXML 有多個聲部時，選擇要轉換哪一個">聲部
+      <select id="part-select"></select>
+    </label>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" id="btn-save-abc">下載 ABC</button>
+    <button type="button" id="btn-save-brf">下載點字 BRF</button>
+    <button type="button" id="btn-save-xml" title="可用 MuseScore、BME、Finale 等軟體開啟">下載 MusicXML</button>
+    <button type="button" id="btn-save-midi">下載 MIDI</button>
+  </nav>
+
+  <main>
+    <div class="editors">
+      <section class="pane" aria-labelledby="h-abc">
+        <div class="pane-head">
+          <h2 id="h-abc">ABC 記譜</h2>
+          <span class="hint" id="abc-status"></span>
+        </div>
+        <div class="editor" id="abc-editor">
+          <div class="backdrop" aria-hidden="true"></div>
+          <textarea id="abc" spellcheck="false" autocomplete="off" aria-label="ABC 記譜編輯區"></textarea>
+        </div>
+      </section>
+
+      <section class="pane" aria-labelledby="h-brl">
+        <div class="pane-head">
+          <h2 id="h-brl">點字樂譜</h2>
+          <div class="pane-tools">
+            <label title="點字顯示方式">顯示
+              <select id="brl-mode">
+                <option value="unicode">點字（⠿）</option>
+                <option value="brf">BRF（ASCII）</option>
+              </select>
+            </label>
+            <label title="用 F D S J K L 六個鍵同時按下輸入一個點字方">
+              <input type="checkbox" id="six-key"> 六點輸入
+            </label>
+            <label>字級
+              <select id="brl-size">
+                <option value="16">小</option>
+                <option value="20" selected>中</option>
+                <option value="28">大</option>
+                <option value="40">特大</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="editor braille" id="brl-editor">
+          <div class="backdrop" aria-hidden="true"></div>
+          <textarea id="brl" spellcheck="false" autocomplete="off" aria-label="點字樂譜編輯區"></textarea>
+        </div>
+        <p class="cell-info" id="cell-info" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <section class="pane preview" aria-labelledby="h-preview">
+      <div class="pane-head">
+        <h2 id="h-preview">五線譜預覽</h2>
+        <div class="pane-tools player" role="group" aria-label="播放">
+          <button type="button" id="btn-play" class="primary">▶ 播放</button>
+          <button type="button" id="btn-stop">■ 停止</button>
+          <label>速度
+            <input type="range" id="speed" min="50" max="150" step="10" value="100" aria-valuetext="100%">
+            <output id="speed-out">100%</output>
+          </label>
+          <span class="sep" aria-hidden="true"></span>
+          <button type="button" id="btn-speak">🔊 朗讀目前音符</button>
+          <label><input type="checkbox" id="auto-speak"> 移動游標時自動朗讀</label>
+          <label><input type="checkbox" id="solfege"> 唱名</label>
+        </div>
+      </div>
+      <div id="paper" class="paper"></div>
+      <div class="score-export" role="group" aria-label="匯出五線譜">
+        <span class="hint">匯出五線譜：</span>
+        <button type="button" id="btn-save-svg">SVG 向量圖</button>
+        <button type="button" id="btn-save-png">PNG 圖片</button>
+        <button type="button" id="btn-print">列印／存成 PDF</button>
+      </div>
+      <p class="hint" id="player-status" aria-live="polite"></p>
+    </section>
+
+    <section class="pane messages" aria-labelledby="h-msg">
+      <h2 id="h-msg">轉換訊息</h2>
+      <ul id="messages" aria-live="polite"></ul>
+    </section>
+
+    <details class="pane settings">
+      <summary>轉換設定</summary>
+      <div class="settings-grid">
+        <label>每行方數
+          <input type="number" id="opt-width" min="20" max="80" value="40">
+        </label>
+        <label>單行格式每段行數
+          <input type="number" id="opt-seg" min="1" max="10" value="3">
+        </label>
+        <label>
+          <input type="checkbox" id="opt-group" checked> 16 分音符等使用音符分組（Par. 8.1）
+        </label>
+        <label>讀入點字時，單聲部和弦音程方向
+          <select id="opt-dir">
+            <option value="">自動（高音譜向下）</option>
+            <option value="down">向下（高音譜）</option>
+            <option value="up">向上（低音譜）</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <details class="pane help">
+      <summary>使用說明與支援範圍</summary>
+      <div class="help-body">
+        <h3>怎麼用</h3>
+        <ul>
+          <li>在左邊輸入 ABC，右邊會自動產生點字樂譜；在右邊輸入或修改點字，左邊會自動產生 ABC。</li>
+          <li>點五線譜上的音符，或在任一邊移動游標，另外兩處會同步標示同一個音。</li>
+          <li>點字可以貼上 Unicode 點字（⠿）或 BRF（ASCII 點字）。勾選「六點輸入」後，可用 F D S J K L 六個鍵同時按下輸入一方（請先切換成英文輸入法）。</li>
+          <li>單聲部的 ABC 會轉成單行格式（single-line）；有兩個聲部（V:）時視為鋼琴右手、左手，轉成 bar-over-bar 格式。</li>
+          <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、壓縮的 .mxl）。只轉換第一個聲部（part）；鋼琴大譜表的上下兩行會成為右手、左手。</li>
+          <li>「下載 MusicXML」的檔案可以用 MuseScore、BME、Finale 開啟成五線譜再編輯；五線譜也可以直接匯出成 SVG、PNG，或列印、存成 PDF。</li>
+        </ul>
+        <h3>目前支援</h3>
+        <p>音符、休止符、附點、八度記號、臨時記號、調號、拍號、速度、小節線、反覆記號與房號、被反覆記號拆開的小節、連結線、圓滑線、三連音與其他連音、和弦（音程）、鋼琴雙手、同小節多聲部（in-accord / ABC 的 &amp;）、力度（p、f 等）、漸強漸弱、斷奏、重音、持音、延長記號、琶音、音符分組、大小時值記號。</p>
+        <p>指法（含換指）、倚音（長、短）、顫音、上下漣音、迴音、踏板（踩下、放開、換踏板）、Segno、Coda、Fine、D.C.、D.S.。播放與 MIDI 會依反覆、房號、D.C.、D.S.、Fine、Coda 的實際演奏順序進行。</p>
+        <h3>ABC 寫法提示</h3>
+        <ul>
+          <li>指法：<code>!3!C</code>；換指：<code>!4!!3!C</code>；和弦：<code>[!1!C!3!E!5!G]</code>。</li>
+          <li>倚音：短倚音 <code>{/B}c</code>、長倚音 <code>{B}c</code>、多個倚音 <code>{AB}c</code>。</li>
+          <li>裝飾音：<code>!trill!</code>、<code>!uppermordent!</code>、<code>!lowermordent!</code>、<code>!turn!</code>、<code>!invertedturn!</code>。</li>
+          <li>踏板：<code>!ped!</code> 踩下、<code>!ped-up!</code> 放開（寫在要放開的音之前）。</li>
+          <li>反覆指示：<code>!segno!</code>、<code>!coda!</code>、<code>!fine!</code>、<code>!D.C.!</code>、<code>!D.C.alfine!</code>、<code>!D.S.alcoda!</code> 等，寫在該小節最後一個音之前；也可以用文字 <code>"^Fine"</code>、<code>"^D.C. al Fine"</code>、<code>"^To Coda"</code>、<code>"^Coda"</code>。</li>
+        </ul>
+        <h3>尚未支援</h3>
+        <p>歌詞、和弦名稱、文字表情（如 cresc.）、點字的重複記號縮寫（除了整小節重複）、分頁與頁碼。遇到時會在「轉換訊息」列出。</p>
+      </div>
+    </details>
+  </main>
+
+  <footer class="site-footer">
+    <p>點字規則依據 BANA《Music Braille Code, 2015》。五線譜與播放使用 <a href="https://www.abcjs.net/" target="_blank" rel="noopener">abcjs</a>（播放音色需連線下載）。</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
+  <script src="js/brf.js?v=13"></script>
+  <script src="js/model.js?v=13"></script>
+  <script src="js/durations.js?v=13"></script>
+  <script src="js/abc-parse.js?v=13"></script>
+  <script src="js/braille-write.js?v=13"></script>
+  <script src="js/braille-parse.js?v=13"></script>
+  <script src="js/abc-write.js?v=13"></script>
+  <script src="js/xml.js?v=13"></script>
+  <script src="js/musicxml.js?v=13"></script>
+  <script src="js/describe.js?v=13"></script>
+  <script src="js/samples.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
+</body>
+</html>

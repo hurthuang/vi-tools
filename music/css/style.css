@@ -1,0 +1,140 @@
+:root {
+  --bg: #f6f5f1;
+  --panel: #ffffff;
+  --ink: #1d1d1b;
+  --muted: #62625d;
+  --line: #d9d7cf;
+  --accent: #1f5f8b;
+  --accent-ink: #ffffff;
+  --hl: #ffe27a;
+  --hl-ink: #1d1d1b;
+  --play: #b8e3c4;
+  --warn: #8a4b00;
+  --warn-bg: #fff4e0;
+  --focus: #c45f00;
+  --control: #86847b; /* 輸入框、按鈕外框：與背景對比至少 3:1（WCAG 1.4.11） */
+  --mono: "Consolas", "Menlo", "DejaVu Sans Mono", monospace;
+  --braille: "Segoe UI Symbol", "Apple Braille", "DejaVu Sans", "Noto Sans Symbols 2", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1c1e;
+    --panel: #232427;
+    --ink: #ecebe6;
+    --muted: #a7a69f;
+    --line: #3a3b3f;
+    --accent: #6fb3e0;
+    --accent-ink: #10181f;
+    --hl: #7a6420;
+    --hl-ink: #ffffff;
+    --play: #2f6b41;
+    --warn: #ffc27a;
+    --warn-bg: #3a2c16;
+    --focus: #e0761a;
+    --control: #85847d;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.site-header, .toolbar, main, .site-footer { max-width: 1400px; margin: 0 auto; padding: 0 16px; }
+.site-header { padding-top: 20px; }
+.site-header h1 { margin: 0; font-size: 1.6rem; }
+.subtitle { margin: 4px 0 0; color: var(--muted); }
+
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-top: 14px; margin-bottom: 14px;
+}
+.sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+button, select, input[type="number"] {
+  font: inherit; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--control); border-radius: 6px; padding: 5px 10px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+label { display: inline-flex; gap: 6px; align-items: center; }
+
+.editors { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .editors { grid-template-columns: 1fr; } }
+
+.pane {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; min-width: 0;
+}
+.pane + .pane, .editors + .pane { margin-top: 14px; }
+.pane-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pane h2 { margin: 0; font-size: 1.1rem; }
+.pane-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+/* 編輯區：透明 textarea 疊在標示用的背景層上 */
+.editor { position: relative; border: 1px solid var(--control); border-radius: 6px; background: var(--bg); }
+.editor textarea, .editor .backdrop {
+  margin: 0; border: 0; padding: 10px 12px;
+  font-family: var(--mono); font-size: 15px; line-height: 1.6;
+  white-space: pre; overflow-wrap: normal; letter-spacing: 0;
+  width: 100%; height: 340px; tab-size: 4;
+}
+.editor.braille textarea, .editor.braille .backdrop { font-family: var(--braille); font-size: 24px; line-height: 1.45; }
+.editor.braille.brf textarea, .editor.braille.brf .backdrop { font-family: var(--mono); font-size: 18px; }
+.editor textarea {
+  position: relative; z-index: 1; display: block;
+  background: transparent; color: var(--ink); resize: vertical; overflow: auto;
+}
+.editor textarea:focus { outline: none; }
+.editor:focus-within { outline: 3px solid var(--focus); outline-offset: 1px; }
+.editor .backdrop {
+  position: absolute; inset: 0; z-index: 0; overflow: hidden;
+  color: transparent; pointer-events: none;
+}
+.backdrop mark { background: var(--hl); color: transparent; border-radius: 3px; }
+.backdrop mark.play { background: var(--play); }
+
+.cell-info { min-height: 1.5em; margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+.player input[type="range"] { width: 120px; }
+.paper { overflow-x: auto; background: #fff; border-radius: 6px; min-height: 120px; color: #000; }
+.paper svg { max-width: none; }
+.paper .abcjs-note, .paper .abcjs-rest { cursor: pointer; }
+.paper .hl, .paper .hl path { fill: #d9480f !important; stroke: #d9480f; }
+.paper .playing, .paper .playing path { fill: #2b8a3e !important; }
+
+.score-export { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+
+/* 列印五線譜：只留下樂譜 */
+@media print {
+  body.print-score { background: #fff; }
+  body.print-score > :not(main) { display: none !important; }
+  body.print-score main > :not(.preview) { display: none !important; }
+  body.print-score .preview { border: 0; padding: 0; }
+  body.print-score .preview > :not(.paper) { display: none !important; }
+  body.print-score .paper { overflow: visible; }
+  body.print-score .paper .hl, body.print-score .paper .playing { fill: #000 !important; }
+}
+
+.messages ul { margin: 0; padding-left: 0; list-style: none; }
+.messages li { padding: 6px 10px; border-radius: 6px; margin-top: 6px; }
+.messages li.warn { background: var(--warn-bg); color: var(--warn); }
+.messages li.ok { color: var(--muted); }
+.messages li button { margin-left: 8px; padding: 1px 8px; font-size: 0.85rem; }
+
+.settings summary, .help summary { cursor: pointer; font-weight: 600; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; margin-top: 10px; }
+.help-body h3 { font-size: 1rem; margin: 14px 0 4px; }
+.help-body ul { margin: 0; padding-left: 20px; }
+.help-body p { margin: 0; }
+
+.site-footer { color: var(--muted); font-size: 0.85rem; padding-top: 10px; padding-bottom: 30px; }
