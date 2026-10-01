@@ -265,6 +265,13 @@
         paddingright: 10,
       })[0];
       state.visual = vis;
+      // abcjs 預設的英文標籤改成中文，報讀軟體才念得懂
+      paper.querySelectorAll('svg').forEach((svg) => {
+        const label = '五線譜' + (state.title ? '：' + state.title : '') + '（可用點字或 ABC 編輯區閱讀內容）';
+        svg.setAttribute('aria-label', label);
+        const t = svg.querySelector('title');
+        if (t) t.textContent = label;
+      });
       state.noteEls = [];
       (vis.lines || []).forEach((line) =>
         (line.staff || []).forEach((st) =>
@@ -357,6 +364,10 @@
   // ---------- 訊息 ----------
   function showMessages(ws) {
     const ul = $('messages');
+    // 內容沒變就不重畫，避免每打一個字報讀軟體就重念一次訊息
+    const key = JSON.stringify(ws.map((w) => [w.where, w.msg, w.pos]));
+    if (ul.dataset.key === key) return;
+    ul.dataset.key = key;
     ul.innerHTML = '';
     if (!ws.length) {
       const li = document.createElement('li');

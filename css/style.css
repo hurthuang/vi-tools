@@ -11,7 +11,8 @@
   --play: #b8e3c4;
   --warn: #8a4b00;
   --warn-bg: #fff4e0;
-  --focus: #e0761a;
+  --focus: #c45f00;
+  --control: #86847b; /* 輸入框、按鈕外框：與背景對比至少 3:1（WCAG 1.4.11） */
   --mono: "Consolas", "Menlo", "DejaVu Sans Mono", monospace;
   --braille: "Segoe UI Symbol", "Apple Braille", "DejaVu Sans", "Noto Sans Symbols 2", sans-serif;
 }
@@ -29,10 +30,13 @@
     --play: #2f6b41;
     --warn: #ffc27a;
     --warn-bg: #3a2c16;
+    --focus: #e0761a;
+    --control: #85847d;
   }
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -56,7 +60,7 @@ a { color: var(--accent); }
 .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
 button, select, input[type="number"] {
   font: inherit; color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px;
+  border: 1px solid var(--control); border-radius: 6px; padding: 5px 10px;
 }
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
@@ -77,7 +81,7 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
 
 /* 編輯區：透明 textarea 疊在標示用的背景層上 */
-.editor { position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.editor { position: relative; border: 1px solid var(--control); border-radius: 6px; background: var(--bg); }
 .editor textarea, .editor .backdrop {
   margin: 0; border: 0; padding: 10px 12px;
   font-family: var(--mono); font-size: 15px; line-height: 1.6;
