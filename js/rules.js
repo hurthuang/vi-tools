@@ -110,6 +110,29 @@
     },
   };
 
+  // 數字：拍號上方用上位數字（前加數字記號 ⠼），下方用下位數字
+  TABLES.digits = () => {
+    const ds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
+    return `
+      <div class="table-wrap"><table>
+        <caption>數字：拍號上方的數字前面要加數字記號 ${sign('#')}</caption>
+        <thead><tr><th scope="col">數字</th>${ds.map((d) => `<th scope="col">${d}</th>`).join('')}</tr></thead>
+        <tbody>
+          <tr><th scope="row">上位數字（拍號上方、小節數）</th>${ds.map((d) => `<td>${sign(B.upperNumber(d))}</td>`).join('')}</tr>
+          <tr><th scope="row">下位數字（拍號下方）</th>${ds.map((d) => `<td>${sign(B.lowerNumber(d))}</td>`).join('')}</tr>
+        </tbody>
+      </table></div>`;
+  };
+  /** 一般的符號清單：{ caption, rows: [[名稱, BRF, 說明]] } */
+  function listTable(t) {
+    return `
+      <div class="table-wrap"><table>
+        <caption>${esc(t.caption)}</caption>
+        <thead><tr><th scope="col">名稱</th><th scope="col">記號</th><th scope="col">說明</th></tr></thead>
+        <tbody>${t.rows.map(([name, brf, note]) => `<tr><th scope="row">${esc(name)}</th><td>${brf ? sign(brf) : '（空一方）'}</td><td>${esc(note || '')}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+
   // ---------- 例子：可修改的 ABC，當場轉出點字與五線譜 ----------
   function exampleHtml(sec, ex, k) {
     const id = `${sec.id}-${k + 1}`;
@@ -201,7 +224,7 @@
         <h2 id="${sec.id}-h">${i + 1}. ${esc(sec.title)} <span class="par">BANA ${esc(sec.par)}</span></h2>
         <div class="rule-body">${sec.body}</div>
         <h3>符號表</h3>
-        ${sec.tables.map((t) => TABLES[t]()).join('')}
+        ${sec.tables.map((t) => (typeof t === 'string' ? TABLES[t]() : listTable(t))).join('')}
         <h3>ABC 怎麼寫</h3>
         <div class="rule-body">${sec.abc}</div>
         <h3>例子</h3>
