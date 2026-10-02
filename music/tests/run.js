@@ -417,6 +417,20 @@ for (const s of MB.samples) {
   );
 }
 
+// ---------- 規則對照頁的例子 ----------
+for (const sec of MB.rules) {
+  for (const ex of sec.examples) {
+    const name = '規則頁「' + sec.title + '：' + ex.title + '」';
+    const r = MB.parseAbc(ex.abc);
+    const b = MB.toBraille(r.score);
+    check(name + '：ABC → 點字和說明一致', b.brf === ex.brf, b.brf + '\n（說明頁寫的是）\n' + ex.brf);
+    check(name + '：沒有警告', r.warnings.length === 0 && b.warnings.length === 0, r.warnings.concat(b.warnings).map((w) => w.msg).join('；'));
+    const back = MB.parseBraille(ex.brf);
+    const again = MB.toBraille(back.score).brf;
+    check(name + '：點字讀回再寫出不變', again === ex.brf && back.warnings.length === 0, again);
+  }
+}
+
 // ---------- 7. MusicXML ----------
 /** 比 summary 更完整：加上記號、反覆、房號、小節線、調號拍號。 */
 function fullSummary(score) {

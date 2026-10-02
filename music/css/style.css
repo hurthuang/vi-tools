@@ -163,3 +163,48 @@ label { display: inline-flex; gap: 6px; align-items: center; }
   --focus-ring: 0 0 0 3px var(--focus);
   margin-top: 12px;
 }
+
+/* ---------- 規則對照頁（rules.html） ---------- */
+.back { margin: 0 0 6px; }
+.subtitle a { color: var(--accent); }
+.rules .pane h2 { font-size: 1.25rem; }
+.rules h3 { font-size: 1.05rem; margin: 18px 0 6px; }
+.rule-body ul { margin: 6px 0; padding-left: 22px; }
+.rule-body li { margin: 3px 0; }
+.rule-body p { margin: 6px 0; }
+.par { font-size: 0.85rem; font-weight: normal; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.toc ol { margin: 6px 0 0; padding-left: 22px; }
+.toc li { margin: 4px 0; }
+.table-wrap { overflow-x: auto; }
+.rules table { border-collapse: collapse; margin: 6px 0; }
+.rules caption { text-align: left; color: var(--muted); font-size: 0.9rem; padding-bottom: 4px; }
+.rules th, .rules td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: middle; }
+.rules thead th { background: var(--bg); }
+.sign { display: inline-flex; flex-direction: column; align-items: flex-start; vertical-align: middle; line-height: 1.2; }
+.sign-brl { font-family: var(--braille); font-size: 1.6rem; }
+.sign-dots { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.hint .sign { flex-direction: row; align-items: center; gap: 4px; }
+.hint .sign-brl { font-size: 1.2rem; }
+.example { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 14px; }
+.example h4 { margin: 0 0 8px; font-size: 1rem; }
+.ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 800px) { .ex-grid { grid-template-columns: 1fr; } }
+.ex-label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+.example textarea {
+  width: 100%; font: 0.95rem/1.5 var(--mono); color: var(--ink); background: var(--bg);
+  border: 1px solid var(--control); border-radius: 6px; padding: 6px 8px; resize: vertical;
+}
+.ex-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.ex-brl {
+  margin: 0; padding: 8px 10px; min-height: 3em; overflow-x: auto;
+  font-family: var(--braille); font-size: 1.6rem; line-height: 1.4;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+}
+.ex-dots { margin-top: 6px; font-size: 0.9rem; }
+.ex-dots summary { cursor: pointer; }
+.ex-dots pre { margin: 4px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 0.85rem; }
+.ex-warn { margin: 6px 0 0; padding-left: 20px; color: var(--warn); }
+.ex-warn:empty { display: none; }
+.ex-staff { margin-top: 8px; max-width: 760px; }
+.ex-note { margin: 6px 0 0; }
+.to-top { margin: 14px 0 0; font-size: 0.9rem; }
