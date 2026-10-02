@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=19"></script>
-  <link rel="stylesheet" href="css/style.css?v=19">
+  <script src="js/theme.js?v=20"></script>
+  <link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
   <header class="site-header">
@@ -54,7 +54,7 @@
               </select>
             </label>
             <label title="用 F D S J K L 六個鍵同時按下輸入一個點字方">
-              <input type="checkbox" id="six-key"> 六點輸入
+              <input type="checkbox" id="six-key" checked> 六點輸入
             </label>
             <label>字級
               <select id="brl-size">
@@ -89,6 +89,14 @@
           <label><input type="checkbox" id="auto-speak"> 移動游標時自動朗讀</label>
           <label><input type="checkbox" id="solfege"> 唱名</label>
         </div>
+      </div>
+      <div class="paper-tools">
+        <label>五線譜顯示
+          <select id="paper-fit">
+            <option value="fit">符合寬度（沒有捲軸）</option>
+            <option value="scroll">原尺寸（有捲軸）</option>
+          </select>
+        </label>
       </div>
       <div id="paper" class="paper"></div>
       <div class="score-export" role="group" aria-label="匯出五線譜">
@@ -138,7 +146,7 @@
         <ul>
           <li>在左邊輸入 ABC，右邊會自動產生點字樂譜；在右邊輸入或修改點字，左邊會自動產生 ABC。</li>
           <li>點五線譜上的音符，或在任一邊移動游標，另外兩處會同步標示同一個音。</li>
-          <li>點字可以貼上 Unicode 點字（⠿）或 BRF（ASCII 點字）。勾選「六點輸入」後，可用 F D S J K L 六個鍵同時按下輸入一方（請先切換成英文輸入法）。</li>
+          <li>點字可以貼上 Unicode 點字（⠿）或 BRF（ASCII 點字）。「六點輸入」預設開啟，可用 F D S J K L 六個鍵同時按下輸入一方（請先切換成英文輸入法）；要直接打 ASCII 字母時請先關閉。</li>
           <li>單聲部的 ABC 會轉成單行格式（single-line）；有兩個聲部（V:）時視為鋼琴右手、左手，轉成 bar-over-bar 格式。</li>
           <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、壓縮的 .mxl）。只轉換第一個聲部（part）；鋼琴大譜表的上下兩行會成為右手、左手。</li>
           <li>「下載 MusicXML」的檔案可以用 MuseScore、BME、Finale 開啟成五線譜再編輯；五線譜也可以直接匯出成 SVG、PNG，或列印、存成 PDF。</li>
@@ -165,23 +173,23 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=19"></script>
-  <script src="js/model.js?v=19"></script>
-  <script src="js/durations.js?v=19"></script>
-  <script src="js/abc-parse.js?v=19"></script>
-  <script src="js/braille-write.js?v=19"></script>
-  <script src="js/braille-parse.js?v=19"></script>
-  <script src="js/abc-write.js?v=19"></script>
-  <script src="js/xml.js?v=19"></script>
-  <script src="js/musicxml.js?v=19"></script>
-  <script src="js/describe.js?v=19"></script>
-  <script src="js/samples.js?v=19"></script>
+  <script src="js/brf.js?v=20"></script>
+  <script src="js/model.js?v=20"></script>
+  <script src="js/durations.js?v=20"></script>
+  <script src="js/abc-parse.js?v=20"></script>
+  <script src="js/braille-write.js?v=20"></script>
+  <script src="js/braille-parse.js?v=20"></script>
+  <script src="js/abc-write.js?v=20"></script>
+  <script src="js/xml.js?v=20"></script>
+  <script src="js/musicxml.js?v=20"></script>
+  <script src="js/describe.js?v=20"></script>
+  <script src="js/samples.js?v=20"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=19"></script>
+  <script src="js/app.js?v=20"></script>
 </body>
 </html>
