@@ -129,7 +129,7 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 .player input[type="range"] { width: 120px; }
 .paper { overflow-x: auto; background: #fff; border-radius: 6px; min-height: 120px; color: #000; }
 .paper svg { max-width: none; }
-.paper.scroll { overflow: auto; max-height: 70vh; }
+.paper.scroll { overflow: auto !important; max-height: 70vh; } /* abcjs 會在容器寫入 overflow: hidden */
 .paper-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 6px; }
 .paper .abcjs-note, .paper .abcjs-rest { cursor: pointer; }
 .paper .hl, .paper .hl path { fill: #d9480f !important; stroke: #d9480f; }
