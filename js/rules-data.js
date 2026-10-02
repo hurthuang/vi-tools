@@ -602,6 +602,64 @@
         },
       ],
     },
+    {
+      id: 'navigation',
+      title: '反覆記號：D.C.、D.S.、Fine、Coda',
+      par: '20.1、20.2',
+      body: `
+        <p>印刷譜用 D.C.（從頭反覆）、D.S.（從 Segno 記號反覆）、Fine（在此結束）、Coda（跳到尾奏）指示演奏時要跳回或跳到哪裡。點字照印刷譜寫出這些指示（20.1）：</p>
+        <ul>
+          <li><strong>Segno 記號</strong>（D.S. 要跳回的位置）：寫 ⠬，前後各空一方。點字要從這裡<strong>另起一段</strong>，所以 ⠬ 一定是那一行的第一個音樂符號（20.1.1）。</li>
+          <li><strong>Fine</strong>：寫成文字記號 ⠜⠋⠊⠝⠑⠜，放在雙縱線或終止線後面，中間空一方（20.1.2）。</li>
+          <li><strong>D.C.、D.S.</strong>：照印刷譜的文字寫在兩個文字記號 ⠜ 之間，例如 D.C. al Fine 寫 ⠜⠙⠄⠉⠄ ⠁⠇ ⠋⠊⠝⠑⠜，放在雙縱線後面，中間空一方；文字裡的句點寫成點 3 ⠄（20.1.4）。</li>
+          <li><strong>To Coda 記號</strong>（⊕）：寫 ⠬⠇，前後各空一方（20.1.3）。</li>
+          <li><strong>Coda（尾奏）</strong>：從新的一段開始。尾奏很短時，⠜⠉⠕⠙⠁⠜ 單獨一行寫在行首；尾奏較長時，把 Coda 置中寫成標題（20.1.5）。本工具用前一種寫法。</li>
+          <li>以上任何記號之後的第一個音，都要寫音層記號（20.1）。</li>
+        </ul>
+        <p>印刷譜沒有寫 D.C.、D.S.，點譯者為了節省篇幅自行使用的「點字專用」寫法（例如 ⠜⠙⠉⠄⠜、⠐⠬⠁），本工具不會自動產生。</p>
+        <p>轉換器的播放與 MIDI 會照實際的演奏順序（跳回、跳到尾奏）進行。</p>`,
+      abc: `
+        <ul>
+          <li>Segno：<code>!segno!</code>，寫在該小節第一個音前面。</li>
+          <li>Fine：<code>!fine!</code>，寫在該小節最後一個音前面。</li>
+          <li>D.C.、D.S.：<code>!D.C.!</code>、<code>!D.C.alfine!</code>、<code>!D.C.alcoda!</code>、<code>!D.S.!</code>、<code>!D.S.alfine!</code>、<code>!D.S.alcoda!</code>，寫在該小節最後一個音前面。</li>
+          <li>Coda：To Coda 的位置（小節最後一個音前面）寫 <code>!coda!</code>，尾奏第一個音前面再寫一次 <code>!coda!</code>。</li>
+          <li>也可以用文字註記，例如 <code>"^D.C. al Fine"</code>、<code>"^To Coda"</code>、<code>"^Coda"</code>。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '反覆指示',
+          rows: [
+            ['Segno 記號', '+', '前後空一方，從新的一段開始'],
+            ['To Coda 記號（⊕）', '+L', '前後空一方'],
+            ['Fine', '>FINE>', '寫在雙縱線或終止線後面'],
+            ['D.C.', ">D'C'>", '照印刷譜的文字，句點寫成點 3'],
+            ['D.S. al Fine', ">D'S' AL FINE>", ''],
+            ['Coda（尾奏）', '>CODA>', '尾奏很短時單獨一行寫在行首'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: 'D.C. al Fine',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC D E F | G2 G2 | !fine!c4 |] A A G G | F E !D.C.alfine!D2 ||',
+          brf: "                  #D4\n#A \"?:$] RR .Y<K >FINE> \"[[\\\\\n  \"]$O<K' >D'C' AL FINE>",
+          note: '第 3 小節終止線 ⠣⠅ 後面空一方寫 ⠜⠋⠊⠝⠑⠜；之後的 A 要寫音層記號 ⠐。第 5 小節段落雙縱線後面空一方寫 D.C. al Fine。演奏順序：第 1～5 小節，再從頭演奏到 Fine（第 3 小節）結束。',
+        },
+        {
+          title: 'D.S. al Fine',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nG,2 G,2 | !segno!C D E F | !fine!G4 |] A G F E | D E !D.S.alfine!F2 ||',
+          brf: "                  #D4\n#A _RR\n#B + \"?:$] (<K >FINE> \"[\\]$\n  \":$Q<K' >D'S' AL FINE>",
+          note: '第 2 小節有 Segno，所以從這裡另起一段（⠼⠃），⠬ 是這一行的第一個音樂符號。演奏順序：第 1～5 小節，再跳回第 2 小節演奏到 Fine 結束。',
+        },
+        {
+          title: 'D.C. al Coda',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC D E F | G2 !coda!G2 || A A G G | F E !D.C.alcoda!D2 || !coda!E D C2 | C4 |]',
+          brf: "                  #D4\n#A \"?:$] RR<K' +L \"[[\\\\\n  \"]$O<K' >D'C' AL CODA>\n>CODA>\n#E \"$:N Y<K",
+          note: '第 2 小節後的 ⠬⠇ 是 To Coda 記號。尾奏從新的一段開始，⠜⠉⠕⠙⠁⠜ 單獨一行寫在行首。演奏順序：第 1～4 小節，從頭演奏到第 2 小節，再跳到尾奏（第 5～6 小節）。',
+        },
+      ],
+    },
   ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = MB;
