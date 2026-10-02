@@ -33,11 +33,14 @@
                     Exclude="$(WebSource)\reg-*" />
       <WebTableFiles Include="$(WebSource)\table\**" />
       <WebMathcatFiles Include="$(WebSource)\mathcat\**" />
+      <!-- 點字樂譜：只帶執行時用得到的檔案（不含 tests 與說明） -->
+      <WebMusicFiles Include="$(WebSource)\music\**" Exclude="$(WebSource)\music\tests\**;$(WebSource)\music\README.md;$(WebSource)\music\.gitignore" />
     </ItemGroup>
     <RemoveDir Directories="$(PublishDir)web" />
     <Copy SourceFiles="@(WebRootFiles)" DestinationFolder="$(PublishDir)web" />
     <Copy SourceFiles="@(WebTableFiles)" DestinationFiles="@(WebTableFiles->'$(PublishDir)web\table\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(WebMathcatFiles)" DestinationFiles="@(WebMathcatFiles->'$(PublishDir)web\mathcat\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(WebMusicFiles)" DestinationFiles="@(WebMusicFiles->'$(PublishDir)web\music\%(RecursiveDir)%(Filename)%(Extension)')" />
     <ZipDirectory SourceDirectory="$(PublishDir)" DestinationFile="$(MSBuildProjectDirectory)\dist\ViTools-portable.zip" Overwrite="true" />
     <Message Importance="high" Text="可攜版：$(PublishDir) 與 dist\ViTools-portable.zip" />
   </Target>

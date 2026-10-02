@@ -18,7 +18,7 @@ dotnet publish -p:PublishProfile=Portable
 產生 `dist\ViTools\` 與 `dist\ViTools-portable.zip`（約 56MB），解壓縮後執行 `ViTools.exe` 即可，不用安裝 .NET：
 - `ViTools.exe`：單一執行檔，內含 .NET 10 執行環境
 - `web\`：從上層 vi-tools 複製執行時用得到的檔案（`*.html`、`*.htm`、`*.js`、`*.json`、`*.TTF`、`table\`，排除 `reg-*` 測試頁），不含 `document\` 等資料
-- `desktop-assets\cdn\`：網頁從 CDN 載入的 pdf.js 3.11.174、JSZip 3.10.1、MathJax 3.2.2（網址一一對應，app 一律改用這份，離線也能用）
+- `desktop-assets\cdn\`：網頁從 CDN 載入的 pdf.js 3.11.174、JSZip 3.10.1、MathJax 3.2.2、abcjs 6.7.1 與點字樂譜的鋼琴音色（網址一一對應，app 一律改用這份，離線也能用）
 
 執行需求：
 - Windows 10（1809 以上）或 11，x64
@@ -120,7 +120,7 @@ function onDesktop(fn) {
 |---|---|
 | `MainForm.cs` | WebView2 外殼：線上優先／離線內附（`https://vitools.local/` 對應到網頁資料夾）、攔截 CDN 改用內附、外部連結改用瀏覽器開、處理網頁訊息 |
 | `TtsService.cs` | WinRT `SpeechSynthesizer`，長文依標點分段合成後接成單一 WAV；`MediaTranscoder` 轉 MP3 |
-| `desktop-assets/cdn/` | CDN 函式庫的內附版本，路徑同網址：`cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/`（Apache 2.0）、`cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/`（MIT／GPLv3）、`cdn.jsdelivr.net/npm/mathjax@3/es5/`（3.2.2，Apache 2.0；三個合併檔 tex-chtml、tex-mml-chtml、tex-svg 加上 a11y、adaptors、input、output、ui，不含 3.8MB 的 sre 語音引擎）；取自 npm 套件，各資料夾附授權檔 |
+| `desktop-assets/cdn/` | CDN 函式庫的內附版本，路徑同網址：`cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/`（Apache 2.0）、`cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/`（MIT／GPLv3）、`cdn.jsdelivr.net/npm/mathjax@3/es5/`（3.2.2，Apache 2.0；三個合併檔 tex-chtml、tex-mml-chtml、tex-svg 加上 a11y、adaptors、input、output、ui，不含 3.8MB 的 sre 語音引擎）、`cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/`（點字樂譜的五線譜與播放，MIT）；取自 npm 套件，各資料夾附授權檔。另有 `cdn.jsdelivr.net/gh/paulrosen/midi-js-soundfonts@cbd6b6f…/abcjs/acoustic_grand_piano-mp3/`：點字樂譜播放用的鋼琴音色 88 個 mp3（約 6.8MB，內容與 abcjs 預設的 paulrosen.github.io 相同；授權說明見該資料夾的 NOTICE.txt） |
 | `bridge.js` | 注入每個頁面（含首頁分頁的 iframe），提供 `window.vitoolsDesktop`（介面都在網頁），經由最上層頁面的 `chrome.webview` 和原生層溝通；首頁的 Alt+Shift+A 轉給目前分頁 |
 | `../desktop-audio.js`（網頁） | 桌面版共用小工具（`onDesktop`、缺語音提示文字、匯出進度文字）；原本的右下角浮動面板已由各頁的報讀區塊取代；網頁先上線、再發佈需要它的 app 版本 |
 | `../speech-block.js`、`../math-speech.js`、`../mathcat/`、`../brl-reading*.js`（網頁） | 「🔊 報讀」區塊（數學點字、文字轉點字、點字轉文字）、算式報讀（數學點字、文件整理）、點字讀音（文字轉點字、點字轉文字），瀏覽器與桌面版都能用。MathCAT 取自 [mathcat-lab](https://github.com/hurthuang/mathcat-lab) 的 `mathcat-wasm/`，原始碼見該專案 `rust-src/` |

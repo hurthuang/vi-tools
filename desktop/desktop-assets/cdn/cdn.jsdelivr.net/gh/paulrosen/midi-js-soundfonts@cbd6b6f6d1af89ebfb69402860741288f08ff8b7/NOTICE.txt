@@ -1,0 +1,7 @@
+點字樂譜（music/）播放用的鋼琴音色，取自 https://github.com/paulrosen/midi-js-soundfonts
+（commit cbd6b6f6d1af89ebfb69402860741288f08ff8b7，abcjs/acoustic_grand_piano-mp3，88 個音），
+內容與 abcjs 預設網址 https://paulrosen.github.io/midi-js-soundfonts/abcjs/ 相同。
+
+該專案的程式以 MIT 授權（見 LICENSE.txt）；依其 README，FluidR3_GM 音色以
+Creative Commons Attribution 3.0 授權（https://creativecommons.org/licenses/by/3.0/）。
+abcjs 資料夾的音色來源 README 未明載，此處依 FluidR3_GM 的 CC BY 3.0 標示出處。
