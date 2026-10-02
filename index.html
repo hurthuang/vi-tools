@@ -16,7 +16,7 @@
         document.documentElement.setAttribute('data-theme', e.data.theme);
     });
   </script>
-  <link rel="stylesheet" href="css/style.css?v=14">
+  <link rel="stylesheet" href="css/style.css?v=15">
 </head>
 <body>
   <header class="site-header">
@@ -171,17 +171,23 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=14"></script>
-  <script src="js/model.js?v=14"></script>
-  <script src="js/durations.js?v=14"></script>
-  <script src="js/abc-parse.js?v=14"></script>
-  <script src="js/braille-write.js?v=14"></script>
-  <script src="js/braille-parse.js?v=14"></script>
-  <script src="js/abc-write.js?v=14"></script>
-  <script src="js/xml.js?v=14"></script>
-  <script src="js/musicxml.js?v=14"></script>
-  <script src="js/describe.js?v=14"></script>
-  <script src="js/samples.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/brf.js?v=15"></script>
+  <script src="js/model.js?v=15"></script>
+  <script src="js/durations.js?v=15"></script>
+  <script src="js/abc-parse.js?v=15"></script>
+  <script src="js/braille-write.js?v=15"></script>
+  <script src="js/braille-parse.js?v=15"></script>
+  <script src="js/abc-write.js?v=15"></script>
+  <script src="js/xml.js?v=15"></script>
+  <script src="js/musicxml.js?v=15"></script>
+  <script src="js/describe.js?v=15"></script>
+  <script src="js/samples.js?v=15"></script>
+  <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
+  <script src="../shared.js"></script>
+  <script src="../desktop-audio.js"></script>
+  <script src="../lang-segments.js"></script>
+  <script src="../voice-settings.js"></script>
+  <script src="../speech-block.js"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>

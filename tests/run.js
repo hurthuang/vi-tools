@@ -404,6 +404,18 @@ for (const s of MB.samples) {
   MB.model.forEachEvent(r.score, (ev) => d.push(MB.describe.describeEvent(ev, { number: 1 })));
   check('語音描述', d[0] === '第1小節，弱，附點四分音符，升F4' && d[1] === '第1小節，八分音符，和弦 C4、E4、G4' && d[2] === '第1小節，二分休止符', d.join('\n'));
 }
+{
+  const r = MB.parseAbc('X:1\nT:練習\nM:3/4\nL:1/4\nK:Bb\n|: B c d :|1 e3 :|2 f3 |]');
+  const lines = MB.describe.describeScore(r.score, {}).split('\n');
+  check(
+    '全曲報讀：開頭與每小節一行',
+    lines[0] === '曲名 練習，調號 2 個降記號（降B 大調），4 分之 3 拍，共 3 小節' &&
+      lines[1] === '第 1 小節：反覆開始，四分音符，降B4；四分音符，C5；四分音符，D5，反覆結束' &&
+      lines[2] === '第 2 小節：第 1 房，附點二分音符，降E5，反覆結束' &&
+      lines[3] === '第 3 小節：第 2 房，附點二分音符，F5',
+    lines.join('\n')
+  );
+}
 
 // ---------- 7. MusicXML ----------
 /** 比 summary 更完整：加上記號、反覆、房號、小節線、調號拍號。 */

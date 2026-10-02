@@ -231,6 +231,7 @@
     state.visual = null;
     showMessages([]);
     $('abc-status').textContent = '';
+    document.dispatchEvent(new Event('score-changed'));
   }
 
   function finish(score, infos, warnings, abcText) {
@@ -247,6 +248,7 @@
     $('cell-info').textContent = '';
     abcEd.setMarks([]);
     brlEd.setMarks([]);
+    document.dispatchEvent(new Event('score-changed'));
   }
 
   // ---------- 五線譜 ----------
@@ -785,6 +787,46 @@
     state.title = '';
     convertFromAbc();
   });
+
+  // ---------- 視障輔助工具集的共用元件（放在 vi-tools 裡才有） ----------
+  if (typeof window.initBraillePanel === 'function') {
+    // 改用工具集統一的六點輸入面板（六點鍵盤 + 點陣點選，Ctrl+B 切換），取代本頁的勾選框
+    const lab = $('six-key').closest('label');
+    $('six-key').checked = false;
+    lab.hidden = true;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'brl-panel-btn';
+    btn.className = 'btn brlp-trigger';
+    btn.textContent = '⠿ 點字輸入';
+    btn.title = '六點鍵盤（F D S J K L）與點陣輸入，在點字編輯區按 Ctrl+B 切換六點鍵盤';
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-expanded', 'false');
+    lab.after(btn);
+    window.initBraillePanel({
+      triggerId: 'brl-panel-btn',
+      targetId: 'brl',
+      // 依顯示方式插入 Unicode 點字或 BRF；空方在 Unicode 模式用 U+2800
+      insertFn: (bits) => {
+        const ch = String.fromCodePoint(0x2800 + bits);
+        insertText(brlTA, brlMode() === 'unicode' ? ch : bits ? B.toBrf(ch) : ' ');
+        brlTA.focus();
+      },
+    });
+  }
+  if (typeof window.createSpeechBlock === 'function') {
+    // 「🔊 全曲報讀」：每小節（鋼琴每手）一行，點一行從那裡念；可存報讀檔，桌面版可匯出音檔
+    window.createSpeechBlock($('player-status'), {
+      id: 'score-speech',
+      title: '全曲報讀',
+      getText: () => (state.score ? MB.describe.describeScore(state.score, { solfege: $('solfege').checked }) : ''),
+      watch: (update) => {
+        document.addEventListener('score-changed', update);
+        $('solfege').addEventListener('change', update);
+      },
+      fileName: () => baseName() + '-報讀',
+    });
+  }
 
   // ---------- 啟動 ----------
   applySettingsToForm();

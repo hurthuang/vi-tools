@@ -63,6 +63,60 @@
     return parts.join('，');
   }
 
-  MB.describe = { describeEvent, pitchName, durationName };
+  function keyText(key) {
+    const n = Math.abs(key.fifths || 0);
+    const sig = n ? n + ' 個' + (key.fifths > 0 ? '升' : '降') + '記號' : '沒有升降記號';
+    const name = MB.model.keyName(key);
+    const m = /^([A-G])(#+|b+)?(m?)/.exec(name);
+    const tonic = m ? (m[2] ? (m[2][0] === '#' ? '升' : '降').repeat(m[2].length) : '') + m[1] : name;
+    const mode = key.mode && key.mode !== 'major' && key.mode !== 'minor' ? key.mode + ' 調式' : m && m[3] ? '小調' : '大調';
+    return '調號 ' + sig + '（' + tonic + ' ' + mode + '）';
+  }
+  const meterText = (mt) => mt.den + ' 分之 ' + mt.num + ' 拍';
+
+  /**
+   * 整首曲子的報讀文字：開頭一行曲名、調號、拍號、速度，之後每小節（鋼琴每手）一行。
+   * 給「全曲報讀」區塊使用，一行一個朗讀項目。
+   */
+  function describeScore(score, opts) {
+    const M = MB.model;
+    const lines = [];
+    const p0 = score.parts[0];
+    if (!p0) return '';
+    const head = [];
+    if (score.title) head.push('曲名 ' + score.title);
+    if (score.composer) head.push('作曲 ' + score.composer);
+    head.push(keyText(M.keyAt(p0, 0)), meterText(M.meterAt(p0, 0)));
+    if (score.tempo && score.tempo.bpm) head.push('速度 每分鐘 ' + score.tempo.bpm + ' 個' + durationName({ value: score.tempo.value, dots: score.tempo.dots, kind: 'note' }));
+    head.push('共 ' + p0.measures.length + ' 小節' + (score.keyboard ? '，鋼琴雙手' : ''));
+    lines.push(head.join('，'));
+    const numbers = M.measureNumbers(score);
+    p0.measures.forEach((m0, mi) => {
+      const nav = [];
+      if (mi > 0 && m0.key) nav.push('改為' + keyText(m0.key));
+      if (mi > 0 && m0.meter) nav.push('改為 ' + meterText(m0.meter));
+      if (m0.segno) nav.push('記號 segno');
+      if (m0.codaStart) nav.push('尾奏 Coda');
+      if (m0.startRepeat) nav.push('反覆開始');
+      if (m0.volta) nav.push('第 ' + m0.volta + ' 房');
+      score.parts.forEach((part, pi) => {
+        const m = part.measures[mi];
+        if (!m) return;
+        const label = '第 ' + (numbers[mi] != null ? numbers[mi] : mi + 1) + ' 小節' + (part.hand ? (part.hand === 'R' ? ' 右手' : ' 左手') : '');
+        const voices = m.voices.filter((v) => v.length).map((v) => v.map((ev) => describeEvent(ev, null, opts)).join('；'));
+        const body = voices.length > 1 ? voices.map((v, k) => '第 ' + (k + 1) + ' 聲部 ' + v).join('。') : voices[0] || '空小節';
+        lines.push(label + '：' + (pi === 0 && nav.length ? nav.join('，') + '，' : '') + body);
+      });
+      const end = [];
+      if (m0.toCoda) end.push('跳到尾奏');
+      if (m0.fine) end.push('Fine 結束');
+      if (m0.jump) end.push(m0.jump.type === 'DC' ? '從頭反覆' : '從 segno 反覆' + (m0.jump.to === 'fine' ? '到 Fine' : m0.jump.to === 'coda' ? '再跳到尾奏' : ''));
+      if (m0.endRepeat) end.push('反覆結束');
+      if (end.length) lines[lines.length - 1] += '，' + end.join('，');
+    });
+    return lines.join('\n');
+  }
+
+  MB.describe = { describeEvent, describeScore, pitchName, durationName };
   if (typeof module !== 'undefined' && module.exports) module.exports = MB;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
