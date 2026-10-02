@@ -102,6 +102,7 @@
     if (settings.seg) $('opt-seg').value = settings.seg;
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
+    if (settings.slur) $('opt-slur').value = settings.slur;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
     if (settings.brfUpper) $('opt-brf-upper').checked = true;
     if (settings.sixKey === false) $('six-key').checked = false;
@@ -116,6 +117,7 @@
       seg: +$('opt-seg').value,
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
+      slur: $('opt-slur').value,
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
       paperFit: $('paper-fit').value,
@@ -130,6 +132,7 @@
       width: Math.max(20, Math.min(80, +$('opt-width').value || 40)),
       segmentLines: Math.max(1, +$('opt-seg').value || 3),
       grouping: $('opt-group').checked,
+      slurStyle: $('opt-slur').value,
     };
   }
   // 點字顯示：unicode（Unicode 點字）、brf（ASCII）、brf-font（ASCII + SimBraille 字型，字元同 ASCII，只換字型）
@@ -823,7 +826,7 @@
     applyBrlLook();
     saveSettings();
   });
-  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir']) {
+  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur']) {
     $(id).addEventListener('change', () => {
       saveSettings();
       if (id === 'opt-dir' || state.lastSource === 'brl') convertFromBraille();

@@ -409,6 +409,12 @@
         continue;
       }
       if (c === 'C') {
+        // ⠉⠉：加倍的圓滑線，從這個音開始的長圓滑線（Par. 13.3）
+        if (c1 === 'C' && last) {
+          last.dbl = true;
+          i += 2;
+          continue;
+        }
         if (last) last.short = true;
         i++;
         continue;
@@ -1050,6 +1056,7 @@
           }
           ev._chordTie = r.chordTie;
           ev._short = r.short;
+          ev._dbl = r.dbl;
           ev._conv = r.conv;
           ev._open = r.open;
           ev._close = r.close;
@@ -1092,8 +1099,24 @@
     part.measures.forEach((m) => (m.voices[0] || []).forEach((ev) => stream.push(ev)));
     let inShort = false;
     let convPending = false;
+    // 加倍寫法：⠉⠉ 開始；之後單一個 ⠉ 標在倒數第二個音，圓滑線到下一個音結束
+    let inDouble = false;
+    let doubleEndNext = false;
     stream.forEach((ev) => {
-      if (ev._short && ev.kind === 'note') {
+      if (inDouble && ev.kind === 'note') {
+        if (doubleEndNext) {
+          ev.slurEnd = (ev.slurEnd || 0) + 1;
+          inDouble = doubleEndNext = false;
+        } else if (ev._short) {
+          doubleEndNext = true;
+          ev._short = false;
+        }
+      }
+      if (ev._dbl && ev.kind === 'note') {
+        ev.slurStart = (ev.slurStart || 0) + 1;
+        inDouble = true;
+        doubleEndNext = false;
+      } else if (ev._short && ev.kind === 'note') {
         if (inShort && convPending) {
           // 交會音：前一條在此結束，新的一條從此開始
           ev.slurEnd = (ev.slurEnd || 0) + 1;
@@ -1117,6 +1140,7 @@
       m.voices.forEach((v) =>
         v.forEach((ev) => {
           delete ev._short;
+          delete ev._dbl;
           delete ev._conv;
           delete ev._open;
           delete ev._close;

@@ -111,10 +111,13 @@
   }
 
   // ---------- 前置分析：圓滑線 ----------
-  function analyseSlurs(part) {
+  /**
+   * style：長圓滑線（超過四個音）的寫法（Par. 13.3）。'bracket' 用 ⠰⠃…⠘⠆；'double' 在第一個音後寫 ⠉⠉、倒數第二個音後寫 ⠉。
+   */
+  function analyseSlurs(part, style) {
     const flags = new Map();
     const get = (id) => {
-      if (!flags.has(id)) flags.set(id, { short: false, open: 0, close: 0, conv: false, converge: 0 });
+      if (!flags.has(id)) flags.set(id, { short: false, open: 0, close: 0, conv: false, converge: 0, dbl: false });
       return flags.get(id);
     };
     const maxV = Math.max(1, ...part.measures.map((m) => m.voices.length));
@@ -135,7 +138,10 @@
       });
       for (const sp of spans) {
         if (sp.short) sp.notes.slice(0, -1).forEach((e) => (get(e.id).short = true));
-        else {
+        else if (style === 'double') {
+          get(sp.notes[0].id).dbl = true;
+          get(sp.notes[sp.notes.length - 2].id).short = true;
+        } else {
           get(stream[sp.a].id).open++;
           get(stream[sp.b].id).close++;
         }
@@ -148,7 +154,7 @@
             // 交會音的前一個音改寫為 ⠠⠉
             const before = x.notes[x.notes.length - 2];
             if (before) get(before.id).conv = true;
-          } else if (!x.short && !y.short) {
+          } else if (!x.short && !y.short && style !== 'double') {
             // 兩條括號式：交會音前寫 ⠰⠃⠘⠆
             const f = get(stream[x.b].id);
             f.close--;
@@ -354,7 +360,8 @@
       });
       ctx.prev = wd;
       if (artic.includes('fermata')) tail += '<L';
-      if (flags.short) tail += flags.conv ? ',C' : 'C';
+      if (flags.dbl) tail += 'CC';
+      else if (flags.short) tail += flags.conv ? ',C' : 'C';
       tail += '^2'.repeat(flags.close);
       if (chordTie) tail += '.C';
       else if (written.tie && !others.length) tail += '@C';
@@ -592,7 +599,7 @@
 
   function writeSingleLine(part, env, lines) {
     const { opts, numbers } = env;
-    env.slurs = analyseSlurs(part);
+    env.slurs = analyseSlurs(part, opts.slurStyle);
     const W = opts.width;
     let line = null;
     let segLines = 0;
@@ -720,8 +727,8 @@
     const [rh, lh] = score.parts;
     const W = opts.width;
     const numW = Math.max(...numbers.map((n) => String(n).length));
-    const slR = analyseSlurs(rh);
-    const slL = analyseSlurs(lh);
+    const slR = analyseSlurs(rh, opts.slurStyle);
+    const slL = analyseSlurs(lh, opts.slurStyle);
     const pad = (n) => ' '.repeat(numW - String(n).length) + B.upperNumber(n);
     const indent = ' '.repeat(numW + 1);
     let prevKey = rh.measures[0].key;
