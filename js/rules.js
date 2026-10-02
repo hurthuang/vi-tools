@@ -46,15 +46,15 @@
     octaves: () => {
       const abcOf = (o) => (o >= 5 ? 'c' + "'".repeat(o - 5) + '–b' + "'".repeat(o - 5) : 'C' + ','.repeat(4 - o) + '–B' + ','.repeat(4 - o));
       const rows = [1, 2, 3, 4, 5, 6, 7].map(
-        (o) => `<tr><th scope="row">第 ${o} 八度${o === 4 ? '（中央 C）' : ''}</th><td>${sign(S.OCT[o])}</td><td>C${o}–B${o}</td><td><code>${abcOf(o)}</code></td></tr>`
+        (o) => `<tr><th scope="row">第 ${o} 音層${o === 4 ? '（中央 C）' : ''}</th><td>${sign(S.OCT[o])}</td><td>C${o}–B${o}</td><td><code>${abcOf(o)}</code></td></tr>`
       );
       return `
       <div class="table-wrap"><table>
         <caption>八度記號：寫在音符前面</caption>
-        <thead><tr><th scope="col">八度</th><th scope="col">記號</th><th scope="col">音域</th><th scope="col">ABC 寫法</th></tr></thead>
+        <thead><tr><th scope="col">音層</th><th scope="col">記號</th><th scope="col">音域</th><th scope="col">ABC 寫法</th></tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table></div>
-      <p class="hint">比第 1 八度更低用 ${sign(S.OCT[0])}，比第 7 八度更高用 ${sign(S.OCT[8])}。</p>`;
+      <p class="hint">比第 1 音層更低用 ${sign(S.OCT[0])}，比第 7 音層更高用 ${sign(S.OCT[8])}。</p>`;
     },
     intervals: () => {
       const names = { 1: '二度', 2: '三度', 3: '四度', 4: '五度', 5: '六度', 6: '七度', 0: '八度' };
