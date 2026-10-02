@@ -267,6 +267,7 @@
   /*
    * 只給五線譜顯示用的 ABC：D.C.、D.S.、Fine 等反覆文字改放在譜表下方。
    * abcjs 會把它們和指法、裝飾音一起放在譜表上方而疊在一起；印刷樂譜也常把這些文字放在下方。
+   * D.C.、D.S.、To Coda 這類較長的文字從該小節第一個音開始寫，才不會穿過小節線；Fine 很短，留在原來的音。
    * 編輯區的 ABC 不變；toOrig() 把顯示用 ABC 的位置換回原本的位置（點音符、同步標示用）。
    */
   const NAV_TEXT = {
@@ -274,22 +275,42 @@
     'D.S.': 'D.S.', 'D.S.alfine': 'D.S. al Fine', 'D.S.alcoda': 'D.S. al Coda', fine: 'Fine', dacoda: 'To Coda',
   };
   const NAV_RE = /!(D\.C\.alfine|D\.C\.alcoda|D\.S\.alfine|D\.S\.alcoda|D\.C\.|D\.S\.|dacapo|dacoda|fine)!|"\^((?:D\.\s?[CS]\.|Da Capo|Dal Segno|Fine|To Coda)[^"]*)"/g;
+  /** pos 所在小節第一個音的位置：往前找到小節線或行首，再跳過小節線剩下的部分、房號、空白、行內欄位。 */
+  function measureStart(abc, pos) {
+    let i = pos;
+    while (i > 0 && abc[i - 1] !== '|' && abc[i - 1] !== '\n') i--;
+    const skip = /^(?::+|\[?\d+(?:[,-]\d+)*|\s+|\[[A-Za-z]:[^\]\n]*\])*/.exec(abc.slice(i, pos));
+    return i + skip[0].length;
+  }
   function displayAbc(abc) {
-    const reps = []; // 每次取代後：顯示用 ABC 的結束位置、累計長度差
-    let delta = 0;
-    const text = abc.replace(NAV_RE, (m, deco, ann, off) => {
-      const rep = deco ? '"_' + NAV_TEXT[deco] + '"' : '"_' + ann + '"';
-      delta += rep.length - m.length;
-      reps.push({ end: off + delta + m.length, delta });
-      return rep;
+    const edits = []; // { pos, del, ins }：在原本 ABC 的 pos 刪去 del 個字元、插入 ins
+    abc.replace(NAV_RE, (m, deco, ann, off) => {
+      const text = deco ? NAV_TEXT[deco] : ann;
+      const label = '"_' + text + '"';
+      const start = /^Fine/i.test(text) ? off : measureStart(abc, off);
+      if (start === off) edits.push({ pos: off, del: m.length, ins: label });
+      else edits.push({ pos: start, del: 0, ins: label }, { pos: off, del: m.length, ins: '' });
+      return m;
     });
+    edits.sort((a, b) => a.pos - b.pos || a.del - b.del);
+    // 依序複製原文片段、插入新文字；segs 記下每段原文在兩邊的起點
+    let text = '';
+    let last = 0;
+    const segs = [];
+    for (const e of edits) {
+      segs.push({ disp: text.length, orig: last, len: e.pos - last });
+      text += abc.slice(last, e.pos) + e.ins;
+      last = e.pos + e.del;
+    }
+    segs.push({ disp: text.length, orig: last, len: abc.length - last });
+    text += abc.slice(last);
     const toOrig = (p) => {
-      let d = 0;
-      for (const r of reps) {
-        if (r.end > p) break;
-        d = r.delta;
+      let s = segs[0];
+      for (const g of segs) {
+        if (g.disp > p) break;
+        s = g;
       }
-      return p - d;
+      return s.orig + Math.min(p - s.disp, s.len);
     };
     return { text, toOrig };
   }
