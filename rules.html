@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>點字樂譜規則對照</title>
+  <script src="js/theme.js?v=17"></script>
+  <link rel="stylesheet" href="css/style.css?v=17">
+</head>
+<body>
+  <header class="site-header" id="top">
+    <p class="back"><a href="index.html">← 回到點字樂譜轉換器</a></p>
+    <h1>點字樂譜規則對照</h1>
+    <p class="subtitle">ABC 記譜與點字樂譜的寫法對照・依據 BANA《Music Braille Code, 2015》</p>
+  </header>
+
+  <main class="rules">
+    <section class="pane" aria-labelledby="h-about">
+      <h2 id="h-about">這一頁怎麼用</h2>
+      <div class="rule-body">
+        <ul>
+          <li>每一節有規則說明、符號表、ABC 的寫法，以及幾個例子。標題旁的「BANA 2.1」等是規範的段落編號，方便對照原文。</li>
+          <li>例子的 ABC 可以直接修改，點字和五線譜會跟著改變；按「還原例子」回到原本的內容。這裡的修改不會影響轉換器裡的樂譜。</li>
+          <li>點字以 Unicode 點字（⠿）顯示；每個例子都可以展開「逐方點位」，用點的編號逐方列出。</li>
+          <li>例子的點字都由本工具的轉換程式產生，並有自動測試檢查和這裡的說明一致。</li>
+          <li>台灣的點字樂譜習慣與 BANA 是否有差異，仍在請教點字樂譜老師；確認後會在相關規則旁註明。</li>
+        </ul>
+      </div>
+    </section>
+
+    <nav class="pane toc" aria-labelledby="h-toc">
+      <h2 id="h-toc">目錄</h2>
+      <ol id="toc"></ol>
+    </nav>
+
+    <div id="rules"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>規則依據 BANA《Music Braille Code, 2015》，可在 <a href="https://www.brailleauthority.org/music/music.html" target="_blank" rel="noopener">BANA 網站</a>免費下載 PDF 與 BRF。本頁說明為自行撰寫的摘要，以原文為準。
+    ABC 記譜法見 <a href="https://abcnotation.com/wiki/abc:standard:v2.1" target="_blank" rel="noopener">ABC 2.1 標準</a>。五線譜使用 <a href="https://www.abcjs.net/" target="_blank" rel="noopener">abcjs</a>。</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
+  <script src="js/brf.js?v=17"></script>
+  <script src="js/model.js?v=17"></script>
+  <script src="js/durations.js?v=17"></script>
+  <script src="js/abc-parse.js?v=17"></script>
+  <script src="js/braille-write.js?v=17"></script>
+  <script src="js/braille-parse.js?v=17"></script>
+  <script src="js/abc-write.js?v=17"></script>
+  <script src="js/rules-data.js?v=17"></script>
+  <script src="js/rules.js?v=17"></script>
+</body>
+</html>
