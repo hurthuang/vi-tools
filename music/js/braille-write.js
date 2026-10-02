@@ -417,7 +417,9 @@
       }
       ctx.wordEnd = false;
       voice.forEach((ev, ei) => {
-        ctx.force = (vi > 0 ? ei === 0 : ei === 0 && opt.forceFirst) || (opt.forced && opt.forced.has(vi + ':' + ei)) || ctx.wordEnd;
+        // 前一小節以文字記號（如漸強結束 ⠜⠒）結束：這一小節第一個音要寫音層記號（Par. 22.3(e)），但不加點 3（22.3(d)(1)）
+        const afterWord = vi === 0 && ei === 0 && !!opt.afterWord;
+        ctx.force = (vi > 0 ? ei === 0 : ei === 0 && opt.forceFirst) || (opt.forced && opt.forced.has(vi + ':' + ei)) || ctx.wordEnd || afterWord;
         const wasWordEnd = ctx.wordEnd;
         ctx.asEighth = plan.groups.has(ei);
         ctx.hint = plan.hints[ei];
@@ -427,6 +429,7 @@
         pieces.push({ text, id: ev.id, vi, ei, cont: !!ctx.asEighth }); // cont：分組中的後續音
       });
     });
+    const endsWithWord = ctx.wordEnd; // 小節最後寫的是文字記號（下一小節第一個音要寫音層記號）
     if (!pieces.length) pieces.push({ text: 'M', id: null, vi: 0, ei: 0 });
     if (prefix) {
       const first = pieces[0];
@@ -447,7 +450,7 @@
       if (m.jump) suffix += ' ' + jumpWords(m.jump);
     }
     pieces[pieces.length - 1].text += suffix;
-    return { pieces, prev: ctx.prev, inaccord: voices.length > 1 };
+    return { pieces, prev: ctx.prev, inaccord: voices.length > 1, wordEnd: endsWithWord };
   }
 
   function piecesText(pieces) {
@@ -634,6 +637,7 @@
     segLines = 0;
     let skip = 0; // 已併入前面連續休止的小節數
     let afterLongRest = false; // 四小節以上的連續休止之後，下一個音要寫音層記號（Par. 5.3）
+    let prevWordEnd = false; // 前一小節以文字記號結束
     part.measures.forEach((m, mi) => {
       if (skip) {
         skip--;
@@ -679,6 +683,7 @@
         if (tail) line.add(tail);
         atLineStart = false;
         afterLongRest = run >= 4;
+        prevWordEnd = false;
         prevInaccord = false;
         skip = run - 1;
         if (segLines >= opts.segmentLines && room() < 3) flush();
@@ -686,7 +691,7 @@
       }
       const force = atLineStart || afterLongRest || needsForce(part, mi, prevInaccord);
       afterLongRest = false;
-      let r = renderMeasure(part, mi, env, { prev, forceFirst: force, grouping: true });
+      let r = renderMeasure(part, mi, env, { prev, forceFirst: force, grouping: true, afterWord: prevWordEnd });
       let text = piecesText(r.pieces);
       if (text.length <= room()) {
         put(r.pieces, mi);
@@ -696,7 +701,7 @@
         const startHere = !atLineStart && text.length > full && room() >= 8;
         if (!atLineStart && !startHere) {
           newLine(mi);
-          r = renderMeasure(part, mi, env, { prev, forceFirst: true, grouping: true });
+          r = renderMeasure(part, mi, env, { prev, forceFirst: true, grouping: true, afterWord: prevWordEnd });
           text = piecesText(r.pieces);
         }
         if (text.length <= room()) {
@@ -716,6 +721,7 @@
       }
       prev = r.prev;
       prevInaccord = r.inaccord;
+      prevWordEnd = !!r.wordEnd;
       // 分段：達到行數上限時，下一小節另起一段
       if (segLines >= opts.segmentLines && room() < 3) flush();
     });
