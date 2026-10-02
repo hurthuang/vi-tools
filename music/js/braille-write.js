@@ -567,6 +567,29 @@
   }
 
 
+  /**
+   * 連續整小節休止（Par. 5.3）：從 mi 開始可以合併的小節數。
+   * 只合併「只有一個整小節休止、沒有其他記號」的小節；中間換調、換拍號、反覆、房號等就停止。
+   */
+  function restRun(part, mi) {
+    const plain = (m, first) => {
+      const v = m.voices.filter((x) => x.length);
+      if (v.length !== 1 || v[0].length !== 1) return false;
+      const ev = v[0][0];
+      if (!ev.measureRest || ev.dynamic || (ev.articulations && ev.articulations.length) || ev.hairpinStart || ev.hairpinEnd) return false;
+      if (ev.slurStart || ev.slurEnd || ev.pedalDown || ev.pedalUp || ev.pedalChange) return false;
+      if (!first && (m.key || m.meter)) return false;
+      return !m.startRepeat && !m.endRepeat && !m.volta && !m.segno && !m.codaStart && !m.toCoda && !m.fine && !m.jump && !m.splitCont;
+    };
+    // 最後一小節可以帶雙縱線或終止線（寫在 ⠍ 後面）
+    let n = 0;
+    while (mi + n < part.measures.length && plain(part.measures[mi + n], n === 0)) {
+      n++;
+      if (part.measures[mi + n - 1].barline !== 'single') break;
+    }
+    return n;
+  }
+
   function writeSingleLine(part, env, lines) {
     const { opts, numbers } = env;
     env.slurs = analyseSlurs(part);
@@ -602,7 +625,13 @@
     };
 
     segLines = 0;
+    let skip = 0; // 已併入前面連續休止的小節數
+    let afterLongRest = false; // 四小節以上的連續休止之後，下一個音要寫音層記號（Par. 5.3）
     part.measures.forEach((m, mi) => {
+      if (skip) {
+        skip--;
+        return;
+      }
       // Segno 與 Coda 段落都要另起一段（Par. 20.1.1、20.1.5）
       if (mi > 0 && (m.segno || m.codaStart)) {
         flush();
@@ -624,7 +653,32 @@
         }
       }
       if (m.key) prevKey = m.key;
-      const force = atLineStart || needsForce(part, mi, prevInaccord);
+      // 連續兩、三小節休止：整小節休止連寫不空方；四小節以上：數字記號、小節數、一個整小節休止（Par. 5.3）
+      const run = restRun(part, mi);
+      if (run >= 2) {
+        const ids = part.measures.slice(mi, mi + run).map((x) => x.voices.find((v) => v.length)[0].id);
+        const bl = part.measures[mi + run - 1].barline;
+        const tail = bl === 'final' ? '<K' : bl === 'double' ? "<K'" : '';
+        const text = (run <= 3 ? 'M'.repeat(run) : '#' + B.upperNumber(run) + 'M') + tail;
+        if (text.length > room()) newLine(mi);
+        if (line.content) line.add(' ');
+        if (run <= 3) ids.forEach((id, k) => line.add('M', id, mi + k));
+        else {
+          line.add('#' + B.upperNumber(run), null, mi);
+          const at = line.text.length;
+          line.add('M', ids[0], mi);
+          ids.slice(1).forEach((id, k) => line.spans.push({ id, start: at, end: at + 1, measure: mi + k + 1 }));
+        }
+        if (tail) line.add(tail);
+        atLineStart = false;
+        afterLongRest = run >= 4;
+        prevInaccord = false;
+        skip = run - 1;
+        if (segLines >= opts.segmentLines && room() < 3) flush();
+        return;
+      }
+      const force = atLineStart || afterLongRest || needsForce(part, mi, prevInaccord);
+      afterLongRest = false;
       let r = renderMeasure(part, mi, env, { prev, forceFirst: force, grouping: true });
       let text = piecesText(r.pieces);
       if (text.length <= room()) {

@@ -541,7 +541,26 @@
           appendLine(buf, l.text.slice(lead), l.off + lead);
         }
       }
-      return buf.tokens();
+      return expandMultiRests(buf.tokens());
+    }
+    /** 連續休止（Par. 5.3）：⠍⠍、⠍⠍⠍ 與「數字記號＋小節數＋⠍」展開成一小節一個整小節休止。 */
+    function expandMultiRests(toks) {
+      const out = [];
+      for (const t of toks) {
+        const m = /^(?:(M{2,3})|#([A-J]+)M)(<K'?|<2)?$/.exec(t.text);
+        const n = m ? (m[1] ? m[1].length : B.parseUpperNumber(m[2])) : 0;
+        if (!(n >= 2)) {
+          out.push(t);
+          continue;
+        }
+        const tail = m[3] || '';
+        for (let k = 0; k < n; k++) {
+          const at = m[1] ? k : m[2].length + 1; // 這一小節對應的 ⠍ 位置
+          const last = k === n - 1 && tail;
+          out.push({ text: 'M' + (last ? tail : ''), pos: [t.pos[at]].concat(last ? t.pos.slice(t.pos.length - tail.length) : []) });
+        }
+      }
+      return out;
     }
     function appendLine(buf, text, off) {
       let join = /("|\.K)$/.test(buf.text) && buf.text.length > 0;

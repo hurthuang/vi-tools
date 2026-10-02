@@ -67,6 +67,11 @@ const EX = [
     brl: '                 #C4\n#A "!JDJMDJI.ODJIRGFE #F8 "YEFGHI\\X\n  "&G.ED"EF?X<K',
   },
   {
+    name: 'Ex 5.3-1（連續整小節休止：兩小節連寫、四小節用數字）',
+    brl: '                  #C4\n#A ^QV MM RV #DM ^N\'<K',
+    same: true,
+  },
+  {
     name: 'Ex 6.1-1（臨時記號）',
     brl: '              #F8\n#A "[%H<JI*H G<.FE%?\' *?<E*JD*E\n  .F%"G*H%\\I S\'<K',
   },
