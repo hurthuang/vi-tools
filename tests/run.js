@@ -444,6 +444,12 @@ for (const s of MB.samples) {
   check('加倍寫法：ABC → 點字 → 讀回圓滑線不變', slurs(MB.parseBraille(d.brf).score) === slurs(r.score), d.brf);
 }
 
+// ---------- 文字記號在小節結尾：下一小節第一個音要寫音層記號（Par. 22.3(e)），不加點 3（22.3(d)(1)） ----------
+{
+  const b = MB.toBraille(MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\n!crescendo(!C D E !crescendo)!F | G4 |]').score).brf;
+  check('漸強結束在小節結尾：下一小節的音寫音層記號', b.split('\n')[1] === '#A >C"?:$]>3 "(<K', b);
+}
+
 // ---------- 規則對照頁的例子 ----------
 for (const sec of MB.rules) {
   for (const ex of sec.examples) {
