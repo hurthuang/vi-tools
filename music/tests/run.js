@@ -57,7 +57,7 @@ function abcBody(abc) {
 // ---------- 2. 規範範例：點字 → 模型 ----------
 const EX = [
   {
-    name: 'Ex 3.3-1（八度記號）',
+    name: 'Ex 3.3-1（音層記號）',
     brl: '       #C4\n#A "[.FIDI ];DGIG \\.HJE.G $EF?<K',
     abc: "A2 e a c' a | f2 c' f' a' f' | g'2 g b d' f | e2 d e c2 |]",
     same: true,
@@ -144,7 +144,7 @@ const ABC_CASES = [
     brl: '#A "??\\\\ [[R ]]$$ ::N<K',
   },
   {
-    name: '八度記號：四度、五度跨八度才標',
+    name: '音層記號：四度、五度跨八度才標',
     abc: 'X:1\nM:4/4\nL:1/4\nK:C\nG c B e | c G2 z |]',
     brl: '#A "\\.?W.$ ?"RV<K',
   },

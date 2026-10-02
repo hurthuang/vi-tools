@@ -52,6 +52,9 @@
   --control: #85847d;
 }
 
+/* ASCII 點字用的 SimBraille 字型：放在視障輔助工具集的 music/ 時，取用工具集根目錄的 SIMBRL.TTF */
+@font-face { font-family: 'SimBraille'; src: url('../../SIMBRL.TTF') format('truetype'); }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body {
@@ -107,6 +110,7 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 }
 .editor.braille textarea, .editor.braille .backdrop { font-family: var(--braille); font-size: 24px; line-height: 1.45; }
 .editor.braille.brf textarea, .editor.braille.brf .backdrop { font-family: var(--mono); font-size: 18px; }
+.editor.braille.simbraille textarea, .editor.braille.simbraille .backdrop { font-family: 'SimBraille', var(--mono); }
 .editor textarea {
   position: relative; z-index: 1; display: block;
   background: transparent; color: var(--ink); resize: vertical; overflow: auto;
@@ -208,3 +212,6 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 .ex-staff { margin-top: 8px; max-width: 760px; }
 .ex-note { margin: 6px 0 0; }
 .to-top { margin: 14px 0 0; font-size: 0.9rem; }
+.display-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.sign-brl.ascii, .ex-brl.ascii { font-family: var(--mono); font-size: 1.1rem; }
+.sign-brl.simbraille, .ex-brl.simbraille { font-family: 'SimBraille', var(--mono); font-size: 1.6rem; }

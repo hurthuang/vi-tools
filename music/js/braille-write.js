@@ -61,7 +61,7 @@
     return OCT[Math.max(0, Math.min(8, o))];
   }
 
-  /** Par. 3.2.2：依旋律音程判斷是否需要八度記號。 */
+  /** Par. 3.2.2：依旋律音程判斷是否需要音層記號。 */
   function needOctave(prevD, note) {
     if (prevD == null) return true;
     const dist = Math.abs(M.diatonic(note) - prevD);
@@ -311,7 +311,7 @@
     if (ev.tuplet && ev.tuplet.start) r += ev.tuplet.n === 3 && ev.tuplet.of === 2 ? '2' : '_' + B.lowerNumber(ev.tuplet.n) + "'";
     const artic = ev.articulations || [];
     for (const a of ARTIC_ORDER) if (artic.includes(a)) r += ARTIC[a];
-    // 裝飾音記號放在音符、臨時記號、八度記號之前（Par. 16.3–16.5）
+    // 裝飾音記號放在音符、臨時記號、音層記號之前（Par. 16.3–16.5）
     const orn = ev.ornaments || [];
     if (ev.kind === 'note') for (const o of ORN_ORDER) if (orn.includes(o)) r += ORNAMENT[o];
 
@@ -385,7 +385,7 @@
   }
 
   /**
-   * 產生一個小節的片段。forced：需強制加八度記號的事件索引（第一聲部）。
+   * 產生一個小節的片段。forced：需強制加音層記號的事件索引（第一聲部）。
    * 回傳 {pieces: [{text, id}], prev, inaccord}
    */
   function renderMeasure(part, mi, env, opt) {
@@ -395,7 +395,7 @@
     const last = mi === part.measures.length - 1;
     const voices = orderVoices(m.voices.filter((v) => v.length), dir);
     const pieces = [];
-    // noOctave：教材初期尚未教八度記號的練習（僅供比對測試使用）
+    // noOctave：教材初期尚未教音層記號的練習（僅供比對測試使用）
     const ctx = { prev: opt.prev, dir, slurs: env.slurs, pedalOmit: env.pedalOmit, noOctave: !!env.opts.suppressOctaveMarks };
     let prefix = '';
     if (m.startRepeat) prefix += '<7';
@@ -515,7 +515,7 @@
     return (
       !!m.startRepeat || !!m.volta || !!m.key || !!m.meter || prevInaccord ||
       p.barline === 'double' || p.barline === 'final' || !!p.endRepeat ||
-      // 反覆指示之後的第一個音要加八度記號（Par. 20.1）
+      // 反覆指示之後的第一個音要加音層記號（Par. 20.1）
       !!m.segno || !!m.codaStart || !!p.toCoda || !!p.fine || !!p.jump
     );
   }
@@ -557,7 +557,7 @@
         if (k === start) return null;
         row.push({ text: '"', id: null });
         rows.push(row);
-        forced.add(ps[k].vi + ':' + ps[k].ei); // 換行後第一個音要加八度記號
+        forced.add(ps[k].vi + ':' + ps[k].ei); // 換行後第一個音要加音層記號
         start = k;
         room = fullRoom;
       }

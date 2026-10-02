@@ -13,7 +13,7 @@
   /** 一個或數個點字方：Unicode 點字，加上點位文字（報讀軟體與明眼老師都看得懂）。 */
   function sign(brf) {
     const cells = [...brf].map((c) => B.dotsOf(c)).join('、');
-    return `<span class="sign"><span class="sign-brl" aria-hidden="true">${esc(B.toUnicode(brf))}</span><span class="sign-dots">點 ${cells}</span></span>`;
+    return `<span class="sign"><span class="sign-brl" data-brf="${esc(brf)}" aria-hidden="true"></span><span class="sign-dots">點 ${cells}</span></span>`;
   }
   function dotsText(brf) {
     return brf
@@ -28,6 +28,48 @@
       )
       .join('\n');
   }
+
+  // ---------- 點字顯示方式：和轉換器共用設定（Unicode 點字／ASCII／ASCII + SimBraille 字型；ASCII 大小寫） ----------
+  function loadSettings() {
+    try {
+      return JSON.parse(localStorage.getItem('mbc:settings')) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveMode(mode) {
+    try {
+      localStorage.setItem('mbc:settings', JSON.stringify(Object.assign(loadSettings(), { brlMode: mode })));
+    } catch (e) {}
+  }
+  const modeSel = $('brl-mode');
+  const settings = loadSettings();
+  if (settings.brlMode && modeSel.querySelector(`option[value="${settings.brlMode}"]`)) modeSel.value = settings.brlMode;
+  const caseBrf = (brf) => (settings.brfUpper ? brf : B.toLowerBrf(brf));
+  /** 依顯示方式畫出元素的點字（元素的 data-brf 是大寫 BRF）。 */
+  function paint(el) {
+    const brf = el.dataset.brf || '';
+    const mode = modeSel.value;
+    el.classList.toggle('ascii', mode !== 'unicode');
+    el.classList.toggle('simbraille', mode === 'brf-font');
+    el.textContent = mode === 'unicode' ? B.toUnicode(brf) : caseBrf(brf);
+  }
+  const paintAll = () => document.querySelectorAll('[data-brf]').forEach(paint);
+  modeSel.addEventListener('change', () => {
+    saveMode(modeSel.value);
+    paintAll();
+  });
+  // SimBraille 字型只在視障輔助工具集裡有；載不到就不提供這個顯示方式
+  function hideFontOption() {
+    const opt = modeSel.querySelector('option[value="brf-font"]');
+    opt.hidden = opt.disabled = true;
+    if (modeSel.value === 'brf-font') {
+      modeSel.value = 'brf';
+      paintAll();
+    }
+  }
+  if (document.fonts && document.fonts.load) document.fonts.load("16px 'SimBraille'").then((f) => f.length || hideFontOption(), hideFontOption);
+  else hideFontOption();
 
   // ---------- 符號表 ----------
   const STEPS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -50,7 +92,7 @@
       );
       return `
       <div class="table-wrap"><table>
-        <caption>八度記號：寫在音符前面</caption>
+        <caption>音層記號：寫在音符前面</caption>
         <thead><tr><th scope="col">音層</th><th scope="col">記號</th><th scope="col">音域</th><th scope="col">ABC 寫法</th></tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table></div>
@@ -64,7 +106,7 @@
         <thead><tr>${[1, 2, 3, 4, 5, 6, 0].map((k) => `<th scope="col">${names[k]}</th>`).join('')}</tr></thead>
         <tbody><tr>${[1, 2, 3, 4, 5, 6, 0].map((k) => `<td>${sign(S.INTERVAL[k])}</td>`).join('')}</tr></tbody>
       </table></div>
-      <p class="hint">超過八度的音程用同一組記號（例如十度寫成三度），需要時在前面加八度記號。</p>`;
+      <p class="hint">超過八度的音程用同一組記號（例如十度寫成三度），需要時在前面加音層記號。</p>`;
     },
   };
 
@@ -113,7 +155,9 @@
       } catch (e) {
         warnings = [{ msg: '轉換時發生錯誤：' + e.message }];
       }
-      $(`ex-${id}-brl`).textContent = B.toUnicode(brf);
+      const out = $(`ex-${id}-brl`);
+      out.dataset.brf = brf;
+      paint(out);
       $(`ex-${id}-dots`).textContent = brf ? dotsText(brf) : '';
       $(`ex-${id}-warn`).innerHTML = warnings.map((w) => `<li>${esc(w.msg)}</li>`).join('');
       const staff = $(`ex-${id}-staff`);
@@ -148,7 +192,7 @@
 
   // ---------- 整頁 ----------
   $('toc').innerHTML = MB.rules
-    .map((sec, i) => `<li><a href="#${sec.id}">${i + 1}. ${esc(sec.title)}</a>（${sec.examples.length} 個例子）</li>`)
+    .map((sec) => `<li><a href="#${sec.id}">${esc(sec.title)}</a>（${sec.examples.length} 個例子）</li>`)
     .join('');
   $('rules').innerHTML = MB.rules
     .map(
@@ -167,4 +211,5 @@
     )
     .join('');
   MB.rules.forEach((sec) => sec.examples.forEach((ex, k) => bindExample(sec, ex, k)));
+  paintAll();
 })();

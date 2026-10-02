@@ -103,7 +103,7 @@ function tokensToMeasures(text) {
 }
 
 // ---------------------------------------------------------------- 比較
-/** 只取音高字母、時值類別、附點、臨時記號與和弦音程（忽略八度記號、指法、表情、踏板等）。 */
+/** 只取音高字母、時值類別、附點、臨時記號與和弦音程（忽略音層記號、指法、表情、踏板等）。 */
 function noteSig(meas, sorted) {
   try {
     const r = MB.brailleParseUtil.tokenizeMeasure(meas, Array.from(meas, (_, i) => i), () => {});
@@ -117,7 +117,7 @@ function noteSig(meas, sorted) {
 }
 const OCT_RE = /(@@|,,|[@^_".;,])(?=[YNZ?DOE:&P$F=Q\]G(R\\H!S\[I)TWJ\/+#90\-3])/;
 const stripOctaves = (s) => s.replace(new RegExp(OCT_RE.source, 'g'), '');
-/** 去掉第一個音符前的八度記號（點字每行第一個音一定要寫八度記號，換行位置不同就會不同）。 */
+/** 去掉第一個音符前的音層記號（點字每行第一個音一定要寫音層記號，換行位置不同就會不同）。 */
 const stripFirstOctave = (s) => {
   const head = /^[^YNZ?DOE:&P$F=Q\]G(R\\H!S\[I)TWJ]*.?/.exec(s)[0];
   return head.replace(OCT_RE, '') + s.slice(head.length);
@@ -132,8 +132,8 @@ function classify(a, b) {
     if (noteSig(a, true) === noteSig(b, true)) return { level: 'minor', label: '同時進行的聲部（in-accord）先後順序不同' };
     return { level: 'notes', label: '音高或時值不同' };
   }
-  if (stripFirstOctave(a) === stripFirstOctave(b)) return { level: 'layout', label: '只差第一個音的八度記號（換行位置不同，屬正常）' };
-  if (stripOctaves(a) === stripOctaves(b)) return { level: 'octave', label: '只差八度記號' };
+  if (stripFirstOctave(a) === stripFirstOctave(b)) return { level: 'layout', label: '只差第一個音的音層記號（換行位置不同，屬正常）' };
+  if (stripOctaves(a) === stripOctaves(b)) return { level: 'octave', label: '只差音層記號' };
   if (stripFingers(a) === stripFingers(b)) return { level: 'minor', label: '只差指法' };
   if (stripExtras(stripFingers(stripOctaves(a))) === stripExtras(stripFingers(stripOctaves(b)))) return { level: 'minor', label: '只差表情、踏板、圓滑線等記號' };
   return { level: 'minor', label: '其他寫法不同' };
@@ -216,7 +216,7 @@ const uni = (s) => esc(B.toUnicode(s || ''));
     pieces.push({ name: base, title: src.score.title, part: src.parts[src.partIndex] && src.parts[src.partIndex].name, tools: tools.map((t) => ({ name: t.name, count: t.measures.map((m) => m.length) })), rows, counts, nStaff });
     if (args.includes('--show'))
       for (const r of rows) console.log('  ' + r.number + (nStaff === 2 ? (r.staff ? 'L' : 'R') : '') + '  ' + r.cells.map((c) => c || '-').join('  |  ') + '  ' + r.labels.join('；'));
-    console.log(base + '：' + tools.map((t) => t.name).join('、') + '｜相同 ' + counts.same + '，音高或時值不同 ' + counts.notes + '，只差八度記號 ' + counts.octave + '，其他寫法 ' + counts.minor + '，換行造成的八度記號 ' + counts.layout);
+    console.log(base + '：' + tools.map((t) => t.name).join('、') + '｜相同 ' + counts.same + '，音高或時值不同 ' + counts.notes + '，只差音層記號 ' + counts.octave + '，其他寫法 ' + counts.minor + '，換行造成的音層記號 ' + counts.layout);
   }
 
   // ---------------------------------------------------------------- HTML 報告
@@ -235,8 +235,8 @@ tr.notes{background:var(--notes)}tr.octave{background:var(--octave)}tr.minor{bac
 </style></head><body>
 <h1>點字樂譜三方比對報告</h1>
 <p class="muted">比對本工具與其他軟體的點字輸出。已去除排版差異（標頭、小節號、手號或譜號、換行位置），逐小節比較音樂內容。
-<br>紅色：音高或時值不同（請優先檢查）；黃色：只差八度記號；藍色：指法、表情、踏板或其他寫法不同；無底色：只因換行位置不同而多（少）一個八度記號，屬正常。</p>
-<table><thead><tr><th>曲子</th><th>比對對象</th><th>相同</th><th>音高或時值不同</th><th>只差八度記號</th><th>其他寫法</th><th>換行造成的八度記號</th></tr></thead><tbody>
+<br>紅色：音高或時值不同（請優先檢查）；黃色：只差音層記號；藍色：指法、表情、踏板或其他寫法不同；無底色：只因換行位置不同而多（少）一個音層記號，屬正常。</p>
+<table><thead><tr><th>曲子</th><th>比對對象</th><th>相同</th><th>音高或時值不同</th><th>只差音層記號</th><th>其他寫法</th><th>換行造成的音層記號</th></tr></thead><tbody>
 ${pieces.map((p) => `<tr><td><a href="#${esc(p.name)}">${esc(p.title || p.name)}</a>${p.part ? '<br><span class="muted">' + esc(p.part) + '</span>' : ''}</td><td>${p.tools.map((t) => esc(t.name)).join('、')}</td><td>${p.counts.same}</td><td>${p.counts.notes}</td><td>${p.counts.octave}</td><td>${p.counts.minor}</td><td>${p.counts.layout}</td></tr>`).join('')}
 </tbody></table>
 ${pieces
