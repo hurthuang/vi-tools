@@ -328,6 +328,7 @@
       // 「符合寬度」：縮放到預覽區寬度，不捲動；「原尺寸」：固定大小，預覽區有捲軸
       const fit = $('paper-fit').value === 'fit';
       paper.classList.toggle('scroll', !fit);
+      paper.removeAttribute('style'); // abcjs「符合寬度」留下的 inline 樣式（overflow: hidden 等），換模式時要清掉
       const vis = ABCJS.renderAbc('paper', disp.text, {
         add_classes: true,
         responsive: fit ? 'resize' : undefined,
