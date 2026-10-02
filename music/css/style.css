@@ -155,3 +155,11 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 .help-body p { margin: 0; }
 
 .site-footer { color: var(--muted); font-size: 0.85rem; padding-top: 10px; padding-bottom: 30px; }
+
+/* 視障輔助工具集的「🔊 報讀」區塊（speech-block.js）沿用本頁配色 */
+.speech-block {
+  --bd: var(--control); --surf: var(--panel); --surf2: var(--bg); --dim: var(--muted);
+  --blue: #1f5f8b; /* 目前朗讀行：白字對比 6.8:1，深淺色都用同一色 */
+  --focus-ring: 0 0 0 3px var(--focus);
+  margin-top: 12px;
+}
