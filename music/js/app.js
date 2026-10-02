@@ -399,6 +399,7 @@
   }
 
   // ---------- 播放 ----------
+  const SOUNDFONT_URL = 'https://cdn.jsdelivr.net/gh/paulrosen/midi-js-soundfonts@cbd6b6f6d1af89ebfb69402860741288f08ff8b7/abcjs/';
   let synth = null;
   let timing = null;
   let audioCtx = null;
@@ -457,7 +458,9 @@
         audioContext: audioCtx,
         visualObj: vis,
         millisecondsPerMeasure: vis.millisecondsPerMeasure() / warp,
-        options: { program: 0 },
+        // 鋼琴音色固定用 jsDelivr 上指定版本的檔案（內容與 abcjs 預設的 paulrosen.github.io 相同），
+        // 視障輔助工具集桌面版會把這個網址改給內附的檔案，離線也能播放
+        options: { program: 0, soundFontUrl: SOUNDFONT_URL },
       });
       await synth.prime();
       timing = new ABCJS.TimingCallbacks(vis, {
