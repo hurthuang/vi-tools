@@ -422,6 +422,28 @@ for (const s of MB.samples) {
   );
 }
 
+// ---------- 長圓滑線的兩種寫法（Ex 13.3-1：(a) 加倍 ⠉⠉…⠉、(b) 括號 ⠰⠃…⠘⠆） ----------
+{
+  const a = '                            %#C4\n#J "JCICH ]CCFEFG HICJJCDCEC FECCDJIGC\n   "R\'<K';
+  const b = '                              %#C4\n#J "JCICH ;B]FEFG HIJ^2JCDCEC F;BEDJIG\n   "R\'^2<K';
+  const slurs = (sc) => {
+    const o = [];
+    sc.parts[0].measures.forEach((m, mi) => m.voices[0].forEach((e, k) => (e.slurStart || e.slurEnd) && o.push(mi + ':' + k + '+' + (e.slurStart || 0) + '-' + (e.slurEnd || 0))));
+    return o.join(' ');
+  };
+  const norm = (s) => s.split('\n').map((l) => l.trim()).filter(Boolean).join('\n');
+  const ra = MB.parseBraille(a);
+  const rb = MB.parseBraille(b);
+  check('Ex 13.3-1：加倍寫法沒有警告', ra.warnings.length === 0, ra.warnings.map((w) => w.msg).join('；'));
+  check('Ex 13.3-1：加倍與括號兩種寫法讀到相同的圓滑線', slurs(ra.score) === slurs(rb.score) && summary(ra.score) === summary(rb.score), slurs(ra.score) + '\n' + slurs(rb.score));
+  check('Ex 13.3-1：寫成括號與規範 (b) 逐字相同', norm(MB.toBraille(ra.score).brf) === norm(b), MB.toBraille(ra.score).brf);
+  check('Ex 13.3-1：選加倍寫法時與規範 (a) 逐字相同', norm(MB.toBraille(rb.score, { slurStyle: 'double' }).brf) === norm(a), MB.toBraille(rb.score, { slurStyle: 'double' }).brf);
+  // ABC 的長圓滑線用加倍寫法寫出再讀回，圓滑線不變
+  const r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\n(C D E F | G A B) c | (c B A G | F E D C) |]');
+  const d = MB.toBraille(r.score, { slurStyle: 'double' });
+  check('加倍寫法：ABC → 點字 → 讀回圓滑線不變', slurs(MB.parseBraille(d.brf).score) === slurs(r.score), d.brf);
+}
+
 // ---------- 規則對照頁的例子 ----------
 for (const sec of MB.rules) {
   for (const ex of sec.examples) {
