@@ -470,7 +470,12 @@
     this.content = true;
   };
   Line.prototype.addPieces = function (pieces, mi) {
-    for (const p of pieces) this.add(p.text, p.id, mi);
+    for (const p of pieces) {
+      const s = this.text.length;
+      this.add(p.text, p.id, mi);
+      // 小節重複記號：被重複小節的每個音都對應到 ⠶
+      if (p.ids) for (const id of p.ids) this.spans.push({ id, start: s, end: this.text.length, measure: mi });
+    }
   };
 
   function center(text, width) {
@@ -480,7 +485,7 @@
 
   // ---------- 主程式 ----------
   function toBraille(score, options) {
-    const opts = Object.assign({ width: 40, grouping: true, segmentLines: 3 }, options || {});
+    const opts = Object.assign({ width: 40, grouping: true, segmentLines: 3, measureRepeat: true }, options || {});
     const warnings = [];
     const lines = [];
     const numbers = M.measureNumbers(score);
@@ -581,6 +586,54 @@
    * 連續整小節休止（Par. 5.3）：從 mi 開始可以合併的小節數。
    * 只合併「只有一個整小節休止、沒有其他記號」的小節；中間換調、換拍號、反覆、房號等就停止。
    */
+  /**
+   * 小節重複記號（Par. 18.2）：第 mi 小節和前一小節完全相同時回傳 true。
+   * 力度、奏法、指法、連結線等都要相同；最後一個音的連結線不算在內（寫在 ⠶ 後面，18.1.2）。
+   * 圓滑線、漸強漸弱必須在小節內開始並結束；整小節休止、踏板、反覆指示、換調換拍號、被拆開的小節都不用。
+   */
+  function sameAsPrev(part, mi) {
+    const a = part.measures[mi - 1];
+    const b = part.measures[mi];
+    if (!a || !b) return false;
+    if (b.key || b.meter || b.startRepeat || b.volta || b.segno || b.codaStart || b.toCoda || b.fine || b.jump) return false;
+    if (a.splitCont || b.splitCont || (part.measures[mi + 1] && part.measures[mi + 1].splitCont)) return false;
+    const evs = (m) => [].concat(...m.voices);
+    const ok = (m) => {
+      const e = evs(m);
+      if (!e.length || e.some((x) => x.measureRest || x.pedalDown || x.pedalUp || x.pedalChange)) return false;
+      const sum = (f) => e.reduce((t, x) => t + (+x[f] || 0), 0);
+      const cnt = (f) => e.filter((x) => x[f]).length;
+      return sum('slurStart') === sum('slurEnd') && cnt('hairpinStart') === cnt('hairpinEnd');
+    };
+    if (!ok(a) || !ok(b)) return false;
+    const lastOf = (m) => { const v = m.voices.filter((x) => x.length).pop(); return v[v.length - 1]; };
+    if ((lastOf(b).notes || []).length > 1 && lastOf(b).notes.some((n) => n.tie)) return false;
+    const sig = (m) =>
+      JSON.stringify(
+        m.voices.map((v) =>
+          v.map((ev, k) => {
+            const c = Object.assign({}, ev);
+            delete c.id;
+            delete c.src;
+            if (k === v.length - 1) c.notes = (c.notes || []).map((n) => Object.assign({}, n, { tie: false }));
+            return c;
+          })
+        )
+      );
+    return sig(a) === sig(b);
+  }
+  /** 小節重複記號後面要接的符號：最後一個音的連結線、反覆結束或雙縱線、終止線（18.1.2、18.1.6）。 */
+  function repeatTail(m) {
+    const v = m.voices.find((x) => x.length);
+    const lastEv = v[v.length - 1];
+    let t = lastEv.notes && lastEv.notes.some((n) => n.tie) ? '@C' : '';
+    if (m.endRepeat) t += '<2';
+    else if (m.barline === 'final') t += '<K';
+    else if (m.barline === 'double') t += "<K'";
+    return t;
+  }
+  const measureIds = (m) => [].concat(...m.voices).map((ev) => ev.id);
+
   function restRun(part, mi) {
     const plain = (m, first) => {
       const v = m.voices.filter((x) => x.length);
@@ -664,6 +717,24 @@
         }
       }
       if (m.key) prevKey = m.key;
+      // 小節重複記號（Par. 18.2）：和前一小節完全相同就寫 ⠶；連續三次以上寫 ⠶ 加數字，之後的音寫音層記號（18.2.1）。
+      // 可以在段落中換行後使用，但不用在新一段的開頭（讀者要能在同一段找到被重複的小節）
+      if (opts.measureRepeat && sameAsPrev(part, mi)) {
+        let n = 1;
+        while (sameAsPrev(part, mi + n) && !repeatTail(part.measures[mi + n - 1])) n++;
+        if (n < 3) n = 1;
+        const text = (n >= 3 ? '7#' + B.upperNumber(n) : '7') + repeatTail(part.measures[mi + n - 1]);
+        if (text.length > room()) newLine(mi);
+        if (line.content || !line.text.startsWith('#')) {
+          const ids = [].concat(...part.measures.slice(mi, mi + n).map(measureIds));
+          put([{ text, id: null, ids }], mi);
+          skip = n - 1;
+          afterLongRest = n >= 3;
+          prevInaccord = false;
+          if (segLines >= opts.segmentLines && room() < 3) flush();
+          return;
+        }
+      }
       // 連續兩、三小節休止：整小節休止連寫不空方；四小節以上：數字記號、小節數、一個整小節休止（Par. 5.3）
       const run = restRun(part, mi);
       if (run >= 2) {
@@ -748,6 +819,8 @@
     };
     const render = (part, sl, mi) => {
       env.slurs = sl;
+      // 小節重複記號（Par. 18.2）：每一手各自判斷；鋼琴譜每小節都對齊，不用數字合併
+      if (opts.measureRepeat && sameAsPrev(part, mi)) return { pieces: [{ text: '7' + repeatTail(part.measures[mi]), id: null, ids: measureIds(part.measures[mi]) }] };
       return renderMeasure(part, mi, env, { prev: null, forceFirst: true, grouping: true });
     };
 

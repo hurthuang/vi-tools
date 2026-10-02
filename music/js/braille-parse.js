@@ -419,9 +419,14 @@
         i++;
         continue;
       }
-      if (c === '7' && !voice.length && s.replace(/<K'?|<2/, '').trim() === '7') {
+      // 小節重複記號 ⠶（Par. 18.2）：後面可以接最後一個音的連結線、反覆結束、雙縱線、終止線（18.1.2、18.1.6）
+      if (c === '7' && !voice.length && /^7(@C)?(<K'?|<2)?$/.test(s.trim())) {
         res.repeatPrev = true;
-        i++;
+        res.repeatSrc = [pos[at], pos[at] + 1];
+        if (c1 === '@' && c2 === 'C') {
+          res.repeatTie = true;
+          i += 3;
+        } else i++;
         continue;
       }
       warn('無法辨識的點字「' + B.toUnicode(c) + '」（點 ' + B.dotsOf(c) + '）', pos[at]);
@@ -547,7 +552,25 @@
           appendLine(buf, l.text.slice(lead), l.off + lead);
         }
       }
-      return expandMultiRests(buf.tokens());
+      return expandRepeats(expandMultiRests(buf.tokens()));
+    }
+    /** 連續三次以上的小節重複（Par. 18.2.1）：⠶ 加數字（例如 ⠶⠼⠉）展開成一小節一個 ⠶。 */
+    function expandRepeats(toks) {
+      const out = [];
+      for (const t of toks) {
+        const m = /^7#([A-J]+)(<K'?|<2)?$/.exec(t.text);
+        const n = m ? B.parseUpperNumber(m[1]) : 0;
+        if (!(n >= 2)) {
+          out.push(t);
+          continue;
+        }
+        const tail = m[2] || '';
+        for (let k = 0; k < n; k++) {
+          const last = k === n - 1 && tail;
+          out.push({ text: '7' + (last ? tail : ''), pos: [t.pos[0]].concat(last ? t.pos.slice(t.pos.length - tail.length) : []) });
+        }
+      }
+      return out;
     }
     /** 連續休止（Par. 5.3）：⠍⠍、⠍⠍⠍ 與「數字記號＋小節數＋⠍」展開成一小節一個整小節休止。 */
     function expandMultiRests(toks) {
@@ -733,7 +756,7 @@
           if (pt.sigAt[idx].meter) pendMeter = pt.sigAt[idx].meter;
         }
         const r = tokenizeMeasure(t.text, t.pos, warn);
-        const m = { voices: r.voices, startRepeat: r.startRepeat, endRepeat: r.endRepeat, volta: r.volta, barline: r.barline, _repeatPrev: r.repeatPrev };
+        const m = { voices: r.voices, startRepeat: r.startRepeat, endRepeat: r.endRepeat, volta: r.volta, barline: r.barline, _repeatPrev: r.repeatPrev, _repeatTie: r.repeatTie, _repeatSrc: r.repeatSrc };
         if (t.cont && measures.length) m.splitCont = true;
         Object.assign(m, pendNav);
         pendNav = {};
@@ -938,9 +961,18 @@
     part.measures.forEach((m, mi) => {
       const meter = M.meterAt(part, mi);
       if (m._repeatPrev) {
+        // 複製前一小節；同步標示對應到 ⠶。最後一個音的連結線不屬於重複的內容，看 ⠶ 後面有沒有寫（Par. 18.1.2）
         const p = part.measures[mi - 1];
         m.voices = p ? p.voices.map((v) => v.map(M.cloneEvent)) : [];
+        m.voices.forEach((v) =>
+          v.forEach((ev, k) => {
+            ev.src = { brl: m._repeatSrc };
+            if (k === v.length - 1) (ev.notes || []).forEach((n) => (n.tie = !!m._repeatTie));
+          })
+        );
         delete m._repeatPrev;
+        delete m._repeatTie;
+        delete m._repeatSrc;
         return;
       }
       delete m._repeatPrev;

@@ -450,6 +450,28 @@ for (const s of MB.samples) {
   check('漸強結束在小節結尾：下一小節的音寫音層記號', b.split('\n')[1] === '#A >C"?:$]>3 "(<K', b);
 }
 
+// ---------- 小節重複記號（Par. 18.2） ----------
+{
+  const H = 'X:1\nM:4/4\nL:1/4\nK:C\n';
+  const line = (abc, o) => MB.toBraille(MB.parseAbc(H + abc).score, o).brf.split('\n')[1];
+  check('小節重複：重複兩次寫 ⠶ ⠶', line('C D E F | C D E F | C D E F | G4 |]') === '#A "?:$] 7 7 (<K', line('C D E F | C D E F | C D E F | G4 |]'));
+  check('小節重複：終止線接在 ⠶ 後面', line('G A B c | G A B c |]') === '#A "\\[W? 7<K', line('G A B c | G A B c |]'));
+  check('小節重複：整小節休止不用 ⠶', line('C4 | z4 | z4 | D4 |]') === '#A "Y MM Z<K', line('C4 | z4 | z4 | D4 |]'));
+  check('小節重複：力度不同時不用 ⠶', !/ 7 /.test(line('!p!C D E F | C D E F | G4 |]')), line('!p!C D E F | C D E F | G4 |]'));
+  check('小節重複：設定關閉時寫出每個小節', line('C D E F | C D E F | G4 |]', { measureRepeat: false }) === '#A "?:$] ?:$] (<K', line('C D E F | C D E F | G4 |]', { measureRepeat: false }));
+  // 被重複小節的每個音都要對應到 ⠶（點五線譜、移動游標時的同步標示）
+  const r = MB.parseAbc(H + 'C D E F | C D E F | C D E F | C D E F | G4 |]');
+  const b = MB.toBraille(r.score);
+  const mapped = new Set(b.map.map((x) => x.id));
+  let missing = 0;
+  MB.model.forEachEvent(r.score, (ev) => mapped.has(ev.id) || missing++);
+  check('小節重複：每個音都對應到點字位置', missing === 0, missing + ' 個音沒有對應');
+  // 讀入時，重複出來的音對應到 ⠶ 的位置
+  const back = MB.parseBraille(b.brf);
+  const rep = back.score.parts[0].measures[2].voices[0][0];
+  check('小節重複：讀入後重複的音對應到 ⠶', rep.src && rep.src.brl && b.brf[rep.src.brl[0]] === '7', JSON.stringify(rep.src));
+}
+
 // ---------- 規則頁「反覆記號」例子說明的演奏順序 ----------
 {
   const nav = MB.rules.find((s) => s.id === 'navigation');
