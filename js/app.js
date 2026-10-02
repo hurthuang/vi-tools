@@ -104,6 +104,8 @@
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
     if (settings.brfUpper) $('opt-brf-upper').checked = true;
+    if (settings.sixKey === false) $('six-key').checked = false;
+    if (settings.paperFit) $('paper-fit').value = settings.paperFit;
     if (settings.brlSize) $('brl-size').value = settings.brlSize;
     if (settings.autoSpeak) $('auto-speak').checked = true;
     if (settings.solfege) $('solfege').checked = true;
@@ -116,6 +118,7 @@
       dir: $('opt-dir').value,
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
+      paperFit: $('paper-fit').value,
       brlSize: $('brl-size').value,
       autoSpeak: $('auto-speak').checked,
       solfege: $('solfege').checked,
@@ -251,6 +254,7 @@
     const nMeasures = score.parts[0] ? score.parts[0].measures.length : 0;
     $('abc-status').textContent =
       (score.keyboard ? '鋼琴雙手' : '單聲部') + '・' + nMeasures + ' 小節';
+    state.paperAbc = abcText;
     renderPaper(abcText);
     showMessages(warnings);
     $('cell-info').textContent = '';
@@ -260,6 +264,37 @@
   }
 
   // ---------- 五線譜 ----------
+  /*
+   * 只給五線譜顯示用的 ABC：D.C.、D.S.、Fine 等反覆文字改放在譜表下方。
+   * abcjs 會把它們和指法、裝飾音一起放在譜表上方而疊在一起；印刷樂譜也常把這些文字放在下方。
+   * 編輯區的 ABC 不變；toOrig() 把顯示用 ABC 的位置換回原本的位置（點音符、同步標示用）。
+   */
+  const NAV_TEXT = {
+    'D.C.': 'D.C.', dacapo: 'D.C.', 'D.C.alfine': 'D.C. al Fine', 'D.C.alcoda': 'D.C. al Coda',
+    'D.S.': 'D.S.', 'D.S.alfine': 'D.S. al Fine', 'D.S.alcoda': 'D.S. al Coda', fine: 'Fine', dacoda: 'To Coda',
+  };
+  const NAV_RE = /!(D\.C\.alfine|D\.C\.alcoda|D\.S\.alfine|D\.S\.alcoda|D\.C\.|D\.S\.|dacapo|dacoda|fine)!|"\^((?:D\.\s?[CS]\.|Da Capo|Dal Segno|Fine|To Coda)[^"]*)"/g;
+  function displayAbc(abc) {
+    const reps = []; // 每次取代後：顯示用 ABC 的結束位置、累計長度差
+    let delta = 0;
+    const text = abc.replace(NAV_RE, (m, deco, ann, off) => {
+      const rep = deco ? '"_' + NAV_TEXT[deco] + '"' : '"_' + ann + '"';
+      delta += rep.length - m.length;
+      reps.push({ end: off + delta + m.length, delta });
+      return rep;
+    });
+    const toOrig = (p) => {
+      let d = 0;
+      for (const r of reps) {
+        if (r.end > p) break;
+        d = r.delta;
+      }
+      return p - d;
+    };
+    return { text, toOrig };
+  }
+  let paperMap = (p) => p;
+
   function renderPaper(abcText) {
     const paper = $('paper');
     if (!window.ABCJS) {
@@ -267,9 +302,14 @@
       return;
     }
     try {
-      const vis = ABCJS.renderAbc('paper', abcText, {
+      const disp = displayAbc(abcText);
+      paperMap = disp.toOrig;
+      // 「符合寬度」：縮放到預覽區寬度，不捲動；「原尺寸」：固定大小，預覽區有捲軸
+      const fit = $('paper-fit').value === 'fit';
+      paper.classList.toggle('scroll', !fit);
+      const vis = ABCJS.renderAbc('paper', disp.text, {
         add_classes: true,
-        responsive: 'resize',
+        responsive: fit ? 'resize' : undefined,
         clickListener: onScoreClick,
         paddingleft: 10,
         paddingright: 10,
@@ -287,7 +327,7 @@
         (line.staff || []).forEach((st) =>
           (st.voices || []).forEach((v) =>
             v.forEach((el) => {
-              if (el.el_type === 'note' && el.abselem) state.noteEls.push({ start: el.startChar, end: el.endChar, els: el.abselem.elemset || [] });
+              if (el.el_type === 'note' && el.abselem) state.noteEls.push({ start: paperMap(el.startChar), end: paperMap(el.endChar), els: el.abselem.elemset || [] });
             })
           )
         )
@@ -327,7 +367,7 @@
 
   function onScoreClick(abcelem) {
     if (!abcelem || abcelem.startChar == null) return;
-    const inf = findByAbc(abcelem.startChar, abcelem.endChar);
+    const inf = findByAbc(paperMap(abcelem.startChar), paperMap(abcelem.endChar));
     if (inf) select(inf, 'score');
   }
 
@@ -769,6 +809,18 @@
     });
   }
   for (const id of ['auto-speak', 'solfege']) $(id).addEventListener('change', saveSettings);
+  // 六點輸入預設開啟；使用者關掉後記住（工具集的浮動面板另外記，見下方）
+  $('six-key').addEventListener('change', () => {
+    settings.sixKey = $('six-key').checked;
+    saveSettings();
+  });
+  $('paper-fit').addEventListener('change', () => {
+    saveSettings();
+    if (state.paperAbc != null) {
+      renderPaper(state.paperAbc);
+      if (state.current) setScoreClass('hl', [state.current.abc]);
+    }
+  });
   $('btn-play').addEventListener('click', play);
   $('btn-stop').addEventListener('click', () => {
     stopPlay();
@@ -817,9 +869,17 @@
     btn.setAttribute('aria-haspopup', 'dialog');
     btn.setAttribute('aria-expanded', 'false');
     lab.after(btn);
+    new MutationObserver(() => {
+      const on = btn.classList.contains('kbd-on');
+      if (settings.sixKey !== on) {
+        settings.sixKey = on;
+        saveSettings();
+      }
+    }).observe(btn, { attributes: true, attributeFilter: ['class'] });
     window.initBraillePanel({
       triggerId: 'brl-panel-btn',
       targetId: 'brl',
+      startEnabled: settings.sixKey !== false, // 六點鍵盤預設開啟
       // 依顯示方式插入 Unicode 點字或 BRF；空方在 Unicode 模式用 U+2800
       insertFn: (bits) => {
         const ch = String.fromCodePoint(0x2800 + bits);
