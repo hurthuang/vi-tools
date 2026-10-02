@@ -12,7 +12,7 @@
 
   /** 一個或數個點字方：Unicode 點字，加上點位文字（報讀軟體與明眼老師都看得懂）。 */
   function sign(brf) {
-    const cells = [...brf].map((c) => B.dotsOf(c)).join('、');
+    const cells = [...brf].map((c) => (c === ' ' ? '空方' : B.dotsOf(c))).join('、');
     return `<span class="sign"><span class="sign-brl" data-brf="${esc(brf)}" aria-hidden="true"></span><span class="sign-dots">點 ${cells}</span></span>`;
   }
   function dotsText(brf) {

@@ -450,6 +450,16 @@ for (const s of MB.samples) {
   check('漸強結束在小節結尾：下一小節的音寫音層記號', b.split('\n')[1] === '#A >C"?:$]>3 "(<K', b);
 }
 
+// ---------- 規則頁「反覆記號」例子說明的演奏順序 ----------
+{
+  const nav = MB.rules.find((s) => s.id === 'navigation');
+  const want = ['1 2 3 4 5 1 2 3', '1 2 3 4 5 2 3', '1 2 3 4 1 2 5 6'];
+  nav.examples.forEach((ex, k) => {
+    const got = MB.model.performanceOrder(MB.parseAbc(ex.abc).score.parts[0]).map((x) => x + 1).join(' ');
+    check('規則頁「' + ex.title + '」：演奏順序和說明一致', got === want[k], got);
+  });
+}
+
 // ---------- 規則對照頁的例子 ----------
 for (const sec of MB.rules) {
   for (const ex of sec.examples) {
