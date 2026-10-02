@@ -327,7 +327,7 @@
           i += vm[0].length;
           continue;
         }
-        // 音符之後（含音程前的臨時記號、八度記號）的 ⠼ 是四度音程，不是數字記號
+        // 音符之後（含音程前的臨時記號、音層記號）的 ⠼ 是四度音程，不是數字記號
         const intervalCtx = last && last.kind === 'note' && (lastKind === 'note' || lastKind === 'dot' || lastKind === 'interval' || lastKind === 'finger' || pre.acc || pre.oct != null);
         if (!intervalCtx && /^#[A-J]/.test(s.slice(i))) {
           const nm = /^#[A-J]+[0-9]*/.exec(s.slice(i));
@@ -999,7 +999,7 @@
             let octave;
             if (r.oct != null) octave = r.oct;
             else if (prev == null) {
-              warn('第一個音缺少八度記號，假設為第 4 八度', r.src[0]);
+              warn('第一個音缺少音層記號，假設為第 4 音層', r.src[0]);
               octave = 4;
             } else octave = inferOctave(prev, r.step, warn, r.src[0]);
             const written = { step: r.step, octave, accidental: r.acc, tie: r.tie };
@@ -1107,7 +1107,7 @@
     );
   }
 
-  /** 沒有八度記號時，依前一音推算八度（Par. 3.2.2 的反向）。 */
+  /** 沒有音層記號時，依前一音推算八度（Par. 3.2.2 的反向）。 */
   function inferOctave(prevD, step, warn, pos) {
     const po = Math.floor(prevD / 7);
     const idx = M.STEPS.indexOf(step);
@@ -1119,7 +1119,7 @@
       if (dist <= 4 && o === po) best = o;
     }
     if (best != null) return best;
-    warn('此處應有八度記號（音程超過五度），已取最接近的八度', pos);
+    warn('此處應有音層記號（音程超過五度），已取最接近的音層', pos);
     let o2 = po;
     let bd = 99;
     for (const o of [po - 1, po, po + 1]) {

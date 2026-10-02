@@ -103,6 +103,7 @@
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
+    if (settings.brfUpper) $('opt-brf-upper').checked = true;
     if (settings.brlSize) $('brl-size').value = settings.brlSize;
     if (settings.autoSpeak) $('auto-speak').checked = true;
     if (settings.solfege) $('solfege').checked = true;
@@ -114,6 +115,7 @@
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
       brlMode: $('brl-mode').value,
+      brfUpper: $('opt-brf-upper').checked,
       brlSize: $('brl-size').value,
       autoSpeak: $('auto-speak').checked,
       solfege: $('solfege').checked,
@@ -127,10 +129,16 @@
       grouping: $('opt-group').checked,
     };
   }
+  // 點字顯示：unicode（Unicode 點字）、brf（ASCII）、brf-font（ASCII + SimBraille 字型，字元同 ASCII，只換字型）
   const brlMode = () => $('brl-mode').value;
+  /** BRF 依設定用小寫（預設，與工具集其他工具相同）或大寫。 */
+  const caseBrf = (brf) => ($('opt-brf-upper').checked ? brf : B.toLowerBrf(brf));
+  /** 點字編輯區要顯示的文字。 */
+  const showBrf = (brf) => (brlMode() === 'unicode' ? B.toUnicode(brf, { blankCell: true }) : caseBrf(brf));
   function applyBrlLook() {
     const ed = $('brl-editor');
     ed.classList.toggle('brf', brlMode() === 'brf');
+    ed.classList.toggle('simbraille', brlMode() === 'brf-font');
     const size = +$('brl-size').value;
     const px = brlMode() === 'brf' ? Math.round(size * 0.75) : size;
     brlTA.style.fontSize = brlEd.back.style.fontSize = px + 'px';
@@ -145,7 +153,7 @@
   }
 
   function setBraille(b) {
-    brlTA.value = brlMode() === 'unicode' ? B.toUnicode(b.brf, { blankCell: true }) : b.brf;
+    brlTA.value = showBrf(b.brf);
     brlEd.marks = [];
     brlEd.render();
   }
@@ -558,7 +566,7 @@
     down.delete(k);
     if (down.size === 0 && chord) {
       const ch = String.fromCodePoint(0x2800 + chord);
-      insertText(brlTA, brlMode() === 'unicode' ? ch : B.toBrf(ch));
+      insertText(brlTA, showBrf(B.toBrf(ch)));
       chord = 0;
     }
   });
@@ -580,7 +588,7 @@
   }
   $('btn-save-abc').addEventListener('click', () => download(new Blob([abcTA.value], { type: 'text/plain;charset=utf-8' }), baseName() + '.abc'));
   $('btn-save-brf').addEventListener('click', () => {
-    const brf = B.toBrf(brlTA.value).split('\n').join('\r\n') + '\r\n';
+    const brf = caseBrf(B.toBrf(brlTA.value)).split('\n').join('\r\n') + '\r\n';
     download(new Blob([brf], { type: 'text/plain' }), baseName() + '.brf');
   });
   $('btn-save-midi').addEventListener('click', () => {
@@ -721,7 +729,7 @@
       convertFromAbc();
     } else {
       const brf = B.toBrf(text.replace(/\f/g, '\n'));
-      brlTA.value = brlMode() === 'unicode' ? B.toUnicode(brf, { blankCell: true }) : brf;
+      brlTA.value = showBrf(brf);
       state.title = f.name.replace(/\.[^.]+$/, '');
       convertFromBraille();
     }
@@ -740,12 +748,15 @@
     abcTA.addEventListener(ev, () => onCaret('abc'));
     brlTA.addEventListener(ev, () => onCaret('brl'));
   }
-  $('brl-mode').addEventListener('change', () => {
-    const brf = B.toBrf(brlTA.value);
-    brlTA.value = brlMode() === 'unicode' ? B.toUnicode(brf, { blankCell: true }) : brf;
-    applyBrlLook();
-    saveSettings();
-  });
+  // 換顯示方式或大小寫：同一份點字重新顯示（每個字元一對一，游標與標示位置不變）
+  for (const id of ['brl-mode', 'opt-brf-upper'])
+    $(id).addEventListener('change', () => {
+      const pos = [brlTA.selectionStart, brlTA.selectionEnd];
+      brlTA.value = showBrf(B.toBrf(brlTA.value));
+      brlTA.setSelectionRange(pos[0], pos[1]);
+      applyBrlLook();
+      saveSettings();
+    });
   $('brl-size').addEventListener('change', () => {
     applyBrlLook();
     saveSettings();
@@ -812,7 +823,7 @@
       // 依顯示方式插入 Unicode 點字或 BRF；空方在 Unicode 模式用 U+2800
       insertFn: (bits) => {
         const ch = String.fromCodePoint(0x2800 + bits);
-        insertText(brlTA, brlMode() === 'unicode' ? ch : bits ? B.toBrf(ch) : ' ');
+        insertText(brlTA, showBrf(B.toBrf(ch)));
         brlTA.focus();
       },
     });
@@ -830,6 +841,18 @@
       fileName: () => baseName() + '-報讀',
     });
   }
+
+  // SimBraille 字型只在視障輔助工具集裡有（根目錄的 SIMBRL.TTF）；載不到就不提供這個顯示方式
+  function hideFontOption() {
+    const opt = $('brl-mode').querySelector('option[value="brf-font"]');
+    opt.hidden = opt.disabled = true;
+    if (brlMode() === 'brf-font') {
+      $('brl-mode').value = 'brf';
+      applyBrlLook();
+    }
+  }
+  if (document.fonts && document.fonts.load) document.fonts.load("16px 'SimBraille'").then((f) => f.length || hideFontOption(), hideFontOption);
+  else hideFontOption();
 
   // ---------- 啟動 ----------
   applySettingsToForm();

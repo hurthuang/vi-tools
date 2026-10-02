@@ -66,6 +66,15 @@
     return m === undefined ? -1 : m;
   }
 
+  // 小寫寫法：字母改小寫，@ [ \ ] ^ 改成 ` { | } ~（與 liblouis 的 NABCC、視障輔助工具集其他工具相同；點位不變）
+  const LOWER_OF = { '@': '`', '[': '{', '\\': '|', ']': '}', '^': '~' };
+  /** 大寫 BRF 轉成小寫寫法；空白、換行等其他字元不變。 */
+  function toLowerBrf(brf) {
+    let out = '';
+    for (const ch of brf) out += LOWER_OF[ch] || (ch >= 'A' && ch <= 'Z' ? ch.toLowerCase() : ch);
+    return out;
+  }
+
   /** 是否含點 1、2 或 3（許多規則需在此情況加點 3 分隔）。 */
   function hasDots123(ch) {
     const m = mask(ch);
@@ -112,6 +121,7 @@
 
   MB.brf = {
     toBrf,
+    toLowerBrf,
     toUnicode,
     isUnicodeBraille,
     mask,

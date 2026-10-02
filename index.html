@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=18"></script>
-  <link rel="stylesheet" href="css/style.css?v=18">
+  <script src="js/theme.js?v=19"></script>
+  <link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body>
   <header class="site-header">
@@ -48,8 +48,9 @@
           <div class="pane-tools">
             <label title="點字顯示方式">顯示
               <select id="brl-mode">
-                <option value="unicode">點字（⠿）</option>
-                <option value="brf">BRF（ASCII）</option>
+                <option value="unicode">Unicode 點字</option>
+                <option value="brf">ASCII</option>
+                <option value="brf-font">ASCII + SimBraille 字型</option>
               </select>
             </label>
             <label title="用 F D S J K L 六個鍵同時按下輸入一個點字方">
@@ -116,6 +117,9 @@
         <label>
           <input type="checkbox" id="opt-group" checked> 16 分音符等使用音符分組（Par. 8.1）
         </label>
+        <label title="點位不變，只是字母寫成大寫，@ [ \ ] ^ 取代 ` { | } ~">
+          <input type="checkbox" id="opt-brf-upper"> ASCII 點字使用大寫字母（給只認得大寫的舊式點字印表機或軟體）
+        </label>
         <label>讀入點字時，單聲部和弦音程方向
           <select id="opt-dir">
             <option value="">自動（高音譜向下）</option>
@@ -129,7 +133,7 @@
     <details class="pane help">
       <summary>使用說明與支援範圍</summary>
       <div class="help-body">
-        <p><a href="rules.html">點字樂譜規則對照</a>：音符與時值、八度記號、音程與和弦等規則說明，附可修改的例子。</p>
+        <p><a href="rules.html">點字樂譜規則對照</a>：音符與時值、音層記號、音程與和弦等規則說明，附可修改的例子。</p>
         <h3>怎麼用</h3>
         <ul>
           <li>在左邊輸入 ABC，右邊會自動產生點字樂譜；在右邊輸入或修改點字，左邊會自動產生 ABC。</li>
@@ -140,7 +144,7 @@
           <li>「下載 MusicXML」的檔案可以用 MuseScore、BME、Finale 開啟成五線譜再編輯；五線譜也可以直接匯出成 SVG、PNG，或列印、存成 PDF。</li>
         </ul>
         <h3>目前支援</h3>
-        <p>音符、休止符、附點、八度記號、臨時記號、調號、拍號、速度、小節線、反覆記號與房號、被反覆記號拆開的小節、連結線、圓滑線、三連音與其他連音、和弦（音程）、鋼琴雙手、同小節多聲部（in-accord / ABC 的 &amp;）、力度（p、f 等）、漸強漸弱、斷奏、重音、持音、延長記號、琶音、音符分組、大小時值記號。</p>
+        <p>音符、休止符、附點、音層記號、臨時記號、調號、拍號、速度、小節線、反覆記號與房號、被反覆記號拆開的小節、連結線、圓滑線、三連音與其他連音、和弦（音程）、鋼琴雙手、同小節多聲部（in-accord / ABC 的 &amp;）、力度（p、f 等）、漸強漸弱、斷奏、重音、持音、延長記號、琶音、音符分組、大小時值記號。</p>
         <p>指法（含換指）、倚音（長、短）、顫音、上下漣音、迴音、踏板（踩下、放開、換踏板）、Segno、Coda、Fine、D.C.、D.S.。播放與 MIDI 會依反覆、房號、D.C.、D.S.、Fine、Coda 的實際演奏順序進行。</p>
         <h3>ABC 寫法提示</h3>
         <ul>
@@ -161,23 +165,23 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=18"></script>
-  <script src="js/model.js?v=18"></script>
-  <script src="js/durations.js?v=18"></script>
-  <script src="js/abc-parse.js?v=18"></script>
-  <script src="js/braille-write.js?v=18"></script>
-  <script src="js/braille-parse.js?v=18"></script>
-  <script src="js/abc-write.js?v=18"></script>
-  <script src="js/xml.js?v=18"></script>
-  <script src="js/musicxml.js?v=18"></script>
-  <script src="js/describe.js?v=18"></script>
-  <script src="js/samples.js?v=18"></script>
+  <script src="js/brf.js?v=19"></script>
+  <script src="js/model.js?v=19"></script>
+  <script src="js/durations.js?v=19"></script>
+  <script src="js/abc-parse.js?v=19"></script>
+  <script src="js/braille-write.js?v=19"></script>
+  <script src="js/braille-parse.js?v=19"></script>
+  <script src="js/abc-write.js?v=19"></script>
+  <script src="js/xml.js?v=19"></script>
+  <script src="js/musicxml.js?v=19"></script>
+  <script src="js/describe.js?v=19"></script>
+  <script src="js/samples.js?v=19"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/app.js?v=19"></script>
 </body>
 </html>
