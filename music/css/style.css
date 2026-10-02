@@ -189,8 +189,8 @@ label { display: inline-flex; gap: 6px; align-items: center; }
 .sign { display: inline-flex; flex-direction: column; align-items: flex-start; vertical-align: middle; line-height: 1.2; }
 .sign-brl { font-family: var(--braille); font-size: 1.6rem; }
 .sign-dots { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
-.hint .sign { flex-direction: row; align-items: center; gap: 4px; }
-.hint .sign-brl { font-size: 1.2rem; }
+.hint .sign, .rules caption .sign { flex-direction: row; align-items: center; gap: 4px; }
+.hint .sign-brl, .rules caption .sign-brl { font-size: 1.2rem; }
 .example { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 14px; }
 .example h4 { margin: 0 0 8px; font-size: 1rem; }
 .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
