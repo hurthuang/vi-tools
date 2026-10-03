@@ -145,7 +145,7 @@
       return voiceById[id];
     }
     function newDeco() {
-      return { dynamic: null, words: [], artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
+      return { dynamic: null, words: [], chords: [], artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
     }
     function ensureMeasure(v) {
       if (!v.cur) {
@@ -431,7 +431,12 @@
             // 樂譜字型的符號（Unicode 私用區）略過；沒有字母的文字不轉換
             const w = m[1].slice(1).replace(/[\ue000-\uf8ff]/g, '').trim();
             if (/[A-Za-z\u00c0-\u024f\u3400-\u9fff]/.test(w)) v.deco.words.push(w);
-          } else warnKind('chordsym', '和弦名稱與文字註記（"..."）目前不轉換，已略過', pos);
+          }
+          // 沒有位置記號的是和弦名稱（"C"、"G7"、"Bb/D"、"N.C."），寫在它開始的音或休止符前面
+          else if (/^\s*([A-G]|N\.?\s*C\.?\s*$)/.test(m[1])) v.deco.chords.push(m[1].trim());
+          // 其他文字（例如沒加位置記號的 "cresc."）當作文字表情
+          else if (/[A-Za-z\u00c0-\u024f\u3400-\u9fff]/.test(m[1])) v.deco.words.push(m[1].trim());
+          else warnKind('chordsym', '無法辨識的和弦名稱或註記（"' + m[1] + '"），已略過', pos);
           i += m[0].length;
           continue;
         }
@@ -621,6 +626,7 @@
       const d = v.deco;
       if (d.dynamic) ev.dynamic = d.dynamic;
       if (d.words.length) ev.words = d.words.slice();
+      if (d.chords.length) ev.chords = d.chords.slice();
       if (d.artic.length) ev.articulations = d.artic.slice();
       if (d.hairpinStart) ev.hairpinStart = d.hairpinStart;
       if (d.hairpinEnd) ev.hairpinEnd = d.hairpinEnd;

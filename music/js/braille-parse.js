@@ -543,6 +543,30 @@
       const m = HAND_LINE.exec(l.text);
       return m && (m[2] || m[1].length || l.text.trimStart().startsWith('.>') || l.text.trimStart().startsWith('_>'));
     });
+    // 和弦名稱行（Sec. 27）：音樂行下面、縮排、每一段都是和弦名稱（⠠ 加 A–G 開頭，或 ⠠⠠⠝⠉）。
+    // 先從樂譜中拿出來，音樂讀完後再依欄位對到上一行的音
+    const chordLines = [];
+    if (!keyboard && MB.brailleChords)
+      for (let i = lines.length - 1; i > 0; i--) {
+        const t = lines[i].text;
+        const above = lines[i - 1];
+        if (!/^\s+\S/.test(t) || !above.text.trim() || /^\s{6,}/.test(above.text)) continue;
+        const toks = t.trim().split(/\s+/);
+        if (!toks.every((x) => MB.brailleChords.decode(x.replace(/^-/, '')) != null)) continue;
+        chordLines.push({ text: t, above });
+        lines.splice(i, 1);
+        // 小節之間兩行在同一欄都是空格（Par. 27.2）；音樂行只空一格、下面的和弦行不是空格時，
+        // 是和弦名稱比較長而留的空（Par. 27.4），不是小節分隔：換成 LONG_SP，讀成同一小節
+        // 引導點（⠐ 空格 ⠄⠄⠄ 空格）前後的空格不算
+        const afterGuide = (a, k) => {
+          let j = k - 1;
+          while (a[j] === "'") j--;
+          return j < k - 1 && a[j] === ' ' && a[j - 1] === '"';
+        };
+        above.text = [...above.text]
+          .map((c, k, a) => (c === ' ' && t[k] && t[k] !== ' ' && a[k - 1] !== ' ' && a[k - 1] !== '"' && a[k + 1] !== ' ' && !afterGuide(a, k) ? LONG_SP : c))
+          .join('');
+      }
 
     const score = { title: '', composer: '', tempo: null, keyboard, parts: [] };
     let headKey = null;
@@ -881,6 +905,7 @@
       const merged = [];
       for (const t of pt.toks) {
         const prevTok = merged[merged.length - 1];
+        if (prevTok && prevTok._open && /^'+$/.test(t.text)) continue; // 引導點（Par. 27.4）
         if (prevTok && prevTok._open && !barLike(prevTok.text, t.text)) {
           // 接在音樂連字號後的文字表情 >…>：中間放 LONG_SP，讓它和片段開頭一樣被認出來
           if (t.text[0] === '>') {
@@ -977,6 +1002,46 @@
         b.measures.push({ voices: [[restMeasure()]], barline: 'single' });
       while (a.measures.length < b.measures.length)
         a.measures.push({ voices: [[restMeasure()]], barline: 'single' });
+    }
+    // 和弦名稱：大寫記號（或前面的連字號）所在的欄 → 上一行同一欄開始的音（或最接近的音）
+    if (chordLines.length && score.parts[0]) {
+      const evs = [];
+      for (const m of score.parts[0].measures) for (const ev of m.voices[0] || []) if (ev.src && ev.src.brl) evs.push(ev);
+      for (const cl of chordLines) {
+        const lo = cl.above.off;
+        const hi = lo + cl.above.text.length;
+        const inLine = evs.filter((ev) => ev.src.brl[0] >= lo && ev.src.brl[0] < hi);
+        // 這一欄所在的音：範圍涵蓋這一欄的音（和弦的大寫記號對齊音符前面的音層、臨時記號等，不一定是音的第一個記號）；
+        // 沒有就用開頭最接近的音
+        // 都不在範圍內時，用開始位置在這一欄左邊（或同一欄）的最後一個音（連寫的第二個和弦屬於同一個音）；再沒有才用最接近的
+        const eventAt = (at) => {
+          const inside = inLine.find((ev) => ev.src.brl[0] <= at && at < ev.src.brl[1]);
+          if (inside) return inside;
+          let before = null;
+          for (const ev of inLine) if (ev.src.brl[0] <= at && (!before || ev.src.brl[0] > before.src.brl[0])) before = ev;
+          if (before) return before;
+          let best = null;
+          for (const ev of inLine) if (!best || Math.abs(ev.src.brl[0] - at) < Math.abs(best.src.brl[0] - at)) best = ev;
+          return best;
+        };
+        const re = /\S+/g;
+        let m;
+        while ((m = re.exec(cl.text))) {
+          // 同一段連寫好幾個和弦名稱（⠠⠉⠼⠛⠠⠋）：在「大寫記號 + 音名」處拆開，每個和弦依自己的欄位對應；
+          // 斜線後的低音（/⠠⠁）屬於同一個和弦；開頭的連字號（Par. 27.1.1）表示在音開始之後才換和弦
+          const tok = m[0];
+          const re2 = /,,NC|,[A-G]/g;
+          const starts = [];
+          let x;
+          while ((x = re2.exec(tok))) if (x.index === 0 || tok[x.index - 1] !== '/') starts.push(x.index);
+          if (!starts.length) starts.push(0);
+          starts.forEach((st, k) => {
+            const name = MB.brailleChords.decode(tok.slice(st, k + 1 < starts.length ? starts[k + 1] : tok.length));
+            const ev = eventAt(lo + m.index + (k === 0 ? 0 : st));
+            if (name && ev) ev.chords = (ev.chords || []).concat(name);
+          });
+        }
+      }
     }
     M.resolveAlters(score);
     return { score, warnings };

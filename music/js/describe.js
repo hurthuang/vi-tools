@@ -38,6 +38,7 @@
     if (ctx && ctx.hand) parts.push(ctx.hand === 'R' ? '右手' : '左手');
     if (ev.pedalChange) parts.push('換踏板');
     else if (ev.pedalDown) parts.push('踩踏板');
+    if (ev.chords && ev.chords.length) parts.push('和弦 ' + ev.chords.join('、'));
     for (const w of ev.words || []) parts.push('文字「' + w + '」');
     if (ev.dynamic) parts.push(DYN_NAME[ev.dynamic] || ev.dynamic);
     if (ev.hairpinStart) parts.push(ev.hairpinStart === 'cresc' ? '漸強開始' : '漸弱開始');
