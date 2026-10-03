@@ -15,19 +15,7 @@
     const cells = [...brf].map((c) => (c === ' ' ? '空方' : B.dotsOf(c))).join('、');
     return `<span class="sign"><span class="sign-brl" data-brf="${esc(brf)}" aria-hidden="true"></span><span class="sign-dots">點 ${cells}</span></span>`;
   }
-  function dotsText(brf) {
-    return brf
-      .split('\n')
-      .map((line, i) =>
-        `第 ${i + 1} 行：` +
-        // 連續的空方合併成「空方 ×N」（例如置中的拍號前面的空方）
-        line
-          .match(/ +|[^ ]/g) || []
-          .map((t) => (t[0] === ' ' ? (t.length > 1 ? `空方 ×${t.length}` : '空方') : B.dotsOf(t)))
-          .join('、')
-      )
-      .join('\n');
-  }
+
 
   // ---------- 點字顯示方式：和轉換器共用設定（Unicode 點字／ASCII／ASCII + SimBraille 字型；ASCII 大小寫） ----------
   function loadSettings() {
@@ -148,7 +136,7 @@
           <div class="ex-col">
             <div class="ex-label" id="ex-${id}-brl-label">點字</div>
             <pre class="ex-brl" id="ex-${id}-brl" aria-labelledby="ex-${id}-brl-label"></pre>
-            <details class="ex-dots"><summary>逐方點位</summary><pre id="ex-${id}-dots"></pre></details>
+            <details class="ex-speech"><summary>報讀文字</summary><div class="ex-speech-text" id="ex-${id}-speech"></div></details>
             <ul class="ex-warn" id="ex-${id}-warn"></ul>
           </div>
         </div>
@@ -169,11 +157,14 @@
       reset.disabled = !changed;
       state.textContent = changed ? '已修改；下方說明是針對原本的例子' : '';
       let brf = '';
+      let speech = '';
       let warnings = [];
       try {
         const r = MB.parseAbc(abc);
         const b = MB.toBraille(r.score);
         brf = b.brf;
+        // 報讀文字：和轉換器「全曲報讀」相同，開頭一行是調號拍號，之後每小節（鋼琴每手）一行
+        speech = MB.describe.describeScore(r.score, {});
         warnings = r.warnings.concat(b.warnings);
       } catch (e) {
         warnings = [{ msg: '轉換時發生錯誤：' + e.message }];
@@ -181,7 +172,7 @@
       const out = $(`ex-${id}-brl`);
       out.dataset.brf = brf;
       paint(out);
-      $(`ex-${id}-dots`).textContent = brf ? dotsText(brf) : '';
+      $(`ex-${id}-speech`).innerHTML = speech.split('\n').map((l) => `<p>${esc(l)}</p>`).join('');
       $(`ex-${id}-warn`).innerHTML = warnings.map((w) => `<li>${esc(w.msg)}</li>`).join('');
       const staff = $(`ex-${id}-staff`);
       if (window.ABCJS) {

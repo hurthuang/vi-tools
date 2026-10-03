@@ -206,9 +206,9 @@ label { display: inline-flex; gap: 6px; align-items: center; }
   font-family: var(--braille); font-size: 1.6rem; line-height: 1.4;
   background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
 }
-.ex-dots { margin-top: 6px; font-size: 0.9rem; }
-.ex-dots summary { cursor: pointer; }
-.ex-dots pre { margin: 4px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 0.85rem; }
+.ex-speech { margin-top: 6px; font-size: 0.9rem; }
+.ex-speech summary { cursor: pointer; }
+.ex-speech-text p { margin: 4px 0 0; }
 .ex-warn { margin: 6px 0 0; padding-left: 20px; color: var(--warn); }
 .ex-warn:empty { display: none; }
 .ex-staff { margin-top: 8px; max-width: 760px; }
