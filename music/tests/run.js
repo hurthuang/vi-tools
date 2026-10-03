@@ -82,6 +82,11 @@ const EX = [
     same: true,
   },
   {
+    name: 'Ex 16.2-1（倚音，連續四個以上加倍 ⠢⠢）',
+    brl: '                %%#D4\n#A "5.]P"5E?"5J[ \\5JIH5IHGFE\n  55"=&Z5=P\'V<K',
+    same: true,
+  },
+  {
     name: 'Ex 6.1-1（臨時記號）',
     brl: '              #F8\n#A "[%H<JI*H G<.FE%?\' *?<E*JD*E\n  .F%"G*H%\\I S\'<K',
   },

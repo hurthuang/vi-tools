@@ -82,6 +82,7 @@
     let fingerSet = 'main'; // 目前在第一組（main）或替代組（alt）
     let fingerChange = false; // 剛讀到換指記號 ⠉
     let graces = []; // 等待附加到下一個音的倚音
+    let graceRun = false; // ⠢⠢：連續四個以上倚音的加倍記號，直到下一個單獨的 ⠢（最後一個倚音）為止（Par. 16.2）
     let i = 0;
     const n = s.length;
 
@@ -110,7 +111,8 @@
       if (c === '"' && c1 === '*' && c2 === 'C') { if (last) last.pedalUp = true; i += 3; continue; }
       // ---- 倚音（Par. 16.2）：⠐⠢ 長倚音、⠢ 短倚音 ----
       if (c === '"' && c1 === '5') { mark(at); pre.grace = 'long'; i += 2; lastKind = null; continue; }
-      if (c === '5') { mark(at); pre.grace = 'short'; i++; lastKind = null; continue; }
+      if (c === '5' && c1 === '5') { mark(at); pre.grace = 'short'; graceRun = true; i += 2; lastKind = null; continue; }
+      if (c === '5') { mark(at); pre.grace = 'short'; graceRun = false; i++; lastKind = null; continue; }
       // ---- 裝飾音（Par. 16.3–16.5） ----
       const orn = (name, len) => {
         mark(at);
@@ -350,9 +352,9 @@
         i++;
         continue;
       }
-      if (isNote(c) && pre.grace) {
+      if (isNote(c) && (pre.grace || graceRun)) {
         // 倚音：記下來，附加到下一個音（不計入小節時值）
-        graces.push({ step: NOTE_INFO[c].step, cls: NOTE_INFO[c].cls, dots: 0, oct: pre.oct, acc: pre.acc, long: pre.grace === 'long', hint: pre.hint });
+        graces.push({ step: NOTE_INFO[c].step, cls: NOTE_INFO[c].cls, dots: 0, oct: pre.oct, acc: pre.acc, long: pre.grace === 'long', hint: pre.hint, run: graceRun || graces.length > 0 });
         pre.acc = null;
         pre.oct = null;
         pre.grace = null;

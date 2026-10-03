@@ -298,14 +298,16 @@
     let r = '';
     // 倚音（Par. 16.2）：單一無斜線為長倚音 ⠐⠢，其餘為短倚音 ⠢；不計入小節時值
     const graces = ev.graces || [];
-    graces.forEach((gr) => {
+    graces.forEach((gr, gk) => {
       const gn = gr.notes[0];
       const long = graces.length === 1 && !gr.slash;
+      // 連續四個以上的倚音：第一個寫 ⠢⠢、中間不寫、最後一個寫 ⠢（Par. 16.2）
+      const sign = long ? '"5' : graces.length < 4 ? '5' : gk === 0 ? '55' : gk === graces.length - 1 ? '5' : '';
       // 倚音不計入小節時值，讀者無法靠小節長度判斷；與預設讀法不同時加大／小時值記號（Par. 2.4）
       const gcls = D.valueClass(gr.value);
       const assumed = (long ? GRACE_LONG : GRACE_SHORT)[gcls];
       if (assumed !== gr.value) r += gr.value >= 16 ? ',<1' : '^<1';
-      r += long ? '"5' : '5';
+      r += sign;
       if (gn.accidental) r += ACC[gn.accidental];
       if (!ctx.noOctave && (needOct || needOctave(ctx.prev, gn))) r += octMark(gn.octave);
       needOct = false;
