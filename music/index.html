@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=37"></script>
-  <link rel="stylesheet" href="css/style.css?v=37">
+  <script src="js/theme.js?v=38"></script>
+  <link rel="stylesheet" href="css/style.css?v=38">
 </head>
 <body>
   <header class="site-header">
@@ -95,6 +95,25 @@
           <select id="paper-fit">
             <option value="fit">符合寬度（沒有捲軸）</option>
             <option value="scroll">原尺寸（有捲軸）</option>
+          </select>
+        </label>
+        <label>點字對照
+          <select id="paper-annot">
+            <option value="none">不顯示</option>
+            <option value="brl">點字</option>
+            <option value="letter">點字＋音名</option>
+            <option value="solfa">點字＋唱名</option>
+            <option value="jianpu">點字＋簡譜</option>
+          </select>
+        </label>
+        <label id="paper-per-line-wrap" hidden>每行
+          <select id="paper-per-line">
+            <option value="0">照原譜分行</option>
+            <option value="2">2 小節</option>
+            <option value="3">3 小節</option>
+            <option value="4">4 小節</option>
+            <option value="5">5 小節</option>
+            <option value="6">6 小節</option>
           </select>
         </label>
       </div>
@@ -201,24 +220,25 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=37"></script>
-  <script src="js/model.js?v=37"></script>
-  <script src="js/durations.js?v=37"></script>
-  <script src="js/abc-parse.js?v=37"></script>
-  <script src="js/braille-write.js?v=37"></script>
-  <script src="js/braille-parse.js?v=37"></script>
-  <script src="js/abc-write.js?v=37"></script>
-  <script src="js/xml.js?v=37"></script>
-  <script src="js/musicxml.js?v=37"></script>
-  <script src="js/describe.js?v=37"></script>
-  <script src="js/zh-braille.js?v=37"></script>
-  <script src="js/samples.js?v=37"></script>
+  <script src="js/brf.js?v=38"></script>
+  <script src="js/model.js?v=38"></script>
+  <script src="js/durations.js?v=38"></script>
+  <script src="js/abc-parse.js?v=38"></script>
+  <script src="js/braille-write.js?v=38"></script>
+  <script src="js/braille-parse.js?v=38"></script>
+  <script src="js/abc-write.js?v=38"></script>
+  <script src="js/annotate.js?v=38"></script>
+  <script src="js/xml.js?v=38"></script>
+  <script src="js/musicxml.js?v=38"></script>
+  <script src="js/describe.js?v=38"></script>
+  <script src="js/zh-braille.js?v=38"></script>
+  <script src="js/samples.js?v=38"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=37"></script>
+  <script src="js/app.js?v=38"></script>
 </body>
 </html>

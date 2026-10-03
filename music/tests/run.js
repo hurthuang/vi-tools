@@ -565,6 +565,26 @@ for (const s of MB.samples) {
   }
 }
 
+// ---------- 點字對照（五線譜下方標示點字與音名） ----------
+{
+  const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\ne2 d c | A d2 c | B e2 d | c2 f e |\nd g2 f | e c a c | B/c/d/e/ f/g/a/b/ | c\'2 z2 |]');
+  const res = MB.toBraille(a.score);
+  const w = (names) => MB.annotate.annotatedAbc(a.score, res, { names }).abc.split('\n').filter((l) => /^w:/.test(l));
+  const lw = w('letter');
+  check('點字對照：點字與音名（寫了音層記號的音前面加音層數字）', lw[0] === 'w:⠨⠏ ⠱ ⠹ ⠪ ⠨⠕ ⠹ ⠺ ⠨⠏ ⠱ ⠝ ⠻ ⠫' && lw[1] === 'w:5E D C A 5D C B 5E D C F E', lw.join(' | '));
+  check('點字對照：唱名、簡譜', w('solfa')[1] === 'w:5Mi Re Do La 5Re Do Si 5Mi Re Do Fa Mi' && w('jianpu')[1] === 'w:⁵3 2 1 6 ⁵2 1 7 ⁵3 2 1 4 3', w('solfa')[1] + ' | ' + w('jianpu')[1]);
+  check('點字對照：只要點字時沒有名稱行', w('none').length === 2 && w('none').every((l) => /^w:[⠀-⠿ ]+$/.test(l)), w('none').join(' | '));
+  const abc = MB.annotate.annotatedAbc(a.score, res, { names: 'letter' }).abc;
+  check('點字對照：休止符用註解文字（點字含終止線）', abc.includes('"_⠥⠣⠅""_\u200b休"z4'), abc.split('\n').slice(-4).join(' | '));
+  // 首調簡譜、臨時記號、和弦依點字書寫順序
+  const g = MB.parseAbc('X:1\nM:3/4\nL:1/4\nK:G\n^c [CEG] _B | g3 |]');
+  const gw = MB.annotate.annotatedAbc(g.score, MB.toBraille(g.score), { names: 'jianpu' }).abc.split('\n').filter((l) => /^w:/.test(l));
+  check('點字對照：簡譜首調、臨時記號、和弦', gw[1] === 'w:⁵♯4 ⁴1/6/4 ♭3 ⁵1', gw.join(' | '));
+  // 每行小節數固定
+  const per = MB.annotate.annotatedAbc(a.score, res, { names: 'none', measuresPerLine: 2 }).abc.split('\n').filter((l) => /\|/.test(l) && !/^w:/.test(l));
+  check('點字對照：每行固定小節數', per.length === 4, per.join(' / '));
+}
+
 // ---------- 歌詞 ----------
 {
   const SONG = 'X:1\nT:小星星\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |\nw:一 閃 一 閃 亮 晶 晶\nF F E E | D D C2 |]\nw:滿 天 都 是 小 星 星\n';

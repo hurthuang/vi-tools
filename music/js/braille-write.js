@@ -458,7 +458,9 @@
       const tied = notes.filter((n) => n.tie).length;
       const chordTie = tied >= 2;
       if (written.accidental) r += ACC[written.accidental];
-      if (!ctx.noOctave && (needOct || needOctave(ctx.prev, written))) r += octMark(written.octave);
+      const mainMarked = !ctx.noOctave && (needOct || needOctave(ctx.prev, written));
+      if (mainMarked) r += octMark(written.octave);
+      const marked = [mainMarked];
       r += NOTE[written.step][cls] + "'".repeat(ev.dots || 0);
       // 指法緊接在音符（含附點）之後（Par. 15.1）
       r += noteFingers(written);
@@ -477,12 +479,15 @@
           given.includes(nd);
         if (n.accidental) r += ACC[n.accidental];
         if (mark) r += octMark(n.octave);
+        marked.push(mark);
         r += INTERVAL[dist % 7];
         r += noteFingers(n);
         if (!chordTie && n.tie) r += '@C';
         given.push(nd);
         prevD = nd;
       });
+      // 點字對照（五線譜下方標示）：各音依點字書寫順序，以及是否寫了音層記號
+      if (ctx.octMarks) ctx.octMarks.set(ev.id, { notes: [written].concat(others), marked });
       ctx.prev = wd;
       if (artic.includes('fermata')) tail += '<L';
       tail += breathSigns(artic);
@@ -531,7 +536,7 @@
     const pieces = [];
     // noOctave：教材初期尚未教音層記號的練習（僅供比對測試使用）
     const ctx = {
-      prev: opt.prev, dir, slurs: env.slurs, pedalOmit: env.pedalOmit, noOctave: !!env.opts.suppressOctaveMarks,
+      prev: opt.prev, dir, slurs: env.slurs, pedalOmit: env.pedalOmit, noOctave: !!env.opts.suppressOctaveMarks, octMarks: env.octMarks,
       warn: (msg) => {
         if (env.warned.has(msg)) return;
         env.warned.add(msg);
@@ -641,7 +646,7 @@
     const warnings = [];
     const lines = [];
     const numbers = M.measureNumbers(score);
-    const env = { opts, warnings, numbers, warned: new Set(), slurs: null, pedalOmit: new Set() };
+    const env = { opts, warnings, numbers, warned: new Set(), slurs: null, pedalOmit: new Set(), octMarks: new Map() };
     score.parts.forEach((p) => analysePedal(p).forEach((id) => env.pedalOmit.add(id)));
     const first = score.parts[0];
     if (!first || !first.measures.length) return finish([], warnings);
@@ -690,7 +695,7 @@
       env.vocal = vocalLayout(score.parts[0], env);
       writeSingleLine(score.parts[0], env, lines);
     }
-    return finish(lines, warnings);
+    return Object.assign(finish(lines, warnings), { noteMarks: env.octMarks });
   }
 
   function finish(lines, warnings) {

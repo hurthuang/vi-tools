@@ -112,6 +112,9 @@
     if (settings.brfUpper) $('opt-brf-upper').checked = true;
     if (settings.sixKey === false) $('six-key').checked = false;
     if (settings.paperFit) $('paper-fit').value = settings.paperFit;
+    if (settings.paperAnnot) $('paper-annot').value = settings.paperAnnot;
+    if (settings.paperPerLine != null) $('paper-per-line').value = settings.paperPerLine;
+    $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
     if (settings.brlSize) $('brl-size').value = settings.brlSize;
     if (settings.autoSpeak) $('auto-speak').checked = true;
     if (settings.solfege) $('solfege').checked = true;
@@ -130,6 +133,8 @@
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
       paperFit: $('paper-fit').value,
+      paperAnnot: $('paper-annot').value,
+      paperPerLine: $('paper-per-line').value,
       brlSize: $('brl-size').value,
       autoSpeak: $('auto-speak').checked,
       solfege: $('solfege').checked,
@@ -368,8 +373,26 @@
       return;
     }
     try {
-      const disp = displayAbc(abcText);
-      paperMap = disp.toOrig;
+      // 點字對照：改畫由樂譜產生、加了點字與名稱的 ABC；畫面上的位置透過事件 id 對回原本的 ABC
+      const annot = $('paper-annot').value;
+      let src = abcText;
+      let toSrc = (p) => p;
+      if (annot !== 'none' && state.score) {
+        const a = MB.annotate.annotatedAbc(state.score, MB.toBraille(state.score, Object.assign(writeOpts(), { lyrics: false })), { names: annot === 'brl' ? 'none' : annot, measuresPerLine: +$('paper-per-line').value });
+        const byId = new Map(state.infos.map((inf) => [inf.id, inf]));
+        src = a.abc;
+        // p 落在某個事件裡（開頭 ≤ p < 結尾）就對到它的開頭；落在事件之間（abcjs 的範圍會含前後空白）就對到前一個事件的結尾
+        const spans = a.map.filter((m) => byId.get(m.id) && byId.get(m.id).abc);
+        toSrc = (p) => {
+          const inside = spans.find((m) => m.start <= p && p < m.end);
+          if (inside) return byId.get(inside.id).abc[0];
+          let before = null;
+          for (const m of spans) if (m.end <= p && (!before || m.end > before.end)) before = m;
+          return before ? byId.get(before.id).abc[1] : -1;
+        };
+      }
+      const disp = displayAbc(src);
+      paperMap = (p) => toSrc(disp.toOrig(p));
       // 「符合寬度」：縮放到預覽區寬度，不捲動；「原尺寸」：固定大小，預覽區有捲軸
       const fit = $('paper-fit').value === 'fit';
       paper.classList.toggle('scroll', !fit);
@@ -384,6 +407,7 @@
         paddingright: 10,
       })[0];
       state.visual = vis;
+      if (annot !== 'none') paper.querySelectorAll('svg').forEach(decorateAnnot);
       // abcjs 預設的英文標籤改成中文，報讀軟體才念得懂
       paper.querySelectorAll('svg').forEach((svg) => {
         const label = '五線譜' + (state.title ? '：' + state.title : '') + '（可用點字或 ABC 編輯區閱讀內容）';
@@ -404,6 +428,92 @@
     } catch (e) {
       console.error(e);
       paper.textContent = '五線譜顯示失敗：' + e.message;
+    }
+  }
+
+  /**
+   * 點字對照畫好之後：
+   * 1. 每個音的歌詞是一個 <text>，各行（原有歌詞、點字、名稱）是其中的 <tspan>，用 dy 往下排；
+   * 2. 休止符、第二聲部的註解文字（abcjs 放在譜下方、高度不一）移到同一行點字與名稱的高度，並置中對齊音符；
+   * 3. 有 SimBraille 字型時，點字改成 ASCII + SimBraille（和點字區的「ASCII + 點字字型」一樣），字太寬就縮小。
+   */
+  const BRL_RE = /^[⠀-⠿]+$/;
+  function decorateAnnot(svg) {
+    const num = (el, a) => parseFloat(el.getAttribute(a)) || 0;
+    const lineOf = (el) => (/abcjs-l(\d+)/.exec(el.getAttribute('class') || '') || [])[1];
+    const brlNodes = []; // 要換字型的點字（tspan 或 text）
+    // 各行的點字列高度與名稱列的間距
+    const rows = new Map();
+    let gap = 0;
+    for (const t of svg.querySelectorAll('text.abcjs-lyric')) {
+      const size = num(t, 'font-size') || 16;
+      let y = num(t, 'y');
+      const spans = [...t.querySelectorAll('tspan')];
+      spans.forEach((sp, k) => {
+        if (k > 0) {
+          const dy = sp.getAttribute('dy') || '0';
+          y += parseFloat(dy) * (/em$/.test(dy) ? size : 1);
+        }
+        if (!BRL_RE.test(sp.textContent)) return;
+        brlNodes.push(sp);
+        const l = lineOf(t);
+        if (!rows.has(l)) rows.set(l, new Set());
+        rows.get(l).add(Math.round(y * 100) / 100);
+        if (!gap && spans[k + 1]) {
+          const dy = spans[k + 1].getAttribute('dy') || '0';
+          gap = parseFloat(dy) * (/em$/.test(dy) ? size : 1);
+        }
+      });
+    }
+    gap = gap || 20;
+    const nearestRow = (el) => {
+      const ys = [...(rows.get(lineOf(el)) || [])];
+      if (!ys.length) return null;
+      const y = num(el, 'y');
+      return ys.reduce((a, b) => (Math.abs(b - y) < Math.abs(a - y) ? b : a));
+    };
+    const anns = [...svg.querySelectorAll('text.abcjs-annotation')];
+    const brlAnn = anns.filter((t) => BRL_RE.test(t.textContent));
+    const nameAnn = anns.filter((t) => t.textContent[0] === '​');
+    // 先記下原本的位置（同一個音的點字與名稱 x 相同），再移動
+    const pos = new Map(anns.map((t) => [t, { x: num(t, 'x'), y: num(t, 'y') }]));
+    const setY = (t, y) => {
+      t.setAttribute('y', y);
+      t.querySelectorAll('tspan').forEach((sp) => sp.hasAttribute('y') && sp.setAttribute('y', y));
+    };
+    for (const t of brlAnn) {
+      const y = nearestRow(t);
+      if (y != null) setY(t, y);
+    }
+    for (const t of nameAnn) {
+      const sp = t.querySelector('tspan') || t;
+      sp.textContent = sp.textContent.replace(/^​/, '');
+      // 同一個音：x 相同、在同一個聲部（鋼琴的上下兩行 x 可能相同）
+      const voiceOf = (el) => (/abcjs-v(\d+)/.exec(el.getAttribute('class') || '') || [])[1];
+      const pair = brlAnn.find((b) => Math.abs(pos.get(b).x - pos.get(t).x) < 0.5 && voiceOf(b) === voiceOf(t));
+      const y = pair ? num(pair, 'y') : nearestRow(t);
+      if (y != null) setY(t, y + gap);
+    }
+    // 註解文字從音符左邊開始寫（text-anchor: start）；改成和歌詞一樣置中在音符下
+    for (const t of brlAnn.concat(nameAnn)) {
+      const x = pos.get(t).x + 4;
+      t.setAttribute('x', x);
+      t.setAttribute('text-anchor', 'middle');
+      t.querySelectorAll('tspan').forEach((sp) => sp.hasAttribute('x') && sp.setAttribute('x', x));
+    }
+    if (!state.simFont) return;
+    for (const node of brlNodes.concat(brlAnn)) {
+      const host = node.tagName === 'tspan' ? node.parentNode : node;
+      const base = (num(host, 'font-size') || 16) * 1.25;
+      const w0 = node.getComputedTextLength();
+      // text 底下可能還有 tspan：只換文字所在的那一層
+      const leaf = node.querySelector('tspan') || node;
+      leaf.textContent = B.toBrf(leaf.textContent);
+      leaf.style.fontFamily = 'SimBraille';
+      leaf.style.fontSize = base + 'px';
+      const w1 = leaf.getComputedTextLength();
+      if (w0 && w1 > w0 * 1.15) leaf.style.fontSize = Math.max(base * 0.6, (base * w0 * 1.15) / w1).toFixed(1) + 'px';
+      leaf.classList.add('annot-brl');
     }
   }
 
@@ -721,9 +831,24 @@
   });
 
   /** 取得可獨立使用的五線譜 SVG 文字。 */
-  function scoreSvgText() {
+  // 點字對照用的 SimBraille 字型：匯出的 SVG／PNG 要把字型嵌進去，在別台電腦打開才會顯示成點字
+  let simFontData = null;
+  function simFontUrl() {
+    if (!simFontData)
+      simFontData = fetch('../SIMBRL.TTF')
+        .then((r) => (r.ok ? r.blob() : Promise.reject()))
+        .then((b) => new Promise((ok) => {
+          const fr = new FileReader();
+          fr.onload = () => ok(fr.result);
+          fr.readAsDataURL(b);
+        }))
+        .catch(() => null);
+    return simFontData;
+  }
+  async function scoreSvgText() {
     const svg = document.querySelector('#paper svg');
     if (!svg) return null;
+    const font = svg.querySelector('.annot-brl') ? await simFontUrl() : null;
     const c = svg.cloneNode(true);
     c.querySelectorAll('.hl, .playing').forEach((el) => el.classList.remove('hl', 'playing'));
     const vb = (c.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
@@ -743,15 +868,20 @@
     bg.setAttribute('height', h);
     bg.setAttribute('fill', '#ffffff');
     c.insertBefore(bg, c.firstChild);
+    if (font) {
+      const st = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      st.textContent = "@font-face { font-family: 'SimBraille'; src: url(" + font + ") format('truetype'); }";
+      c.insertBefore(st, c.firstChild);
+    }
     return { text: '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(c), w, h };
   }
-  $('btn-save-svg').addEventListener('click', () => {
-    const s = scoreSvgText();
+  $('btn-save-svg').addEventListener('click', async () => {
+    const s = await scoreSvgText();
     if (!s) return playerStatus('沒有可匯出的五線譜。');
     download(new Blob([s.text], { type: 'image/svg+xml' }), baseName() + '.svg');
   });
-  $('btn-save-png').addEventListener('click', () => {
-    const s = scoreSvgText();
+  $('btn-save-png').addEventListener('click', async () => {
+    const s = await scoreSvgText();
     if (!s) return playerStatus('沒有可匯出的五線譜。');
     const scale = 2;
     const img = new Image();
@@ -883,13 +1013,18 @@
     settings.sixKey = $('six-key').checked;
     saveSettings();
   });
-  $('paper-fit').addEventListener('change', () => {
-    saveSettings();
-    if (state.paperAbc != null) {
-      renderPaper(state.paperAbc);
-      if (state.current) setScoreClass('hl', [state.current.abc]);
-    }
-  });
+  function rerenderPaper() {
+    if (state.paperAbc == null) return;
+    stopPlay();
+    renderPaper(state.paperAbc);
+    if (state.current) setScoreClass('hl', [state.current.abc]);
+  }
+  for (const id of ['paper-fit', 'paper-annot', 'paper-per-line'])
+    $(id).addEventListener('change', () => {
+      $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
+      saveSettings();
+      rerenderPaper();
+    });
   $('btn-play').addEventListener('click', play);
   $('btn-stop').addEventListener('click', () => {
     stopPlay();
@@ -980,7 +1115,13 @@
       applyBrlLook();
     }
   }
-  if (document.fonts && document.fonts.load) document.fonts.load("16px 'SimBraille'").then((f) => f.length || hideFontOption(), hideFontOption);
+  if (document.fonts && document.fonts.load)
+    document.fonts.load("16px 'SimBraille'").then((f) => {
+      if (!f.length) return hideFontOption();
+      // 五線譜的點字對照也用這個字型；字型比樂譜晚載入時重畫一次
+      state.simFont = true;
+      if ($('paper-annot').value !== 'none' && state.paperAbc != null) rerenderPaper();
+    }, hideFontOption);
   else hideFontOption();
 
   // 國語點字表（中文歌詞用）：放在視障輔助工具集裡才有；載入後若目前的樂譜有歌詞就重新轉換
