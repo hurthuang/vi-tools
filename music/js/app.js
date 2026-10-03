@@ -103,7 +103,7 @@
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.slur) $('opt-slur').value = settings.slur;
-    if (settings.lineMode) $('opt-line-mode').value = settings.lineMode;
+    if (settings.lineMode2) $('opt-line-mode').value = settings.lineMode2; // 新名稱：舊版存的 lineMode（當時預設依每行方數）不沿用
     if (settings.lyrics) $('opt-lyrics').value = settings.lyrics;
     if (settings.title === false) $('opt-title').checked = false;
     if (settings.lyricSpace) $('opt-lyric-space').value = settings.lyricSpace;
@@ -126,7 +126,7 @@
     Object.assign(settings, {
       width: +$('opt-width').value,
       seg: +$('opt-seg').value,
-      lineMode: $('opt-line-mode').value,
+      lineMode2: $('opt-line-mode').value,
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
       slur: $('opt-slur').value,
@@ -541,15 +541,22 @@
     }
     return best;
   }
-  function findByPos(which, pos) {
+  /**
+   * 游標位置 → 事件。點字的音常常緊接著寫（⠹⠱），游標同時在前一個音的結尾和下一個音的開頭：
+   * 移動游標時（預設）對到後面的音，和游標在空白後、小節第一個音前面的情況一致；
+   * afterTyping 時對到游標前面的音（剛打完的音）。都沒有就用前面最近的音（例如游標在小節線後的空白）。
+   */
+  function findByPos(which, pos, afterTyping) {
     let before = null;
+    let inside = null;
     for (const inf of state.infos) {
       const r = inf[which];
       if (!r) continue;
-      if (pos >= r[0] && pos <= r[1]) return inf;
+      if (afterTyping ? pos > r[0] && pos <= r[1] : pos >= r[0] && pos < r[1]) return inf;
+      if (pos === r[1] || (pos === r[0] && afterTyping)) inside = inside || inf;
       if (r[1] <= pos && (!before || before[which][1] < r[1])) before = inf;
     }
-    return before;
+    return inside || before;
   }
 
   function onScoreClick(abcelem) {
@@ -589,6 +596,7 @@
   }
 
   function onCaret(which) {
+    if (state.followingPlay) return; // 播放時程式移動的游標
     const ta = which === 'abc' ? abcTA : brlTA;
     const inf = findByPos(which, ta.selectionStart);
     if (inf && inf !== state.current) {
@@ -718,6 +726,9 @@
         );
         if (t) startSec = t.milliseconds / 1000;
       }
+      // 游標要跟著播放的編輯區：目前在哪個編輯區就用哪個，否則用最後使用的編輯區
+      const act = document.activeElement;
+      state.playEditor = act === abcTA ? 'abc' : act === brlTA ? 'brl' : state.lastEditor || null;
       if (startSec) synth.seek(startSec, 'seconds');
       synth.start();
       if (startSec) timing.start(startSec, 'seconds');
@@ -747,6 +758,15 @@
     brlEd.setMarks(hits.filter((h) => h.brl).map((h) => ({ start: h.brl[0], end: h.brl[1], cls: 'play' })));
     abcEd.setMarks(hits.filter((h) => h.abc).map((h) => ({ start: h.abc[0], end: h.abc[1], cls: 'play' })));
     if (hits[0] && hits[0].brl) brlEd.reveal(hits[0].brl[0]);
+    // 游標跟著播放：開始播放時所在的編輯區，游標移到正在播放的音（停止後從這裡按 Ctrl+Enter 可以接著播）
+    const ed = state.playEditor;
+    if (ed && hits[0] && hits[0][ed]) {
+      const ta = ed === 'abc' ? abcTA : brlTA;
+      state.followingPlay = true;
+      ta.setSelectionRange(hits[0][ed][0], hits[0][ed][0]);
+      if (ed === 'abc') abcEd.reveal(hits[0].abc[0]);
+      setTimeout(() => (state.followingPlay = false), 0);
+    }
     return undefined;
   }
   function stopPlay() {
@@ -794,7 +814,7 @@
     state.echoFrom = null;
     if (!which || !$('echo-input').checked) return;
     const ta = which === 'abc' ? abcTA : brlTA;
-    const inf = findByPos(which, ta.selectionStart);
+    const inf = findByPos(which, ta.selectionStart, true);
     if (!inf || !inf[which] || inf.ev.kind !== 'note') return;
     const sig = which + inf[which][0] + ':' + inf.ev.notes.map((n) => MB.model.midiOf(n)).join(',') + ':' + inf.ev.value + '.' + (inf.ev.dots || 0);
     if (sig === lastEcho) return;
@@ -1071,6 +1091,8 @@
     abcTA.addEventListener(ev, () => onCaret('abc'));
     brlTA.addEventListener(ev, () => onCaret('brl'));
   }
+  abcTA.addEventListener('focus', () => (state.lastEditor = 'abc'));
+  brlTA.addEventListener('focus', () => (state.lastEditor = 'brl'));
   // 換顯示方式或大小寫：同一份點字重新顯示（每個字元一對一，游標與標示位置不變）
   for (const id of ['brl-mode', 'opt-brf-upper'])
     $(id).addEventListener('change', () => {

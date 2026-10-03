@@ -108,7 +108,7 @@ async function main() {
       r.warnings.forEach((w) => countMsg('讀入', w.msg));
       if (verbose) r.warnings.forEach((w) => row.notes.push('讀入：' + w.msg));
 
-      const b = MB.toBraille(sc);
+      const b = MB.toBraille(sc, process.env.LINE_MODE ? { lineMode: process.env.LINE_MODE } : undefined);
       row.brlWarn = b.warnings.length;
       b.warnings.forEach((w) => countMsg('點字', w.msg));
       if (b.warnings.length) row.notes.push('點字：' + b.warnings.map((w) => w.msg).join('；'));
