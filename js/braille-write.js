@@ -1052,6 +1052,16 @@
     return { starts: new Set(starts), linesAt };
   }
 
+  /**
+   * 跟隨 ABC 換行時，哪些小節開始新的一行：有原本的分行（ABC、點字讀入）就照原本；
+   * 沒有（例如 MusicXML）就每 4 小節一行，和產生的 ABC 一致。
+   */
+  function abcLineStarts(part) {
+    const ms = part.measures;
+    const has = ms.some((m, i) => i > 0 && m.lineStart);
+    return new Set(ms.map((m, i) => i).filter((i) => i > 0 && (has ? ms[i].lineStart : i % 4 === 0)));
+  }
+
   function writeSingleLine(part, env, lines) {
     const { opts, numbers } = env;
     const vocal = env.vocal; // 歌曲（Par. 35.1）：一行歌詞、一行音樂，沒有段落編號
@@ -1064,6 +1074,7 @@
     let prevInaccord = false;
     let atLineStart = true;
     let prevKey = part.measures[0].key;
+    const abcStarts = opts.lineMode === 'abc' && !vocal ? abcLineStarts(part) : null;
 
     const flush = () => {
       if (line && line.content) lines.push(line);
@@ -1113,7 +1124,7 @@
         atLineStart = true;
       }
       // Segno 與 Coda 段落都要另起一段（Par. 20.1.1、20.1.5）；跟隨 ABC 換行時，ABC 的每一行另起一段
-      if (mi > 0 && (m.segno || m.codaStart || (opts.lineMode === 'abc' && !vocal && m.lineStart))) {
+      if (mi > 0 && (m.segno || m.codaStart || (abcStarts && abcStarts.has(mi)))) {
         flush();
         segLines = 0;
       }
@@ -1226,6 +1237,7 @@
     const pad = (n) => ' '.repeat(numW - String(n).length) + B.upperNumber(n);
     const indent = ' '.repeat(numW + 1);
     let prevKey = rh.measures[0].key;
+    const abcStarts = opts.lineMode === 'abc' ? abcLineStarts(rh) : null;
 
     const handText = (part, pieces, segno) => {
       const hs = HAND[part.hand];
@@ -1307,7 +1319,7 @@
         const m = rh.measures[mi];
         if (m.key || m.meter || m.segno || m.codaStart) break;
         // 跟隨 ABC 換行：ABC 換行處結束這一組上下對齊的段落
-        if (opts.lineMode === 'abc' && (m.lineStart || lh.measures[mi].lineStart)) break;
+        if (abcStarts && abcStarts.has(mi)) break;
         const run = bothRun(mi);
         const r = run ? { pieces: runPieces(rh, mi, run) } : render(rh, slR, mi);
         const l = run ? { pieces: runPieces(lh, mi, run) } : render(lh, slL, mi);
