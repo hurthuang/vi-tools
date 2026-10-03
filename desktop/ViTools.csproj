@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ViTools</AssemblyName>
     <!-- app 版本：發佈 Release（標籤 desktop-v*）時更新；網頁從 window.vitoolsDesktop.appVersion 讀取 -->
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <RootNamespace>ViTools</RootNamespace>
   </PropertyGroup>
 

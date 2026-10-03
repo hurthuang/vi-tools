@@ -2,6 +2,7 @@
 //   啟動後自動檢查：有新版（只看 desktop-v*，略過預先發行與網頁版標籤）→ 跳出詢問
 //   Ctrl+Shift+U 手動檢查：已是最新版、檢查失敗都要告訴使用者
 import { createServer } from 'node:http';
+import { VER, NEXT, re } from '../version.mjs';
 
 export default {
   name: '檢查更新',
@@ -13,10 +14,10 @@ export default {
         { tag_name: 'v2.0.0', html_url: 'https://github.com/hurthuang/vi-tools/releases/tag/v2.0.0' },               // 不是桌面版的標籤
         { tag_name: 'desktop-v9.9.9', prerelease: true, html_url: 'https://github.com/x' },                          // 預先發行
         { tag_name: 'desktop-v8.0.0', draft: true, html_url: 'https://github.com/x' },                               // 草稿
-        { tag_name: 'desktop-v0.2.0', html_url: 'https://github.com/hurthuang/vi-tools/releases/tag/desktop-v0.2.0' },
-        { tag_name: 'desktop-v0.1.0', html_url: 'https://github.com/hurthuang/vi-tools/releases/tag/desktop-v0.1.0' },
+        { tag_name: `desktop-v${NEXT}`, html_url: `https://github.com/hurthuang/vi-tools/releases/tag/desktop-v${NEXT}` },
+        { tag_name: `desktop-v${VER}`, html_url: `https://github.com/hurthuang/vi-tools/releases/tag/desktop-v${VER}` },
       ],
-      same: [{ tag_name: 'desktop-v0.1.0', html_url: 'https://github.com/hurthuang/vi-tools/releases/tag/desktop-v0.1.0' }],
+      same: [{ tag_name: `desktop-v${VER}`, html_url: `https://github.com/hurthuang/vi-tools/releases/tag/desktop-v${VER}` }],
     };
     const server = createServer((req, res) => {
       state.hits = (state.hits || 0) + 1;
@@ -35,14 +36,14 @@ export default {
   async run({ cdp, check, sleep, closeAppMessageBox, state }) {
     // 啟動後自動檢查：有新版 → 詢問（按「否」，不開瀏覽器）
     const msg = await closeAppMessageBox(7);
-    check('啟動後自動檢查，有新版時詢問', /有新版本 v0\.2\.0（目前使用 v0\.1\.0）/.test(msg || ''), msg);
-    check('送出 app 版本的 User-Agent', /^ViTools\/0\.1\.0/.test(state.ua || ''), state.ua);
+    check('啟動後自動檢查，有新版時詢問', new RegExp(`有新版本 v${re(NEXT)}（目前使用 v${re(VER)}）`).test(msg || ''), msg);
+    check('送出 app 版本的 User-Agent', new RegExp(`^ViTools/${re(VER)}`).test(state.ua || ''), state.ua);
 
     // 手動檢查：已是最新版
     state.mode = 'same';
     await cdp.key('KeyU', 'U', 2 | 8);
     const same = await closeAppMessageBox();
-    check('Ctrl+Shift+U：已是最新版時告訴使用者', /已是最新版本（v0\.1\.0）/.test(same || ''), same);
+    check('Ctrl+Shift+U：已是最新版時告訴使用者', new RegExp(`已是最新版本（v${re(VER)}）`).test(same || ''), same);
 
     // 手動檢查：伺服器出錯
     state.mode = 'error';
@@ -54,7 +55,7 @@ export default {
     state.mode = 'newer';
     await cdp.key('KeyU', 'U', 2 | 8);
     const again = await closeAppMessageBox(7);
-    check('Ctrl+Shift+U：有新版時詢問', /有新版本 v0\.2\.0/.test(again || ''), again);
+    check('Ctrl+Shift+U：有新版時詢問', new RegExp(`有新版本 v${re(NEXT)}`).test(again || ''), again);
     await sleep(300);
   },
 };

@@ -1,3 +1,5 @@
+import { VER, re } from '../version.mjs';
+
 // window.vitoolsDesktop：桌面版提供給網頁的功能（第 2 步起網頁透過它使用桌面功能）
 export default {
   name: 'window.vitoolsDesktop 介面',
@@ -7,11 +9,11 @@ export default {
     for (const where of ['首頁', 'frame-bt', 'frame-g2', 'frame-nc', 'frame-p2a']) {
       const W = where === '首頁' ? 'window' : win(where);
       const info = await cdp.ev(`(() => { const d = ${W}.vitoolsDesktop; return d && { api: d.apiVersion, app: d.appVersion, fns: ['getVoices', 'previewAudio', 'exportAudio'].every(k => typeof d[k] === 'function') }; })()`);
-      check(`${where}：有 vitoolsDesktop（apiVersion 1、appVersion 0.1.0、三個函式）`,
-        info && info.api === 1 && info.app === '0.1.0' && info.fns, JSON.stringify(info));
+      check(`${where}：有 vitoolsDesktop（apiVersion 1、appVersion ${VER}、三個函式）`,
+        info && info.api === 1 && info.app === VER && info.fns, JSON.stringify(info));
     }
     const dl = await cdp.ev(`document.getElementById('app-download').textContent`);
-    check('首頁下方的下載連結改成顯示目前版本', /目前使用 Windows 桌面版 v0\.1\.0/.test(dl) && !(await cdp.ev(`!!document.querySelector('#app-download a')`)), dl);
+    check('首頁下方的下載連結改成顯示目前版本', new RegExp(`目前使用 Windows 桌面版 v${re(VER)}`).test(dl) && !(await cdp.ev(`!!document.querySelector('#app-download a')`)), dl);
 
     const D = `${win('frame-p2a')}.vitoolsDesktop`;
     const voices = await cdp.ev(`${D}.getVoices()`);
