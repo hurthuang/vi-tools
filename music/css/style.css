@@ -52,6 +52,9 @@
   --control: #85847d;
 }
 
+/* 只給報讀軟體的文字 */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
 /* ASCII 點字用的 SimBraille 字型：放在視障輔助工具集的 music/ 時，取用工具集根目錄的 SIMBRL.TTF */
 @font-face { font-family: 'SimBraille'; src: url('../../SIMBRL.TTF') format('truetype'); }
 
