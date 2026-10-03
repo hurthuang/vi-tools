@@ -145,7 +145,7 @@
       return voiceById[id];
     }
     function newDeco() {
-      return { dynamic: null, artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
+      return { dynamic: null, words: [], artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
     }
     function ensureMeasure(v) {
       if (!v.cur) {
@@ -238,6 +238,9 @@
         case 'Q': {
           const t = parseTempo(value);
           if (t && !score.tempo) score.tempo = t;
+          // 速度文字：Q:"Allegro" 1/4=120
+          const qt = /"([^"]*)"/.exec(value);
+          if (qt && qt[1].trim() && !score.tempoText) score.tempoText = qt[1].trim();
           break;
         }
         case 'K': {
@@ -423,7 +426,12 @@
         if ((m = /^"([^"]*)"/.exec(rest))) {
           const nav = navFromText(m[1]);
           if (nav) v.deco.nav.push(nav);
-          else warnKind('chordsym', '和弦名稱與文字註記（"..."）目前不轉換，已略過', pos);
+          // 註解文字（"^dolce"、"_rit." 等，開頭是 ^ _ < > @）：文字表情（Par. 22.3）
+          else if (/^[\^_<>@]/.test(m[1])) {
+            // 樂譜字型的符號（Unicode 私用區）略過；沒有字母的文字不轉換
+            const w = m[1].slice(1).replace(/[\ue000-\uf8ff]/g, '').trim();
+            if (/[A-Za-z\u00c0-\u024f\u3400-\u9fff]/.test(w)) v.deco.words.push(w);
+          } else warnKind('chordsym', '和弦名稱與文字註記（"..."）目前不轉換，已略過', pos);
           i += m[0].length;
           continue;
         }
@@ -612,6 +620,7 @@
       }
       const d = v.deco;
       if (d.dynamic) ev.dynamic = d.dynamic;
+      if (d.words.length) ev.words = d.words.slice();
       if (d.artic.length) ev.articulations = d.artic.slice();
       if (d.hairpinStart) ev.hairpinStart = d.hairpinStart;
       if (d.hairpinEnd) ev.hairpinEnd = d.hairpinEnd;

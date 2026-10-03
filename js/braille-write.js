@@ -304,6 +304,86 @@
     return { groups, hints, mismatch };
   }
 
+  // ---------- 文字表情（Par. 22.3）與開頭行文字（Par. 1.7） ----------
+  // 不縮寫的英文點字字母；重音字母照 UEB（例如 più → pi⠘⠡u）；中文用國語點字
+  const ACCENT_IN = { '̀': '^*', '́': '^/', '̂': '^%', '̈': '^3' }; // 抑、揚、抑揚、分音符號
+  const PUNCT_IN = { '.': "'", ',': '1', '!': '6', '?': '8', '-': '-', '(': '7', ')': '7', "'": "'", ':': '3', ';': '2' };
+  /**
+   * 文字 → BRF。heading 為開頭行文字（大小寫照原文、句尾加句點，Par. 1.7(a)）；
+   * 否則是樂譜中的文字表情（不分大小寫，句點寫成點 3；cresc.、decresc.、dim. 一律寫 cr'、decr'、dim'，Par. 22.3.2）。
+   * 回傳 { brf, unknown: [無法轉換的字元] }；中文需要國語點字表，沒有載入時 brf 為 null。
+   */
+  function encodeWords(text, heading) {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (!heading) {
+      const low = t.toLowerCase();
+      if (/^(cresc|cres|cr)\.?$/.test(low)) return { brf: "CR'", unknown: [] };
+      if (/^(decresc|decr)\.?$/.test(low)) return { brf: "DECR'", unknown: [] };
+      if (/^(dim|dimin)\.?$/.test(low)) return { brf: "DIM'", unknown: [] };
+    }
+    const zh = MB.zhBraille;
+    const chars = [...t.normalize('NFD')];
+    const hasZh = chars.some((c) => /[㐀-鿿豈-﫿]/.test(c));
+    if (hasZh && !(zh && zh.isLoaded())) return { brf: null, unknown: [] };
+    const zhOut = hasZh ? zh.translate(chars.join('')) : null;
+    let out = '';
+    let num = false;
+    const unknown = [];
+    chars.forEach((c, i) => {
+      if (/[0-9]/.test(c)) {
+        out += (num ? '' : '#') + B.upperNumber(+c);
+        num = true;
+        return;
+      }
+      num = false;
+      if (/[a-z]/.test(c)) out += c.toUpperCase();
+      else if (/[A-Z]/.test(c)) out += (heading ? ',' : '') + c;
+      else if (c === ' ') out += ' ';
+      else if (ACCENT_IN[c]) {
+        // NFD 拆開的重音符號要放在字母前面
+        const k = out.length - 1;
+        out = out.slice(0, k) + ACCENT_IN[c] + out.slice(k);
+      } else if (zhOut && zhOut[i] && zhOut[i].known && /[^\x00-\x7f]/.test(c)) out += B.toBrf(zhOut[i].brl);
+      else if (PUNCT_IN[c] != null) out += heading && c === '.' ? '4' : PUNCT_IN[c];
+      else unknown.push(c);
+    });
+    out = out.replace(/ {2,}/g, ' ').trim(); // 略過無法轉換的字元後留下的多餘空方
+    if (heading && !hasZh && !/[.!?]$/.test(t)) out += '4'; // 開頭行的文字以句點結尾（Par. 1.7(a)）
+    return { brf: out, unknown, zh: hasZh };
+  }
+  /** BRF → 文字（只能還原外文；中文點字無法還原成國字，回傳 null）。 */
+  function decodeWords(brf) {
+    const ABBR = { "CR'": 'cresc.', "DECR'": 'decresc.', "DIM'": 'dim.' };
+    if (ABBR[brf]) return ABBR[brf];
+    const ACC = { '^*': '̀', '^/': '́', '^%': '̂', '^3': '̈' };
+    let out = '';
+    let paren = false;
+    for (let i = 0; i < brf.length; i++) {
+      const c = brf[i];
+      const two = brf.slice(i, i + 2);
+      if (ACC[two] && /[A-Z]/.test(brf[i + 2] || '')) {
+        out += brf[i + 2].toLowerCase() + ACC[two];
+        i += 2;
+      } else if (c === ',' && /[A-Z]/.test(brf[i + 1] || '')) {
+        out += brf[++i];
+      } else if (/[A-Z]/.test(c)) out += c.toLowerCase();
+      else if (c === "'") out += '.';
+      else if ('1268'.includes(c)) out += { 1: ',', 2: ';', 6: '!', 8: '?' }[c];
+      else if (c === '3' && brf[i - 1] !== '^') out += ':';
+      else if (c === ' ') out += ' ';
+      else if (c === '7') {
+        out += paren ? ')' : '(';
+        paren = !paren;
+      } else if (c === '#') {
+        while (/[A-J]/.test(brf[i + 1] || '')) out += B.UPPER_DIGITS.indexOf(brf[++i]);
+      } else if (c === '-') out += '-';
+      else if (c === '4' && i === brf.length - 1) out += '.'; // 開頭行文字結尾的句點（文學點字 ⠲）
+      else return null;
+    }
+    return out.normalize('NFC');
+  }
+  MB.brailleWords = { encode: encodeWords, decode: decodeWords };
+
   // ---------- 單一事件 ----------
   function renderEvent(ev, ctx) {
     const flags = ctx.slurs.get(ev.id) || { short: false, open: 0, close: 0 };
@@ -315,6 +395,24 @@
     if (ctx.hint) head += ctx.hint === 'large' ? '^<1' : ',<1';
     let needOct = ctx.force;
     let words = '';
+    // 文字表情（Par. 22.3）：在力度之前（較一般的指示離音符較遠，22.3.6）；含空格的長表情另成一段，由 renderMeasure 放在前面
+    ctx.longWords = '';
+    if (ev.words) {
+      for (const w of ev.words) {
+        const e = encodeWords(w, false);
+        if (e.brf == null) {
+          ctx.warn && ctx.warn('國語點字表沒有載入，中文文字表情「' + w + '」無法轉換，已略過');
+          continue;
+        }
+        if (e.unknown.length && ctx.warn) ctx.warn('文字表情「' + w + '」中的 ' + e.unknown.join(' ') + ' 無法轉成點字，已略過');
+        // 含空格的長表情與中文（國語點字的方會和音樂記號混淆）都用前後各一個文字記號包起來，後面空一方（Par. 22.3.8）
+        // 只有字母（可帶重音、數字）與結尾句點的單字用簡短寫法；中間有句點或其他標點（m.g.、(rit.)）也包起來
+        const simple = /^(?:[A-Z]|\^[*\/%3](?=[A-Z])|#[A-J]+)+'?$/.test(e.brf);
+        if (!simple || e.zh) ctx.longWords += (ctx.longWords ? ' ' : '') + '>' + e.brf + '>';
+        else words += '>' + e.brf;
+      }
+      if (ev.words.length) needOct = true;
+    }
     if (ev.dynamic) words += '>' + ev.dynamic.toUpperCase();
     if (ev.hairpinStart) words += ev.hairpinStart === 'cresc' ? '>C' : '>D';
     if (words) needOct = true;
@@ -402,7 +500,8 @@
 
     let s = head + words;
     const body = r + tail;
-    if (words && B.hasDots123(body[0])) s += "'";
+    // 文字記號後面接含點 1、2、3 的符號要加點 3；已經以句點（點 3）結尾就不用再加（Par. 22.3(d)）
+    if (words && !words.endsWith("'") && B.hasDots123(body[0])) s += "'";
     s += body + after;
     ctx.wordEnd = !!after;
     return s;
@@ -431,7 +530,14 @@
     const voices = orderVoices(m.voices.filter((v) => v.length), dir);
     const pieces = [];
     // noOctave：教材初期尚未教音層記號的練習（僅供比對測試使用）
-    const ctx = { prev: opt.prev, dir, slurs: env.slurs, pedalOmit: env.pedalOmit, noOctave: !!env.opts.suppressOctaveMarks };
+    const ctx = {
+      prev: opt.prev, dir, slurs: env.slurs, pedalOmit: env.pedalOmit, noOctave: !!env.opts.suppressOctaveMarks,
+      warn: (msg) => {
+        if (env.warned.has(msg)) return;
+        env.warned.add(msg);
+        env.warnings.push({ msg, measure: mi });
+      },
+    };
     let prefix = '';
     if (m.startRepeat) prefix += '<7';
     if (m.volta) prefix += '#' + B.lowerNumber(m.volta);
@@ -465,8 +571,14 @@
         ctx.hint = plan.hints[ei];
         let text = renderEvent(ev, ctx);
         if (wasWordEnd && B.hasDots123(text[0])) text = "'" + text;
-        if (vi > 0 && ei === 0) text = '<>' + text;
-        pieces.push({ text, id: ev.id, vi, ei, cont: !!ctx.asEighth }); // cont：分組中的後續音
+        const lead = vi > 0 && ei === 0 ? '<>' : '';
+        if (ctx.longWords) {
+          // 含空格的長表情（Par. 22.3.8）：前後空方；在小節中間時，前面的音樂先寫音樂連字號。
+          // 每個字一個片段，可以在字與字之間換行（續行不用音樂連字號，Ex 22.3.8-2）
+          const head = lead ? lead + ' ' : ei > 0 ? '" ' : '';
+          ctx.longWords.split(' ').forEach((w, k) => pieces.push({ text: (k ? ' ' : head) + w, id: ev.id, vi, ei, wbreak: k > 0 }));
+          pieces.push({ text: ' ' + text, id: ev.id, vi, ei, wbreak: true });
+        } else pieces.push({ text: lead + text, id: ev.id, vi, ei, cont: !!ctx.asEighth }); // cont：分組中的後續音
       });
     });
     const endsWithWord = ctx.wordEnd; // 小節最後寫的是文字記號（下一小節第一個音要寫音層記號）
@@ -549,9 +661,24 @@
     if (score.tempo) headParts.push(tempoSig(score.tempo));
     const sig = signatureText(m0.key, null, m0.meter);
     if (sig) headParts.push(sig);
-    if (headParts.length) {
+    // 開頭行的速度文字（例如 Allegro、中板，Par. 1.7(a)）：ABC 的 Q:"Allegro"、MusicXML 和速度數字在一起的文字。
+    // 第一個音上的其他文字表情照 Ex 22.3.8-1 寫在音樂裡
+    let headBrf = '';
+    if (score.tempoText) {
+      const e = encodeWords(score.tempoText, true);
+      if (e.brf) headBrf = e.brf;
+      else env.warnings.push({ msg: '國語點字表沒有載入，速度文字「' + score.tempoText + '」無法轉換，已略過' });
+    }
+    // 整個開頭行放不下（兩邊至少各留三方空白）時，速度數字與調號拍號移到下一行置中（Par. 1.7(c)）
+    const headLines = [];
+    const all = [headBrf].concat(headParts).filter(Boolean).join(' ');
+    if (headBrf && all.length > opts.width - 6) {
+      headLines.push(headBrf);
+      if (headParts.length) headLines.push(headParts.join(' '));
+    } else if (all) headLines.push(all);
+    for (const h of headLines) {
       const l = new Line();
-      l.add(center(headParts.join(' '), opts.width));
+      l.add(center(h, opts.width));
       lines.push(l);
     }
 
@@ -609,10 +736,12 @@
         let k = start;
         const row = [];
         while (k < ps.length) {
-          const w = ps[k].text.length;
+          // 長表情裡的空方換到下一行時，行首不寫空方
+          const p = k === start && ps[k].wbreak && rows.length ? Object.assign({}, ps[k], { text: ps[k].text.replace(/^ /, '') }) : ps[k];
+          const w = p.text.length;
           const isLast = k === ps.length - 1;
           if (used + w + (isLast ? 0 : 1) > room && row.length) break;
-          row.push(ps[k]);
+          row.push(p);
           used += w;
           k++;
         }
@@ -626,7 +755,8 @@
           k--;
         }
         if (k === start) return null;
-        row.push({ text: '"', id: null });
+        // 在長表情的字與字之間（或表情與後面的音之間）換行：不用音樂連字號
+        if (!ps[k].wbreak) row.push({ text: '"', id: null });
         rows.push(row);
         forced.add(ps[k].vi + ':' + ps[k].ei); // 換行後第一個音要加音層記號
         start = k;

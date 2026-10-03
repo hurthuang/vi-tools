@@ -104,10 +104,12 @@
           m.startRepeat ? ['repeat', { direction: 'forward' }] : null,
         ]);
       }
+      if (mi === 0 && !score.tempo && score.tempoText) content.push(['direction', { placement: 'above' }, ['direction-type', ['words', score.tempoText]]]);
       if (mi === 0 && score.tempo) {
         const t = score.tempo;
         content.push([
           'direction', { placement: 'above' },
+          score.tempoText ? ['direction-type', ['words', score.tempoText]] : null,
           ['direction-type', ['metronome', ['beat-unit', TYPE[t.value]], t.dots ? ['beat-unit-dot'] : null, ['per-minute', t.bpm]]],
           ['sound', { tempo: Math.round((t.bpm * M.valueTicks(t.value, t.dots)) / TPQ) }],
         ]);
@@ -182,6 +184,8 @@
     if (ev.dynamic) dirs.push(['direction-type', ['dynamics', [ev.dynamic]]]);
     if (ev.hairpinStart) dirs.push(['direction-type', ['wedge', { type: ev.hairpinStart === 'cresc' ? 'crescendo' : 'diminuendo' }]]);
     if (dirs.length) out.push(['direction', { placement: 'below' }].concat(dirs, [staff ? ['staff', staff] : null]));
+    // 文字表情放在五線譜上方
+    if (ev.words && ev.words.length) out.push(['direction', { placement: 'above' }].concat(ev.words.map((w) => ['direction-type', ['words', w]]), [staff ? ['staff', staff] : null]));
 
     const type = ev.measureRest ? null : TYPE[ev.value];
     const dots = ev.measureRest ? 0 : ev.dots || 0;
@@ -458,7 +462,16 @@
                 if (nav === 'codaStart') meas.codaStart = true;
                 else if (nav && typeof nav === 'object') meas.jump = nav;
                 else if (nav) meas[nav] = true;
-                else if (w.text.trim()) warnOnce('words', '文字表情（如 cresc.、rit.）目前不轉換，已略過');
+                else {
+                  // 樂譜字型的符號（Unicode 私用區，例如速度標記裡的音符圖形）略過
+                  const t = w.text.replace(/[-]/g, '').trim();
+                  // 只有數字、符號（例如 = 72、.00）的文字不轉換
+                  if (!/[A-Za-zÀ-ɏ㐀-鿿]/.test(t)) continue;
+                  // 和速度數字在同一個 direction 的文字是速度文字（Allegro、中板）
+                  const withMet = X.children(el, 'direction-type').some((d) => X.child(d, 'metronome'));
+                  if (withMet && !score.tempoText) score.tempoText = t;
+                  else (pd.words = pd.words || []).push(t);
+                }
               }
             }
             const snd = X.child(el, 'sound');
@@ -716,6 +729,8 @@
             const pd = pendingDir[sn];
             if (pd && note) {
               if (pd.dynamic) ev.dynamic = pd.dynamic;
+              if (pd.words && pd.words.length) ev.words = pd.words;
+              pd.words = null;
               if (pd.hairpinStart) ev.hairpinStart = pd.hairpinStart;
               pd.dynamic = null;
               pd.hairpinStart = null;

@@ -38,6 +38,7 @@
     if (ctx && ctx.hand) parts.push(ctx.hand === 'R' ? '右手' : '左手');
     if (ev.pedalChange) parts.push('換踏板');
     else if (ev.pedalDown) parts.push('踩踏板');
+    for (const w of ev.words || []) parts.push('文字「' + w + '」');
     if (ev.dynamic) parts.push(DYN_NAME[ev.dynamic] || ev.dynamic);
     if (ev.hairpinStart) parts.push(ev.hairpinStart === 'cresc' ? '漸強開始' : '漸弱開始');
     if (ev.slurStart) parts.push('圓滑線開始');
@@ -96,6 +97,7 @@
     if (score.title) head.push('曲名 ' + score.title);
     if (score.composer) head.push('作曲 ' + score.composer);
     head.push(keyText(M.keyAt(p0, 0)), meterText(M.meterAt(p0, 0)));
+    if (score.tempoText) head.push('速度文字「' + score.tempoText + '」');
     if (score.tempo && score.tempo.bpm) head.push('速度 每分鐘 ' + score.tempo.bpm + ' 個' + durationName({ value: score.tempo.value, dots: score.tempo.dots, kind: 'note' }));
     head.push('共 ' + p0.measures.length + ' 小節' + (score.keyboard ? '，鋼琴雙手' : ''));
     lines.push(head.join('，'));

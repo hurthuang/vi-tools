@@ -63,6 +63,8 @@
     if (ev.pedalChange) s += '!ped-up!!ped!';
     if (ev.pedalDown) s += '!ped!';
     if (ev.pedalUp) s += '!ped-up!';
+    // 文字表情：寫成五線譜上方的註解文字
+    for (const w of ev.words || []) s += '"^' + w.replace(/"/g, "'") + '"';
     if (ev.dynamic) s += '!' + ev.dynamic + '!';
     // 漸強漸弱用 !crescendo(! 等完整名稱（abcjs 不認得 !<(!）
     if (ev.hairpinStart) s += ev.hairpinStart === 'cresc' ? '!crescendo(!' : '!diminuendo(!';
@@ -103,7 +105,7 @@
     if (score.composer) add('C:' + score.composer + '\n');
     add('M:' + meterStr(m0.meter || { num: 4, den: 4 }) + '\n');
     add('L:1/8\n');
-    if (score.tempo) add('Q:' + tempoStr(score.tempo) + '\n');
+    if (score.tempo || score.tempoText) add('Q:' + [score.tempoText ? '"' + score.tempoText + '"' : '', score.tempo ? tempoStr(score.tempo) : ''].filter(Boolean).join(' ') + '\n');
     if (score.keyboard) {
       add('%%score {RH | LH}\n');
       add('V:RH clef=treble name="R.H."\n');

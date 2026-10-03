@@ -18,6 +18,9 @@
   const FINGER_IN = { A: '1', B: '2', L: '3', 1: '4', K: '5' };
   // 不規則連音常見的「佔幾個」比例（依常見程度排序）
   const TUPLET_OF = { 2: [3], 3: [2, 4], 4: [3, 6], 5: [4, 6, 3], 6: [4, 2, 3], 7: [4, 8, 6], 8: [6, 3], 9: [8, 6], 10: [8], 11: [8], 12: [8], 13: [8], 14: [8], 15: [8, 16], 16: [12] };
+  const LONG_SP = '\u0001'; // 長表情（Par. 22.3.8）裡的空方，避免被當成小節分隔
+  // 文字表情常見的縮寫（後面的點 3 是句點）。整字後面接含點 1、2、3 的符號時也要寫點 3（分隔），兩者寫法相同，只能靠字來判斷
+  const ABBR_WORDS = ['rit', 'ritard', 'rall', 'accel', 'cresc', 'decresc', 'dim', 'dimin', 'espr', 'espress', 'ten', 'marc', 'leg', 'legg', 'stacc', 'sost', 'sim', 'string', 'smorz', 'perd', 'cantab', 'pizz', 'arco', 'ped', 'loco', 'cr', 'decr', 'sfz', 'rf', 'rfz'];
   const DYNAMICS = ['PPPP', 'PPP', 'PP', 'P', 'MP', 'MF', 'F', 'FF', 'FFF', 'FFFF', 'SFZ', 'SF', 'FP', 'FZ', 'RFZ'];
 
   const isNote = (c) => c !== undefined && c in NOTE_INFO;
@@ -87,7 +90,7 @@
     const n = s.length;
 
     function newPre() {
-      return { acc: null, oct: null, tuplet: null, hint: null, dynamic: null, artic: [], open: 0, hairpinStart: null, start: -1, grace: null, ornaments: [], pedalDown: false, pedalChange: false };
+      return { acc: null, oct: null, tuplet: null, hint: null, dynamic: null, words: null, artic: [], open: 0, hairpinStart: null, start: -1, grace: null, ornaments: [], pedalDown: false, pedalChange: false };
     }
     function mark(k) {
       if (pre.start < 0) pre.start = k;
@@ -103,6 +106,30 @@
       const c1 = s[i + 1];
       const c2 = s[i + 2];
       const at = i;
+      if (c === LONG_SP) { i++; continue; } // 長表情與音樂之間的空方
+      // 文字表情（Par. 22.3）
+      const addWords = (brf) => {
+        const d = MB.brailleWords.decode(brf);
+        if (d == null) {
+          if (!warn.wordsNoted) {
+            warn.wordsNoted = true; // 只提醒一次
+            warn('中文（國語點字）等無法還原的文字表情已略過', pos[at]);
+          }
+          return;
+        }
+        mark(at);
+        (pre.words = pre.words || []).push(d);
+      };
+      // 以文字記號包起來、後面空一方的一段（中文的文字表情等，國語點字的方會和音樂記號混淆）：整段是文字
+      if (c === '>' && (i === 0 || s[i - 1] === LONG_SP)) {
+        const seg = s.slice(i).split(LONG_SP)[0];
+        if (seg.length > 2 && seg[seg.length - 1] === '>' && s[i + seg.length] === LONG_SP && !/ /.test(seg)) {
+          addWords(seg.slice(1, -1));
+          i += seg.length;
+          lastKind = null;
+          continue;
+        }
+      }
       // ---- 踏板（Par. 29.10） ----
       if (c === '<' && c1 === 'C') { mark(at); pre.pedalDown = true; i += 2; lastKind = null; continue; }
       if (c === '*' && c1 === '<' && c2 === 'C') { mark(at); pre.pedalChange = true; i += 3; lastKind = null; continue; }
@@ -323,15 +350,31 @@
         continue;
       }
       if (c === '>') {
-        const wm = /^>([A-Z]+|[34])('?)/.exec(s.slice(i));
+        // 含空格的長表情 >molto espr'>（Par. 22.3.8）
+        const lm = /^>([^>]* [^>]*)>/.exec(s.slice(i));
+        if (lm) {
+          addWords(lm[1]);
+          i += lm[0].length;
+          lastKind = null;
+          continue;
+        }
+        // 單字的文字表情：字母、重音字母（^* 等）、數字、句點（點 3）
+        const wm = /^>((?:[A-Z]|\^[*\/%3](?=[A-Z])|#[A-J]+)+|[34])('?)/.exec(s.slice(i));
         if (!wm) { i++; continue; }
-        const w = wm[1];
-        if (DYNAMICS.includes(w)) { mark(at); pre.dynamic = w.toLowerCase(); }
-        else if (w === 'C') { mark(at); pre.hairpinStart = 'cresc'; }
-        else if (w === 'D') { mark(at); pre.hairpinStart = 'dim'; }
-        else if (w === '3') { if (last) last.hairpinEnd = 'cresc'; }
-        else if (w === '4') { if (last) last.hairpinEnd = 'dim'; }
-        else if (w !== 'K' && w !== 'KK') warn('文字表情記號「' + w.toLowerCase() + '」目前不轉換，已略過', pos[at]);
+        const core = wm[1];
+        if (DYNAMICS.includes(core)) { mark(at); pre.dynamic = core.toLowerCase(); }
+        else if (core === 'C') { mark(at); pre.hairpinStart = 'cresc'; }
+        else if (core === 'D') { mark(at); pre.hairpinStart = 'dim'; }
+        else if (core === '3') { if (last) last.hairpinEnd = 'cresc'; }
+        else if (core === '4') { if (last) last.hairpinEnd = 'dim'; }
+        else if (core !== 'K' && core !== 'KK') {
+          // 結尾的點 3：縮寫的句點（rit.），或整字後面的分隔（dolce 後接含點 1、2、3 的符號）
+          // 點 3 後面接的不是含點 1、2、3 的符號：一定是句點；否則只有常見縮寫或很短的字才當作句點
+          const next = s[i + wm[0].length];
+          const word = MB.brailleWords.decode(core) || '';
+          const period = wm[2] && (!(next && B.hasDots123(next)) || ABBR_WORDS.includes(word) || word.length <= 3);
+          addWords(period ? core + "'" : core);
+        }
         i += wm[0].length;
         lastKind = null;
         continue;
@@ -399,6 +442,7 @@
           tuplet: pre.tuplet,
           hint: pre.hint,
           dynamic: pre.dynamic,
+          words: pre.words,
           artic: pre.artic.length ? pre.artic : null,
           open: pre.open,
           hairpinStart: pre.hairpinStart,
@@ -504,17 +548,39 @@
     let headKey = null;
     let headMeter = null;
 
+    /** 開頭行的速度文字；中文等無法還原的文字只提醒。 */
+    function headText(h) {
+      if (h.text && !score.tempoText) score.tempoText = h.text;
+      if (h.textUnknown) warn('開頭行的文字（例如中文的速度文字）無法從點字還原，已略過', null);
+    }
+
     /** 判斷是否為標頭行（速度、調號、拍號）。 */
     function tryHeading(text) {
       const toks = text.trim().split(/\s+/);
       if (!toks[0]) return false;
       const found = {};
-      for (const t of toks) {
+      // 開頭的文字（速度、風格，Par. 1.7(a)），例如 ,ALLEGRO4；之後才是速度數字與調號拍號
+      const words = [];
+      let unknown = false;
+      let k = 0;
+      for (; k < toks.length && !parseTempo(toks[k]) && !parseSig(toks[k]); k++) {
+        const d = MB.brailleWords.decode(toks[k]);
+        if (d == null) unknown = true;
+        else words.push(d);
+      }
+      for (const t of toks.slice(k)) {
         const tp = parseTempo(t);
         if (tp) { found.tempo = tp; continue; }
         const sg = parseSig(t);
         if (sg) { Object.assign(found, sg); continue; }
         return false;
+      }
+      const hasSig = found.tempo || found.key || found.meter;
+      if (k > 0) {
+        // 只有文字的行：要在音樂開始前、置中，而且以句點（⠲）結尾才算速度文字，否則可能是曲名或音樂的續行
+        if (!hasSig && (musicStarted || !/^\s{3,}/.test(text) || unknown || !/\.$/.test(words.join(' ')))) return false;
+        if (unknown) found.textUnknown = true;
+        else found.text = words.join(' ').replace(/\.$/, '');
       }
       return found;
     }
@@ -544,8 +610,9 @@
     /** 以空白切成片段。 */
     Buffer.prototype.tokens = function () {
       const out = [];
-      // 獨立的文字指示（如 >D'C' AL FINE>）內含空白：先把空白保護起來，整段當一個片段
-      const text = this.text.replace(/(^|\s)(>[A-Z'][A-Z' ]*>)(?=\s|$)/g, (all, pre, w) => pre + w.replace(/ /g, '\u0003'));
+      // 含空白的文字（反覆指示 >D'C' AL FINE>、長表情 >molto espr'>）：先把空白保護起來，整段當一個片段。
+      // 長表情可以接在行尾音樂連字號之後（前一段音樂直接相連，例如 DEF>PI^*U P'>）
+      const text = this.text.replace(/(^|\s|[^\s>])(>[A-Z'^,7][A-Z'^*\/%3#\-7, 1268]*>)(?=\s|$)/g, (all, pre, w) => pre + w.replace(/ /g, '\u0003'));
       const re = /\S+/g;
       let m;
       while ((m = re.exec(text))) out.push({ text: m[0].replace(/\u0003/g, ' '), pos: this.pos.slice(m.index, m.index + m[0].length) });
@@ -589,6 +656,7 @@
           const h = tryHeading(l.text);
           if (h) {
             if (h.tempo) score.tempo = h.tempo;
+            headText(h);
             if (h.key) headKey = h.key;
             if (h.meter) headMeter = h.meter;
             continue;
@@ -699,6 +767,7 @@
         if (h) {
           if (!musicStarted) {
             if (h.tempo) score.tempo = h.tempo;
+            headText(h);
             if (h.key) headKey = h.key;
             if (h.meter) headMeter = h.meter;
           } else pendingSig = l.text.trim(); // 段落標頭（換調、換拍號）原文
@@ -760,6 +829,26 @@
     }
     let pendingSig = null;
 
+    /**
+     * 含空格的長表情（Par. 22.3.8）>molto espr'>：後面空一方接著的音樂屬於同一小節；
+     * 前面是聲部記號 <>（in-accord）時也接在一起。兩段之間以 LONG_SP 相接
+     */
+    function joinLongWords(toks) {
+      const joined = [];
+      for (const t of toks) {
+        const prev = joined[joined.length - 1];
+        // 以文字記號包起來的一段：>molto espr'>，或中文 >…>（片段開頭與結尾都是 ⠜）
+        const closed = (x) => x.length > 2 && x[0] === '>' && x[x.length - 1] === '>';
+        const longEnd = (x) => !navToken(x.text) && (/(^|[^>])>[A-Z'^,7][^>]* [^>]*>$/.test(x.text) || closed(x.text.split(LONG_SP).pop()));
+        const isLong = (/^>[A-Z'^,7][^>]* [^>]*>$/.test(t.text) || closed(t.text)) && !navToken(t.text);
+        if (prev && ((isLong && /<>$/.test(prev.text)) || (longEnd(prev) && !navToken(t.text) && !parseSig(t.text)))) {
+          prev.text += LONG_SP + t.text;
+          prev.pos = prev.pos.concat([t.pos[0] - 1], t.pos);
+        } else joined.push({ text: t.text, pos: t.pos.slice(), cont: t.cont });
+      }
+      return joined;
+    }
+
     // ---------- 建立各聲部 ----------
     const partsTokens = [];
     if (keyboard) {
@@ -771,7 +860,11 @@
         partsTokens.push({ hand, toks: hands[hand], sigAt, single: true });
       } else {
         // 只計算小節（不含反覆指示、換調換拍號）
-        const countM = (ts) => ts.filter((t) => !navToken(t.text) && !(parseSig(t.text) || {}).meter && !(parseSig(t.text) || {}).key).length;
+        // 接在行中音樂連字號後面的片段屬於同一小節，不另計
+        const countM = (ts) =>
+          ts.filter((t, k) => !navToken(t.text) && !(parseSig(t.text) || {}).meter && !(parseSig(t.text) || {}).key && !(k > 0 && /[^'"]("|\.K)$/.test(ts[k - 1].text) && !parseSig(ts[k - 1].text))).length;
+        hands.R = joinLongWords(hands.R);
+        hands.L = joinLongWords(hands.L);
         const nR = countM(hands.R);
         const nL = countM(hands.L);
         if (nR !== nL) warn('右手與左手的小節數不同（' + nR + ' / ' + nL + '）', null);
@@ -783,11 +876,17 @@
     }
 
     for (const pt of partsTokens) {
+      pt.toks = joinLongWords(pt.toks);
       // 行中的音樂連字號（例如小節中途的反覆記號前）：與下一段合併成同一小節
       const merged = [];
       for (const t of pt.toks) {
         const prevTok = merged[merged.length - 1];
         if (prevTok && prevTok._open && !barLike(prevTok.text, t.text)) {
+          // 接在音樂連字號後的文字表情 >…>：中間放 LONG_SP，讓它和片段開頭一樣被認出來
+          if (t.text[0] === '>') {
+            prevTok.text += LONG_SP;
+            prevTok.pos = prevTok.pos.concat([t.pos[0] - 1]);
+          }
           prevTok.text += t.text;
           prevTok.pos = prevTok.pos.concat(t.pos);
           prevTok._open = /("|\.K)$/.test(prevTok.text);
@@ -1200,6 +1299,7 @@
           }
           if (r._factor) ev.tuplet = { n: r._factor.n, of: r._factor.of, start: !!r._tupStart, end: !!r._tupEnd };
           if (r.dynamic) ev.dynamic = r.dynamic;
+          if (r.words) ev.words = r.words;
           // 斷奏、重音等的重複（Par. 22.1.1）：記號寫兩次表示連續數個音都有，
           // 最後一個音再寫一次表示結束；中間的音不寫
           {
