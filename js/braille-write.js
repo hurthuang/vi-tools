@@ -25,6 +25,8 @@
   // Table 22(A) 的順序：琶音、斷奏、重音、持音
   const ARTIC_ORDER = ['arpeggio', 'staccato', 'staccatissimo', 'accent', 'tenuto'];
   const ARTIC = { arpeggio: '>K', staccato: '8', staccatissimo: ',8', accent: '.8', tenuto: '_8' };
+  // 換氣記號（Table 22(B)）：(a) ⠜⠂ 一般的換氣記號（逗號或打勾形），(b) ⠠⠌ 斷句記號（caesura）；寫在音符後面
+  const breathSigns = (artic) => (artic.includes('breath') ? '>1' : '') + (artic.includes('caesura') ? ',/' : '');
   const HAND = { R: '.>', L: '_>' };
   // 讀者對倚音時值的預設讀法（依點字符號類別）：長倚音取較長時值，短倚音取常見的小時值
   const GRACE_LONG = [16, 2, 4, 8];
@@ -349,6 +351,7 @@
     if (ev.kind === 'rest') {
       r += ev.measureRest ? 'M' : REST[cls] + "'".repeat(ev.dots || 0);
       if (artic.includes('fermata')) r += '<L';
+      r += breathSigns(artic);
     } else {
       const notes = sortedNotes(ev);
       const down = ctx.dir === 'down';
@@ -384,6 +387,7 @@
       });
       ctx.prev = wd;
       if (artic.includes('fermata')) tail += '<L';
+      tail += breathSigns(artic);
       if (flags.dbl) tail += 'CC';
       else if (flags.short) tail += flags.conv ? ',C' : 'C';
       tail += '^2'.repeat(flags.close);

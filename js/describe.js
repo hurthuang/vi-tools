@@ -65,6 +65,8 @@
     const lyr = ev.lyrics && ev.lyrics[0];
     if (lyr) parts.push(lyr.extend ? '歌詞延長' : '歌詞「' + lyr.text + '」');
     if (ev.slurEnd) parts.push('圓滑線結束');
+    if ((ev.articulations || []).includes('breath')) parts.push('換氣');
+    if ((ev.articulations || []).includes('caesura')) parts.push('斷句');
     if (ev.hairpinEnd) parts.push(ev.hairpinEnd === 'cresc' ? '漸強結束' : '漸弱結束');
     if (ev.pedalUp) parts.push('放開踏板');
     return parts.join('，');

@@ -515,6 +515,24 @@ for (const s of MB.samples) {
   });
 }
 
+// ---------- 換氣記號（Table 22(B)、Par. 22.2） ----------
+{
+  // Ex 22.2-1：⠠⠌ 斷句記號、⠜⠂ 換氣記號寫在音符（含附點）後面
+  const r = MB.parseBraille('                    #D4\nA .>"R,/S<L "\\\'>1I$] "O%NB<L %"Q+<LR0<K');
+  const m = r.score.parts[0].measures;
+  check('Ex 22.2-1：讀到斷句記號與換氣記號', r.warnings.length === 0 && m[0].voices[0][0].articulations.includes('caesura') && m[1].voices[0][0].articulations.includes('breath') && m[1].voices[0][0].dots === 1, r.warnings.map((w) => w.msg).join('；'));
+  const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D !breath!E F | G4 |]');
+  const b = MB.toBraille(a.score).brf.split('\n')[1];
+  check('換氣記號：ABC !breath! 寫成 ⠜⠂（在音符後面）', b === '#A "?:$>1] (<K', b);
+  const back = MB.parseBraille(MB.toBraille(a.score).brf).score;
+  check('換氣記號：點字讀回、ABC、MusicXML 都保留', (back.parts[0].measures[0].voices[0][2].articulations || []).includes('breath') && /!breath!E/.test(MB.toAbc(a.score).abc) && /<breath-mark\/>/.test(MB.toMusicXML(a.score)) && (MB.parseMusicXML(MB.toMusicXML(a.score)).score.parts[0].measures[0].voices[0][2].articulations || []).includes('breath'));
+  // 小節結尾的 ⠣⠂（音樂逗號，Par. 8.3）後面沒有音：提醒可能是誤寫的換氣記號；規範例 8.3-1 的正常用法不提醒
+  const w = MB.parseBraille('               #B4\n#A "?FF HF?<1 HFED EH\\<1').warnings;
+  check('音樂逗號：小節結尾的 ⠣⠂ 提醒一次', w.length === 1 && /⠜⠂/.test(w[0].msg), w.map((x) => x.msg).join('；'));
+  const ok = MB.parseBraille('                 #C4\n#A X<1"DJIH<1I HGF<1GFE D<1EDJ<1\'DF\n  _H"D_HFDJ N\'<K').warnings;
+  check('音樂逗號：Ex 8.3-1 的正常用法不提醒', ok.length === 0, ok.map((x) => x.msg).join('；'));
+}
+
 // ---------- 歌詞 ----------
 {
   const SONG = 'X:1\nT:小星星\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |\nw:一 閃 一 閃 亮 晶 晶\nF F E E | D D C2 |]\nw:滿 天 都 是 小 星 星\n';

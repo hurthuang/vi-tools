@@ -12,7 +12,7 @@
   const TYPE_VALUE = { whole: 1, half: 2, quarter: 4, eighth: 8, '16th': 16, '32nd': 32, '64th': 64, '128th': 128 };
   const ACC_OUT = { sharp: 'sharp', flat: 'flat', natural: 'natural', dsharp: 'double-sharp', dflat: 'flat-flat' };
   const ACC_IN = { sharp: 'sharp', flat: 'flat', natural: 'natural', 'double-sharp': 'dsharp', 'sharp-sharp': 'dsharp', 'flat-flat': 'dflat', 'double-flat': 'dflat' };
-  const ARTIC_OUT = { staccato: 'staccato', staccatissimo: 'staccatissimo', accent: 'accent', tenuto: 'tenuto' };
+  const ARTIC_OUT = { staccato: 'staccato', staccatissimo: 'staccatissimo', accent: 'accent', tenuto: 'tenuto', breath: 'breath-mark', caesura: 'caesura' };
   const ORN_OUT = { trill: 'trill-mark', mordent: 'mordent', uppermordent: 'inverted-mordent', turn: 'turn', invertedturn: 'inverted-turn' };
   const ORN_IN = { 'trill-mark': 'trill', mordent: 'mordent', 'inverted-mordent': 'uppermordent', turn: 'turn', 'delayed-turn': 'turn', 'inverted-turn': 'invertedturn', 'delayed-inverted-turn': 'invertedturn' };
   const JUMP_TEXT = (j) => (j.type === 'DC' ? 'D.C.' : 'D.S.') + (j.to === 'fine' ? ' al Fine' : j.to === 'coda' ? ' al Coda' : '');
@@ -704,6 +704,8 @@
                   else if (a.name === 'staccatissimo' || a.name === 'spiccato') arts.push('staccatissimo');
                   else if (a.name === 'accent' || a.name === 'strong-accent') arts.push('accent');
                   else if (a.name === 'tenuto') arts.push('tenuto');
+                  else if (a.name === 'breath-mark') arts.push('breath');
+                  else if (a.name === 'caesura') arts.push('caesura');
                 }
               if (X.child(nots, 'fermata')) arts.push('fermata');
               if (X.child(nots, 'arpeggiate')) arts.push('arpeggio');
