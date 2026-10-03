@@ -565,6 +565,20 @@ for (const s of MB.samples) {
   }
 }
 
+// ---------- 點字分行：跟隨 ABC 換行 ----------
+{
+  const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\ne2 d c | A d2 c | B e2 d |\nc2 f e | d g2 f | e c a c | B/c/d/e/ f/g/a/b/ |\nc\'2 z2 |]');
+  const b = MB.toBraille(a.score, { lineMode: 'abc' }).brf.split('\n');
+  check('跟隨 ABC 換行：每行 ABC 一段，開頭寫小節編號', b.length === 4 && /^#A /.test(b[1]) && /^#D \.N/.test(b[2]) && /^#H ;NU<K$/.test(b[3]), b.join(' | '));
+  check('跟隨 ABC 換行：讀回時小節正確', MB.toAbc(MB.parseBraille(b.join('\n')).score).abc.split('\n').filter((l) => /\|/.test(l)).join('').replace(/\s/g, '') === MB.toAbc(a.score).abc.split('\n').filter((l) => /\|/.test(l)).join('').replace(/\s/g, ''));
+  // 一行 ABC 太長：接到續行，不另寫小節編號
+  const long = MB.toBraille(a.score, { lineMode: 'abc', width: 20 }).brf.split('\n');
+  check('跟隨 ABC 換行：太長的行接續行，只在段落開頭寫小節編號', long.filter((l) => /^#[A-J]+ /.test(l)).length === 3 && long.every((l) => l.length <= 20), long.join(' | '));
+  const k = MB.parseAbc('X:1\nM:4/4\nL:1/4\n%%score {RH | LH}\nV:RH\nV:LH clef=bass\nK:C\n[V:RH] c d e f | g a b c\' |\n[V:LH] C,4 | G,4 |\n[V:RH] c\'4 | c4 |]\n[V:LH] C,4 | C,4 |]');
+  const kb = MB.toBraille(k.score, { lineMode: 'abc' }).brf.split('\n');
+  check('跟隨 ABC 換行：鋼琴譜在 ABC 換行處分段', kb.length === 5 && /^A /.test(kb[1]) && /^C /.test(kb[3]), kb.join(' | '));
+}
+
 // ---------- 點字對照（五線譜下方標示點字與音名） ----------
 {
   const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\ne2 d c | A d2 c | B e2 d | c2 f e |\nd g2 f | e c a c | B/c/d/e/ f/g/a/b/ | c\'2 z2 |]');
