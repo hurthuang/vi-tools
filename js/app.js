@@ -892,6 +892,13 @@
     if (a === brlTA) return findByPos('brl', brlTA.selectionStart);
     return state.current;
   }
+  // Esc：停止播放（只在播放中攔截，平常 Esc 仍交給報讀軟體與其他元件）
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !synth || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    stopPlay();
+    playerStatus('已停止');
+  });
   // Ctrl+Enter：從游標處播放；播放中再按一次停止
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
