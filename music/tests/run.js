@@ -533,6 +533,38 @@ for (const s of MB.samples) {
   check('音樂逗號：Ex 8.3-1 的正常用法不提醒', ok.length === 0, ok.map((x) => x.msg).join('；'));
 }
 
+// ---------- 文字表情（Par. 22.3）與速度文字（Par. 1.7） ----------
+{
+  const words = (sc) => sc.parts.map((p) => p.measures.map((m) => m.voices[0].map((e) => (e.words || []).join('+')).join(','))).join(' / ');
+  // Ex 22.3.8-1：含空格的長表情 >molto espr'>、在小節中間（前面有音樂連字號）、跨行
+  const e1 = MB.parseBraille('              %%#F8\n#a >molto espr\'> >mp.]"i.:j def"\n  >pi^*u p\'> "[h ]\'@cgxx<k');
+  check('Ex 22.3.8-1：長表情讀入', e1.warnings.length === 0 && words(e1.score) === 'molto espr.,,,,,,,più p.,,,,,', words(e1.score) + ' ' + e1.warnings.map((w) => w.msg).join('；'));
+  // Ex 22.3.8-2：兩段長表情、表情中的括號、表情跨行
+  const e2 = MB.parseBraille('                  <#F8\n#A >MOLTO GIOCOSO> >NON LEGATO>\n  >FF_E=&EDID E)YE" >pOCO A POCO PIU\n  LEGATO> >7MENO F\'7> _FGH I^!_!^IHI_F\n  _:\'@C:X<K');
+  check('Ex 22.3.8-2：兩段長表情與括號', e2.warnings.length === 0 && /molto giocoso\+non legato/.test(words(e2.score)) && /poco a poco piu legato\+\(meno f\.\)/.test(words(e2.score)), words(e2.score));
+  const abc = 'X:1\nT:Test\nM:4/4\nL:1/4\nQ:"Allegro" 1/4=120\nK:C\nC D "^dolce"E F | "^rit."G A "^a tempo"B c | "^più mosso"d e "^m.g."f g | c4 |]';
+  const a = MB.parseAbc(abc);
+  const b = MB.toBraille(a.score).brf.split('\n');
+  check('速度文字寫在開頭行（Par. 1.7）', b[2].trim() === ',ALLEGRO4 ?7#ABJ #D4', b[2]);
+  check('文字表情：單字、縮寫句點、長表情、重音字母、中間有句點', b[3] === '#A "?:>DOLCE"$] >RIT\'"\\[" >A TEMPO> "W?' && b[4] === '  >PI^*U MOSSO> .:$" >M\'G\'> .]\\ Y<K', b.slice(3).join(' | '));
+  const back = MB.parseBraille(MB.toBraille(a.score).brf);
+  check('文字表情：點字讀回', back.warnings.length === 0 && back.score.tempoText === 'Allegro' && words(back.score) === ',,dolce,,rit.,,a tempo,,più mosso,,m.g.,,', words(back.score) + ' ' + back.warnings.map((w) => w.msg).join('；'));
+  const x = MB.parseMusicXML(MB.toMusicXML(a.score)).score;
+  check('文字表情：ABC 與 MusicXML 來回', /"\^rit\."G/.test(MB.toAbc(a.score).abc) && /Q:"Allegro" 1\/4=120/.test(MB.toAbc(a.score).abc) && x.tempoText === 'Allegro' && words(x) === words(a.score));
+  // 長表情放不下一行：在字與字之間換行，不用音樂連字號（Ex 22.3.8-2）
+  const long = MB.toBraille(MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D "^dolcissimo ma sempre molto tranquillo e espressivo"E F |]').score, { width: 32 });
+  const lb = long.brf.split('\n');
+  check('長表情跨行', lb.every((l) => l.length <= 32) && !/"\s*$/.test(lb[1]) && MB.parseBraille(long.brf).warnings.length === 0, lb.join(' | '));
+  // 續行只有一個休止符（V'）不是速度文字
+  check('只有文字的行要置中在音樂之前才算速度文字', !MB.parseBraille('                  #D4\n#A "?:$ ]]"\n  V\'').score.tempoText);
+  // 中文文字表情：用前後文字記號包起來；讀回時略過並提醒
+  if (MB.zhBraille.isLoaded()) {
+    const z = MB.toBraille(MB.parseAbc('X:1\nM:2/4\nL:1/8\nQ:"中板" 1/4=96\nK:C\n"^漸慢"C D E F|G2 "^啊"A2|]').score).brf;
+    const zr = MB.parseBraille(z);
+    check('中文文字表情：音樂讀回正確', zr.warnings.length === 2 && MB.toAbc(zr.score).abc.includes('C D E F | G2 A2 |]'), z + ' ' + zr.warnings.map((w) => w.msg).join('；'));
+  }
+}
+
 // ---------- 歌詞 ----------
 {
   const SONG = 'X:1\nT:小星星\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |\nw:一 閃 一 閃 亮 晶 晶\nF F E E | D D C2 |]\nw:滿 天 都 是 小 星 星\n';
