@@ -65,6 +65,8 @@
     if (ev.pedalChange) s += '!ped-up!!ped!';
     if (ev.pedalDown) s += '!ped!';
     if (ev.pedalUp) s += '!ped-up!';
+    // 和弦名稱：沒有位置記號的引號文字，abcjs 畫在五線譜上方
+    for (const c of ev.chords || []) s += '"' + c.replace(/"/g, '') + '"';
     // 文字表情：寫成五線譜上方的註解文字
     for (const w of ev.words || []) s += '"^' + w.replace(/"/g, "'") + '"';
     if (ev.dynamic) s += '!' + ev.dynamic + '!';

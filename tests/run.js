@@ -565,6 +565,36 @@ for (const s of MB.samples) {
   }
 }
 
+// ---------- 和弦名稱（Sec. 23、27） ----------
+{
+  const C = MB.brailleChords;
+  // 表 23.1-1（印刷字元依意義還原）
+  const chart = [['Dm', ',DM'], ['Eb', ',E<'], ['Db/Ab', ',D</,A<'], ['Dmaj7', ',DMAJ#G'], ['G6/D', ',G#F/,D'], ['F#dim7', ',F%DIM#G'], ['F#°7', ',F%4#G'], ['C7sus', ',C#GSUS'], ['Dm(#7)', ',DM7%#G7'], ['B7-9', ',B#G-#I'], ['Gmaj7+9', ',GMAJ#G+#I'], ['B+', ',B+'], ['Bb°', ',B<4'], ['Bbø7', ",B<4'#G"], ['CΔ', ',C0'], ['N.C.', ',,NC'], ['G7/B', ',G#G/,B']];
+  const bad = chart.filter(([t, b]) => C.encode(t) !== b || C.decode(b) !== t);
+  check('和弦名稱：表 23.1-1 的寫法與讀回', !bad.length, JSON.stringify(bad.map(([t]) => [t, C.encode(t)])));
+  const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:F\n"F"A G "Bb"F D | "C7"C2 "F"F2 | "Gm7"G/A/B/c/ "C7"d c | "F"F4 |]');
+  const b = MB.toBraille(a.score).brf.split('\n');
+  check('和弦名稱：音樂行下面一行和弦，對齊和弦開始的音，太長時音樂行留空並寫音樂連字號（Par. 27.1–27.4）',
+    b[1] === '#A "[\\]:  N"  Q  HIJD" :?   "=<K' && b[2] === '   ,F ,B< ,C#G,F ,GM#G ,C#G ,F', b.slice(1).join(' | '));
+  const show = (sc) => JSON.stringify(sc.parts[0].measures.map((m) => m.voices[0].map((e) => (e.chords || []).join('+') + e.value)));
+  const back = MB.parseBraille(b.join('\n'));
+  check('和弦名稱：點字讀回', back.warnings.length === 0 && show(back.score) === show(a.score), show(back.score));
+  check('和弦名稱：ABC 與 MusicXML 來回', /"C7"C4 "F"F4/.test(MB.toAbc(a.score).abc) && show(MB.parseMusicXML(MB.toMusicXML(a.score)).score) === show(a.score));
+  // Ex 27.1-1：大寫記號對齊音符前面的音層記號（前面還有力度記號）
+  const e = MB.parseBraille('                        <#D4\n#A >p>c"I%HI*H%GHF%E *GF7>f"HF] P\'V<K\n       ,F     ,C#G   ,DM   ,G#G ,AM');
+  const ch = e.score.parts[0].measures.map((m) => m.voices[0].map((x, k) => (x.chords ? k + ':' + x.chords : '')).filter(Boolean).join(' '));
+  check('Ex 27.1-1：讀入和弦名稱', e.warnings.length === 0 && ch.join(' | ') === '0:F 4:C7 | 0:Dm 4:G7 | 0:Am', ch.join(' | '));
+  // 一個音有兩個和弦名稱：連寫，後面的音延到和弦結束之後，讀回時仍屬同一個音
+  const two = MB.parseAbc('X:1\nM:2/4\nL:1/8\nK:C\n"G""C"c d e f |]');
+  const tb = MB.toBraille(two.score).brf;
+  const tr = MB.parseBraille(tb).score.parts[0].measures[0].voices[0];
+  check('和弦名稱：同一個音的兩個和弦連寫，讀回仍屬同一個音', JSON.stringify(tr.map((x) => x.chords || null)) === '[["G","C"],null,null,null]', tb);
+  check('和弦名稱：報讀', /和弦 G、C/.test(MB.describe.describeScore(two.score, {})));
+  // 沒有和弦名稱的行不加和弦行；有和弦名稱的小節不用小節重複
+  const r = MB.toBraille(MB.parseAbc('X:1\nM:2/4\nL:1/4\nK:C\n"C"C D | "C"C D | C D |]').score).brf.split('\n');
+  check('和弦名稱：有和弦的小節不用小節重複，沒有和弦的照常', r[1] === '#A "?: ?: 7<K' && r[2] === '   ,C  ,C', r.join(' | '));
+}
+
 // ---------- 點字分行：跟隨 ABC 換行 ----------
 {
   const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\ne2 d c | A d2 c | B e2 d |\nc2 f e | d g2 f | e c a c | B/c/d/e/ f/g/a/b/ |\nc\'2 z2 |]');

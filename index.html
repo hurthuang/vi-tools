@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=43"></script>
-  <link rel="stylesheet" href="css/style.css?v=43">
+  <script src="js/theme.js?v=44"></script>
+  <link rel="stylesheet" href="css/style.css?v=44">
 </head>
 <body>
   <header class="site-header">
@@ -225,7 +225,7 @@
         <h3>目前支援</h3>
         <p>音符、休止符、附點、音層記號、臨時記號、調號、拍號、速度、小節線、反覆記號與房號、被反覆記號拆開的小節、連結線、圓滑線、三連音與其他連音、和弦（音程）、鋼琴雙手、同小節多聲部（in-accord / ABC 的 &amp;）、力度（p、f 等）、漸強漸弱、斷奏、重音、持音、延長記號、琶音、音符分組、大小時值記號。</p>
         <p>指法（含換指）、倚音（長、短）、顫音、上下漣音、迴音、踏板（踩下、放開、換踏板）、Segno、Coda、Fine、D.C.、D.S.。播放與 MIDI 會依反覆、房號、D.C.、D.S.、Fine、Coda 的實際演奏順序進行。</p>
-        <p>文字表情與速度文字（dolce、rit.、a tempo、Allegro）、換氣記號、連續整小節休止、整小節與部分小節的重複記號、歌詞（中文用國語點字，一行歌詞一行音樂的格式）。</p>
+        <p>文字表情與速度文字（dolce、rit.、a tempo、Allegro）、換氣記號、連續整小節休止、整小節與部分小節的重複記號、歌詞（中文用國語點字，一行歌詞一行音樂的格式）、和弦名稱（沒有歌詞的旋律：音樂下面一行寫和弦名稱）。</p>
         <h3>ABC 寫法提示</h3>
         <ul>
           <li>指法：<code>!3!C</code>；換指：<code>!4!!3!C</code>；和弦：<code>[!1!C!3!E!5!G]</code>。</li>
@@ -234,10 +234,11 @@
           <li>踏板：<code>!ped!</code> 踩下、<code>!ped-up!</code> 放開（寫在要放開的音之前）。</li>
           <li>文字表情：<code>"^dolce"C</code>；速度文字：<code>Q:"Allegro" 1/4=120</code>；換氣記號：<code>!breath!C</code>（C 之後換氣）。</li>
           <li>歌詞：在音樂行下面寫 <code>w:一 閃 一 閃</code>，一個音一個字。</li>
+          <li>和弦名稱：<code>"C"C D "G7"E F</code>（引號裡不加 ^ 等位置記號）；降記號用 b，例如 <code>"Bb"</code>。</li>
           <li>反覆指示：<code>!segno!</code>、<code>!coda!</code>、<code>!fine!</code>、<code>!D.C.!</code>、<code>!D.C.alfine!</code>、<code>!D.S.alcoda!</code> 等，寫在該小節最後一個音之前；也可以用文字 <code>"^Fine"</code>、<code>"^D.C. al Fine"</code>、<code>"^To Coda"</code>、<code>"^Coda"</code>。</li>
         </ul>
         <h3>尚未支援</h3>
-        <p>和弦名稱、打擊樂、第三個以後的聲部、多段歌詞、不同音層的重複縮寫、分頁與頁碼。遇到時會在「轉換訊息」列出。</p>
+        <p>有歌詞的歌曲與鋼琴譜的和弦名稱、打擊樂、第三個以後的聲部、多段歌詞、不同音層的重複縮寫、分頁與頁碼。遇到時會在「轉換訊息」列出。</p>
       </div>
     </details>
   </main>
@@ -247,25 +248,25 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=43"></script>
-  <script src="js/model.js?v=43"></script>
-  <script src="js/durations.js?v=43"></script>
-  <script src="js/abc-parse.js?v=43"></script>
-  <script src="js/braille-write.js?v=43"></script>
-  <script src="js/braille-parse.js?v=43"></script>
-  <script src="js/abc-write.js?v=43"></script>
-  <script src="js/annotate.js?v=43"></script>
-  <script src="js/xml.js?v=43"></script>
-  <script src="js/musicxml.js?v=43"></script>
-  <script src="js/describe.js?v=43"></script>
-  <script src="js/zh-braille.js?v=43"></script>
-  <script src="js/samples.js?v=43"></script>
+  <script src="js/brf.js?v=44"></script>
+  <script src="js/model.js?v=44"></script>
+  <script src="js/durations.js?v=44"></script>
+  <script src="js/abc-parse.js?v=44"></script>
+  <script src="js/braille-write.js?v=44"></script>
+  <script src="js/braille-parse.js?v=44"></script>
+  <script src="js/abc-write.js?v=44"></script>
+  <script src="js/annotate.js?v=44"></script>
+  <script src="js/xml.js?v=44"></script>
+  <script src="js/musicxml.js?v=44"></script>
+  <script src="js/describe.js?v=44"></script>
+  <script src="js/zh-braille.js?v=44"></script>
+  <script src="js/samples.js?v=44"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=43"></script>
+  <script src="js/app.js?v=44"></script>
 </body>
 </html>

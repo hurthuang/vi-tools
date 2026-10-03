@@ -12,6 +12,51 @@
   const TYPE_VALUE = { whole: 1, half: 2, quarter: 4, eighth: 8, '16th': 16, '32nd': 32, '64th': 64, '128th': 128 };
   const ACC_OUT = { sharp: 'sharp', flat: 'flat', natural: 'natural', dsharp: 'double-sharp', dflat: 'flat-flat' };
   const ACC_IN = { sharp: 'sharp', flat: 'flat', natural: 'natural', 'double-sharp': 'dsharp', 'sharp-sharp': 'dsharp', 'flat-flat': 'dflat', 'double-flat': 'dflat' };
+  // 和弦名稱：MusicXML 的 <kind> ↔ 和弦名稱的後綴
+  const KIND_SUFFIX = {
+    major: '', minor: 'm', augmented: '+', diminished: 'dim', dominant: '7', 'major-seventh': 'maj7', 'minor-seventh': 'm7',
+    'diminished-seventh': 'dim7', 'augmented-seventh': '+7', 'half-diminished': 'm7b5', 'major-minor': 'm(maj7)',
+    'major-sixth': '6', 'minor-sixth': 'm6', 'dominant-ninth': '9', 'major-ninth': 'maj9', 'minor-ninth': 'm9',
+    'dominant-11th': '11', 'major-11th': 'maj11', 'minor-11th': 'm11', 'dominant-13th': '13', 'major-13th': 'maj13',
+    'minor-13th': 'm13', 'suspended-second': 'sus2', 'suspended-fourth': 'sus4', power: '5',
+  };
+  const SUFFIX_KIND = {};
+  for (const k in KIND_SUFFIX) if (!(KIND_SUFFIX[k] in SUFFIX_KIND)) SUFFIX_KIND[KIND_SUFFIX[k]] = k;
+  const altText = (a) => (a > 0 ? '#'.repeat(a) : a < 0 ? 'b'.repeat(-a) : '');
+  /** <harmony> → 和弦名稱（例如 Bbm7/F）；沒有根音的（功能和聲）回傳 null。 */
+  function harmonyText(el) {
+    const kind = X.child(el, 'kind');
+    const kv = kind ? (kind.text || '').trim() : '';
+    if (kv === 'none') return 'N.C.';
+    const root = X.child(el, 'root');
+    if (!root) return null;
+    let s = X.textOf(root, 'root-step') + altText(+(X.textOf(root, 'root-alter') || 0));
+    s += kind && kind.attrs.text != null ? kind.attrs.text : KIND_SUFFIX[kv] || '';
+    for (const d of X.children(el, 'degree')) {
+      const v = X.textOf(d, 'degree-value');
+      const a = altText(+(X.textOf(d, 'degree-alter') || 0));
+      const t = X.textOf(d, 'degree-type');
+      s += t === 'add' ? 'add' + a + v : t === 'subtract' ? 'no' + v : a + v;
+    }
+    const bass = X.child(el, 'bass');
+    if (bass) s += '/' + X.textOf(bass, 'bass-step') + altText(+(X.textOf(bass, 'bass-alter') || 0));
+    return s;
+  }
+  /** 和弦名稱 → <harmony>（根音、種類、低音）；後綴原樣放在 kind 的 text 屬性，其他軟體顯示時照原文。 */
+  function harmonyXml(text, staff) {
+    const st = staff ? ['staff', staff] : null;
+    if (/^N\.?\s*C\.?$/i.test(text)) return ['harmony', ['root', ['root-step', 'C']], ['kind', { text: 'N.C.' }, 'none'], st];
+    const m = /^([A-G])([#b]*)(.*?)(?:\/([A-G])([#b]*))?$/.exec(text.trim());
+    if (!m) return null;
+    const alt = (s) => (s ? (s[0] === '#' ? s.length : -s.length) : 0);
+    return [
+      'harmony',
+      ['root', ['root-step', m[1]], alt(m[2]) ? ['root-alter', alt(m[2])] : null],
+      ['kind', { text: m[3] }, SUFFIX_KIND[m[3]] || 'other'],
+      m[4] ? ['bass', ['bass-step', m[4]], alt(m[5]) ? ['bass-alter', alt(m[5])] : null] : null,
+      st,
+    ];
+  }
   const ARTIC_OUT = { staccato: 'staccato', staccatissimo: 'staccatissimo', accent: 'accent', tenuto: 'tenuto', breath: 'breath-mark', caesura: 'caesura' };
   const ORN_OUT = { trill: 'trill-mark', mordent: 'mordent', uppermordent: 'inverted-mordent', turn: 'turn', invertedturn: 'inverted-turn' };
   const ORN_IN = { 'trill-mark': 'trill', mordent: 'mordent', 'inverted-mordent': 'uppermordent', turn: 'turn', 'delayed-turn': 'turn', 'inverted-turn': 'invertedturn', 'delayed-inverted-turn': 'invertedturn' };
@@ -185,6 +230,10 @@
     if (ev.hairpinStart) dirs.push(['direction-type', ['wedge', { type: ev.hairpinStart === 'cresc' ? 'crescendo' : 'diminuendo' }]]);
     if (dirs.length) out.push(['direction', { placement: 'below' }].concat(dirs, [staff ? ['staff', staff] : null]));
     // 文字表情放在五線譜上方
+    for (const c of ev.chords || []) {
+      const h = harmonyXml(c, staff);
+      if (h) out.push(h);
+    }
     if (ev.words && ev.words.length) out.push(['direction', { placement: 'above' }].concat(ev.words.map((w) => ['direction-type', ['words', w]]), [staff ? ['staff', staff] : null]));
 
     const type = ev.measureRest ? null : TYPE[ev.value];
@@ -483,9 +532,19 @@
             if (el.attrs.tempo && !score.tempo) score.tempo = { value: 4, dots: 0, bpm: Math.round(+el.attrs.tempo) };
             soundNav(el);
             break;
-          case 'harmony':
-            warnOnce('harmony', '和弦名稱目前不轉換，已略過');
+          case 'harmony': {
+            // 和弦名稱：給同一行譜表的下一個音或休止符
+            const sn = +(X.textOf(el, 'staff') || 1);
+            if (sn > nStaff) break;
+            const t = harmonyText(el);
+            if (!t) {
+              warnOnce('harmony', '沒有根音的和弦記號（功能和聲等）目前不轉換，已略過');
+              break;
+            }
+            const pd = (pendingDir[sn] = pendingDir[sn] || {});
+            (pd.chords = pd.chords || []).push(t);
             break;
+          }
           case 'barline': {
             const loc = el.attrs.location || 'right';
             const rep = X.child(el, 'repeat');
@@ -734,6 +793,10 @@
               if (pd.hairpinStart) ev.hairpinStart = pd.hairpinStart;
               pd.dynamic = null;
               pd.hairpinStart = null;
+            }
+            if (pd && pd.chords && pd.chords.length) {
+              ev.chords = pd.chords;
+              pd.chords = null;
             }
             if (pd && (pd.pedalDown || pd.pedalChange)) {
               if (pd.pedalChange) ev.pedalChange = true;
