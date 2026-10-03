@@ -378,6 +378,8 @@
         add_classes: true,
         responsive: fit ? 'resize' : undefined,
         clickListener: onScoreClick,
+        // abcjs 會把點過的音符一直塗成紅色，和本工具的標示（橘色）同時出現會混淆；讓它維持原本的黑色
+        selectionColor: '#000000',
         paddingleft: 10,
         paddingright: 10,
       })[0];
