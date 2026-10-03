@@ -104,6 +104,7 @@
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.slur) $('opt-slur').value = settings.slur;
     if (settings.lyrics) $('opt-lyrics').value = settings.lyrics;
+    if (settings.title === false) $('opt-title').checked = false;
     if (settings.lyricSpace) $('opt-lyric-space').value = settings.lyricSpace;
     // 舊版存的是勾選框（true/false）
     if (settings.repeat != null) $('opt-repeat').value = settings.repeat === false ? 'none' : settings.repeat === true ? 'all' : settings.repeat;
@@ -123,6 +124,7 @@
       dir: $('opt-dir').value,
       slur: $('opt-slur').value,
       lyrics: $('opt-lyrics').value,
+      title: $('opt-title').checked,
       lyricSpace: $('opt-lyric-space').value,
       repeat: $('opt-repeat').value,
       brlMode: $('brl-mode').value,
@@ -141,6 +143,7 @@
       grouping: $('opt-group').checked,
       slurStyle: $('opt-slur').value,
       lyrics: $('opt-lyrics').value !== 'none',
+      title: $('opt-title').checked,
       lyricSpacing: $('opt-lyric-space').value,
       measureRepeat: $('opt-repeat').value !== 'none',
       partRepeat: $('opt-repeat').value === 'all',
@@ -865,7 +868,7 @@
     applyBrlLook();
     saveSettings();
   });
-  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat', 'opt-lyrics', 'opt-lyric-space']) {
+  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat', 'opt-lyrics', 'opt-lyric-space', 'opt-title']) {
     $(id).addEventListener('change', () => {
       saveSettings();
       if (id === 'opt-dir' || state.lastSource === 'brl') convertFromBraille();
@@ -981,7 +984,8 @@
   // 國語點字表（中文歌詞用）：放在視障輔助工具集裡才有；載入後若目前的樂譜有歌詞就重新轉換
   if (MB.zhBraille)
     MB.zhBraille.loadFromSite('../').then((ok) => {
-      if (ok && state.lastSource !== 'brl' && state.score && state.score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics))))) convertFromAbc();
+      const hasText = state.score && (/[\u3400-\u9fff]/.test(state.score.title || '') || state.score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics)))));
+      if (ok && state.lastSource !== 'brl' && hasText) convertFromAbc();
     });
 
   // ---------- 啟動 ----------

@@ -532,6 +532,7 @@
 
     const heads = []; // 標頭中的換調／換拍號（依位置）
     let musicStarted = false;
+    let titleSkipped = false;
 
     // ---------- 單行格式 ----------
     const vocalStarts = []; // 歌曲：每個平行段音樂行的開頭位置
@@ -570,7 +571,11 @@
             if (h.meter) headMeter = h.meter;
             continue;
           }
-          // 置中的行視為標題文字；靠左的行視為沒有小節編號的音樂
+          // 第一個置中的文字行是曲名（Par. 1.6.1，無法還原成國字，略過）；其他置中的行視為標題文字；靠左的行視為沒有小節編號的音樂
+          if (/^\s{3,}/.test(l.text) && !titleSkipped) {
+            titleSkipped = true;
+            continue;
+          }
           if (/^\s{3,}/.test(l.text) || !looksLikeMusic(l.text)) {
             warn('第一行音樂前的文字行已略過：「' + B.toUnicode(l.text.trim()) + '」', l.off);
             continue;
@@ -684,6 +689,10 @@
           const join = /("|\.K)$/.test(b.text);
           if (join) b.stripHyphen();
           b.append(l.text.slice(lead), l.off + lead, join);
+          continue;
+        }
+        if (!musicStarted && !titleSkipped && /^\s{3,}/.test(l.text)) {
+          titleSkipped = true; // 曲名（Par. 1.6.1）
           continue;
         }
         if (!musicStarted) warn('第一行音樂前的文字行已略過：「' + B.toUnicode(l.text.trim()) + '」', l.off);
