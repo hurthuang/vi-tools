@@ -534,10 +534,33 @@
     let musicStarted = false;
 
     // ---------- 單行格式 ----------
+    const vocalStarts = []; // 歌曲：每個平行段音樂行的開頭位置
     function collectSingle() {
       const buf = new Buffer();
+      // 歌曲「一行歌詞、一行音樂」格式（Par. 35.1）：沒有段落編號，歌詞從行首寫起，音樂行從第 3 方開始，續行從第 5 方開始。
+      // 歌詞行目前無法讀回（中文同音字無法還原），先略過，只讀音樂；記下每個平行段從哪裡開始
+      const vocalFmt =
+        !lines.some((l) => /^#[A-J]+'?\s/.test(l.text)) &&
+        lines.some((l, k) => k > 0 && /^ {2}\S/.test(l.text) && /^\S/.test(lines[k - 1].text));
+      let block = null;
+      let lyricLines = 0;
+      let pendingStart = false;
       for (const l of lines) {
         if (!l.text.trim()) continue;
+        if (vocalFmt) {
+          if (/^\S/.test(l.text)) {
+            block = 'lyric';
+            lyricLines++;
+            pendingStart = true;
+            continue;
+          }
+          if (/^ {4}\S/.test(l.text) && block === 'lyric') continue; // 歌詞的續行
+          if (/^ {2}\S/.test(l.text) && block !== null) {
+            block = 'music';
+            if (pendingStart) vocalStarts.push(l.off + 2);
+            pendingStart = false;
+          }
+        }
         const seg = /^#([A-J]+)('?)\s+/.exec(l.text);
         if (!musicStarted && !seg) {
           const h = tryHeading(l.text);
@@ -569,6 +592,7 @@
           appendLine(buf, l.text.slice(lead), l.off + lead);
         }
       }
+      if (lyricLines) warn('歌詞行（' + lyricLines + ' 行）已略過：目前無法從點字讀回歌詞，只讀入音樂', null);
       return expandRepeats(expandMultiRests(buf.tokens()));
     }
     /** 連續三次以上的小節重複（Par. 18.2.1）：⠶ 加數字（例如 ⠶⠼⠉）展開成一小節一個 ⠶。 */
@@ -778,6 +802,11 @@
         const r = tokenizeMeasure(t.text, t.pos, warn);
         const m = { voices: r.voices, startRepeat: r.startRepeat, endRepeat: r.endRepeat, volta: r.volta, barline: r.barline, _repeatPrev: r.repeatPrev, _repeatTie: r.repeatTie, _repeatSrc: r.repeatSrc };
         if (t.cont && measures.length) m.splitCont = true;
+        // 歌曲：平行段的第一小節（寫回點字時照原本分段）
+        if (vocalStarts.length && t.pos.length && t.pos[0] >= vocalStarts[0]) {
+          m.lineStart = true;
+          while (vocalStarts.length && vocalStarts[0] <= t.pos[0]) vocalStarts.shift();
+        }
         Object.assign(m, pendNav);
         pendNav = {};
         if (pendKey) { m.key = pendKey; pendKey = null; }

@@ -61,6 +61,9 @@
       else if (fingers.length) parts.push('指法 ' + ev.notes.map((n) => n.finger || '－').join('、'));
       if (ev.notes.some((n) => n.tie)) parts.push('連結');
     }
+    // 歌詞（第一段）：一個音節唱好幾個音時，後面的音說「延長」
+    const lyr = ev.lyrics && ev.lyrics[0];
+    if (lyr) parts.push(lyr.extend ? '歌詞延長' : '歌詞「' + lyr.text + '」');
     if (ev.slurEnd) parts.push('圓滑線結束');
     if (ev.hairpinEnd) parts.push(ev.hairpinEnd === 'cresc' ? '漸強結束' : '漸弱結束');
     if (ev.pedalUp) parts.push('放開踏板');

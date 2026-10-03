@@ -114,7 +114,7 @@
   /**
    * style：長圓滑線（超過四個音）的寫法（Par. 13.3）。'bracket' 用 ⠰⠃…⠘⠆；'double' 在第一個音後寫 ⠉⠉、倒數第二個音後寫 ⠉。
    */
-  function analyseSlurs(part, style) {
+  function analyseSlurs(part, style, vocal) {
     const flags = new Map();
     const get = (id) => {
       if (!flags.has(id)) flags.set(id, { short: false, open: 0, close: 0, conv: false, converge: 0, dbl: false });
@@ -132,13 +132,35 @@
           const a = stack.pop();
           if (a === undefined || a === idx) continue;
           const notes = stream.slice(a, idx + 1).filter((e) => e.kind === 'note');
-          spans.push({ a, b: idx, short: notes.length <= 4, notes });
+          // 歌曲中，印刷譜的圓滑線是樂句記號，一律用括號（Par. 35.2）
+          spans.push({ a, b: idx, short: !vocal && notes.length <= 4, notes });
         }
         for (let k = 0; k < (ev.slurStart || 0); k++) stack.push(idx);
       });
+      // 音節圓滑線（Par. 35.2）：一個音節唱兩個以上的音（第一段歌詞），四個音以內用 ⠉，超過用加倍 ⠉⠉…⠉。
+      // 只靠連結線延續同一個音高時不另加圓滑線
+      if (vocal && vi === 0) {
+        const notes = stream.filter((e) => e.kind === 'note');
+        for (let k = 0; k < notes.length; k++) {
+          const l = notes[k].lyrics && notes[k].lyrics[0];
+          if (!l || l.extend) continue;
+          let e = k + 1;
+          while (e < notes.length && notes[e].lyrics && notes[e].lyrics[0] && notes[e].lyrics[0].extend) e++;
+          const grp = notes.slice(k, e);
+          const tiedOnly = grp.slice(0, -1).every((x) => x.notes.length && x.notes.every((nn) => nn.tie));
+          if (grp.length >= 2 && !tiedOnly) {
+            if (grp.length <= 4) grp.slice(0, -1).forEach((x) => (get(x.id).short = true));
+            else {
+              get(grp[0].id).dbl = true;
+              get(grp[grp.length - 2].id).short = true;
+            }
+          }
+          k = e - 1;
+        }
+      }
       for (const sp of spans) {
         if (sp.short) sp.notes.slice(0, -1).forEach((e) => (get(e.id).short = true));
-        else if (style === 'double') {
+        else if (style === 'double' && !vocal) {
           get(sp.notes[0].id).dbl = true;
           get(sp.notes[sp.notes.length - 2].id).short = true;
         } else {
@@ -154,7 +176,7 @@
             // 交會音的前一個音改寫為 ⠠⠉
             const before = x.notes[x.notes.length - 2];
             if (before) get(before.id).conv = true;
-          } else if (!x.short && !y.short && style !== 'double') {
+          } else if (!x.short && !y.short && (style !== 'double' || vocal)) {
             // 兩條括號式：交會音前寫 ⠰⠃⠘⠆
             const f = get(stream[x.b].id);
             f.close--;
@@ -520,8 +542,14 @@
       lines.push(l);
     }
 
-    if (score.keyboard) writeKeyboard(score, env, lines);
-    else writeSingleLine(score.parts[0], env, lines);
+    if (score.keyboard) {
+      if (score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics)))))
+        warnings.push({ msg: '鋼琴譜中的歌詞目前不轉成點字（歌曲請用單一聲部）' });
+      writeKeyboard(score, env, lines);
+    } else {
+      env.vocal = vocalLayout(score.parts[0], env);
+      writeSingleLine(score.parts[0], env, lines);
+    }
     return finish(lines, warnings);
   }
 
@@ -606,6 +634,9 @@
    * 力度、奏法、指法、連結線等都要相同；最後一個音的連結線不算在內（寫在 ⠶ 後面，18.1.2）。
    * 圓滑線、漸強漸弱必須在小節內開始並結束；整小節休止、踏板、反覆指示、換調換拍號、被拆開的小節都不用。
    */
+  // 歌詞不影響重複記號（Par. 35.8），但音節圓滑線依「一個音節唱幾個音」而定，所以只比較這個形狀
+  const lyricShape = (lyrics) => lyrics.map((l) => (l ? (l.extend ? 'x' : 's') : '-')).join('');
+
   function sameAsPrev(part, mi) {
     const a = part.measures[mi - 1];
     const b = part.measures[mi];
@@ -630,6 +661,7 @@
             const c = Object.assign({}, ev);
             delete c.id;
             delete c.src;
+            if (c.lyrics) c.lyrics = lyricShape(c.lyrics);
             if (k === v.length - 1) c.notes = (c.notes || []).map((n) => Object.assign({}, n, { tie: false }));
             return c;
           })
@@ -669,6 +701,7 @@
       const c = Object.assign({}, ev);
       delete c.id;
       delete c.src;
+      if (c.lyrics) c.lyrics = lyricShape(c.lyrics);
       if (isLast) c.notes = (c.notes || []).map((x) => Object.assign({}, x, { tie: false }));
       return JSON.stringify(c);
     };
@@ -750,11 +783,105 @@
     return n;
   }
 
+  /** 歌詞的外文字母、數字與標點（不縮寫的英文點字，Par. 35.1.1）。回傳 BRF；不認得的字元回傳 null。 */
+  function latinBrf(ch, state) {
+    if (/[a-z]/.test(ch)) return ch.toUpperCase();
+    if (/[A-Z]/.test(ch)) return ',' + ch;
+    if (/[0-9]/.test(ch)) {
+      const r = (state.digit ? '' : '#') + B.upperNumber(+ch);
+      state.digit = true;
+      return r;
+    }
+    state.digit = false;
+    const P = { "'": "'", ',': '1', '.': '4', '!': '6', '?': '8', ';': '2', ':': '3', '-': '-' };
+    return P[ch] != null ? P[ch] : null;
+  }
+
+  /**
+   * 歌曲（Par. 35.1）：分段（每段一個平行段）與歌詞行。歌詞從行首寫起，音樂在下一行從第 3 方開始。
+   * 分段依原本 ABC 的分行；沒有分行資訊（例如 MusicXML）時每 4 小節一段。只轉換第一段歌詞。
+   * 中文用國語點字（工具集的 zh-tw.ctb）；沒有載入時無法轉換，就不寫歌詞。沒有歌詞時回傳 null。
+   */
+  function vocalLayout(part, env) {
+    const { opts } = env;
+    if (opts.lyrics === false) return null;
+    const lyr0 = (ev) => ev.lyrics && ev.lyrics[0];
+    const all = [];
+    part.measures.forEach((m) => (m.voices[0] || []).forEach((ev) => lyr0(ev) && lyr0(ev).text && all.push(ev)));
+    if (!all.length) return null;
+    const zh = MB.zhBraille;
+    const isZh = (ch) => /[\u3000-\u303f\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(ch);
+    const needZh = all.some((ev) => [...lyr0(ev).text].some(isZh));
+    if (needZh && !(zh && zh.isLoaded())) {
+      env.warnings.push({ msg: '國語點字表沒有載入，中文歌詞無法轉成點字，這次輸出沒有歌詞（放在視障輔助工具集裡才能使用）' });
+      return null;
+    }
+    if (part.measures.some((m) => (m.voices[0] || []).some((ev) => ev.lyrics && ev.lyrics.length > 1)))
+      env.warnings.push({ msg: '有兩段以上的歌詞：點字目前只寫第一段' });
+    const N = part.measures.length;
+    const starts = [];
+    // 來自 ABC 的樂譜有分行資訊（第一小節一定標記）；整首只有一行時就是一個平行段
+    if (part.measures[0].lineStart) part.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
+    else for (let i = 0; i < N; i += 4) starts.push(i);
+    const W = opts.width;
+    const unknown = new Set();
+    const linesAt = new Map();
+    starts.forEach((st, k) => {
+      const end = k + 1 < starts.length ? starts[k + 1] : N;
+      const sylls = [];
+      for (let mi = st; mi < end; mi++) for (const ev of part.measures[mi].voices[0] || []) if (lyr0(ev) && lyr0(ev).text) sylls.push({ l: lyr0(ev), id: ev.id, mi });
+      if (!sylls.length) return;
+      // 中文整段一起轉，多音字才能看前後文
+      const zhOut = needZh ? zh.translate(sylls.map((x) => x.l.text).join('')) : null;
+      let pos = 0;
+      const pieces = sylls.map((x) => {
+        let brl = '';
+        let cjk = false;
+        const st2 = { digit: false };
+        for (const ch of x.l.text) {
+          const t = zhOut ? zhOut[pos] : null;
+          pos++;
+          if (isZh(ch)) {
+            cjk = true;
+            if (t && t.known) brl += B.toBrf(t.brl);
+            else unknown.add(ch);
+          } else {
+            const b = latinBrf(ch, st2);
+            if (b == null) unknown.add(ch);
+            else brl += b;
+          }
+        }
+        const joined = x.l.syllabic === 'begin' || x.l.syllabic === 'middle';
+        return { brl, id: x.id, mi: x.mi, cjk, joined };
+      });
+      const out = [new Line('')];
+      let cur = out[0];
+      pieces.forEach((pc, j) => {
+        const prevPc = pieces[j - 1];
+        // 中文字之間依設定連寫或空一方；外文同一個字的音節連寫（不寫連字號），字與字之間空一方
+        let sep = '';
+        if (prevPc) sep = prevPc.cjk && pc.cjk ? (opts.lyricSpacing === 'space' ? ' ' : '') : prevPc.joined ? '' : ' ';
+        if (cur.content && cur.text.length + sep.length + pc.brl.length > W) {
+          cur = new Line('    '); // 續行從第 5 方開始（Par. 35.1）
+          out.push(cur);
+          sep = '';
+        }
+        if (sep) cur.add(sep);
+        if (pc.brl) cur.add(pc.brl, pc.id, pc.mi);
+      });
+      linesAt.set(st, out);
+    });
+    if (unknown.size) env.warnings.push({ msg: '歌詞中這些字元無法轉成點字，已略過：' + [...unknown].join(' ') });
+    return { starts: new Set(starts), linesAt };
+  }
+
   function writeSingleLine(part, env, lines) {
     const { opts, numbers } = env;
-    env.slurs = analyseSlurs(part, opts.slurStyle);
+    const vocal = env.vocal; // 歌曲（Par. 35.1）：一行歌詞、一行音樂，沒有段落編號
+    env.slurs = analyseSlurs(part, opts.slurStyle, !!vocal);
     const W = opts.width;
     let line = null;
+    let phraseStart = false; // 目前這一行是平行段的第一行音樂
     let segLines = 0;
     let prev = null;
     let prevInaccord = false;
@@ -767,6 +894,12 @@
     };
     const newLine = (mi) => {
       flush();
+      if (vocal) {
+        line = new Line('    '); // 平行段內的續行從第 5 方開始
+        phraseStart = false;
+        atLineStart = true;
+        return;
+      }
       if (segLines >= opts.segmentLines || lines.length === 0 || segLines === 0) {
         // 段落從被拆開小節的後半開始時，編號後加點 3（Par. 24.1.1）
         line = new Line('#' + B.upperNumber(numbers[mi]) + (part.measures[mi].splitCont ? "' " : ' '));
@@ -792,6 +925,14 @@
       if (skip) {
         skip--;
         return;
+      }
+      // 歌曲：新的平行段，先寫歌詞行，音樂從第 3 方開始
+      if (vocal && vocal.starts.has(mi)) {
+        flush();
+        for (const l of vocal.linesAt.get(mi) || []) lines.push(l);
+        line = new Line('  ');
+        phraseStart = true;
+        atLineStart = true;
       }
       // Segno 與 Coda 段落都要另起一段（Par. 20.1.1、20.1.5）
       if (mi > 0 && (m.segno || m.codaStart)) {
@@ -822,13 +963,14 @@
         if (n < 3) n = 1;
         const text = (n >= 3 ? '7#' + B.upperNumber(n) : '7') + repeatTail(part.measures[mi + n - 1]);
         if (text.length > room()) newLine(mi);
-        if (line.content || !line.text.startsWith('#')) {
+        // 歌曲中，被重複的小節要在同一個平行段（Par. 35.8）
+        if (vocal ? line.content || !phraseStart : line.content || !line.text.startsWith('#')) {
           const ids = [].concat(...part.measures.slice(mi, mi + n).map(measureIds));
           put([{ text, id: null, ids }], mi);
           skip = n - 1;
           afterLongRest = n >= 3;
           prevInaccord = false;
-          if (segLines >= opts.segmentLines && room() < 3) flush();
+          if (!vocal && segLines >= opts.segmentLines && room() < 3) flush();
           return;
         }
       }
@@ -854,7 +996,7 @@
         prevWordEnd = false;
         prevInaccord = false;
         skip = run - 1;
-        if (segLines >= opts.segmentLines && room() < 3) flush();
+        if (!vocal && segLines >= opts.segmentLines && room() < 3) flush();
         return;
       }
       const force = atLineStart || afterLongRest || needsForce(part, mi, prevInaccord);
@@ -879,7 +1021,7 @@
           sp.rows.forEach((row, k) => {
             if (k > 0) {
               flush();
-              line = new Line('  ');
+              line = new Line(vocal ? '    ' : '  ');
               segLines++;
             }
             put(row, mi);
@@ -891,7 +1033,7 @@
       prevInaccord = r.inaccord;
       prevWordEnd = !!r.wordEnd;
       // 分段：達到行數上限時，下一小節另起一段
-      if (segLines >= opts.segmentLines && room() < 3) flush();
+      if (!vocal && segLines >= opts.segmentLines && room() < 3) flush();
     });
     flush();
   }

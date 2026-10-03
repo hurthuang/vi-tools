@@ -9,6 +9,15 @@
 const fs = require('fs');
 const path = require('path');
 const MB = require('./load.js');
+// 中文歌詞的國語點字：有視障輔助工具集（放在旁邊的 tool-music 或 tool 資料夾）時載入它的 zh-tw.ctb 與多音字補充詞表
+for (const dir of ['tool-music', 'tool']) {
+  const root = path.join(__dirname, '..', '..', dir);
+  if (!fs.existsSync(path.join(root, 'table', 'zh-tw.ctb'))) continue;
+  MB.zhBraille.load(fs.readFileSync(path.join(root, 'table', 'zh-tw.ctb'), 'utf8'));
+  const words = path.join(root, 'bt-zh-supplement-rules.json');
+  if (fs.existsSync(words)) MB.zhBraille.loadWords(JSON.parse(fs.readFileSync(words, 'utf8')));
+  break;
+}
 
 const dir = process.argv[2];
 const verbose = process.argv.includes('--verbose');

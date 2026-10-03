@@ -515,6 +515,46 @@ for (const s of MB.samples) {
   });
 }
 
+// ---------- 歌詞 ----------
+{
+  const SONG = 'X:1\nT:小星星\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |\nw:一 閃 一 閃 亮 晶 晶\nF F E E | D D C2 |]\nw:滿 天 都 是 小 星 星\n';
+  const r = MB.parseAbc(SONG);
+  const lyr = [];
+  MB.model.forEachEvent(r.score, (ev) => ev.lyrics && lyr.push(ev.lyrics[0].text));
+  check('歌詞：ABC w: 一個音一個音節', lyr.join('') === '一閃一閃亮晶晶滿天都是小星星' && r.warnings.length === 0, lyr.join('|'));
+  check('歌詞：記下 ABC 的分行（平行段）', r.score.parts[0].measures.map((m) => (m.lineStart ? 1 : 0)).join('') === '1010', '');
+  const a = MB.toAbc(r.score).abc;
+  check('歌詞：寫回 ABC 有 w: 行', /w:一 閃 一 閃 亮 晶 晶\n/.test(a) && /w:滿 天 都 是 小 星 星\n/.test(a), a);
+  const x = MB.parseMusicXML(MB.toMusicXML(r.score)).score;
+  const lyr2 = [];
+  MB.model.forEachEvent(x, (ev) => ev.lyrics && lyr2.push(ev.lyrics[0].text));
+  check('歌詞：MusicXML 匯出再讀入不變', lyr2.join('') === lyr.join(''), lyr2.join('|'));
+  // 連字號、延長、跳過
+  const r2 = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D E F | G2 G2 |\nw:hap-py birth-day to_ *\n');
+  const l2 = [];
+  MB.model.forEachEvent(r2.score, (ev) => l2.push(ev.lyrics ? (ev.lyrics[0] ? (ev.lyrics[0].extend ? '_' : ev.lyrics[0].text + ':' + ev.lyrics[0].syllabic) : '*') : '.'));
+  check('歌詞：連字號與延長', l2.join(' ') === 'hap:begin py:end birth:begin day:end to:single _', l2.join(' '));
+  check('歌詞：報讀念出歌詞', /歌詞「一」/.test(MB.describe.describeScore(r.score, {})), '');
+  // 點字（一行歌詞、一行音樂，Par. 35.1）：需要工具集的國語點字表
+  const path = require('path');
+  const fs = require('fs');
+  const table = ['../tool-music/table/zh-tw.ctb', '../tool/table/zh-tw.ctb'].map((p) => path.join(__dirname, '..', '..', p.replace('../', ''))).find((p) => fs.existsSync(p));
+  if (table) {
+    MB.zhBraille.load(fs.readFileSync(table, 'utf8'));
+    const b = MB.toBraille(r.score);
+    const ls = b.brf.split('\n');
+    check('歌詞點字：歌詞行在行首、音樂行從第 3 方開始', /^\*'IV@\*'IV@C\."KY'KY'$/.test(ls[1]) && ls[2] === '  "??\\\\ [[R' && /^MV@FT'D\('I:"E\[@EY'EY'$/.test(ls[3]) && ls[4] === '  "]]$$ ::N<K', b.brf);
+    const sp = MB.toBraille(r.score, { lyricSpacing: 'space' }).brf.split('\n')[1];
+    check('歌詞點字：中文字之間空一方', sp === "*' IV@ *' IV@ C.\" KY' KY'", sp);
+    const back = MB.parseBraille(b.brf);
+    check('歌詞點字：讀回時略過歌詞行、音樂不變', summary(back.score) === summary(r.score) && back.score.parts[0].measures[2].lineStart === true, back.warnings.map((w) => w.msg).join('；'));
+    // 一個音節唱好幾個音：音節圓滑線（Par. 35.2）；印刷譜的圓滑線用括號
+    const m = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D E F | (G A) B c |\nw:a_ _ b c d e f\n');
+    const mb = MB.toBraille(m.score).brf.split('\n');
+    check('歌詞點字：音節圓滑線與樂句括號', mb[2] === '  "?C:C$] ;B\\[^2W?', mb.join('\n'));
+  } else console.log('（找不到工具集的 zh-tw.ctb，略過中文歌詞點字測試）');
+}
+
 // ---------- 規則對照頁的例子 ----------
 for (const sec of MB.rules) {
   for (const ex of sec.examples) {
@@ -636,7 +676,12 @@ const MUSESCORE_XML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 {
   const r = MB.parseMusicXML(MUSESCORE_XML);
   const abc = MB.toAbc(r.score).abc;
-  check('MuseScore 格式：只有歌詞的警告', r.warnings.length === 1 && /歌詞/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));
+  check('MuseScore 格式：沒有警告', r.warnings.length === 0, r.warnings.map((w) => w.msg).join('\n'));
+  {
+    const lyr = [];
+    MB.model.forEachEvent(r.score, (ev) => ev.lyrics && ev.lyrics[0] && ev.lyrics[0].text && lyr.push(ev.lyrics[0].text));
+    check('MuseScore 格式：讀入歌詞', lyr.join('') === 'la', lyr.join('|'));
+  }
   check('MuseScore 格式：曲名、作曲者、速度', r.score.title === '測試曲' && r.score.composer === '某人' && r.score.tempo && r.score.tempo.bpm === 90);
   const want = [
     'K:G',
