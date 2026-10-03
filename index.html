@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=33"></script>
-  <link rel="stylesheet" href="css/style.css?v=33">
+  <script src="js/theme.js?v=34"></script>
+  <link rel="stylesheet" href="css/style.css?v=34">
 </head>
 <body>
   <header class="site-header">
@@ -141,6 +141,9 @@
             <option value="double">加倍 ⠉⠉…⠉</option>
           </select>
         </label>
+        <label>
+          <input type="checkbox" id="opt-title" checked> 點字開頭寫曲名（中文用國語點字，Par. 1.6.1）
+        </label>
         <label>歌詞（單聲部歌曲，Par. 35）
           <select id="opt-lyrics">
             <option value="line">一行歌詞、一行音樂</option>
@@ -198,24 +201,24 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=33"></script>
-  <script src="js/model.js?v=33"></script>
-  <script src="js/durations.js?v=33"></script>
-  <script src="js/abc-parse.js?v=33"></script>
-  <script src="js/braille-write.js?v=33"></script>
-  <script src="js/braille-parse.js?v=33"></script>
-  <script src="js/abc-write.js?v=33"></script>
-  <script src="js/xml.js?v=33"></script>
-  <script src="js/musicxml.js?v=33"></script>
-  <script src="js/describe.js?v=33"></script>
-  <script src="js/zh-braille.js?v=33"></script>
-  <script src="js/samples.js?v=33"></script>
+  <script src="js/brf.js?v=34"></script>
+  <script src="js/model.js?v=34"></script>
+  <script src="js/durations.js?v=34"></script>
+  <script src="js/abc-parse.js?v=34"></script>
+  <script src="js/braille-write.js?v=34"></script>
+  <script src="js/braille-parse.js?v=34"></script>
+  <script src="js/abc-write.js?v=34"></script>
+  <script src="js/xml.js?v=34"></script>
+  <script src="js/musicxml.js?v=34"></script>
+  <script src="js/describe.js?v=34"></script>
+  <script src="js/zh-braille.js?v=34"></script>
+  <script src="js/samples.js?v=34"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=33"></script>
+  <script src="js/app.js?v=34"></script>
 </body>
 </html>

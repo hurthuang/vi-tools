@@ -75,6 +75,16 @@
       if (cp >= 0x20 && cp <= 0x7e) continue; // ASCII 字元不由這張表處理
       map.set(ch, dots(parts[di]));
     }
+    // 標點依《台灣注音點字規則整理［標點符號］》修正 zh-tw.ctb 的值（和工具集「文字轉點字」相同）
+    map.set('？', '⠕'); // ？ ⠕
+    map.set('．', '⠤'); // ． ⠤
+    map.set('·', '⠤'); // · ⠤
+    map.set('‧', '⠤'); // ‧ ⠤
+    map.set('～', '⠠⠤'); // ～ ⠠⠤
+    map.set('※', '⠈⠼'); // ※ ⠈⠼
+    map.set('◎', '⠪⠕'); // ◎ ⠪⠕
+    map.set('…', '⠐⠐⠐'); // … ⠐⠐⠐
+    map.set('—', '⠐⠂'); // — ⠐⠂
     loaded = map.size > 0;
     return loaded;
   }

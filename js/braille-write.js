@@ -147,8 +147,8 @@
           let e = k + 1;
           while (e < notes.length && notes[e].lyrics && notes[e].lyrics[0] && notes[e].lyrics[0].extend) e++;
           const grp = notes.slice(k, e);
-          const tiedOnly = grp.slice(0, -1).every((x) => x.notes.length && x.notes.every((nn) => nn.tie));
-          if (grp.length >= 2 && !tiedOnly) {
+          // 連結線延續的音也加音節圓滑線（圓滑線寫在連結線前面）
+          if (grp.length >= 2) {
             if (grp.length <= 4) grp.slice(0, -1).forEach((x) => (get(x.id).short = true));
             else {
               get(grp[0].id).dbl = true;
@@ -530,6 +530,15 @@
     const first = score.parts[0];
     if (!first || !first.measures.length) return finish([], warnings);
 
+    // 曲名（Par. 1.6.1）：置中的文字標題；樂曲標頭前空一行（Par. 1.7）
+    if (opts.title !== false && score.title) {
+      const t = titleBrf(score.title);
+      if (t) {
+        const l = new Line();
+        l.add(center(t, opts.width));
+        lines.push(l, new Line());
+      } // 中文曲名需要國語點字表；單獨使用時沒有，就不寫曲名
+    }
     // 樂曲標頭（Par. 1.7）：速度、調號、拍號置中
     const m0 = first.measures[0];
     const headParts = [];
@@ -784,17 +793,38 @@
   }
 
   /** 歌詞的外文字母、數字與標點（不縮寫的英文點字，Par. 35.1.1）。回傳 BRF；不認得的字元回傳 null。 */
-  function latinBrf(ch, state) {
+  function latinBrf(ch) {
     if (/[a-z]/.test(ch)) return ch.toUpperCase();
     if (/[A-Z]/.test(ch)) return ',' + ch;
-    if (/[0-9]/.test(ch)) {
-      const r = (state.digit ? '' : '#') + B.upperNumber(+ch);
-      state.digit = true;
-      return r;
-    }
-    state.digit = false;
     const P = { "'": "'", ',': '1', '.': '4', '!': '6', '?': '8', ';': '2', ':': '3', '-': '-' };
     return P[ch] != null ? P[ch] : null;
+  }
+  const HALF_TO_FULL = { ',': '，', '.': '。', '!': '！', '?': '？', ';': '；', ':': '：' };
+  // 歌詞中的數字（半形或全形）一律寫下位數字
+  const DIGIT_OF = {};
+  for (let d = 0; d <= 9; d++) {
+    DIGIT_OF[String(d)] = d;
+    DIGIT_OF[String.fromCharCode(0xff10 + d)] = d;
+  }
+
+  /** 曲名（Par. 1.6.1：文字標題，置中）：中文用國語點字，外文用字母。無法轉換時回傳 null。 */
+  function titleBrf(title) {
+    const zh = MB.zhBraille;
+    const chars = [...title];
+    const hasZh = chars.some((c) => /[㐀-鿿豈-﫿　-〿＀-￯]/.test(c));
+    if (hasZh && !(zh && zh.isLoaded())) return null;
+    const out = hasZh ? zh.translate(title) : null;
+    let s = '';
+    chars.forEach((c, i) => {
+      if (c === ' ') s += ' ';
+      else if (DIGIT_OF[c] != null) s += B.lowerNumber(DIGIT_OF[c]);
+      else if (out && out[i].known && /[^\x00-\x7f]/.test(c)) s += B.toBrf(out[i].brl);
+      else {
+        const b = latinBrf(c);
+        if (b != null) s += b;
+      }
+    });
+    return s.trim() || null;
   }
 
   /**
@@ -831,28 +861,36 @@
       const sylls = [];
       for (let mi = st; mi < end; mi++) for (const ev of part.measures[mi].voices[0] || []) if (lyr0(ev) && lyr0(ev).text) sylls.push({ l: lyr0(ev), id: ev.id, mi });
       if (!sylls.length) return;
+      // 中文歌詞裡的半形標點當作全形中文標點
+      const texts = sylls.map((x) => ([...x.l.text].some((c) => /[㐀-鿿豈-﫿]/.test(c)) ? x.l.text.replace(/[,.!?;:]/g, (c) => HALF_TO_FULL[c]) : x.l.text));
       // 中文整段一起轉，多音字才能看前後文
-      const zhOut = needZh ? zh.translate(sylls.map((x) => x.l.text).join('')) : null;
+      const zhOut = needZh ? zh.translate(texts.join('')) : null;
       let pos = 0;
-      const pieces = sylls.map((x) => {
+      const pieces = sylls.map((x, j) => {
         let brl = '';
         let cjk = false;
-        const st2 = { digit: false };
-        for (const ch of x.l.text) {
+        let last = '';
+        for (const ch of texts[j]) {
           const t = zhOut ? zhOut[pos] : null;
           pos++;
-          if (isZh(ch)) {
+          last = ch;
+          const digit = DIGIT_OF[ch];
+          if (digit != null) brl += B.lowerNumber(digit); // 數字用下位數字
+          else if (isZh(ch)) {
             cjk = true;
             if (t && t.known) brl += B.toBrf(t.brl);
             else unknown.add(ch);
           } else {
-            const b = latinBrf(ch, st2);
+            const b = latinBrf(ch);
             if (b == null) unknown.add(ch);
             else brl += b;
           }
         }
+        // 中文歌詞裡只有數字或標點的音節，和中文字一樣依「字間」設定連寫或空方
+        if (needZh && !cjk && [...texts[j]].every((c) => DIGIT_OF[c] != null || isZh(c))) cjk = true;
         const joined = x.l.syllabic === 'begin' || x.l.syllabic === 'middle';
-        return { brl, id: x.id, mi: x.mi, cjk, joined };
+        // 句末標點（。？！）後面空一方（台灣注音點字標點規則，和工具集「文字轉點字」相同）
+        return { brl, id: x.id, mi: x.mi, cjk, joined, terminal: '。？！'.includes(last) };
       });
       const out = [new Line('')];
       let cur = out[0];
@@ -860,7 +898,7 @@
         const prevPc = pieces[j - 1];
         // 中文字之間依設定連寫或空一方；外文同一個字的音節連寫（不寫連字號），字與字之間空一方
         let sep = '';
-        if (prevPc) sep = prevPc.cjk && pc.cjk ? (opts.lyricSpacing === 'space' ? ' ' : '') : prevPc.joined ? '' : ' ';
+        if (prevPc) sep = prevPc.terminal ? ' ' : prevPc.cjk && pc.cjk ? (opts.lyricSpacing === 'space' ? ' ' : '') : prevPc.joined ? '' : ' ';
         if (cur.content && cur.text.length + sep.length + pc.brl.length > W) {
           cur = new Line('    '); // 續行從第 5 方開始（Par. 35.1）
           out.push(cur);

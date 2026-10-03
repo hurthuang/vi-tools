@@ -541,17 +541,27 @@ for (const s of MB.samples) {
   const table = ['../tool-music/table/zh-tw.ctb', '../tool/table/zh-tw.ctb'].map((p) => path.join(__dirname, '..', '..', p.replace('../', ''))).find((p) => fs.existsSync(p));
   if (table) {
     MB.zhBraille.load(fs.readFileSync(table, 'utf8'));
+    const B_U = (s) => MB.brf.toUnicode(s);
     const b = MB.toBraille(r.score);
     const ls = b.brf.split('\n');
-    check('歌詞點字：歌詞行在行首、音樂行從第 3 方開始', /^\*'IV@\*'IV@C\."KY'KY'$/.test(ls[1]) && ls[2] === '  "??\\\\ [[R' && /^MV@FT'D\('I:"E\[@EY'EY'$/.test(ls[3]) && ls[4] === '  "]]$$ ::N<K', b.brf);
-    const sp = MB.toBraille(r.score, { lyricSpacing: 'space' }).brf.split('\n')[1];
+    // 曲名置中（Par. 1.6.1），空一行後是樂曲標頭（Par. 1.7）
+    check('曲名：國語點字置中，後面空一行', ls[0].trim() === "E[@EY'EY'" && /^ {10,}/.test(ls[0]) && ls[1] === '' && ls[2].trim() === '#D4', b.brf);
+    check('歌詞點字：歌詞行在行首、音樂行從第 3 方開始', /^\*'IV@\*'IV@C\."KY'KY'$/.test(ls[3]) && ls[4] === '  "??\\\\ [[R' && /^MV@FT'D\('I:"E\[@EY'EY'$/.test(ls[5]) && ls[6] === '  "]]$$ ::N<K', b.brf);
+    const sp = MB.toBraille(r.score, { lyricSpacing: 'space' }).brf.split('\n')[3];
     check('歌詞點字：中文字之間空一方', sp === "*' IV@ *' IV@ C.\" KY' KY'", sp);
+    check('曲名：可以關閉', !/E\[@EY'EY'/.test(MB.toBraille(r.score, { title: false }).brf.split('\n')[0]), '');
     const back = MB.parseBraille(b.brf);
-    check('歌詞點字：讀回時略過歌詞行、音樂不變', summary(back.score) === summary(r.score) && back.score.parts[0].measures[2].lineStart === true, back.warnings.map((w) => w.msg).join('；'));
+    check('歌詞點字：讀回時略過曲名與歌詞行、音樂不變', summary(back.score) === summary(r.score) && back.score.parts[0].measures[2].lineStart === true && back.warnings.every((w) => /^歌詞行/.test(w.msg)), back.warnings.map((w) => w.msg).join('；'));
     // 一個音節唱好幾個音：音節圓滑線（Par. 35.2）；印刷譜的圓滑線用括號
     const m = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D E F | (G A) B c |\nw:a_ _ b c d e f\n');
     const mb = MB.toBraille(m.score).brf.split('\n');
     check('歌詞點字：音節圓滑線與樂句括號', mb[2] === '  "?C:C$] ;B\\[^2W?', mb.join('\n'));
+    // 連結線延續的音節也加音節圓滑線，圓滑線寫在連結線前面
+    const t = MB.toBraille(MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC2 D2- | D4 |\nw:天 空_\n').score).brf.split('\n');
+    check('歌詞點字：連結線上的音節加音節圓滑線', t[2] === '  "NOC@C Z', t.join('\n'));
+    // 標點依點字規則（句末標點後空一方，？為 ⠕），數字用下位數字
+    const pu = MB.toBraille(MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nC D E F | G A B c |\nw:你 好! 我 好? 1 2 3 4\n').score).brf.split('\n')[1];
+    check('歌詞點字：句末標點後空一方、？寫 ⠕、數字下位', B_U(pu) === '⠝⠡⠈⠗⠩⠈⠇ ⠒⠈⠗⠩⠈⠕ ⠂⠆⠒⠲', B_U(pu));
   } else console.log('（找不到工具集的 zh-tw.ctb，略過中文歌詞點字測試）');
 }
 
