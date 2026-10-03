@@ -1077,7 +1077,8 @@
         atLineStart = true;
         return;
       }
-      if (segLines >= opts.segmentLines || lines.length === 0 || segLines === 0) {
+      // 跟隨 ABC 換行時，每一行 ABC 是一段：只有段落開頭寫小節編號，太長接到續行
+      if (segLines === 0 || lines.length === 0 || (opts.lineMode !== 'abc' && segLines >= opts.segmentLines)) {
         // 段落從被拆開小節的後半開始時，編號後加點 3（Par. 24.1.1）
         line = new Line('#' + B.upperNumber(numbers[mi]) + (part.measures[mi].splitCont ? "' " : ' '));
         segLines = 1;
@@ -1111,8 +1112,8 @@
         phraseStart = true;
         atLineStart = true;
       }
-      // Segno 與 Coda 段落都要另起一段（Par. 20.1.1、20.1.5）
-      if (mi > 0 && (m.segno || m.codaStart)) {
+      // Segno 與 Coda 段落都要另起一段（Par. 20.1.1、20.1.5）；跟隨 ABC 換行時，ABC 的每一行另起一段
+      if (mi > 0 && (m.segno || m.codaStart || (opts.lineMode === 'abc' && !vocal && m.lineStart))) {
         flush();
         segLines = 0;
       }
@@ -1305,6 +1306,8 @@
       while (mi < N && !extraR.length && !extraL.length) {
         const m = rh.measures[mi];
         if (m.key || m.meter || m.segno || m.codaStart) break;
+        // 跟隨 ABC 換行：ABC 換行處結束這一組上下對齊的段落
+        if (opts.lineMode === 'abc' && (m.lineStart || lh.measures[mi].lineStart)) break;
         const run = bothRun(mi);
         const r = run ? { pieces: runPieces(rh, mi, run) } : render(rh, slR, mi);
         const l = run ? { pieces: runPieces(lh, mi, run) } : render(lh, slL, mi);

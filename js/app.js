@@ -103,6 +103,7 @@
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.slur) $('opt-slur').value = settings.slur;
+    if (settings.lineMode) $('opt-line-mode').value = settings.lineMode;
     if (settings.lyrics) $('opt-lyrics').value = settings.lyrics;
     if (settings.title === false) $('opt-title').checked = false;
     if (settings.lyricSpace) $('opt-lyric-space').value = settings.lyricSpace;
@@ -117,12 +118,15 @@
     $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
     if (settings.brlSize) $('brl-size').value = settings.brlSize;
     if (settings.autoSpeak) $('auto-speak').checked = true;
+    if (settings.echoInput) $('echo-input').checked = true;
+    if (settings.echoCaret) $('echo-caret').checked = true;
     if (settings.solfege) $('solfege').checked = true;
   }
   function saveSettings() {
     Object.assign(settings, {
       width: +$('opt-width').value,
       seg: +$('opt-seg').value,
+      lineMode: $('opt-line-mode').value,
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
       slur: $('opt-slur').value,
@@ -137,6 +141,8 @@
       paperPerLine: $('paper-per-line').value,
       brlSize: $('brl-size').value,
       autoSpeak: $('auto-speak').checked,
+      echoInput: $('echo-input').checked,
+      echoCaret: $('echo-caret').checked,
       solfege: $('solfege').checked,
     });
     store.set('settings', settings);
@@ -145,6 +151,7 @@
     return {
       width: Math.max(20, Math.min(80, +$('opt-width').value || 40)),
       segmentLines: Math.max(1, +$('opt-seg').value || 3),
+      lineMode: $('opt-line-mode').value,
       grouping: $('opt-group').checked,
       slurStyle: $('opt-slur').value,
       lyrics: $('opt-lyrics').value !== 'none',
@@ -311,6 +318,7 @@
     abcEd.setMarks([]);
     brlEd.setMarks([]);
     document.dispatchEvent(new Event('score-changed'));
+    echoAfterInput();
   }
 
   // ---------- 五線譜 ----------
@@ -583,7 +591,11 @@
   function onCaret(which) {
     const ta = which === 'abc' ? abcTA : brlTA;
     const inf = findByPos(which, ta.selectionStart);
-    if (inf && inf !== state.current) select(inf, which);
+    if (inf && inf !== state.current) {
+      select(inf, which);
+      // 移動游標時播放音符（輸入造成的移動除外，輸入時另外處理）
+      if ($('echo-caret').checked && Date.now() - lastInput > 600) echoNote(inf.ev);
+    }
     if (which === 'brl' && !inf) {
       const c = B.toBrf(ta.value.charAt(ta.selectionStart) || ' ');
       $('cell-info').textContent = c.trim() ? '點 ' + B.dotsOf(c) : '';
@@ -669,7 +681,8 @@
     return best ? state.infos.find((x) => x.id === best) : null;
   }
 
-  async function play() {
+  /** from：從這個事件開始播放（沒有就從頭）。 */
+  async function play(from) {
     if (!window.ABCJS || !state.visual) return playerStatus('沒有可播放的樂譜。');
     if (!ABCJS.synth.supportsAudio()) return playerStatus('這個瀏覽器不支援音訊播放。');
     stopPlay();
@@ -694,9 +707,22 @@
         qpm: vis.getBpm() * warp,
         eventCallback: onPlayEvent,
       });
+      // 從游標處播放：找出該音在演奏順序（反覆展開後）第一次出現的時間點
+      let startSec = 0;
+      if (from && from.id) {
+        const t = (timing.noteTimings || []).find((ev) =>
+          (ev.startCharArray || []).some((s, k) => {
+            const inf = infoFromPerf(s, (ev.endCharArray || [])[k]);
+            return inf && inf.id === from.id;
+          })
+        );
+        if (t) startSec = t.milliseconds / 1000;
+      }
+      if (startSec) synth.seek(startSec, 'seconds');
       synth.start();
-      timing.start();
-      playerStatus('播放中');
+      if (startSec) timing.start(startSec, 'seconds');
+      else timing.start();
+      playerStatus(startSec && from.number != null ? '從第 ' + from.number + ' 小節播放中' : '播放中');
       $('btn-play').textContent = '▶ 重新播放';
     } catch (e) {
       console.error(e);
@@ -737,6 +763,60 @@
     document.querySelectorAll('#paper .playing').forEach((el) => el.classList.remove('playing'));
     $('btn-play').textContent = '▶ 播放';
   }
+
+  // ---------- 單音播放：輸入或移動游標時聽到該音 ----------
+  let lastEcho = ''; // 上一次播放的音（輸入時，同一個音不重複播放，例如在音符後面打空白）
+  let lastInput = 0; // 最後一次輸入的時間（輸入造成的游標移動不另外播放）
+  async function echoNote(ev) {
+    if (!ev || ev.kind !== 'note' || !window.ABCJS || !ABCJS.synth.supportsAudio()) return;
+    if (synth) return; // 正在播放整首時不打斷
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();
+      window.abcjsAudioContext = audioCtx;
+      const M = MB.model;
+      // 每分鐘幾個四分音符 → 全音符的毫秒數（playEvent 的時值以全音符為單位）
+      const t = state.score && state.score.tempo;
+      const qpm = t ? (t.bpm * M.valueTicks(t.value, t.dots)) / (M.TPW / 4) : 100;
+      const msWhole = (4 * 60000) / qpm / (+$('speed').value / 100);
+      // 長音最多播 1.5 秒
+      const dur = Math.min(M.valueTicks(ev.value, ev.dots) / M.TPW, 1500 / msWhole);
+      const pitches = ev.notes.map((n) => ({ pitch: M.midiOf(n), volume: 90, instrument: 0, duration: dur }));
+      await ABCJS.synth.playEvent(pitches, [], msWhole, SOUNDFONT_URL);
+    } catch (e) {
+      console.error(e);
+      playerStatus('無法播放音符：' + (e && e.message ? e.message : '載入音色失敗（需要網路連線）'));
+    }
+  }
+  /** 轉換完成後：輸入時播放音符（游標所在或剛輸入的音）。 */
+  function echoAfterInput() {
+    const which = state.echoFrom;
+    state.echoFrom = null;
+    if (!which || !$('echo-input').checked) return;
+    const ta = which === 'abc' ? abcTA : brlTA;
+    const inf = findByPos(which, ta.selectionStart);
+    if (!inf || !inf[which] || inf.ev.kind !== 'note') return;
+    const sig = which + inf[which][0] + ':' + inf.ev.notes.map((n) => MB.model.midiOf(n)).join(',') + ':' + inf.ev.value + '.' + (inf.ev.dots || 0);
+    if (sig === lastEcho) return;
+    lastEcho = sig;
+    echoNote(inf.ev);
+  }
+  /** 游標所在的音（ABC 或點字編輯區），沒有就用目前標示的音。 */
+  function cursorInfo() {
+    const a = document.activeElement;
+    if (a === abcTA) return findByPos('abc', abcTA.selectionStart);
+    if (a === brlTA) return findByPos('brl', brlTA.selectionStart);
+    return state.current;
+  }
+  // Ctrl+Enter：從游標處播放；播放中再按一次停止
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    e.preventDefault();
+    if (synth) {
+      stopPlay();
+      playerStatus('已停止');
+    } else play(cursorInfo());
+  });
 
   // ---------- 語音 ----------
   function speak(text) {
@@ -976,10 +1056,14 @@
 
   // ---------- 事件繫結 ----------
   abcTA.addEventListener('input', () => {
+    lastInput = Date.now();
+    state.echoFrom = 'abc';
     $('sample').value = '';
     schedule(convertFromAbc);
   });
   brlTA.addEventListener('input', () => {
+    lastInput = Date.now();
+    state.echoFrom = 'brl';
     $('sample').value = '';
     schedule(convertFromBraille);
   });
@@ -1000,14 +1084,14 @@
     applyBrlLook();
     saveSettings();
   });
-  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat', 'opt-lyrics', 'opt-lyric-space', 'opt-title']) {
+  for (const id of ['opt-width', 'opt-seg', 'opt-line-mode', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat', 'opt-lyrics', 'opt-lyric-space', 'opt-title']) {
     $(id).addEventListener('change', () => {
       saveSettings();
       if (id === 'opt-dir' || state.lastSource === 'brl') convertFromBraille();
       else convertFromAbc();
     });
   }
-  for (const id of ['auto-speak', 'solfege']) $(id).addEventListener('change', saveSettings);
+  for (const id of ['auto-speak', 'solfege', 'echo-input', 'echo-caret']) $(id).addEventListener('change', saveSettings);
   // 六點輸入預設開啟；使用者關掉後記住（工具集的浮動面板另外記，見下方）
   $('six-key').addEventListener('change', () => {
     settings.sixKey = $('six-key').checked;
@@ -1025,7 +1109,7 @@
       saveSettings();
       rerenderPaper();
     });
-  $('btn-play').addEventListener('click', play);
+  $('btn-play').addEventListener('click', () => play());
   $('btn-stop').addEventListener('click', () => {
     stopPlay();
     playerStatus('已停止');
