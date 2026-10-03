@@ -420,13 +420,28 @@
         continue;
       }
       // 小節重複記號 ⠶（Par. 18.2）：後面可以接最後一個音的連結線、反覆結束、雙縱線、終止線（18.1.2、18.1.6）
-      if (c === '7' && !voice.length && /^7(@C)?(<K'?|<2)?$/.test(s.trim())) {
+      if (c === '7' && !voice.length && /^'?7(@C)?(<K'?|<2)?$/.test(s.trim())) {
         res.repeatPrev = true;
         res.repeatSrc = [pos[at], pos[at] + 1];
         if (c1 === '@' && c2 === 'C') {
           res.repeatTie = true;
           i += 3;
         } else i++;
+        continue;
+      }
+      // 部分小節重複 ⠶（Par. 18.3）：先放一個佔位，重複的範圍等時值判讀時再決定（見 expandPartRepeats）
+      if (c === '7' && voice.length) {
+        if (pre.oct != null) warn('不同音層的重複（⠶ 前加音層記號，Par. 18.1.1）目前不轉換，已照原音層重複', pos[at]);
+        const ph = { kind: 'repeat', src: [pos[at], pos[at] + 1], tie: false, short: false, close: 0 };
+        voice.push(ph);
+        last = ph;
+        lastKind = null;
+        pre = newPre();
+        i++;
+        if (c1 === '@' && c2 === 'C') {
+          ph.tie = true;
+          i += 2;
+        }
         continue;
       }
       warn('無法辨識的點字「' + B.toUnicode(c) + '」（點 ' + B.dotsOf(c) + '）', pos[at]);
@@ -558,7 +573,8 @@
     function expandRepeats(toks) {
       const out = [];
       for (const t of toks) {
-        const m = /^7#([A-J]+)(<K'?|<2)?$/.exec(t.text);
+        // 手號後的點 3 分隔（⠨⠜⠄⠶⠼⠉）也算
+        const m = /^'?7#([A-J]+)(<K'?|<2)?$/.exec(t.text);
         const n = m ? B.parseUpperNumber(m[1]) : 0;
         if (!(n >= 2)) {
           out.push(t);
@@ -567,7 +583,8 @@
         const tail = m[2] || '';
         for (let k = 0; k < n; k++) {
           const last = k === n - 1 && tail;
-          out.push({ text: '7' + (last ? tail : ''), pos: [t.pos[0]].concat(last ? t.pos.slice(t.pos.length - tail.length) : []) });
+          const at7 = t.text.indexOf('7');
+          out.push({ text: '7' + (last ? tail : ''), pos: [t.pos[at7]].concat(last ? t.pos.slice(t.pos.length - tail.length) : []) });
         }
       }
       return out;
@@ -680,6 +697,7 @@
           });
         });
         if (carry) hands[hand].push(carry);
+        hands[hand] = expandRepeats(hands[hand]); // 兩手都重複三次以上時寫 ⠶ 加次數（Par. 18.2.2）
       }
       return { hands, sigAt };
     }
@@ -891,6 +909,7 @@
         let left = 0;
         let tup = null;
         raw.forEach((r) => {
+          if (r.kind === 'repeat') return;
           if (r.tuplet) {
             tup = r.tuplet;
             left = tup.n;
@@ -958,6 +977,107 @@
       const res = D.solve(its, target, true);
       return res ? res.values : large;
     };
+    /**
+     * 部分小節重複（Par. 18.3）：把 ⠶ 佔位換成被重複的音。點字只寫 ⠶，不寫重複多少，
+     * 所以逐一嘗試「重複前面幾個音」：能剛好填滿小節、重複的長度是後半小節、一拍或半拍且從該單位的開頭開始
+     * （或是重複一個用音程寫的和弦），而且重複出來的音時值和原來相同，就採用。
+     */
+    const expandPartRepeats = (raw, meter, partial, mi) => {
+      if (!raw.some((r) => r.kind === 'repeat')) return raw;
+      const target = M.meterTicks(meter);
+      const runs = [];
+      raw.forEach((r, i) => {
+        if (r.kind !== 'repeat') return;
+        const lastRun = runs[runs.length - 1];
+        if (lastRun && lastRun.at + lastRun.len === i) lastRun.len++;
+        else runs.push({ at: i, len: 1 });
+      });
+      const compound = meter.den === 8 && meter.num % 3 === 0 && meter.num > 3;
+      const beat = compound ? (3 * M.TPW) / 8 : M.TPW / meter.den;
+      const units = [target / 2, beat, compound ? M.TPW / 8 : beat / 2];
+      const build = (ks) => {
+        const out = [];
+        const segs = [];
+        let ri = 0;
+        for (let i = 0; i < raw.length; ) {
+          if (raw[i].kind !== 'repeat') {
+            out.push(raw[i++]);
+            continue;
+          }
+          const run = runs[ri];
+          const k = ks[ri++];
+          const orig = out.slice(out.length - k);
+          if (orig.length < k) return null;
+          const seg = { start: out.length - k, k, copies: [] };
+          for (let c = 0; c < run.len; c++) {
+            const ph = raw[i + c];
+            seg.copies.push(out.length);
+            orig.forEach((o, j) => {
+              // _copyOf：重複出來的音，音高照抄原來的音（不再依前一個音推算音層）
+              const cp = Object.assign({}, o, { src: ph.src, _copyOf: o._copyOf || o });
+              if (o.intervals) cp.intervals = o.intervals.map((iv) => Object.assign({}, iv));
+              // 最後一個音的連結線、圓滑線不屬於重複的內容，看 ⠶ 後面有沒有寫（18.1.2、18.1.3）
+              if (j === k - 1) {
+                cp.tie = ph.tie;
+                if (cp.intervals) cp.intervals.forEach((iv) => (iv.tie = false));
+                cp.short = ph.short;
+                cp.close = ph.close;
+              }
+              out.push(cp);
+            });
+          }
+          segs.push(seg);
+          i += run.len;
+        }
+        return { out, segs };
+      };
+      const valid = (b, exact) => {
+        const values = solveRaws([b.out], target, partial && !exact, null);
+        const ticks = values.map((v, k) => (typeof v === 'number' ? D.ticksOf(v, itemsOf([b.out[k]])[0]) : 0));
+        const total = ticks.reduce((a, x) => a + x, 0);
+        if (total !== target && !(partial && !exact && total < target)) return false;
+        const offs = [];
+        ticks.reduce((t, x, k) => ((offs[k] = t), t + x), 0);
+        return b.segs.every((s) => {
+          const U = ticks.slice(s.start, s.start + s.k).reduce((a, x) => a + x, 0);
+          const chord = s.k === 1 && b.out[s.start].intervals && b.out[s.start].intervals.length > 0;
+          // 單一個音（非和弦）不會寫成 ⠶（寫出端也不這樣寫），避免音符分組造成的錯誤解讀
+          if (s.k === 1 && !chord) return false;
+          if (!chord && !(units.includes(U) && offs[s.start] % U === 0)) return false;
+          return s.copies.every((c) => {
+            for (let j = 0; j < s.k; j++) if (values[c + j] !== values[s.start + j]) return false;
+            return true;
+          });
+        });
+      };
+      // 依序嘗試每段 ⠶ 重複前面幾個音：從多到少，和寫出端「先找較大的單位」一致
+      const maxK = Math.min(16, raw.length);
+      // 先找能剛好填滿小節的解讀；都不行時（弱起或最後一小節）才接受不完整的小節
+      const tryKs = (ks, exact) => {
+        if (ks.length === runs.length) {
+          const b = build(ks);
+          return b && valid(b, exact) ? b.out : null;
+        }
+        for (let k = maxK; k >= 1; k--) {
+          const r = tryKs(ks.concat([k]), exact);
+          if (r) return r;
+        }
+        return null;
+      };
+      // 寫出端一個小節只用一種單位，所以先試「每段 ⠶ 重複的音數都相同」；不行再逐段組合（最多三段）
+      const sameK = (exact) => {
+        for (let k = maxK; k >= 1; k--) {
+          const b = build(runs.map(() => k));
+          if (b && valid(b, exact)) return b.out;
+        }
+        return null;
+      };
+      const search = (exact) => sameK(exact) || (runs.length <= 3 ? tryKs([], exact) : null);
+      const out = search(true) || (partial ? search(false) : null);
+      if (out) return out;
+      warn('第 ' + (mi + 1) + ' 小節的部分小節重複 ⠶ 無法判斷重複的範圍，已略過', raw.find((r) => r.kind === 'repeat').src[0]);
+      return raw.filter((r) => r.kind !== 'repeat');
+    };
     part.measures.forEach((m, mi) => {
       const meter = M.meterAt(part, mi);
       if (m._repeatPrev) {
@@ -977,6 +1097,7 @@
       }
       delete m._repeatPrev;
       m.voices = m.voices.map((raw, vi) => {
+        raw = expandPartRepeats(raw, meter, mi === N - 1 || M.mayBeIncomplete(part, mi), mi);
         // 時值
         const target = M.meterTicks(meter);
         let values;
@@ -1054,11 +1175,13 @@
           }
           if (r.kind === 'note') {
             let octave;
-            if (r.oct != null) octave = r.oct;
+            if (r._copyOf && r._copyOf._octave != null) octave = r._copyOf._octave;
+            else if (r.oct != null) octave = r.oct;
             else if (prev == null) {
               warn('第一個音缺少音層記號，假設為第 4 音層', r.src[0]);
               octave = 4;
             } else octave = inferOctave(prev, r.step, warn, r.src[0]);
+            r._octave = octave;
             const written = { step: r.step, octave, accidental: r.acc, tie: r.tie };
             if (r.finger !== undefined) written.finger = r.finger;
             if (r.fingerAlt !== undefined) written.fingerAlt = r.fingerAlt;

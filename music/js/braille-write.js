@@ -416,7 +416,19 @@
         env.warnings.push({ msg: '第 ' + env.numbers[mi] + ' 小節' + (part.hand ? (part.hand === 'R' ? '（右手）' : '（左手）') : '') + '的拍數與拍號不符', measure: mi });
       }
       ctx.wordEnd = false;
+      const reps = opt.partRepeat !== false && env.opts.measureRepeat && env.opts.partRepeat && !split ? partRepeats(voice, meter, plan.groups) : null;
+      let repEnd = 0;
       voice.forEach((ev, ei) => {
+        if (ei < repEnd) return;
+        if (reps && reps.has(ei)) {
+          const len = reps.get(ei);
+          const lastEv = voice[ei + len - 1];
+          const tie = lastEv.notes && lastEv.notes.some((x) => x.tie) ? '@C' : '';
+          pieces.push({ text: (ctx.wordEnd ? "'" : '') + '7' + tie, id: null, ids: voice.slice(ei, ei + len).map((x) => x.id), vi, ei, cont: true });
+          ctx.wordEnd = false;
+          repEnd = ei + len;
+          return;
+        }
         // 前一小節以文字記號（如漸強結束 ⠜⠒）結束：這一小節第一個音要寫音層記號（Par. 22.3(e)），但不加點 3（22.3(d)(1)）
         const afterWord = vi === 0 && ei === 0 && !!opt.afterWord;
         ctx.force = (vi > 0 ? ei === 0 : ei === 0 && opt.forceFirst) || (opt.forced && opt.forced.has(vi + ':' + ei)) || ctx.wordEnd || afterWord;
@@ -485,7 +497,7 @@
 
   // ---------- 主程式 ----------
   function toBraille(score, options) {
-    const opts = Object.assign({ width: 40, grouping: true, segmentLines: 3, measureRepeat: true }, options || {});
+    const opts = Object.assign({ width: 40, grouping: true, segmentLines: 3, measureRepeat: true, partRepeat: true }, options || {});
     const warnings = [];
     const lines = [];
     const numbers = M.measureNumbers(score);
@@ -547,7 +559,8 @@
       let room = firstRoom;
       let guard = 0;
       while (guard++ < 50) {
-        const r = renderMeasure(part, mi, env, { prev, forceFirst, forced, grouping });
+        // 部分小節重複不能跨行（Par. 18.3.3(b)）：要拆開的小節全部寫出
+        const r = renderMeasure(part, mi, env, { prev, forceFirst, forced, grouping, partRepeat: false });
         const ps = r.pieces; // 所有聲部（含 in-accord）的片段
         let used = 0;
         let k = start;
@@ -633,6 +646,88 @@
     return t;
   }
   const measureIds = (m) => [].concat(...m.voices).map((ev) => ev.id);
+
+  /**
+   * 部分小節重複（Par. 18.3）：找出一個聲部裡可以寫成 ⠶ 的片段。回傳 Map（片段第一個音的索引 → 片段長度），沒有則回傳 null。
+   * (a) 後半小節重複前半、(b) 一整拍立刻重複、(c) 拍子的一半立刻重複：依序找較大的單位，只用一種單位；
+   * (d) 用音程寫的和弦立刻重複。片段必須完全相同（最後一個音的連結線除外，寫在 ⠶ 後面），
+   * 圓滑線、漸強漸弱要在片段內開始並結束，也不能把點字的音符分組切開。
+   */
+  function partRepeats(voice, meter, groups) {
+    const n = voice.length;
+    if (n < 2 || voice.some((ev) => ev.measureRest || ev.pedalDown || ev.pedalUp || ev.pedalChange)) return null;
+    const offs = [];
+    let total = 0;
+    voice.forEach((ev, i) => {
+      offs[i] = total;
+      total += M.eventTicks(ev);
+    });
+    if (total !== M.meterTicks(meter)) return null; // 只用在完整的小節
+    const sigEv = (ev, isLast) => {
+      const c = Object.assign({}, ev);
+      delete c.id;
+      delete c.src;
+      if (isLast) c.notes = (c.notes || []).map((x) => Object.assign({}, x, { tie: false }));
+      return JSON.stringify(c);
+    };
+    const balanced = (a, b) => {
+      let sl = 0;
+      let hp = 0;
+      for (let i = a; i < b; i++) {
+        const ev = voice[i];
+        sl += (ev.slurStart || 0) - (ev.slurEnd || 0);
+        if (sl < 0) return false;
+        hp += (ev.hairpinStart ? 1 : 0) - (ev.hairpinEnd ? 1 : 0);
+      }
+      return sl === 0 && hp === 0;
+    };
+    const tiedChordEnd = (b) => voice[b - 1].notes && voice[b - 1].notes.length > 1 && voice[b - 1].notes.some((x) => x.tie);
+    const same = (a0, a1, b0, b1) => {
+      if (a1 - a0 !== b1 - b0) return false;
+      for (let j = 0; j < a1 - a0; j++) if (sigEv(voice[a0 + j], j === a1 - a0 - 1) !== sigEv(voice[b0 + j], j === b1 - b0 - 1)) return false;
+      return true;
+    };
+    const { num, den } = meter;
+    const compound = den === 8 && num % 3 === 0 && num > 3;
+    const beat = compound ? (3 * M.TPW) / 8 : M.TPW / den;
+    const units = [total / 2, beat, compound ? M.TPW / 8 : beat / 2];
+    const at = new Map(offs.map((o, i) => [o, i]));
+    at.set(total, n);
+    for (const U of units) {
+      if (!Number.isInteger(U) || U <= 0 || total % U) continue;
+      const segs = [];
+      for (let t = 0; t < total; t += U) {
+        if (!at.has(t) || !at.has(t + U)) {
+          segs.length = 0;
+          break;
+        }
+        segs.push([at.get(t), at.get(t + U)]);
+      }
+      if (segs.length < 2) continue;
+      const res = new Map();
+      for (let k = 1; k < segs.length; k++) {
+        const [a0, a1] = segs[k - 1];
+        const [b0, b1] = segs[k];
+        if (!same(a0, a1, b0, b1) || !balanced(a0, a1) || !balanced(b0, b1) || tiedChordEnd(b1)) continue;
+        // 只有一個單音時 ⠶ 並不比原本短，反而難讀：至少兩個音，或是一個和弦
+        if (b1 - b0 < 2 && !(voice[b0].notes && voice[b0].notes.length > 1)) continue;
+        // 不能把點字的音符分組切開
+        if (groups.has(a0) || groups.has(b0) || (b1 < n && groups.has(b1))) continue;
+        res.set(b0, b1 - b0);
+      }
+      if (res.size) return res;
+    }
+    // (d) 和弦立刻重複（不含連結線）
+    const res = new Map();
+    for (let i = 1; i < n; i++) {
+      const a = voice[i - 1];
+      const b = voice[i];
+      if (!b.notes || b.notes.length < 2 || groups.has(i)) continue;
+      if ([a, b].some((ev) => ev.notes.some((x) => x.tie) || ev.slurStart || ev.slurEnd || ev.hairpinStart || ev.hairpinEnd)) continue;
+      if (sigEv(a, false) === sigEv(b, false)) res.set(i, 1);
+    }
+    return res.size ? res : null;
+  }
 
   function restRun(part, mi) {
     const plain = (m, first) => {
@@ -826,6 +921,14 @@
 
     let mi = 0;
     const N = rh.measures.length;
+    // 兩手都重複三次以上：兩行都寫 ⠶ 加次數，上下對齊（Par. 18.2.1、18.2.2）；只有一手重複時每小節各寫 ⠶
+    const bothRun = (k) => {
+      if (!opts.measureRepeat) return 0;
+      let n = 0;
+      while (k + n < N && sameAsPrev(rh, k + n) && sameAsPrev(lh, k + n) && (n === 0 || (!repeatTail(rh.measures[k + n - 1]) && !repeatTail(lh.measures[k + n - 1])))) n++;
+      return n >= 3 ? n : 0;
+    };
+    const runPieces = (part, k, n) => [{ text: '7#' + B.upperNumber(n) + repeatTail(part.measures[k + n - 1]), id: null, ids: [].concat(...part.measures.slice(k, k + n).map(measureIds)) }];
     while (mi < N) {
       // 中途換調、換拍號：以置中的段落標頭表示
       if (mi > 0 && (rh.measures[mi].key || rh.measures[mi].meter)) {
@@ -848,8 +951,9 @@
       const extraR = [];
       const extraL = [];
       // 第一小節
-      const r0 = render(rh, slR, mi);
-      const l0 = render(lh, slL, mi);
+      const run0 = bothRun(mi);
+      const r0 = run0 ? { pieces: runPieces(rh, mi, run0) } : render(rh, slR, mi);
+      const l0 = run0 ? { pieces: runPieces(lh, mi, run0) } : render(lh, slL, mi);
       const rp = handText(rh, r0.pieces, rh.measures[mi].segno);
       const lp = handText(lh, l0.pieces, rh.measures[mi].segno);
       const room0 = W - R.text.length;
@@ -875,13 +979,14 @@
       };
       fitOrRunover(R, extraR, rh, slR, rp);
       fitOrRunover(L, extraL, lh, slL, lp);
-      mi++;
+      mi += run0 || 1;
       // 後續小節（沒有 run-over 時才並排）
       while (mi < N && !extraR.length && !extraL.length) {
         const m = rh.measures[mi];
         if (m.key || m.meter || m.segno || m.codaStart) break;
-        const r = render(rh, slR, mi);
-        const l = render(lh, slL, mi);
+        const run = bothRun(mi);
+        const r = run ? { pieces: runPieces(rh, mi, run) } : render(rh, slR, mi);
+        const l = run ? { pieces: runPieces(lh, mi, run) } : render(lh, slL, mi);
         const rt = piecesText(r.pieces);
         const lt = piecesText(l.pieces);
         const col = Math.max(R.text.length, L.text.length) + 1;
@@ -891,7 +996,7 @@
           line.add(gap >= 7 ? ' ' + "'".repeat(gap - 2) + ' ' : ' '.repeat(gap));
           line.addPieces(pieces, mi);
         }
-        mi++;
+        mi += run || 1;
       }
       lines.push(R, ...extraR, L, ...extraL);
     }

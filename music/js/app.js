@@ -103,7 +103,8 @@
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.slur) $('opt-slur').value = settings.slur;
-    if (settings.repeat === false) $('opt-repeat').checked = false;
+    // 舊版存的是勾選框（true/false）
+    if (settings.repeat != null) $('opt-repeat').value = settings.repeat === false ? 'none' : settings.repeat === true ? 'all' : settings.repeat;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
     if (settings.brfUpper) $('opt-brf-upper').checked = true;
     if (settings.sixKey === false) $('six-key').checked = false;
@@ -119,7 +120,7 @@
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
       slur: $('opt-slur').value,
-      repeat: $('opt-repeat').checked,
+      repeat: $('opt-repeat').value,
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
       paperFit: $('paper-fit').value,
@@ -135,7 +136,8 @@
       segmentLines: Math.max(1, +$('opt-seg').value || 3),
       grouping: $('opt-group').checked,
       slurStyle: $('opt-slur').value,
-      measureRepeat: $('opt-repeat').checked,
+      measureRepeat: $('opt-repeat').value !== 'none',
+      partRepeat: $('opt-repeat').value === 'all',
     };
   }
   // 點字顯示：unicode（Unicode 點字）、brf（ASCII）、brf-font（ASCII + SimBraille 字型，字元同 ASCII，只換字型）
