@@ -503,12 +503,14 @@
           <li>同一個音有好幾個時，順序是：琶音、斷奏（或短斷奏）、重音、持音、其他。</li>
           <li>連續四個以上的音有同一個記號，規範允許把記號加倍：第一個寫兩次、最後一個寫一次（22.1.1）。本工具寫出時每個音都寫，讀入時兩種寫法都看得懂。</li>
           <li><strong>延長記號</strong> ⠣⠇ 寫在音符<strong>後面</strong>（在附點、指法、音程之後）。</li>
+          <li><strong>換氣記號</strong>（印刷譜的逗號或打勾形）⠜⠂、<strong>斷句記號</strong>（斜線）⠠⠌：和延長記號一樣寫在音符<strong>後面</strong>（22.2）。注意 ⠣⠂ 是音樂逗號（8.3，標示不規則的符桿分組），不是換氣記號。</li>
         </ul>`,
       abc: `
         <ul>
           <li>力度：<code>!p!</code>、<code>!mp!</code>、<code>!mf!</code>、<code>!f!</code> 等，寫在音符前面。</li>
           <li>漸強：<code>!crescendo(!</code> 開始、<code>!crescendo)!</code> 結束（寫在最後一個音前面）；漸弱用 <code>!diminuendo(!</code>、<code>!diminuendo)!</code>。</li>
           <li>斷奏 <code>.C</code>、重音 <code>!accent!C</code>、持音 <code>!tenuto!C</code>、延長記號 <code>!fermata!C</code>。</li>
+          <li>換氣記號 <code>!breath!C</code>：寫在換氣<strong>之前</strong>那個音的前面，表示在 C 之後換氣。</li>
         </ul>`,
       tables: [
         {
@@ -527,6 +529,8 @@
             ['持音', '_8', ''],
             ['琶音', '>K', '寫在和弦前面'],
             ['延長記號', '<L', '寫在音符後面'],
+            ['換氣記號', '>1', '寫在音符後面'],
+            ['斷句記號', ',/', '寫在音符後面'],
           ],
         },
       ],
@@ -548,6 +552,12 @@
           abc: 'X:1\nM:4/4\nL:1/4\nK:C\n.C !accent!D !tenuto!E .F | !fermata!G4 |]',
           brf: '                  #D4\n#A 8"?.8:_8$8] (<L<K',
           note: '⠦ 斷奏寫在音層記號 ⠐ 前面；⠨⠦ 重音、⠸⠦ 持音也寫在音符前面，之後的音不用因此加音層記號。延長記號 ⠣⠇ 寫在 G 後面。',
+        },
+        {
+          title: '換氣記號',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC D !breath!E F | G4 |]',
+          brf: "                  #D4\n#A \"?:$>1] (<K",
+          note: 'E 之後換氣：換氣記號 ⠜⠂ 寫在 E 的後面。',
         },
       ],
     },

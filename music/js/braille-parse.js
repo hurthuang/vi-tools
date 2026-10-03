@@ -172,7 +172,17 @@
           continue;
         }
         if (c1 === '2') { res.endRepeat = true; i += 2; continue; }
-        if (c1 === '1') { i += c2 === "'" ? 3 : 2; continue; } // 音樂逗號
+        if (c1 === '1') {
+          // 音樂逗號（Par. 8.3）：標在不規則符桿群組的開頭。出現在小節最後（後面沒有音）時不可能是音樂逗號，
+          // 常見的是把換氣記號誤寫成 ⠣⠂（BANA 的換氣記號是 ⠜⠂），提醒一次
+          const len = c2 === "'" ? 3 : 2;
+          if (!/[^<K'2]/.test(s.slice(i + len)) && !warn.commaNoted) {
+            warn.commaNoted = true;
+            warn('小節結尾的 ⠣⠂ 是音樂逗號（Par. 8.3），後面卻沒有音；若是換氣記號，BANA 的寫法是 ⠜⠂', pos[at]);
+          }
+          i += len;
+          continue;
+        }
         if (c1 === '>') {
           voice = [];
           res.voices.push(voice);
@@ -263,6 +273,12 @@
         i += c1 === 'C' ? 2 : 1;
         continue;
       }
+      // ⠠⠌ 斷句記號（Table 22(B)）。和「第 7 音層的二度音程」寫法相同，所以只在前一個音不在高音層時才當作斷句記號
+      if (c === ',' && c1 === '/' && last && last.kind !== 'repeat' && !(last.oct != null && last.oct >= 6)) {
+        (last.artic = last.artic || []).push('caesura');
+        i += 2;
+        continue;
+      }
       if (c === ',') {
         if (c1 === '<' && c2 === '1') { mark(at); pre.hint = 'small'; i += 3; continue; }
         if (c1 === "'") { i += 2; continue; } // 音樂括號
@@ -293,6 +309,12 @@
         continue;
       }
       if (c === '8') { mark(at); pre.artic.push('staccato'); i++; continue; }
+      // ⠜⠂ 換氣記號（Table 22(B)），寫在音符後面
+      if (c === '>' && c1 === '1' && last) {
+        (last.artic = last.artic || []).push('breath');
+        i += 2;
+        continue;
+      }
       if (c === '>' && c1 === 'K') {
         // 琶音（Table 22）：⠜⠅ 向上、⠜⠅⠅ 向下
         mark(at);

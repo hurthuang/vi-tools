@@ -8,7 +8,7 @@
 
   const ACC = { sharp: '^', dsharp: '^^', flat: '_', dflat: '__', natural: '=' };
   // 斷奏用簡寫「.」：abcjs 不認得 !staccato!，會畫不出來
-  const ARTIC = { arpeggio: '!arpeggio!', staccato: '.', staccatissimo: '!wedge!', accent: '!accent!', tenuto: '!tenuto!', fermata: '!fermata!' };
+  const ARTIC = { arpeggio: '!arpeggio!', staccato: '.', staccatissimo: '!wedge!', accent: '!accent!', tenuto: '!tenuto!', fermata: '!fermata!', breath: '!breath!', caesura: '!breath!' }; // abcjs 沒有 caesura，用換氣記號顯示
   const UNIT = M.TPW / 8; // L:1/8
   const ORN = { trill: '!trill!', mordent: '!lowermordent!', uppermordent: '!uppermordent!', turn: '!turn!', invertedturn: '!invertedturn!' };
   const fingerDeco = (n) => (n.finger ? n.finger.split('').map((f) => '!' + f + '!').join('') : '');

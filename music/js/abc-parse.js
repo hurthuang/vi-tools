@@ -15,6 +15,8 @@
     accent: 'accent', '>': 'accent', emphasis: 'accent', L: 'accent',
     tenuto: 'tenuto', arpeggio: 'arpeggio',
     fermata: 'fermata', H: 'fermata',
+    // 換氣記號：寫在它後面那個音的前面（!breath!C 表示 C 之後換氣）；caesura 為斷句記號
+    breath: 'breath', caesura: 'caesura',
     staccatissimo: 'staccatissimo', wedge: 'staccatissimo',
   };
   const DECO_ORN = {
