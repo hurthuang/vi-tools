@@ -103,6 +103,8 @@
     if (settings.group === false) $('opt-group').checked = false;
     if (settings.dir) $('opt-dir').value = settings.dir;
     if (settings.slur) $('opt-slur').value = settings.slur;
+    if (settings.lyrics) $('opt-lyrics').value = settings.lyrics;
+    if (settings.lyricSpace) $('opt-lyric-space').value = settings.lyricSpace;
     // 舊版存的是勾選框（true/false）
     if (settings.repeat != null) $('opt-repeat').value = settings.repeat === false ? 'none' : settings.repeat === true ? 'all' : settings.repeat;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
@@ -120,6 +122,8 @@
       group: $('opt-group').checked,
       dir: $('opt-dir').value,
       slur: $('opt-slur').value,
+      lyrics: $('opt-lyrics').value,
+      lyricSpace: $('opt-lyric-space').value,
       repeat: $('opt-repeat').value,
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
@@ -136,6 +140,8 @@
       segmentLines: Math.max(1, +$('opt-seg').value || 3),
       grouping: $('opt-group').checked,
       slurStyle: $('opt-slur').value,
+      lyrics: $('opt-lyrics').value !== 'none',
+      lyricSpacing: $('opt-lyric-space').value,
       measureRepeat: $('opt-repeat').value !== 'none',
       partRepeat: $('opt-repeat').value === 'all',
     };
@@ -200,6 +206,7 @@
     try {
       r = MB.parseBraille(text, { intervalDir: $('opt-dir').value || undefined });
       if (!r.score.title && state.title) r.score.title = state.title;
+      keepLyrics(state.score, r.score, r.warnings);
       a = MB.toAbc(r.score);
     } catch (e) {
       console.error(e);
@@ -213,6 +220,33 @@
     const byId = new Map(infos.map((x) => [x.id, x]));
     for (const m of a.map) if (byId.has(m.id)) byId.get(m.id).abc = [m.start, m.end];
     finish(r.score, infos, tag(r.warnings, 'brl'), a.abc);
+  }
+
+  /**
+   * 點字讀不回歌詞（只讀音樂）：修改點字時，把原本樂譜的歌詞依音符順序搬到新的樂譜。
+   * 音符數目不同（例如增刪了音）就無法對應，提醒使用者到 ABC 補上。
+   */
+  function keepLyrics(oldScore, newScore, warnings) {
+    if (!oldScore || newScore.keyboard) return;
+    const notesOf = (sc) => {
+      const out = [];
+      if (sc.parts[0]) sc.parts[0].measures.forEach((m) => (m.voices[0] || []).forEach((ev) => ev.kind === 'note' && out.push(ev)));
+      return out;
+    };
+    const oldNotes = notesOf(oldScore);
+    if (!oldNotes.some((ev) => ev.lyrics)) return;
+    const newNotes = notesOf(newScore);
+    if (newNotes.some((ev) => ev.lyrics)) return;
+    if (oldNotes.length !== newNotes.length) {
+      warnings.push({ msg: '點字修改後音符數目不同（' + oldNotes.length + ' → ' + newNotes.length + '），歌詞無法自動對應，請到 ABC 的 w: 行補上' });
+      return;
+    }
+    newNotes.forEach((ev, k) => oldNotes[k].lyrics && (ev.lyrics = JSON.parse(JSON.stringify(oldNotes[k].lyrics))));
+    // 平行段（ABC 的分行）也沿用原本的
+    const om = oldScore.parts[0].measures;
+    if (om.length === newScore.parts[0].measures.length) newScore.parts[0].measures.forEach((m, i) => om[i].lineStart && (m.lineStart = true));
+    // 讀入時「歌詞行已略過」的訊息不需要了
+    for (let i = warnings.length - 1; i >= 0; i--) if (/^歌詞行（/.test(warnings[i].msg)) warnings.splice(i, 1);
   }
 
   function tag(ws, where) {
@@ -831,7 +865,7 @@
     applyBrlLook();
     saveSettings();
   });
-  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat']) {
+  for (const id of ['opt-width', 'opt-seg', 'opt-group', 'opt-dir', 'opt-slur', 'opt-repeat', 'opt-lyrics', 'opt-lyric-space']) {
     $(id).addEventListener('change', () => {
       saveSettings();
       if (id === 'opt-dir' || state.lastSource === 'brl') convertFromBraille();
@@ -943,6 +977,12 @@
   }
   if (document.fonts && document.fonts.load) document.fonts.load("16px 'SimBraille'").then((f) => f.length || hideFontOption(), hideFontOption);
   else hideFontOption();
+
+  // 國語點字表（中文歌詞用）：放在視障輔助工具集裡才有；載入後若目前的樂譜有歌詞就重新轉換
+  if (MB.zhBraille)
+    MB.zhBraille.loadFromSite('../').then((ok) => {
+      if (ok && state.lastSource !== 'brl' && state.score && state.score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics))))) convertFromAbc();
+    });
 
   // ---------- 啟動 ----------
   applySettingsToForm();
