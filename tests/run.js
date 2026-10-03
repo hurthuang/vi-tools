@@ -636,7 +636,12 @@ const MUSESCORE_XML = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 {
   const r = MB.parseMusicXML(MUSESCORE_XML);
   const abc = MB.toAbc(r.score).abc;
-  check('MuseScore 格式：只有歌詞的警告', r.warnings.length === 1 && /歌詞/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));
+  check('MuseScore 格式：沒有警告', r.warnings.length === 0, r.warnings.map((w) => w.msg).join('\n'));
+  {
+    const lyr = [];
+    MB.model.forEachEvent(r.score, (ev) => ev.lyrics && ev.lyrics[0] && ev.lyrics[0].text && lyr.push(ev.lyrics[0].text));
+    check('MuseScore 格式：讀入歌詞', lyr.join('') === 'la', lyr.join('|'));
+  }
   check('MuseScore 格式：曲名、作曲者、速度', r.score.title === '測試曲' && r.score.composer === '某人' && r.score.tempo && r.score.tempo.bpm === 90);
   const want = [
     'K:G',

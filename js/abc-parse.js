@@ -135,6 +135,7 @@
           cur: null, pendingTie: null, tuplet: null, broken: null,
           deco: newDeco(), slurPending: 0, lastEvent: null, overlay: 0,
           pendingKey: null, pendingMeter: null, pendingStartRepeat: false, pendingVolta: null,
+          lyricLine: null, lyricVerse: 0, lineStartPending: false,
         };
         voiceById[id] = v;
         voices.push(v);
@@ -322,7 +323,8 @@
       const f = /^([A-Za-z]):(.*)$/.exec(line);
       if (f) {
         if ('wWsr'.includes(f[1])) {
-          if (f[1] === 'w') warnKind('lyrics', '歌詞（w:）目前不轉換，已略過', pos);
+          if (f[1] === 'w') applyLyrics(curVoice || voices[0], f[2], pos);
+          else if (f[1] === 'W') warnKind('words', '曲末歌詞（W:）目前不轉換，已略過', pos);
           continue;
         }
         if (f[1] === 'V') {
@@ -340,6 +342,10 @@
 
     function parseMusic(line, base) {
       const v0 = curVoice;
+      // 這一行的音符（給下面的 w: 歌詞對應），並記下這一行從哪一小節開始（點字歌曲譜依此分段）
+      v0.lyricLine = [];
+      v0.lyricVerse = 0;
+      v0.lineStartPending = true;
       let v = v0;
       let i = 0;
       const n = line.length;
@@ -634,6 +640,75 @@
       }
       curList(v).push(ev);
       v.lastEvent = ev;
+      if (v.lineStartPending) {
+        mm.lineStart = true;
+        v.lineStartPending = false;
+      }
+      if (ev.kind === 'note' && v.lyricLine) v.lyricLine.push({ ev, bar: v.measures.length });
+    }
+
+    /**
+     * w: 歌詞（ABC 2.1 §4.3）：空白或 - 分開音節（- 表示同一個字的下一個音節），_ 表示前一個音節延長到下一個音，
+     * * 跳過一個音，| 跳到下一小節，~ 是音節裡的空白，\- 是字面的連字號。休止符不對應歌詞。
+     * 同一行音樂後面的第二個 w: 是第二段歌詞。
+     */
+    function applyLyrics(v, text, pos) {
+      const items = (v && v.lyricLine) || [];
+      if (!items.length) {
+        warnKind('lyrics-nomusic', '歌詞（w:）前面沒有可對應的音符，已略過', pos);
+        return;
+      }
+      const verse = v.lyricVerse++;
+      let idx = 0;
+      let syl = '';
+      let has = false;
+      let prevHyphen = false;
+      let extra = 0;
+      const put = (lyr) => {
+        if (idx >= items.length) {
+          extra++;
+          return;
+        }
+        const ev = items[idx++].ev;
+        (ev.lyrics = ev.lyrics || [])[verse] = lyr;
+      };
+      const flush = (hyphen) => {
+        if (has) {
+          put({ text: syl, syllabic: prevHyphen ? (hyphen ? 'middle' : 'end') : hyphen ? 'begin' : 'single' });
+          prevHyphen = hyphen;
+        }
+        syl = '';
+        has = false;
+      };
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (c === '%') break;
+        if (c === '\\' && text[i + 1] === '-') {
+          syl += '-';
+          has = true;
+          i++;
+        } else if (c === ' ' || c === '\t') flush(false);
+        else if (c === '-') flush(true);
+        else if (c === '_') {
+          flush(false);
+          put({ extend: true });
+        } else if (c === '*') {
+          flush(false);
+          put(null);
+        } else if (c === '|') {
+          flush(false);
+          const bar = idx > 0 ? items[idx - 1].bar : -1;
+          while (idx < items.length && items[idx].bar <= bar) idx++;
+        } else if (c === '~') {
+          syl += ' ';
+          has = true;
+        } else {
+          syl += c;
+          has = true;
+        }
+      }
+      flush(false);
+      if (extra) warnKind('lyrics-extra', '歌詞的音節比音符多（多出 ' + extra + ' 個），多的已略過', pos);
     }
 
     // 收尾：未結束的小節
@@ -668,6 +743,8 @@
               const e = k === 0 ? ev : M.cloneEvent(ev);
               if (k > 0) {
                 e.src = { abc: ev.src.abc.slice() };
+                // 拆開的後半是同一個音節延長
+                if (ev.lyrics) e.lyrics = ev.lyrics.map((l) => (l ? { extend: true } : null));
                 delete e.dynamic;
                 delete e.articulations;
                 delete e.slurStart;

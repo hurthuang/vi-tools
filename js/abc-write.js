@@ -160,10 +160,32 @@
         add(mi + 1 < to ? ' ' : '');
       }
       add('\n');
+      writeLyrics(part, from, to);
     };
-
-    for (let from = 0; from < N; from += per) {
-      const to = Math.min(N, from + per);
+    // w: 歌詞：每段一行，一個音一個音節；- 接同一個字的下一個音節，_ 延長，* 沒有歌詞
+    const writeLyrics = (part, from, to) => {
+      const notes = [];
+      for (let mi = from; mi < to; mi++) for (const ev of part.measures[mi].voices[0] || []) if (ev.kind === 'note') notes.push(ev);
+      const verses = Math.max(0, ...notes.map((ev) => (ev.lyrics ? ev.lyrics.length : 0)));
+      for (let v = 0; v < verses; v++) {
+        let line = '';
+        notes.forEach((ev, k) => {
+          const l = ev.lyrics && ev.lyrics[v];
+          const tok = !l ? '*' : l.extend ? '_' : l.text.replace(/-/g, '\\-').replace(/ /g, '~');
+          const joined = l && !l.extend && (l.syllabic === 'begin' || l.syllabic === 'middle');
+          line += tok + (k < notes.length - 1 ? (joined ? '-' : ' ') : '');
+        });
+        line = line.replace(/( \*)+$/, '');
+        if (line.replace(/[*_ ]/g, '')) add('w:' + line + '\n');
+      }
+    };
+    // 分行：有原本 ABC 的分行（歌詞要跟著那一行）就照原本，否則每行固定小節數
+    const starts = [];
+    if (first.measures.some((m, i) => i > 0 && m.lineStart)) first.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
+    else for (let i = 0; i < N; i += per) starts.push(i);
+    for (let si = 0; si < starts.length; si++) {
+      const from = starts[si];
+      const to = si + 1 < starts.length ? starts[si + 1] : N;
       if (score.keyboard) {
         add('V:RH\n');
         writePartChunk(score.parts[0], from, to, true);

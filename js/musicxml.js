@@ -261,6 +261,12 @@
       if (tm) note.push(tm);
       if (staff) note.push(['staff', staff]);
       if (nots.length) note.push(['notations'].concat(nots));
+      if (k === 0 && n && ev.lyrics)
+        ev.lyrics.forEach((l, v) => {
+          if (!l) return;
+          if (l.extend) note.push(['lyric', { number: v + 1 }, ['extend', { type: 'continue' }]]);
+          else note.push(['lyric', { number: v + 1 }, ['syllabic', l.syllabic || 'single'], ['text', l.text]]);
+        });
       if (n) delete n._tieStop;
       out.push(note);
     });
@@ -280,6 +286,9 @@
     const opts = options || {};
     const warnings = [];
     const once = new Set();
+    // 歌詞：number 屬性對應到第幾段；延長線（extend）持續到下一個有歌詞的音
+    const lyricVerse = new Map();
+    const lyricExtending = {};
     const warn = (msg) => warnings.push({ msg });
     const warnOnce = (k, msg) => {
       if (!once.has(k)) {
@@ -519,7 +528,6 @@
             const sn = +(X.textOf(el, 'staff') || 1);
             const isChord = !!X.child(el, 'chord');
             const d = toTicks(X.textOf(el, 'duration') || 0);
-            if (X.child(el, 'lyric')) warnOnce('lyric', '歌詞目前不轉換，已略過');
             const nots = X.child(el, 'notations');
             if (nots) {
               for (const o of X.children(X.child(nots, 'ornaments'))) if (!ORN_IN[o.name] && o.name !== 'accidental-mark') warnOnce('orn', '部分裝飾音（如 ' + o.name + '）目前不轉換，已略過');
@@ -609,6 +617,34 @@
             const voiceNo = X.textOf(el, 'voice') || '1';
             const restEl = X.child(el, 'rest');
             const ev = { id: M.newId(), kind: note ? 'note' : 'rest', notes: note ? [note] : [], src: {} };
+            if (note) {
+              const lyrEls = X.children(el, 'lyric');
+              const seen = new Set();
+              for (const ly of lyrEls) {
+                const num = ly.attrs.number || '1';
+                if (!lyricVerse.has(num)) lyricVerse.set(num, lyricVerse.size);
+                const v = lyricVerse.get(num);
+                seen.add(v);
+                const key = sn + ':' + voiceNo + ':' + v;
+                const txt = X.children(ly, 'text').map((t) => X.textOf(t)).join('');
+                const ext = X.child(ly, 'extend');
+                const lyrics = (ev.lyrics = ev.lyrics || []);
+                if (txt) {
+                  lyrics[v] = { text: txt, syllabic: X.textOf(ly, 'syllabic') || 'single' };
+                  // 有延長線，或音節後面接連字號（begin、middle）：之後沒有歌詞的音都唱同一個音節
+                  const syl = lyrics[v].syllabic;
+                  lyricExtending[key] = (!!ext && ext.attrs.type !== 'stop') || syl === 'begin' || syl === 'middle';
+                } else if (ext || lyricExtending[key]) {
+                  lyrics[v] = { extend: true };
+                  if (ext && ext.attrs.type === 'stop') lyricExtending[key] = false;
+                }
+              }
+              // 沒寫歌詞、但前一個音節的延長線還沒結束：這個音延續同一個音節
+              for (const [, v] of lyricVerse) {
+                const key = sn + ':' + voiceNo + ':' + v;
+                if (!seen.has(v) && lyricExtending[key]) (ev.lyrics = ev.lyrics || [])[v] = { extend: true };
+              }
+            }
             if (hiddenAsRest && X.child(el, 'rest')) ev._hidden = true; // 只有隱藏的休止符可能是補位
             const typ = X.textOf(el, 'type');
             const dots = X.children(el, 'dot').length;
