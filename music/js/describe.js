@@ -39,6 +39,8 @@
     if (ev.pedalChange) parts.push('換踏板');
     else if (ev.pedalDown) parts.push('踩踏板');
     if (ev.dynamic) parts.push(DYN_NAME[ev.dynamic] || ev.dynamic);
+    if (ev.hairpinStart) parts.push(ev.hairpinStart === 'cresc' ? '漸強開始' : '漸弱開始');
+    if (ev.slurStart) parts.push('圓滑線開始');
     if (ev.graces && ev.graces.length) {
       const one = ev.graces.length === 1 && !ev.graces[0].slash;
       parts.push((one ? '長倚音 ' : '倚音 ') + ev.graces.map((g) => pitchName(g.notes[0], opts)).join('、'));
@@ -59,6 +61,8 @@
       else if (fingers.length) parts.push('指法 ' + ev.notes.map((n) => n.finger || '－').join('、'));
       if (ev.notes.some((n) => n.tie)) parts.push('連結');
     }
+    if (ev.slurEnd) parts.push('圓滑線結束');
+    if (ev.hairpinEnd) parts.push(ev.hairpinEnd === 'cresc' ? '漸強結束' : '漸弱結束');
     if (ev.pedalUp) parts.push('放開踏板');
     return parts.join('，');
   }
