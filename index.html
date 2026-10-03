@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=29"></script>
-  <link rel="stylesheet" href="css/style.css?v=29">
+  <script src="js/theme.js?v=30"></script>
+  <link rel="stylesheet" href="css/style.css?v=30">
 </head>
 <body>
   <header class="site-header">
@@ -125,8 +125,12 @@
         <label>
           <input type="checkbox" id="opt-group" checked> 16 分音符等使用音符分組（Par. 8.1）
         </label>
-        <label>
-          <input type="checkbox" id="opt-repeat" checked> 和前一小節相同時使用小節重複記號 ⠶（Par. 18.2）
+        <label>小節重複記號 ⠶（Par. 18）
+          <select id="opt-repeat">
+            <option value="all">整小節與部分小節都使用</option>
+            <option value="full">只用在整小節</option>
+            <option value="none">不使用（每個小節都寫出）</option>
+          </select>
         </label>
         <label title="點位不變，只是字母寫成大寫，@ [ \ ] ^ 取代 ` { | } ~">
           <input type="checkbox" id="opt-brf-upper"> ASCII 點字使用大寫字母（給只認得大寫的舊式點字印表機或軟體）
@@ -182,23 +186,23 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=29"></script>
-  <script src="js/model.js?v=29"></script>
-  <script src="js/durations.js?v=29"></script>
-  <script src="js/abc-parse.js?v=29"></script>
-  <script src="js/braille-write.js?v=29"></script>
-  <script src="js/braille-parse.js?v=29"></script>
-  <script src="js/abc-write.js?v=29"></script>
-  <script src="js/xml.js?v=29"></script>
-  <script src="js/musicxml.js?v=29"></script>
-  <script src="js/describe.js?v=29"></script>
-  <script src="js/samples.js?v=29"></script>
+  <script src="js/brf.js?v=30"></script>
+  <script src="js/model.js?v=30"></script>
+  <script src="js/durations.js?v=30"></script>
+  <script src="js/abc-parse.js?v=30"></script>
+  <script src="js/braille-write.js?v=30"></script>
+  <script src="js/braille-parse.js?v=30"></script>
+  <script src="js/abc-write.js?v=30"></script>
+  <script src="js/xml.js?v=30"></script>
+  <script src="js/musicxml.js?v=30"></script>
+  <script src="js/describe.js?v=30"></script>
+  <script src="js/samples.js?v=30"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=29"></script>
+  <script src="js/app.js?v=30"></script>
 </body>
 </html>

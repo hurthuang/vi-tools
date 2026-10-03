@@ -72,6 +72,16 @@ const EX = [
     same: true,
   },
   {
+    name: 'Ex 18.1-1（整小節與部分小節重複）',
+    brl: '               #D4\n#A "?$[\\ 7 DFIH7 7 .Y<K',
+    same: true,
+  },
+  {
+    name: 'Ex 18.3.1-1（同一單位連續重複 ⠶⠶）',
+    brl: '              %%#D4\n#A .ZFGF77ZDJD :VU<K',
+    same: true,
+  },
+  {
     name: 'Ex 6.1-1（臨時記號）',
     brl: '              #F8\n#A "[%H<JI*H G<.FE%?\' *?<E*JD*E\n  .F%"G*H%\\I S\'<K',
   },
@@ -459,6 +469,24 @@ for (const s of MB.samples) {
   check('小節重複：整小節休止不用 ⠶', line('C4 | z4 | z4 | D4 |]') === '#A "Y MM Z<K', line('C4 | z4 | z4 | D4 |]'));
   check('小節重複：力度不同時不用 ⠶', !/ 7 /.test(line('!p!C D E F | C D E F | G4 |]')), line('!p!C D E F | C D E F | G4 |]'));
   check('小節重複：設定關閉時寫出每個小節', line('C D E F | C D E F | G4 |]', { measureRepeat: false }) === '#A "?:$] ?:$] (<K', line('C D E F | C D E F | G4 |]', { measureRepeat: false }));
+  // 部分小節重複（Par. 18.3）
+  const H8 = 'X:1\nM:4/4\nL:1/8\nK:C\n';
+  const part = (abc) => {
+    const r = MB.parseAbc(H8 + abc);
+    const b = MB.toBraille(r.score);
+    const back = MB.parseBraille(b.brf);
+    return { line: b.brf.split('\n')[1], rt: summary(back.score) === summary(r.score) && back.warnings.length === 0 };
+  };
+  const p1 = part('C2D2 C2D2 | E8 |]');
+  check('部分小節重複：後半小節重複前半', p1.line === '#A "?:7 &<K' && p1.rt, p1.line);
+  const p2 = part('[CEG]2[CEG]2[CEG]2 [DFA]2 | c8 |]');
+  check('部分小節重複：和弦立刻重複寫 ⠶⠶', p2.line === '#A "\\+977[+9 Y<K' && p2.rt, p2.line);
+  const p3 = part('CDEF CDEF- | F8 |]');
+  check('部分小節重複：最後一個音的連結線寫在 ⠶ 後面', p3.line === '#A "DEFG7@C =<K' && p3.rt, p3.line);
+  const p5 = MB.toBraille(MB.parseAbc(H8 + 'C2D2 C2D2 | C2D2 C2D2 | E8 |]').score, { partRepeat: false }).brf.split('\n')[1];
+  check('部分小節重複：設定「只用在整小節」時不用部分重複', p5 === '#A "?:?: 7 &<K', p5);
+  const p4 = part('C2C2 G2G2 | E8 |]');
+  check('部分小節重複：單一個音不用 ⠶', p4.line === '#A "??\\\\ &<K' && p4.rt, p4.line);
   // 被重複小節的每個音都要對應到 ⠶（點五線譜、移動游標時的同步標示）
   const r = MB.parseAbc(H + 'C D E F | C D E F | C D E F | C D E F | G4 |]');
   const b = MB.toBraille(r.score);
