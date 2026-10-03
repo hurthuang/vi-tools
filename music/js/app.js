@@ -624,13 +624,13 @@
     } else if (inf && which === 'brl' && Date.now() - lastInput > 600) {
       // 點字區在同一個音的各方之間移動（例如音層記號、音符）：報出游標所在那一方的點位
       const c = B.toBrf(ta.value.charAt(ta.selectionStart) || ' ');
-      announce(c.trim() ? '點 ' + B.dotsOf(c) : c === ' ' ? '空方' : '');
+      if (c.trim()) announce('點 ' + B.dotsOf(c)); // 空方不另外報：報讀軟體已經念「空格」
     }
     if (which === 'brl' && !inf) {
       const c = B.toBrf(ta.value.charAt(ta.selectionStart) || ' ');
       $('cell-info').textContent = c.trim() ? '點 ' + B.dotsOf(c) : '';
       // 不是音符的點字（小節線、手號等）：也報出點位，和音符一致
-      announce(c.trim() ? '點 ' + B.dotsOf(c) : c === ' ' ? '空方' : '');
+      if (c.trim()) announce('點 ' + B.dotsOf(c));
     }
   }
 
