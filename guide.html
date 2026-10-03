@@ -223,6 +223,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#nc">π 數學點字</a>
     <a href="#p2a">📄 文件整理</a>
     <a href="#query">🔍 UEB 查詢</a>
+    <a href="#music">♪ 點字樂譜</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">桌面版</div>
@@ -235,7 +236,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <!-- ════════════ 工具總覽 ════════════ -->
 <section id="overview">
   <h2 class="section-title">工具總覽</h2>
-  <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。以下五項工具主要供視障教育教師製作教材使用。</p>
+  <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。以下六項工具主要供視障教育教師製作教材使用。</p>
   <p>另有 <a href="#app">Windows 桌面版</a>，可在沒有網路時使用，並能把朗讀內容存成 MP3 音檔。</p>
   <table class="ov-table">
     <thead>
@@ -266,6 +267,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <td>🔍 UEB 查詢</td>
         <td>UEB G2 縮寫規則查詢</td>
         <td>查詢單一英文詞的 G2 點字及所用規則，供教學參考</td>
+      </tr>
+      <tr>
+        <td>♪ 點字樂譜</td>
+        <td>ABC／MusicXML ↔ 音樂點字（BANA）</td>
+        <td>把五線譜轉成點字樂譜、檢查點字樂譜、製作點字對照學習單</td>
       </tr>
     </tbody>
   </table>
@@ -658,6 +664,59 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       </tr>
     </tbody>
   </table>
+</section>
+
+
+<!-- ════════════ 點字樂譜 ════════════ -->
+<section id="music">
+  <h2 class="section-title">點字樂譜</h2>
+
+  <div class="tool-header" style="--tool-color:#60a5fa">
+    <div class="tool-icon">♪</div>
+    <div>
+      <div class="tool-hname">點字樂譜 <span class="tool-hfile">music/index.html</span></div>
+      <div class="tool-hdesc">ABC 記譜、MusicXML 與音樂點字雙向轉換，依據 BANA《Music Braille Code, 2015》。同時顯示五線譜，可播放、朗讀，三邊同步標示同一個音。</div>
+      <div class="tool-tags">
+        <span class="tag">ABC ↔ 點字</span>
+        <span class="tag">MusicXML</span>
+        <span class="tag">鋼琴雙手</span>
+        <span class="tag">歌詞（國語點字）</span>
+        <span class="tag">點字對照</span>
+        <span class="tag">規則對照頁</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>輸入與轉換</h3>
+  <ul>
+    <li>左邊輸入 ABC 記譜，右邊自動產生點字樂譜；在右邊輸入或修改點字（Unicode 或 BRF），左邊自動產生 ABC。</li>
+    <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、.mxl）、ABC 與 .brf。</li>
+    <li>點字區可用六點鍵盤輸入，預設開啟（F D S J K L）。</li>
+    <li>單聲部轉成單行格式；兩個聲部視為鋼琴右手、左手，轉成上下對齊（bar-over-bar）格式。點字分行預設跟隨 ABC 換行，每一行是一段，開頭寫小節編號。</li>
+    <li>歌曲的歌詞用國語點字，排成一行歌詞、一行音樂的格式。</li>
+    <li>不支援或可能有誤的內容，會在「轉換訊息」列出。</li>
+  </ul>
+
+  <h3>五線譜預覽與點字對照</h3>
+  <ul>
+    <li>點五線譜上的音，或在任一編輯區移動游標，三邊會同步標示同一個音。</li>
+    <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數。可匯出 SVG、PNG 或列印，適合製作學習單。</li>
+  </ul>
+
+  <h3>播放與報讀</h3>
+  <ul>
+    <li>播放依反覆、房號、D.C.、D.S. 的實際演奏順序；可調整速度。</li>
+    <li>「輸入時播放音符」「移動游標時播放音符」：輸入或逐音檢查時聽到音高，可選只播游標所在聲部或同一時間所有聲部。</li>
+    <li>使用報讀軟體時，在任一編輯區移動游標，會報出該音的小節、時值、音高與點位。「🔊 全曲報讀」把整首曲子轉成文字描述。</li>
+  </ul>
+
+  <h3>快速鍵</h3>
+  <ul>
+    <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>：從游標所在的音開始播放，播放時游標跟著移動；再按一次或按 <kbd>Esc</kbd> 停止。</li>
+  </ul>
+
+  <h3>規則對照</h3>
+  <p>工具內的「點字樂譜規則對照」頁，依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字。</p>
 </section>
 
 
