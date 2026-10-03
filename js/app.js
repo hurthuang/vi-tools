@@ -120,6 +120,7 @@
     if (settings.autoSpeak) $('auto-speak').checked = true;
     if (settings.echoInput) $('echo-input').checked = true;
     if (settings.echoCaret) $('echo-caret').checked = true;
+    if (settings.echoScope) $('echo-scope').value = settings.echoScope;
     if (settings.solfege) $('solfege').checked = true;
   }
   function saveSettings() {
@@ -143,6 +144,7 @@
       autoSpeak: $('auto-speak').checked,
       echoInput: $('echo-input').checked,
       echoCaret: $('echo-caret').checked,
+      echoScope: $('echo-scope').value,
       solfege: $('solfege').checked,
     });
     store.set('settings', settings);
@@ -588,7 +590,23 @@
       cells = '　點字：' + B.toUnicode(s) + '（' + s.split('').map((c) => (c === ' ' ? '空方' : B.dotsOf(c))).join('・') + '）';
     }
     $('cell-info').textContent = desc + cells;
+    // 報讀軟體：只念點位，不念點字字元（報讀軟體會把它轉譯成文字，變成亂碼）
+    if (from === 'abc' || from === 'brl') announce(desc + (inf.brl ? '，點字 ' + dotsText(inf.brl) : ''));
     if ($('auto-speak').checked && from !== 'play') speak(desc);
+  }
+  function dotsText(r) {
+    const s = B.toBrf(brlTA.value.slice(r[0], r[1]));
+    return s.split('').map((c) => (c === ' ' ? '空方' : B.dotsOf(c))).join('、');
+  }
+  // 游標停下後才送出（報讀軟體先開始念游標上的字元，再被這段蓋過）；內容相同時先清空，才會再念一次
+  let announceTimer = null;
+  function announce(text) {
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(() => {
+      const el = $('sr-caret');
+      el.textContent = '';
+      setTimeout(() => (el.textContent = text), 30);
+    }, 150);
   }
 
   function describe(inf) {
@@ -603,10 +621,16 @@
       select(inf, which);
       // 移動游標時播放音符（輸入造成的移動除外，輸入時另外處理）
       if ($('echo-caret').checked && Date.now() - lastInput > 600) echoNote(inf.ev);
+    } else if (inf && which === 'brl' && Date.now() - lastInput > 600) {
+      // 點字區在同一個音的各方之間移動（例如音層記號、音符）：報出游標所在那一方的點位
+      const c = B.toBrf(ta.value.charAt(ta.selectionStart) || ' ');
+      announce(c.trim() ? '點 ' + B.dotsOf(c) : c === ' ' ? '空方' : '');
     }
     if (which === 'brl' && !inf) {
       const c = B.toBrf(ta.value.charAt(ta.selectionStart) || ' ');
       $('cell-info').textContent = c.trim() ? '點 ' + B.dotsOf(c) : '';
+      // 不是音符的點字（小節線、手號等）：也報出點位，和音符一致
+      announce(c.trim() ? '點 ' + B.dotsOf(c) : c === ' ' ? '空方' : '');
     }
   }
 
@@ -787,8 +811,48 @@
   // ---------- 單音播放：輸入或移動游標時聽到該音 ----------
   let lastEcho = ''; // 上一次播放的音（輸入時，同一個音不重複播放，例如在音符後面打空白）
   let lastInput = 0; // 最後一次輸入的時間（輸入造成的游標移動不另外播放）
+  /**
+   * 每個事件在小節中的起點（tick）與所在的小節（各聲部、鋼琴兩手），用來找「同一時間所有聲部」正在發聲的音。
+   * 依樂譜快取。
+   */
+  let timeIndex = null;
+  function eventTimes() {
+    if (timeIndex && timeIndex.score === state.score) return timeIndex;
+    const M = MB.model;
+    const at = new Map();
+    const byMeasure = [];
+    for (const part of state.score.parts)
+      part.measures.forEach((m, mi) => {
+        const list = (byMeasure[mi] = byMeasure[mi] || []);
+        for (const voice of m.voices) {
+          let t = 0;
+          for (const ev of voice) {
+            const len = M.eventTicks(ev);
+            const rec = { ev, mi, start: t, end: t + len };
+            at.set(ev.id, rec);
+            list.push(rec);
+            t += len;
+          }
+        }
+      });
+    timeIndex = { score: state.score, at, byMeasure };
+    return timeIndex;
+  }
+  /** 要播放的音：游標所在聲部只有這個事件；所有聲部時加上同一小節、在這個音開始時正在發聲的其他音。 */
+  function soundingNotes(ev) {
+    if ($('echo-scope').value !== 'all' || !state.score) return ev.kind === 'note' ? ev.notes : [];
+    const idx = eventTimes();
+    const me = idx.at.get(ev.id);
+    if (!me) return ev.kind === 'note' ? ev.notes : [];
+    const notes = [];
+    for (const r of idx.byMeasure[me.mi] || [])
+      if (r.ev.kind === 'note' && r.start <= me.start && me.start < r.end) notes.push(...r.ev.notes);
+    return notes;
+  }
   async function echoNote(ev) {
-    if (!ev || ev.kind !== 'note' || !window.ABCJS || !ABCJS.synth.supportsAudio()) return;
+    if (!ev || !window.ABCJS || !ABCJS.synth.supportsAudio()) return;
+    const notes = soundingNotes(ev);
+    if (!notes.length) return; // 休止符（所有聲部時，其他聲部也沒有聲音）
     if (synth) return; // 正在播放整首時不打斷
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -801,7 +865,7 @@
       const msWhole = (4 * 60000) / qpm / (+$('speed').value / 100);
       // 長音最多播 1.5 秒
       const dur = Math.min(M.valueTicks(ev.value, ev.dots) / M.TPW, 1500 / msWhole);
-      const pitches = ev.notes.map((n) => ({ pitch: M.midiOf(n), volume: 90, instrument: 0, duration: dur }));
+      const pitches = notes.map((n) => ({ pitch: M.midiOf(n), volume: 90, instrument: 0, duration: dur }));
       await ABCJS.synth.playEvent(pitches, [], msWhole, SOUNDFONT_URL);
     } catch (e) {
       console.error(e);
@@ -815,8 +879,8 @@
     if (!which || !$('echo-input').checked) return;
     const ta = which === 'abc' ? abcTA : brlTA;
     const inf = findByPos(which, ta.selectionStart, true);
-    if (!inf || !inf[which] || inf.ev.kind !== 'note') return;
-    const sig = which + inf[which][0] + ':' + inf.ev.notes.map((n) => MB.model.midiOf(n)).join(',') + ':' + inf.ev.value + '.' + (inf.ev.dots || 0);
+    if (!inf || !inf[which] || (inf.ev.kind !== 'note' && $('echo-scope').value !== 'all')) return;
+    const sig = which + inf[which][0] + ':' + inf.ev.kind + (inf.ev.notes || []).map((n) => MB.model.midiOf(n)).join(',') + ':' + inf.ev.value + '.' + (inf.ev.dots || 0);
     if (sig === lastEcho) return;
     lastEcho = sig;
     echoNote(inf.ev);
@@ -863,6 +927,7 @@
     const k = (e.key || '').toLowerCase();
     if (e.key === 'Process') {
       $('cell-info').textContent = '六點輸入需要英文輸入法，請先切換輸入法。';
+      announce('六點輸入需要英文輸入法，請先切換輸入法。');
       return;
     }
     if (e.key === ' ' && brlMode() === 'unicode') {
@@ -1113,7 +1178,7 @@
       else convertFromAbc();
     });
   }
-  for (const id of ['auto-speak', 'solfege', 'echo-input', 'echo-caret']) $(id).addEventListener('change', saveSettings);
+  for (const id of ['auto-speak', 'solfege', 'echo-input', 'echo-caret', 'echo-scope']) $(id).addEventListener('change', saveSettings);
   // 六點輸入預設開啟；使用者關掉後記住（工具集的浮動面板另外記，見下方）
   $('six-key').addEventListener('change', () => {
     settings.sixKey = $('six-key').checked;
