@@ -46,7 +46,7 @@
     return ticks / k + '/' + M.TPW / k + '=' + t.bpm;
   }
 
-  function eventStr(ev, meter, count) {
+  function eventStr(ev, meter, count, note) {
     let s = '';
     if (ev.tuplet && ev.tuplet.start) {
       const def = { 2: 3, 3: 2, 4: 3, 6: 2, 8: 3 }[ev.tuplet.n];
@@ -55,6 +55,8 @@
       else s += '(' + ev.tuplet.n + (def === ev.tuplet.of ? '' : ':' + ev.tuplet.of);
     }
     s += '('.repeat(ev.slurStart || 0);
+    // 點字對照：休止符與第二聲部以後的音，用譜下方的註解文字標示（歌詞只對得到第一聲部的音）
+    if (note) s += note;
     // 倚音：單一且有斜線 {/g}；其餘 {g} 或 {gag}
     if (ev.graces && ev.graces.length) {
       const one = ev.graces.length === 1 && ev.graces[0].slash;
@@ -89,8 +91,13 @@
     return s;
   }
 
+  /**
+   * options.annot(ev, vi)：點字對照，回傳 { brl, name }（name 可省略）。第一聲部的音寫成兩行歌詞，
+   * 其他用註解文字 "_…"（名稱前加 \u200b，畫譜後用來辨認）。options.fixedLines：照 measuresPerLine 分行，不用原本的分行。
+   */
   function toAbc(score, options) {
     const opts = Object.assign({ measuresPerLine: 4 }, options || {});
+    const annot = opts.annot;
     let out = '';
     const map = [];
     const add = (str, id) => {
@@ -101,6 +108,7 @@
     const first = score.parts[0];
     const m0 = first.measures[0] || {};
     add('X:1\n');
+    if (annot) add('%%vocalfont Helvetica 16\n%%annotationfont Helvetica 16\n');
     add('T:' + (score.title || '') + '\n');
     if (score.composer) add('C:' + score.composer + '\n');
     add('M:' + meterStr(m0.meter || { num: 4, den: 4 }) + '\n');
@@ -146,7 +154,13 @@
                 if (voice[k].tuplet.end) break;
               }
             }
-            add(eventStr(ev, meter, count), ev.id);
+            let note = '';
+            if (annot && (vi > 0 || ev.kind !== 'note')) {
+              const a = annot(ev, vi);
+              if (a && a.brl) note += '"_' + a.brl + '"';
+              if (a && a.name) note += '"_\u200b' + a.name + '"';
+            }
+            add(eventStr(ev, meter, count, note), ev.id);
           });
         });
         // 小節線
@@ -180,10 +194,17 @@
         line = line.replace(/( \*)+$/, '');
         if (line.replace(/[*_ ]/g, '')) add('w:' + line + '\n');
       }
+      // 點字對照：一行點字、一行名稱（音名、唱名或簡譜）
+      if (annot) {
+        const as = notes.map((ev) => annot(ev, 0) || {});
+        const tok = (t) => (t ? t.replace(/[\s~_*|-]/g, '') || '*' : '*');
+        add('w:' + as.map((a) => tok(a.brl)).join(' ') + '\n');
+        if (as.some((a) => a.name)) add('w:' + as.map((a) => tok(a.name)).join(' ') + '\n');
+      }
     };
     // 分行：有原本 ABC 的分行（歌詞要跟著那一行）就照原本，否則每行固定小節數
     const starts = [];
-    if (first.measures.some((m, i) => i > 0 && m.lineStart)) first.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
+    if (!opts.fixedLines && first.measures.some((m, i) => i > 0 && m.lineStart)) first.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
     else for (let i = 0; i < N; i += per) starts.push(i);
     for (let si = 0; si < starts.length; si++) {
       const from = starts[si];

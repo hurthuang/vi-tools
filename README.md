@@ -14,6 +14,7 @@ ABC 記譜與點字樂譜（BANA *Music Braille Code, 2015*）雙向轉換，並
 - 可下載 `.abc`、`.brf`（ASCII 點字，可送點字印表機或點字顯示器）、`.musicxml`、`.mid`。
 - 「開啟檔案」可讀入 ABC、點字（`.brf`）與 MusicXML（`.musicxml`、`.xml`、壓縮的 `.mxl`），例如 MuseScore、BME 匯出的檔案。
 - 五線譜可匯出成 SVG 向量圖、PNG 圖片，或列印、存成 PDF。
+- 「點字對照」：在五線譜每個音下方標示該音的點字，以及音名、唱名（固定唱名）或簡譜（首調）；寫了音層記號的音前面加音層數字（例如 5E）。可設定每行小節數，方便印成學習單。在視障輔助工具集裡會用 SimBraille 字型顯示點字（匯出的 SVG、PNG 會嵌入字型）。
 
 ## MusicXML
 
@@ -61,6 +62,7 @@ ABC 記譜與點字樂譜（BANA *Music Braille Code, 2015*）雙向轉換，並
 | `js/braille-write.js` / `js/braille-parse.js` | 模型 ⇄ 點字 |
 | `js/xml.js` / `js/musicxml.js` | XML 解析、MusicXML ⇄ 模型、.mxl 解壓 |
 | `js/describe.js` | 語音報讀的中文描述 |
+| `js/annotate.js` | 點字對照：產生在每個音下方標示點字與音名的 ABC |
 | `js/app.js` | 網頁介面 |
 
 ## 測試
