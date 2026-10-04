@@ -1074,6 +1074,7 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - **.prn 格式**（比對 ViewPlus 驅動程式 12×11、Tiger Designer 8.5×11 與 11×11.5 樣本得出，樣本在 `tools/fixtures/`）：每頁 16 bytes 標頭 + 高 列；標頭 `1b 04 | 00 10 | 256+寬 | 高 | 00×6 | 前 14 bytes 加總+3（little-endian）`；第 3–4 byte 驅動程式寫 `00 10`、Tiger Designer 寫 `00 c0`，我們照驅動程式。每列 寬/2 個 big-endian word（每 word 兩點）：`C001` 整列空白、`8000|n, w` 重複、`n, w1..wn` 照抄。點值 0 空白、1–7 高度（線 7、灰填色 3）、15 點字。重新編碼使用者的原始檔逐 byte 相同
 - 寬寫在一個 byte，且一列要整數個 word：寬為偶數、最多 254 點（12.7 吋）
 - 點字規則（使用者確認）：標籤大寫記號＋字母、數字一律下位數字；單獨數字、以數字開頭、空白或 = < > 後的數字加數字記號；字母後的數字是下標（M₁ ⠠⠍⠂）；運算符號照 Nemeth（等號前後空方）。標題用 ⠼＋上位數字（「選擇 4. 圖一」）
+- 來源：PDF（pdf.js）、圖片、.docx（JSZip 取 word/media 裡被 a:blip／v:imagedata 引用的 PNG／JPG／GIF／BMP，依文件順序一張一頁，小於 40×40 的略過；Word 圖案（非文字方塊的 wps:wsp、沒有圖片的 w:pict）與 EMF／WMF 讀不到，計數提示另存 PDF）。圖片文件 `doc.kind === 'img'`、`doc.imgs[]`
 - 圖形：PDF 向量線條直接逐點畫（`getVectors`／`vectorize`）；框選範圍有內嵌圖片時用點陣：網底偵測（灰階峰值）→ 細化 → 去小碎片（圖片裡的字，留空白標籤）→ 拉直（`straighten`：骨架拆邊、Douglas–Peucker、共線邊穿過交叉點時接回、角取直線交點、水平垂直對齊）→ 網底收尾
 - 測試：`node tools/check-tactile.mjs`（核心）；`desktop/tests/cases/tactile.mjs`（app 斷線時的點字表、紙張、匯出）；點陣除錯 `tools/tactile-raster-harness.mjs`
 - 尚未驗證：實際用 Tiger 印表機印；Tiger Designer 開啟本工具產生的檔案

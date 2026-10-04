@@ -276,7 +276,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       </tr>
       <tr>
         <td>✋ 觸摸圖</td>
-        <td>PDF／截圖 → ViewPlus Tiger 觸摸圖（.prn）</td>
+        <td>PDF／Word／截圖 → ViewPlus Tiger 觸摸圖（.prn）</td>
         <td>把試題的幾何圖形做成觸摸圖，標籤自動轉點字</td>
       </tr>
     </tbody>
@@ -733,7 +733,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <div class="tool-icon">✋</div>
     <div>
       <div class="tool-hname">觸摸圖 <span class="tool-hfile">tactile.html</span></div>
-      <div class="tool-hdesc">從試題 PDF 或截圖框選圖形，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn，3D Emboss，20 dpi）。取代「截圖貼到 Word → 用 ViewPlus 驅動程式印成 .prn → 在 Tiger Designer 調線條、加點字」的流程；匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印。</div>
+      <div class="tool-hdesc">從試題 PDF、Word（.docx）或截圖框選圖形，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn，3D Emboss，20 dpi）。取代「截圖貼到 Word → 用 ViewPlus 驅動程式印成 .prn → 在 Tiger Designer 調線條、加點字」的流程；匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印。</div>
       <div class="tool-tags">
         <span class="tag">PDF 向量線條</span>
         <span class="tag">標籤轉點字</span>
@@ -746,7 +746,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
   <h3>從 PDF 做觸摸圖</h3>
   <ul>
-    <li>「開啟」PDF、圖片或既有的 .prn，也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
+    <li>「開啟」PDF、Word（.docx）、圖片或既有的 .prn，也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
+    <li>Word（.docx）會依文件順序取出裡面的圖片，一張圖當一頁。用 Word 圖案工具畫的圖、EMF／WMF 格式的圖讀不到（會提示數量），請在 Word「另存新檔」成 PDF 再開；存成 PDF 後線條是向量，品質也最好。舊版 .doc 不支援。</li>
     <li>在左邊框選一張圖（連同 A、B、C 等標籤一起框），按「加入成新的一頁」或 <kbd>Enter</kbd>，每張圖一頁。換頁用 <kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd>、頁碼欄或上方的頁面縮圖；縮放用選單或 <kbd>Ctrl</kbd>+滾輪。</li>
     <li>PDF 的線條是向量時，直接照原本的線畫，角與交點最準；框選範圍有圖片（掃描、貼上的圖）時改用點陣方式：線條細化成一點寬、拉直並修正尖角，灰色網底轉成填色，圖片裡的字移除並留下空白標籤讓你填字。可在右邊「圖形轉換」切換方式、調整大小，再按「重新產生圖形」（標籤會保留）。</li>
     <li>每頁第一行是點字標題，例如「選擇 4. 圖一」，國字照「文字轉點字」的規則轉注音點字（可勾選多音字補充規則）。</li>

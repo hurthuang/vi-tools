@@ -78,8 +78,8 @@
 <body>
 <header>
   <h1>✋ 觸摸圖 <span class="muted">ViewPlus Tiger PRN</span></h1>
-  <button id="btnOpen" class="primary">開啟 PDF／圖片／PRN</button>
-  <input id="fileIn" type="file" accept=".pdf,.prn,image/*" hidden>
+  <button id="btnOpen" class="primary">開啟 PDF／Word／圖片／PRN</button>
+  <input id="fileIn" type="file" accept=".pdf,.docx,.prn,image/*" hidden>
   <span class="muted">也可以拖曳檔案進來，或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖</span>
   <span style="flex:1"></span>
   <label class="muted" for="paper">紙張</label>
@@ -272,18 +272,74 @@
         await loadPdfJs();
         const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
         doc = { kind: 'pdf', name, numPages: pdf.numPages, pdf };
+      } else if (/\.docx$/i.test(name)) {
+        doc = await openDocx(f, name);
+      } else if (/\.doc$/i.test(name)) {
+        alert('舊版 Word（.doc）讀不到圖片：請在 Word 裡另存成 PDF 或 .docx 再開');
+        return;
       } else if (f.type.startsWith('image/')) {
         const img = new Image();
         img.src = URL.createObjectURL(f);
         await img.decode();
-        doc = { kind: 'img', name, numPages: 1, img };
+        doc = { kind: 'img', name, numPages: 1, imgs: [img] };
       } else { alert('不支援的檔案：' + name); return; }
-      if (/\.pdf$/i.test(name)) $('#outName').value = name.replace(/\.pdf$/i, '.prn');
+      if (/\.(pdf|docx)$/i.test(name)) $('#outName').value = name.replace(/\.(pdf|docx)$/i, '.prn');
       viewPage = 1; sel = null;
       $('#empty').hidden = true; $('#pdfInner').hidden = false;
       buildThumbStrip();
       await renderView();
     } catch (err) { console.error(err); alert('開啟失敗：' + err.message); }
+  }
+
+  // Word（.docx）：照文件裡出現的順序取出圖片，一張圖當一頁
+  //   太小的圖（題目文字裡的符號）略過；Word 圖案工具畫的圖、EMF／WMF 瀏覽器畫不出來，數量寫在 doc.note 請使用者另存 PDF
+  async function openDocx(f, name) {
+    if (!window.JSZip) await new Promise((ok, fail) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      sc.onload = ok; sc.onerror = () => fail(new Error('JSZip 載入失敗（需要網路）'));
+      document.head.appendChild(sc);
+    });
+    const zip = await JSZip.loadAsync(await f.arrayBuffer());
+    const docFile = zip.file('word/document.xml');
+    if (!docFile) throw new Error('這不是 Word 文件（.docx）');
+    const xml = await docFile.async('string');
+    const relFile = zip.file('word/_rels/document.xml.rels');
+    const rels = {};
+    for (const m of ((relFile && await relFile.async('string')) || '').matchAll(/<Relationship\b[^>]*>/g)) {
+      const id = /\bId="([^"]+)"/.exec(m[0]), target = /\bTarget="([^"]+)"/.exec(m[0]);
+      if (id && target) rels[id[1]] = target[1];
+    }
+    const resolve = t => t.startsWith('/') ? t.slice(1) : ('word/' + t).replace(/[^/]+\/\.\.\//g, '');
+    const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp' };
+    const seen = new Set(), imgs = [];
+    let skipped = 0;
+    // 圖片：DrawingML 的 a:blip、舊式 VML 的 v:imagedata（依出現順序）
+    for (const m of xml.matchAll(/<a:blip\b[^>]*\br:(?:embed|link)="([^"]+)"|<v:imagedata\b[^>]*\br:id="([^"]+)"/g)) {
+      const target = rels[m[1] || m[2]];
+      if (!target) continue;
+      const path = resolve(target);
+      if (seen.has(path)) continue;
+      seen.add(path);
+      const ext = (path.split('.').pop() || '').toLowerCase(), file = zip.file(path);
+      if (!file || !MIME[ext]) { skipped++; continue; }   // EMF、WMF、TIFF 等
+      try {
+        const img = new Image();
+        img.src = URL.createObjectURL(new Blob([await file.async('arraybuffer')], { type: MIME[ext] }));
+        await img.decode();
+        if (img.naturalWidth < 40 && img.naturalHeight < 40) continue;   // 文字裡的小符號
+        imgs.push(img);
+      } catch (e) { skipped++; }
+    }
+    // Word 圖案工具畫的圖（文字方塊以外的 DrawingML 圖案、沒有圖片的 VML 圖形）
+    const shapes = (xml.match(/<wps:wsp\b(?:(?!<\/wps:wsp>)[\s\S])*?<\/wps:wsp>/g) || []).filter(x => !/<wps:txbx\b/.test(x)).length
+                 + (xml.match(/<w:pict\b(?:(?!<\/w:pict>)[\s\S])*?<\/w:pict>/g) || []).filter(x => !/<v:imagedata\b/.test(x) && !/<v:textbox\b/.test(x)).length;
+    const parts = [];
+    if (skipped) parts.push(`${skipped} 張 EMF／WMF 等格式的圖`);
+    if (shapes) parts.push(`${shapes} 個用 Word 圖案工具畫的圖形`);
+    const note = parts.length ? `　另有 ${parts.join('、')}讀不到，請在 Word 另存成 PDF 再開` : '';
+    if (!imgs.length) throw new Error('這份文件沒有可以直接讀取的圖片' + (note ? '（' + note.trim() + '）' : ''));
+    return { kind: 'img', name, numPages: imgs.length, imgs, note, unit: '張圖' };
   }
 
   function loadPdfJs() {
@@ -388,13 +444,19 @@
     const strip = $('#thumbStrip');
     strip.innerHTML = '';
     if (thumbObserver) thumbObserver.disconnect();
-    strip.hidden = !doc || doc.kind !== 'pdf' || doc.numPages < 2;
+    strip.hidden = !doc || doc.numPages < 2;
     if (strip.hidden) return;
     thumbObserver = new IntersectionObserver(entries => {
       for (const en of entries) {
         if (!en.isIntersecting || en.target.dataset.drawn) continue;
         en.target.dataset.drawn = '1';
         const n = +en.target.dataset.page, cv = en.target.querySelector('canvas'), d = doc;
+        if (d.kind === 'img') {
+          const img = d.imgs[n - 1];
+          cv.width = 92; cv.height = Math.max(1, Math.round(92 * img.naturalHeight / img.naturalWidth));
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          continue;
+        }
         d.pdf.getPage(n).then(page => {
           const vp = page.getViewport({ scale: 92 / page.getViewport({ scale: 1 }).width });
           cv.width = vp.width; cv.height = vp.height;
@@ -482,15 +544,16 @@
       try { await renderTask.promise; } catch (e) { if (e.name !== 'RenderingCancelledException') throw e; }
       renderTask = null;
     } else {
-      w = doc.img.naturalWidth; h = doc.img.naturalHeight;
+      const img = doc.imgs[viewPage - 1];
+      w = img.naturalWidth; h = img.naturalHeight;
       viewScale = Math.min(avail / w, 2) * viewZoom;
       cv.width = w * viewScale * dpr; cv.height = h * viewScale * dpr;
-      ctx.drawImage(doc.img, 0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
     }
     cv.style.width = (w * viewScale) + 'px'; cv.style.height = (h * viewScale) + 'px';
     const ov = $('#pdfOverlay');
     ov.setAttribute('width', w * viewScale); ov.setAttribute('height', h * viewScale);
-    $('#pageInfo').textContent = `${doc.name}　第 ${viewPage} / ${doc.numPages} 頁`;
+    $('#pageInfo').textContent = `${doc.name}　第 ${viewPage} / ${doc.numPages} ${doc.unit || '頁'}${doc.note || ''}`;
     $('#pageNum').value = viewPage; $('#pageNum').max = doc.numPages; $('#pageNum').disabled = doc.numPages < 2;
     $('#pageCount').textContent = '/ ' + doc.numPages;
     $('#prevPage').disabled = viewPage <= 1;
@@ -572,7 +635,7 @@
       const page = await src.doc.pdf.getPage(src.page);
       await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: k }), transform: [1, 0, 0, 1, -r.x * k, -r.y * k] }).promise;
     } else {
-      ctx.drawImage(src.doc.img, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
+      ctx.drawImage(src.doc.imgs[src.page - 1], r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
     }
     const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
     const lum = new Uint8Array(cv.width * cv.height), hist = new Uint32Array(256);

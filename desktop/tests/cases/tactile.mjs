@@ -39,6 +39,25 @@ export default {
     check('標頭：Letter 的寬高與檢查碼', res.head === '1b04001001aa00dc000000000000b901', res.head);
     check('解回 1 頁 170 × 220，有矩形和標題點字', res.n === 1 && res.w === 170 && res.h === 220 && res.line > 300 && res.braille > 10, JSON.stringify(res));
 
+    // Word（.docx）：頁面裡用 JSZip（斷線時用內附檔）組一份含一張圖與一個 Word 圖案的 docx，開啟後列出圖片並提示圖案讀不到
+    const docx = await cdp.ev(`(async () => {
+      const w = ${TW}, d = w.document;
+      if (!w.JSZip) await new Promise((ok, fail) => { const s = d.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = ok; s.onerror = fail; d.head.appendChild(s); });
+      const cv = d.createElement('canvas'); cv.width = 300; cv.height = 180;
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 300, 180); g.lineWidth = 3; g.strokeRect(30, 30, 240, 120);
+      const png = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+      const zip = new w.JSZip();
+      zip.file('word/document.xml', '<w:document xmlns:w="w" xmlns:a="a" xmlns:r="r" xmlns:v="v"><w:body><w:p><w:r><a:blip r:embed="rId9"/></w:r></w:p><w:p><w:r><w:pict><v:line from="0,0" to="9pt,9pt"/></w:pict></w:r></w:p></w:body></w:document>');
+      zip.file('word/_rels/document.xml.rels', '<Relationships><Relationship Id="rId9" Type="image" Target="media/image1.png"/></Relationships>');
+      zip.file('word/media/image1.png', png);
+      const file = new w.File([await zip.generateAsync({ type: 'blob' })], '試題.docx');
+      const dt = new w.DataTransfer(); dt.items.add(file);
+      d.dispatchEvent(new w.DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+      for (let i = 0; i < 50 && !/試題\\.docx/.test(d.getElementById('pageInfo').textContent); i++) await new Promise(r => setTimeout(r, 100));
+      return d.getElementById('pageInfo').textContent;
+    })()`);
+    check('開啟 .docx：列出圖片、提示 Word 圖案讀不到', /第 1 \/ 1 張圖/.test(docx) && /1 個用 Word 圖案工具畫的圖形/.test(docx), docx);
+
     check('頁面沒有丟出錯誤', cdp.exceptions.length === 0, cdp.exceptions.map(e => e.split('\n')[0]).join('；'));
   },
 };
