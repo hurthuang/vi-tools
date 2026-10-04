@@ -20,6 +20,11 @@ jobs:
         shell: pwsh
         working-directory: desktop
     steps:
+      # 網頁檔保持 repo 裡的 LF 換行：自動更新從 raw.githubusercontent.com 下載（LF），清單的 SHA-256 要和它一致
+      - name: 不轉換換行字元
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v6
@@ -40,6 +45,10 @@ jobs:
       - name: 建立可攜版（單一執行檔內含 .NET，加上 web\ 與 desktop-assets\）
         run: dotnet publish -p:PublishProfile=Portable
 
+      - name: 產生自動更新用的檔案清單（web\、desktop-assets\、ViTools.exe 的 SHA-256）
+        if: github.event_name == 'push'
+        run: node tools/make-manifest.mjs --dist dist/ViTools --out dist/manifest.json --commit $env:GITHUB_SHA --exe-url "https://github.com/hurthuang/vi-tools/releases/download/${{ github.ref_name }}/ViTools.exe"
+
       - name: 發佈 Release
         if: github.event_name == 'push'
         env:
@@ -51,11 +60,12 @@ jobs:
           $notes = @"
           視障輔助工具集 桌面版 v$ver
 
-          **安裝**：下載 $zip，解壓縮後執行 ViTools.exe（不用安裝 .NET）。更新時解壓縮覆蓋原本的資料夾即可。
+          **安裝**：下載 $zip，解壓縮後執行 ViTools.exe（不用安裝 .NET）。v0.2.2 起，已安裝的桌面版會自動下載更新（只下載有變動的檔案），不用再下載整個 zip。
           需要 Windows 10（1809 以上）或 11、Microsoft Edge WebView2 Runtime（通常已內建）、Windows 臺灣中文語音。
 
           第一次執行時 Windows 可能顯示「Windows 已保護您的電腦」：按「其他資訊」→「仍要執行」（程式沒有數位簽章）。
 
           快捷鍵：Alt+Shift+A 報讀／匯出、Ctrl+Shift+O 線上版與離線版互換、Ctrl+Shift+U 檢查更新。
           "@
-          gh release create $env:GITHUB_REF_NAME $zip --title "桌面版 v$ver" --notes $notes --generate-notes
+          # manifest.json 與單獨的 ViTools.exe：給 app 自動更新用
+          gh release create $env:GITHUB_REF_NAME $zip dist/manifest.json dist/ViTools/ViTools.exe --title "桌面版 v$ver" --notes $notes --generate-notes

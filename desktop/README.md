@@ -41,11 +41,18 @@ dotnet publish -p:PublishProfile=Portable
 
 - app 檢查 GitHub 上 vi-tools 的 Release，只看標籤 `desktop-v*`（略過草稿、預先發行與網頁版的標籤），和 `ViTools.csproj` 的 `<Version>` 比較
   - 啟動後在背景檢查，一天最多一次，沒有新版不出聲；**Ctrl+Shift+U** 手動檢查，已是最新版或檢查失敗也會告知
-  - 有新版時詢問是否開啟下載頁面（解壓縮覆蓋原本資料夾即可更新）
+  - **自動更新**（可攜版才做，`Updater.cs`）：每份清單列出 `web\`、`desktop-assets\`（與 `ViTools.exe`）每個檔案的 SHA-256 與大小，app 比對本機檔案，只下載不同的檔案
+    - 有新版：依該 Release 附件 `manifest.json` 下載有變動的檔案；`ViTools.exe` 從 Release 附件下載，執行中的舊檔改名成 `ViTools.exe.old`（下次啟動刪除）再放入新檔，完成後詢問是否重新啟動
+    - 沒有新版：依預先發行版 `web-latest` 的 `web-manifest.json`（每次推 master 由 `../.github/workflows/web-manifest.yml` 產生）在背景把離線網頁更新到最新；清單的 `minApp` 比目前的 app 新時不更新
+    - 網頁與資源從 `raw.githubusercontent.com` 的清單 commit 下載；先下載到 `update-tmp\`、核對 SHA-256 與大小，全部成功才覆蓋，失敗時維持原狀
+    - 自動更新做不到（沒有清單、資料夾不能寫入、下載或核對失敗）才詢問是否開啟下載頁面（解壓縮覆蓋原本資料夾即可更新）
+    - 清單由 `tools/make-manifest.mjs` 產生（`--dist` 從可攜版、`--repo` 依 `ViTools.csproj` 的打包規則從 repo 挑檔案；改打包規則要一起改，`tests/cases/manifest.mjs` 會比對兩者）
+  - 視窗標題帶版本號（`視障輔助工具集 v0.2.2`）
 - **發佈新版**：
   1. 網頁的修改先推送上線（app 優先載入線上網頁）
   2. 把 `ViTools.csproj` 的 `<Version>` 改成新版本號（例如 0.2.0），commit 並推送
-  3. 推送標籤 `desktop-v0.2.0`：GitHub Actions（`../.github/workflows/desktop-release.yml`）自動建立可攜版，上傳成 Release 的 `ViTools-0.2.0-portable.zip`；標籤和 `<Version>` 不同時會中止
+  3. 推送標籤 `desktop-v0.2.0`：GitHub Actions（`../.github/workflows/desktop-release.yml`）自動建立可攜版，上傳成 Release 的 `ViTools-0.2.0-portable.zip`，以及自動更新用的 `manifest.json` 與 `ViTools.exe`；標籤和 `<Version>` 不同時會中止（建置時不轉換換行字元，網頁檔和 raw.githubusercontent.com 的內容一致，清單的 SHA-256 才對得上）
+  4. Release 說明自動產生的只有安裝說明，用 `gh release edit desktop-v0.2.0 --notes-file …` 補上這一版的重點
 - 只想確認打包流程沒壞（例如升級 Actions 元件後）：在 GitHub 的 Actions 頁面對「桌面版發佈」按 Run workflow，只建置、不發佈（`gh workflow run desktop-release.yml`）
 - 程式沒有數位簽章，下載後第一次執行 Windows SmartScreen 會警告，要按「其他資訊」→「仍要執行」
 

@@ -42,7 +42,9 @@ node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號
 | `math.mjs` | 數學點字的報讀區塊：舊面板已移除、Alt+Shift+A、轉報讀文字、朗讀與停止、逐行清單（點第 2 行從那行念、反白、Esc、方向鍵）、存報讀檔、自動更新、匯出 MP3、點字→數學方向、單個 `$`（和轉點字一致） |
 | `offline.mjs` | 模擬斷線：數學點字頁的 MathJax 預覽、報讀區塊（含 `\ratio`）、文件整理開 PDF（pdf.js 與 worker）與 DOCX（JSZip）、數學式模式都用內附檔案，頁面沒有錯誤 |
 | `online.mjs` | 線上優先（需要網路）：載入線上網頁、那裡也能用桌面功能、Ctrl+Shift+O 與離線版互換（保留位置、標題加「（離線版）」） |
-| `update.mjs` | 檢查更新（本機假伺服器模擬 Release 清單）：啟動自動檢查有新版會詢問（略過網頁版標籤、預先發行、草稿）、Ctrl+Shift+U 已是最新版／檢查失敗／有新版 |
+| `update.mjs` | 檢查更新（本機假伺服器模擬 Release 清單）：啟動自動檢查有新版會詢問（略過網頁版標籤、預先發行、草稿）、Ctrl+Shift+U 已是最新版／檢查失敗／有新版；視窗標題帶版本號 |
+| `autoupdate.mjs` | 自動更新（只測可攜版，複製到暫存資料夾再測）：只下載有變動的檔案、執行中的 ViTools.exe 改名後換新、核對失敗不覆蓋並改請使用者開下載頁、沒有新版時依 web-latest 更新離線網頁（可新增檔案）、minApp 太新時不更新 |
+| `manifest.mjs` | 自動更新的檔案清單：repo 依規則挑出的檔案和可攜版一致（只測可攜版），不開 app |
 | `online-fallback.mjs` | 線上網頁載不到時自動改用內附；這時 Ctrl+Shift+O 提示連不上並維持離線版 |
 | `segments.mjs` | 原生層分段匯出：`exportAudio` 帶 `segments` 時各段用各自的 Windows 語音、三種停頓的長度差異、舊格式（沒有 segments）照常 |
 | `bilingual.mjs` | 中英分語音：語音設定介面（預設自動、桌面版有停頓選項）、播放時英文段用英文語音、切換條件、不切換、各頁設定同步、匯出送出 segments 與停頓；文件整理的播放、位置標示、停止、匯出 |

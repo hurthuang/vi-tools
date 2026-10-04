@@ -33,7 +33,7 @@ export default {
       teardown: () => new Promise(r => server.close(r)),
     };
   },
-  async run({ cdp, check, sleep, closeAppMessageBox, state }) {
+  async run({ cdp, check, sleep, closeAppMessageBox, state, appTitle }) {
     // 啟動後自動檢查：有新版 → 詢問（按「否」，不開瀏覽器）
     const msg = await closeAppMessageBox(7);
     check('啟動後自動檢查，有新版時詢問', new RegExp(`有新版本 v${re(NEXT)}（目前使用 v${re(VER)}）`).test(msg || ''), msg);
@@ -57,5 +57,6 @@ export default {
     const again = await closeAppMessageBox(7);
     check('Ctrl+Shift+U：有新版時詢問', new RegExp(`有新版本 v${re(NEXT)}`).test(again || ''), again);
     await sleep(300);
+    check('視窗標題帶版本號', appTitle().includes(`視障輔助工具集 v${VER}`), appTitle());
   },
 };

@@ -20,6 +20,8 @@ static class Program
         }
 
         ApplicationConfiguration.Initialize();
+        // 上次自動更新換下來的舊執行檔、沒清掉的暫存檔
+        Updater.CleanupOldExe();
 
         string? webRoot = FindWebRoot(args);
         if (webRoot == null)

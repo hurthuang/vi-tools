@@ -27,7 +27,7 @@ public class MainForm : Form
     {
         _webRoot = webRoot;
         _preferOnline = preferOnline;
-        Text = "視障輔助工具集";
+        Text = $"視障輔助工具集 v{AppVersion}";
         Width = 1280;
         Height = 860;
         StartPosition = FormStartPosition.CenterScreen;
@@ -133,6 +133,11 @@ public class MainForm : Form
     // ── 檢查更新：GitHub 上 vi-tools 的 Release，只看標籤 desktop-v*（略過草稿與預先發行）
     //   manual=false：啟動後在背景檢查，一天最多一次，沒有新版就不出聲
     //   manual=true：Ctrl+Shift+U（網頁送來 checkUpdate），沒有新版或檢查失敗也告訴使用者
+    //   自動更新（可攜版才做，見 Updater）：
+    //     有新版 → 依該 Release 的 manifest.json 只下載有變動的檔案（含 ViTools.exe），完成後詢問是否重新啟動；
+    //              自動更新失敗（沒有清單、資料夾不能寫入、下載失敗）才照舊請使用者開下載頁面
+    //     沒有新版 → 依預先發行版 web-latest 的 web-manifest.json 在背景把離線網頁更新到最新（不出聲）；
+    //              清單的 minApp 比目前的 app 新時不更新（網頁可能用到新版 app 才有的功能）
     //   VITOOLS_UPDATE_URL：測試用，改用別的 Release 清單網址；設成 none 不自動檢查
     const string ReleasesApi = "https://api.github.com/repos/hurthuang/vi-tools/releases?per_page=30";
     const string TagPrefix = "desktop-v";
@@ -168,8 +173,15 @@ public class MainForm : Form
 
             Version? latest = null;
             string latestUrl = "";
+            string? latestManifest = null;
+            string? webManifest = null;
             foreach (var r in doc.RootElement.EnumerateArray())
             {
+                if (r.TryGetProperty("tag_name", out var wt) && wt.GetString() == "web-latest")
+                {
+                    webManifest = AssetUrl(r, "web-manifest.json");
+                    continue;
+                }
                 if (r.TryGetProperty("draft", out var d) && d.GetBoolean()) continue;
                 if (r.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
                 string tag = r.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
@@ -178,26 +190,82 @@ public class MainForm : Form
                 {
                     latest = v;
                     latestUrl = r.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "";
+                    latestManifest = AssetUrl(r, "manifest.json");
                 }
             }
 
             var current = Version.Parse(AppVersion);
+            string ua = $"ViTools/{AppVersion}";
+            bool canUpdate = Updater.CanUpdate(_webRoot);
             if (latest != null && latest > current)
             {
+                string why = "";
+                if (canUpdate && latestManifest != null)
+                {
+                    try
+                    {
+                        var m = await Updater.LoadManifestAsync(latestManifest, ua);
+                        var res2 = await Updater.ApplyAsync(m, allowExe: true, ua);
+                        string done = res2.Changed > 0
+                            ? $"已自動下載 v{latest.ToString(3)} 的更新（只下載有變動的 {res2.Changed} 個檔案，目前使用 v{AppVersion}）。"
+                            : $"v{latest.ToString(3)} 的更新已經下載好了（目前使用 v{AppVersion}）。";
+                        var restart = MessageBox.Show(this, done + "\n\n重新啟動後生效，要現在重新啟動嗎？",
+                            "視障輔助工具集", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        if (restart == DialogResult.Yes) Restart();
+                        return;
+                    }
+                    catch (Exception ex) { why = $"\n\n（自動更新沒有完成：{ex.Message}）"; }
+                }
                 var answer = MessageBox.Show(this,
-                    $"有新版本 v{latest.ToString(3)}（目前使用 v{AppVersion}）。\n\n要開啟下載頁面嗎？下載後解壓縮，覆蓋原本的資料夾即可。",
+                    $"有新版本 v{latest.ToString(3)}（目前使用 v{AppVersion}）。{why}\n\n要開啟下載頁面嗎？下載後解壓縮，覆蓋原本的資料夾即可。",
                     "視障輔助工具集", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                 if (answer == DialogResult.Yes && latestUrl.StartsWith("https://github.com/", StringComparison.Ordinal))
                     OpenExternal(latestUrl);
             }
-            else if (manual)
-                MessageBox.Show(this, $"目前已是最新版本（v{AppVersion}）。", "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            else
+            {
+                // 沒有新版：離線網頁更新到最新（不出聲；手動檢查時順便告訴使用者）
+                int webChanged = 0;
+                if (canUpdate && webManifest != null)
+                {
+                    try
+                    {
+                        var m = await Updater.LoadManifestAsync(webManifest, ua);
+                        if (Version.TryParse(m.MinApp, out var min) && current >= min)
+                            webChanged = (await Updater.ApplyAsync(m, allowExe: false, ua)).Changed;
+                    }
+                    catch { }
+                    if (webChanged > 0 && !_online) _web.CoreWebView2?.Reload();
+                }
+                if (manual)
+                    MessageBox.Show(this, $"目前已是最新版本（v{AppVersion}）。" + (webChanged > 0 ? $"\n離線網頁已更新 {webChanged} 個檔案。" : ""),
+                        "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
         catch (Exception ex)
         {
             if (manual)
                 MessageBox.Show(this, $"檢查更新失敗：{ex.Message}", "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    /// <summary>Release 附件的下載網址（找不到回傳 null）。</summary>
+    static string? AssetUrl(JsonElement release, string name)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array) return null;
+        foreach (var a in assets.EnumerateArray())
+            if (a.TryGetProperty("name", out var n) && n.GetString() == name && a.TryGetProperty("browser_download_url", out var u))
+                return u.GetString();
+        return null;
+    }
+
+    /// <summary>自動更新換了 ViTools.exe 之後：用同樣的參數啟動新版，關閉目前的視窗。</summary>
+    void Restart()
+    {
+        var psi = new ProcessStartInfo(Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "ViTools.exe")) { UseShellExecute = false };
+        foreach (string a in Environment.GetCommandLineArgs().Skip(1)) psi.ArgumentList.Add(a);
+        Process.Start(psi);
+        Close();
     }
 
     async Task<bool> OnlineReachableAsync()
@@ -235,7 +303,8 @@ public class MainForm : Form
     void UpdateTitle()
     {
         string page = _web.CoreWebView2?.DocumentTitle ?? "";
-        string suffix = _online ? "" : "（離線版）";
+        // 視窗標題帶版本號（報讀軟體切換視窗時也會念出來）
+        string suffix = $" v{AppVersion}" + (_online ? "" : "（離線版）");
         Text = string.IsNullOrEmpty(page) ? $"視障輔助工具集{suffix}" : $"{page} - 視障輔助工具集{suffix}";
     }
 

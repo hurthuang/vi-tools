@@ -1,0 +1,35 @@
+# 網頁清單：每次推 master，產生桌面版自動更新離線網頁用的檔案清單（web-manifest.json），
+# 放在預先發行版 web-latest（預先發行不會被當成「最新版」，首頁的下載連結與 app 的檢查更新都不會用到它）。
+# 桌面版連網時比對清單，只下載有變動的網頁與資源檔（從 raw.githubusercontent.com 的同一個 commit 取得）。
+name: 網頁清單（桌面版自動更新）
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-manifest
+  cancel-in-progress: true
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 產生清單
+        run: node desktop/tools/make-manifest.mjs --repo . --out web-manifest.json --commit "$GITHUB_SHA"
+
+      - name: 上傳到預先發行版 web-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view web-latest >/dev/null 2>&1 || gh release create web-latest --prerelease \
+            --title "網頁清單（桌面版自動更新用）" \
+            --notes "桌面版自動更新離線網頁用的檔案清單，每次更新網頁時自動產生。這不是桌面版的下載頁，請到最新的「桌面版 v…」下載。" \
+            --target "$GITHUB_SHA"
+          gh release upload web-latest web-manifest.json --clobber
