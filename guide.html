@@ -224,6 +224,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#p2a">📄 文件整理</a>
     <a href="#query">🔍 UEB 查詢</a>
     <a href="#music">♪ 點字樂譜</a>
+    <a href="#tactile">✋ 觸摸圖</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">桌面版</div>
@@ -272,6 +273,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <td>♪ 點字樂譜</td>
         <td>ABC／MusicXML ↔ 音樂點字（BANA）</td>
         <td>把五線譜轉成點字樂譜、檢查點字樂譜、製作點字對照學習單</td>
+      </tr>
+      <tr>
+        <td>✋ 觸摸圖</td>
+        <td>PDF／截圖 → ViewPlus Tiger 觸摸圖（.prn）</td>
+        <td>把試題的幾何圖形做成觸摸圖，標籤自動轉點字</td>
       </tr>
     </tbody>
   </table>
@@ -717,6 +723,56 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
   <h3>規則對照</h3>
   <p>工具內的「點字樂譜規則對照」頁，依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字。</p>
+</section>
+
+
+<section id="tactile">
+  <h2 class="section-title">觸摸圖（測試版）</h2>
+
+  <div class="tool-header" style="--tool-color:#34d399">
+    <div class="tool-icon">✋</div>
+    <div>
+      <div class="tool-hname">觸摸圖 <span class="tool-hfile">tactile.html</span></div>
+      <div class="tool-hdesc">從試題 PDF 或截圖框選圖形，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn，3D Emboss，20 dpi）。取代「截圖貼到 Word → 用 ViewPlus 驅動程式印成 .prn → 在 Tiger Designer 調線條、加點字」的流程；匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印。</div>
+      <div class="tool-tags">
+        <span class="tag">PDF 向量線條</span>
+        <span class="tag">標籤轉點字</span>
+        <span class="tag">網底轉填色</span>
+        <span class="tag">繪圖與填色</span>
+        <span class="tag">多種紙張</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>從 PDF 做觸摸圖</h3>
+  <ul>
+    <li>「開啟」PDF、圖片或既有的 .prn，也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
+    <li>在左邊框選一張圖（連同 A、B、C 等標籤一起框），按「加入成新的一頁」或 <kbd>Enter</kbd>，每張圖一頁。換頁用 <kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd>、頁碼欄或上方的頁面縮圖；縮放用選單或 <kbd>Ctrl</kbd>+滾輪。</li>
+    <li>PDF 的線條是向量時，直接照原本的線畫，角與交點最準；框選範圍有圖片（掃描、貼上的圖）時改用點陣方式：線條細化成一點寬、拉直並修正尖角，灰色網底轉成填色，圖片裡的字移除並留下空白標籤讓你填字。可在右邊「圖形轉換」切換方式、調整大小，再按「重新產生圖形」（標籤會保留）。</li>
+    <li>每頁第一行是點字標題，例如「選擇 4. 圖一」，國字照「文字轉點字」的規則轉注音點字（可勾選多音字補充規則）。</li>
+  </ul>
+
+  <h3>標籤</h3>
+  <ul>
+    <li>PDF 裡的 A、B、C、L₁ 等字母自動轉點字（大寫記號＋字母，下標用下位數字），放在不壓到線的位置。</li>
+    <li>數字用下位數字；單獨的數字、以數字開頭的式子、等號或不等號後的數字前面加數字記號，例如 3 → ⠼⠒、2x+1 → ⠼⠆⠭⠬⠂。</li>
+    <li>「標籤」工具：拖曳移動、方向鍵微調、<kbd>Delete</kbd> 刪除；在「新增」欄輸入文字或點字後點圖上的位置加標籤。點字欄可以直接修改（橘框表示手動修改過），也可用六點輸入。</li>
+  </ul>
+
+  <h3>修改圖形</h3>
+  <ul>
+    <li>畫點、直線、箭頭、矩形、橢圓、橡皮擦共用「粗細」；勾「虛線」畫輔助線。直線、箭頭按 <kbd>Shift</kbd> 鎖定 0°／45°／90°，矩形變正方形、橢圓變正圓。</li>
+    <li>「選取」框起一塊後可拖曳搬移、方向鍵微調、<kbd>Delete</kbd> 刪除，框內的標籤一起處理。</li>
+    <li>「填色」點在封閉區域裡：灰（高度較低的凸面）、黑（和線一樣高）、白（清除）。線有缺口時不會填。</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原。</li>
+  </ul>
+
+  <h3>頁面、紙張與匯出</h3>
+  <ul>
+    <li>右邊的頁面清單可拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。</li>
+    <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
+    <li>「匯出 PRN」把所有頁面存成一個 .prn。這個工具還在測試中，<b>請先用 Tiger Designer 開啟檢查</b>再印。</li>
+  </ul>
 </section>
 
 

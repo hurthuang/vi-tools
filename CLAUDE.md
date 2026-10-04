@@ -1065,3 +1065,15 @@ some/time/name/here/there/where/one）確認只有 than 誤判、其餉都正常
 用這個 session 稽核 bt 時建立的完整驗證句子批次（含大寫段落、撇號、標點、
 wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正確，沒有 b2t 專屬
 的其他新問題。
+
+## 觸摸圖（tactile.html，測試版，2026-10-04 併入）
+
+從試題 PDF／截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn（3D Emboss，20 dpi）。原本在 `E:\Project\pic-maker` 獨立開發，分支 `pic-maker`（worktree `E:\Project\tool-pic`）。
+
+- `prn-core.js`（`window.PrnCore`，node 也能 require）：.prn 編解碼、點字轉換、`loadZh()` 解析 `table/zh-tw.ctb`（同 bt 的 parseCtb：字表後蓋前、context 與 correct 第一條符合者勝出、PDF 規範覆蓋）
+- **.prn 格式**（比對 ViewPlus 驅動程式 12×11、Tiger Designer 8.5×11 與 11×11.5 樣本得出，樣本在 `tools/fixtures/`）：每頁 16 bytes 標頭 + 高 列；標頭 `1b 04 | 00 10 | 256+寬 | 高 | 00×6 | 前 14 bytes 加總+3（little-endian）`；第 3–4 byte 驅動程式寫 `00 10`、Tiger Designer 寫 `00 c0`，我們照驅動程式。每列 寬/2 個 big-endian word（每 word 兩點）：`C001` 整列空白、`8000|n, w` 重複、`n, w1..wn` 照抄。點值 0 空白、1–7 高度（線 7、灰填色 3）、15 點字。重新編碼使用者的原始檔逐 byte 相同
+- 寬寫在一個 byte，且一列要整數個 word：寬為偶數、最多 254 點（12.7 吋）
+- 點字規則（使用者確認）：標籤大寫記號＋字母、數字一律下位數字；單獨數字、以數字開頭、空白或 = < > 後的數字加數字記號；字母後的數字是下標（M₁ ⠠⠍⠂）；運算符號照 Nemeth（等號前後空方）。標題用 ⠼＋上位數字（「選擇 4. 圖一」）
+- 圖形：PDF 向量線條直接逐點畫（`getVectors`／`vectorize`）；框選範圍有內嵌圖片時用點陣：網底偵測（灰階峰值）→ 細化 → 去小碎片（圖片裡的字，留空白標籤）→ 拉直（`straighten`：骨架拆邊、Douglas–Peucker、共線邊穿過交叉點時接回、角取直線交點、水平垂直對齊）→ 網底收尾
+- 測試：`node tools/check-tactile.mjs`（核心）；`desktop/tests/cases/tactile.mjs`（app 斷線時的點字表、紙張、匯出）；點陣除錯 `tools/tactile-raster-harness.mjs`
+- 尚未驗證：實際用 Tiger 印表機印；Tiger Designer 開啟本工具產生的檔案

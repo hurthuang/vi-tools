@@ -1,0 +1,1856 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>✋ 觸摸圖</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #fff; --line: #d8dbe0; --text: #1d2330; --muted: #667085;
+    --accent: #1a5fd0; --accent-soft: #e6eefb; --warn: #b54708; --sel: #e8590c;
+    --input: #fff; --sel-row: #fff1e6; --kbd: #fafafa; --source-bg: #888;
+    color-scheme: light;
+  }
+  /* 深色：點陣編輯區、PDF、縮圖維持白底（代表紙張） */
+  html[data-theme="dark"] {
+    --bg: #1a1a2e; --panel: #16213e; --line: #2a3a5a; --text: #e0e0e0; --muted: #9aa5bc;
+    --accent: #5a99ff; --accent-soft: #1d3157; --warn: #ffb366; --sel: #ff8a4c;
+    --input: #111827; --sel-row: #3a2a1e; --kbd: #0f3460; --source-bg: #0a1020;
+    color-scheme: dark;
+  }
+  input, select { background: var(--input); color: var(--text); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif; color: var(--text); background: var(--bg); }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0 12px 0 0; }
+  button, select, input { font: inherit; }
+  button { padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--text); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .warn { color: var(--warn); font-size: 13px; }
+  main { display: grid; grid-template-columns: minmax(360px, 1fr) auto 320px; gap: 10px; padding: 10px; align-items: start; }
+  section, aside { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  h3 { font-size: 14px; margin: 14px 0 6px; }
+  .bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  #thumbStrip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; margin-bottom: 6px; }
+  #thumbStrip .th { flex: none; position: relative; border: 2px solid transparent; border-radius: 4px; cursor: pointer; background: #fff; }
+  #thumbStrip .th.cur { border-color: var(--accent); }
+  #thumbStrip .th canvas { display: block; width: 46px; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+  #thumbStrip .th .n { position: absolute; left: 2px; bottom: 1px; font-size: 11px; color: #1d2330; background: #fffc; padding: 0 2px; border-radius: 2px; }
+  #thumbStrip .th .b { position: absolute; right: -4px; top: -4px; min-width: 16px; height: 16px; border-radius: 8px; background: #2f9e44; color: #fff; font-size: 11px; text-align: center; line-height: 16px; padding: 0 3px; }
+  #pdfWrap { position: relative; max-height: calc(100vh - 170px); overflow: auto; border: 1px solid var(--line); background: var(--source-bg); }
+  #pdfInner { position: relative; width: fit-content; }
+  #pdfCanvas { display: block; background: #fff; }
+  #pdfOverlay { position: absolute; inset: 0; cursor: crosshair; }
+  #empty { padding: 40px 20px; color: #fff; text-align: center; }
+  #edWrap { border: 1px solid var(--line); overflow: auto; max-height: calc(100vh - 170px); }
+  #ed { display: block; touch-action: none; }
+  .tools label { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .tools input[type=radio], .tools input[type=checkbox] { margin: 0; }
+  .tools label:has(input[type=radio]:checked) { background: var(--accent-soft); border-color: var(--accent); }
+  #pageList { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
+  .pg { display: grid; grid-template-columns: 72px 1fr auto; gap: 6px; align-items: center; padding: 4px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .pg.cur { border-color: var(--accent); background: var(--accent-soft); }
+  .pg[draggable=true] { cursor: grab; }
+  .pg.dragging { opacity: .4; }
+  .pg.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+  .pg.drop-after { box-shadow: 0 3px 0 var(--accent); }
+  .pg canvas { width: 72px; height: 66px; border: 1px solid var(--line); background: #fff; }
+  .pg .t { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg .ops button { padding: 0 6px; font-size: 12px; }
+  .field { display: grid; grid-template-columns: 70px 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .field input[type=text], .field input[type=number] { width: 100%; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+  .brl { font-family: "Segoe UI Symbol", "Apple Braille", sans-serif; font-size: 18px; letter-spacing: 1px; }
+  #labelList { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
+  .lb { display: grid; grid-template-columns: 56px 1fr auto; gap: 6px; align-items: center; padding: 2px 4px; border-radius: 5px; }
+  .lb.sel { background: var(--sel-row); }
+  .lb input { width: 100%; padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; }
+  .lb input.brl { font-size: 16px; }
+  .lb input.manual { border-color: var(--warn); }
+  .lb button { padding: 0 6px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  kbd { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 12px; background: var(--kbd); }
+</style>
+</head>
+<body>
+<header>
+  <h1>✋ 觸摸圖 <span class="muted">ViewPlus Tiger PRN</span></h1>
+  <button id="btnOpen" class="primary">開啟 PDF／圖片／PRN</button>
+  <input id="fileIn" type="file" accept=".pdf,.prn,image/*" hidden>
+  <span class="muted">也可以拖曳檔案進來，或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖</span>
+  <span style="flex:1"></span>
+  <label class="muted" for="paper">紙張</label>
+  <select id="paper" title="整份文件共用；改尺寸會裁切或補白現有頁面">
+    <option value="240x220">12 × 11 吋</option>
+    <option value="220x230">11 × 11.5 吋</option>
+    <option value="170x220">8.5 × 11 吋（Letter）</option>
+    <option value="220x170">11 × 8.5 吋（Letter 橫）</option>
+    <option value="166x234">A4（8.27 × 11.69 吋）</option>
+    <option value="234x166">A4 橫</option>
+    <option value="custom">自訂…</option>
+  </select>
+  <span id="paperCustom" hidden>
+    <input id="paperW" type="number" min="2" max="12.7" step="0.05" style="width:64px"> ×
+    <input id="paperH" type="number" min="2" max="40" step="0.05" style="width:64px"> 吋
+    <button id="paperApply">套用</button>
+  </span>
+  <span id="paperInfo" class="muted"></span>
+  <input id="outName" type="text" value="觸摸圖.prn" style="width:160px;padding:3px 6px;border:1px solid var(--line);border-radius:5px">
+  <button id="btnExport" class="primary" disabled>匯出 PRN</button>
+</header>
+
+<main>
+  <!-- 左：來源 -->
+  <section>
+    <h2>① 來源：框選一張圖</h2>
+    <div class="bar">
+      <button id="prevPage" disabled title="上一頁（PgUp）">◀</button>
+      <input id="pageNum" type="number" min="1" value="1" disabled title="輸入頁碼按 Enter；Home／End 到第一頁／最後一頁" style="width:52px">
+      <span id="pageCount" class="muted">/ —</span>
+      <button id="nextPage" disabled title="下一頁（PgDn）">▶</button>
+      <span style="flex:1"></span>
+      <select id="viewZoom" title="PDF 縮放（Ctrl+滾輪也可以）">
+        <option value="1" selected>符合寬度</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option><option value="4">400%</option>
+      </select>
+      <button id="btnAdd" class="primary" disabled title="Enter">加入成新的一頁</button>
+      <button id="btnReplace" disabled>取代目前這頁的圖</button>
+    </div>
+    <div id="pageInfo" class="muted" style="margin:-4px 0 4px">&nbsp;</div>
+    <div id="thumbStrip" hidden></div>
+    <div id="pdfWrap">
+      <div id="empty">開啟試題 PDF 後，用滑鼠框選一張圖（連同 A、B、C 等標籤一起框）</div>
+      <div id="pdfInner" hidden>
+        <canvas id="pdfCanvas"></canvas>
+        <svg id="pdfOverlay"></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 中：點陣編輯 -->
+  <section>
+    <h2>② 調整（<span id="paperTitle">240 × 220 點，12 × 11 吋</span>）</h2>
+    <div class="bar tools">
+      <label title="拖曳移動標籤；方向鍵微調；Delete 刪除"><input type="radio" name="tool" value="label" checked>標籤</label>
+      <label title="框選一塊：拖曳移動、方向鍵微調、Delete 刪除（框內的標籤一起）"><input type="radio" name="tool" value="select">選取</label>
+      <label><input type="radio" name="tool" value="pen">畫點</label>
+      <label title="Shift：鎖定 0°／45°／90°"><input type="radio" name="tool" value="line">直線</label>
+      <label title="從起點拖到箭頭尖端；Shift：鎖定角度"><input type="radio" name="tool" value="arrow">箭頭</label>
+      <label title="Shift：正方形"><input type="radio" name="tool" value="rect">矩形</label>
+      <label title="拖出外框；Shift：正圓"><input type="radio" name="tool" value="ellipse">橢圓</label>
+      <label><input type="radio" name="tool" value="eraser">橡皮擦</label>
+      <select id="brushSize" title="畫點、直線、箭頭、矩形、橢圓、橡皮擦的粗細">
+        <option value="1" selected>1 點</option><option value="2">2 點</option><option value="3">3 點</option><option value="5">5 點</option><option value="9">9 點</option>
+      </select>
+      <label title="直線、箭頭、矩形、橢圓畫成虛線（實 4 點、空 3 點）"><input type="checkbox" id="dashed">虛線</label>
+      <label><input type="radio" name="tool" value="fill">填色</label>
+      <select id="fillLevel" title="填色：灰 = 高度 3，黑 = 和線一樣高，白 = 清除">
+        <option value="3" selected>填色：灰</option><option value="7">填色：黑</option><option value="0">填色：白（清除）</option>
+      </select>
+      <button id="btnUndo" title="Ctrl+Z">復原</button>
+      <span style="flex:1"></span>
+      <select id="zoom"><option value="2">200%</option><option value="3" selected>300%</option><option value="4">400%</option></select>
+    </div>
+    <div id="edWrap"><canvas id="ed"></canvas></div>
+    <div class="muted" id="edStatus" style="margin-top:6px">&nbsp;</div>
+  </section>
+
+  <!-- 右：頁面與設定 -->
+  <aside>
+    <div class="bar" style="margin-bottom:6px"><h2 style="margin:0">③ 頁面</h2><span style="flex:1"></span><button id="btnBlank" title="在目前這頁後面加一張空白頁">＋ 空白頁</button></div>
+    <div id="pageList"><div class="muted">還沒有頁面</div></div>
+
+    <div id="pageProps" hidden>
+      <h3>標題（第一行點字）</h3>
+      <div class="field"><span>文字</span><input id="titleText" type="text" placeholder="例：選擇 4. 圖一"></div>
+      <div class="field"><span>點字</span><input id="brlTarget" type="text" class="brl brl-edit" data-role="titleBrl"></div>
+      <div id="titleWarn" class="warn"></div>
+      <div class="bar">
+        <label class="muted"><input id="optSupp" type="checkbox"> 多音字補充規則（同「文字轉點字」）</label>
+        <span style="flex:1"></span>
+        <button id="dotPadBtn" class="dot-pad" data-for="title" type="button" title="輸入到標題點字欄；點字欄裡按 Ctrl+B 切換六點鍵盤">⠿ 六點輸入</button>
+      </div>
+
+      <h3>標籤</h3>
+      <div id="labelList"></div>
+      <div class="field" style="margin-top:6px"><span>新增</span><input data-role="newLabel" type="text" class="brl-edit" placeholder="文字或點字，再用「標籤」工具點圖上位置"></div>
+      <div class="bar">
+        <button id="btnReplace2">自動重排標籤位置</button>
+        <span style="flex:1"></span>
+        <button class="dot-pad" data-for="label" type="button" title="輸入到選取標籤的點字欄（沒選標籤就輸入到「新增」）；欄位裡按 Ctrl+B 切換六點鍵盤">⠿ 六點輸入</button>
+      </div>
+
+      <div id="genBox">
+        <h3>圖形轉換</h3>
+        <div class="field"><span>方式</span><span>
+          <select id="optMode">
+            <option value="auto">自動</option>
+            <option value="vector">向量（直接取 PDF 的線）</option>
+            <option value="raster">點陣（像截圖）</option>
+          </select> <span id="modeUsed" class="muted"></span></span></div>
+        <div class="field"><span>大小</span><span><input id="optScale" type="number" min="20" max="200" step="5" style="width:70px"> %</span></div>
+        <div class="field"><span></span><label><input id="optShade" type="checkbox"> 灰色網底轉成填色（高度 3）</label></div>
+        <div id="rasterOpts">
+          <div class="field"><span>深色門檻</span><span><input id="optThreshold" type="range" min="60" max="245" style="width:150px"> <span id="thrVal" class="muted"></span></span></div>
+          <div class="field"><span></span><label><input id="optThin" type="checkbox"> 線條細化成一點寬</label></div>
+          <div class="field"><span></span><label><input id="optStraight" type="checkbox"> 拉直線條、修正尖角</label></div>
+          <div class="field"><span></span><label><input id="optHideText" type="checkbox"> 不畫 PDF 裡的文字</label></div>
+          <div class="field"><span></span><label><input id="optSpecks" type="checkbox"> 去除圖片裡的字（留空白標籤給你填）</label></div>
+        </div>
+        <div class="bar"><button id="btnRegen">重新產生圖形</button><span class="muted">標籤保留；手畫、擦掉的線會重來（可復原）</span></div>
+      </div>
+    </div>
+
+    <details style="margin-top:14px">
+      <summary>操作說明</summary>
+      <ul class="muted" style="padding-left:18px;margin:6px 0">
+        <li>左邊框選圖 → 「加入成新的一頁」，每張圖一頁</li>
+        <li>標籤（A、B、M₁…）會自動轉成點字，放在不壓到線的位置</li>
+        <li>「標籤」工具：拖曳移動；方向鍵微調 1 點；<kbd>Delete</kbd> 刪除</li>
+        <li>線條一律同一高度；藍點是點字</li>
+        <li>畫直線、箭頭時按住 Shift 鎖定角度，矩形變正方形、橢圓變正圓</li>
+        <li>「選取」框起一塊後可拖曳搬移、方向鍵微調、Delete 刪除</li>
+        <li>頁面清單可以拖曳排序，或用 Alt+↑／↓ 移動目前這頁</li>
+        <li>來源換頁：PgUp／PgDn、Home／End、輸入頁碼，或點上方的頁面縮圖（綠色數字是那頁框了幾張圖）</li>
+        <li>匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印</li>
+      </ul>
+    </details>
+  </aside>
+</main>
+
+<script src="shared.js"></script>
+<script src="prn-core.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { LINE, BRL, toBraille, brlWidth, BRL_HEIGHT, stampBraille } = PrnCore;
+  let W = PrnCore.W, H = PrnCore.H;   // 紙張（點，20 dpi），整份文件共用
+  const TITLE_X = 25, TITLE_Y = 17;
+  let AREA;                                         // 圖形放置範圍（點）：左右各留 20、上面留標題列、下面留 14
+  const setArea = () => { AREA = { x: 20, y: 32, w: W - 40, h: H - 46 }; };
+  setArea();
+  const LABEL_TOP = TITLE_Y + BRL_HEIGHT + 3;      // 標籤不進標題列
+  const CLEAR = 2;                                  // 標籤和線之間至少空幾點
+  const SS = 6;                                     // 每點取樣 6×6 像素
+  const SHADE_LEVEL = 3;                            // 網底轉成的填色高度（灰，同 Tiger 範例）
+  const MIN_PX = 4;                                 // 一點內至少幾個深色像素才算有線
+  // 補充規則開關與「文字轉點字」共用同一個設定
+  const SUPP_KEY = 'vi-bt-zh-supplement-enabled';
+  const suppOn = () => { try { return localStorage.getItem(SUPP_KEY) === '1'; } catch (e) { return false; } };
+  const titleBraille = t => toBraille(t, { supplement: suppOn() });
+  const labelBraille = t => toBraille(t, { lowerDigits: true, supplement: suppOn() }).braille;
+  const defaultOpts = () => ({ mode: 'auto', scale: 100, threshold: 180, thin: true, hideText: true, shade: true, dropSpecks: true, straighten: true });
+
+  const $ = s => document.querySelector(s);
+  const titleBrlEl = $('[data-role=titleBrl]');   // id 會被六點輸入借走，用 data-role 找
+  const newLabelEl = $('[data-role=newLabel]');
+  let doc = null;          // { kind: 'pdf'|'img', name, numPages, pdf?, img? }
+  let viewPage = 1, viewScale = 1, renderTask = null;
+  let sel = null;          // 框選範圍（來源座標：PDF 為 pt，圖片為像素）
+  const pages = [];
+  let cur = -1, selLabel = null;
+  let tool = 'label', zoom = 3;
+
+  // ── 開檔 ────────────────────────────────────────────
+  $('#btnOpen').onclick = () => $('#fileIn').click();
+  $('#fileIn').onchange = e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; };
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+  document.addEventListener('paste', e => {
+    if (e.target.matches('input')) return;
+    const f = [...e.clipboardData.files].find(f => f.type.startsWith('image/'));
+    if (f) openFile(f);
+  });
+
+  async function openFile(f) {
+    const name = f.name || '貼上的圖片';
+    try {
+      if (/\.prn$/i.test(name)) return importPrn(f);
+      if (/\.pdf$/i.test(name) || f.type === 'application/pdf') {
+        await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+        doc = { kind: 'pdf', name, numPages: pdf.numPages, pdf };
+      } else if (f.type.startsWith('image/')) {
+        const img = new Image();
+        img.src = URL.createObjectURL(f);
+        await img.decode();
+        doc = { kind: 'img', name, numPages: 1, img };
+      } else { alert('不支援的檔案：' + name); return; }
+      if (/\.pdf$/i.test(name)) $('#outName').value = name.replace(/\.pdf$/i, '.prn');
+      viewPage = 1; sel = null;
+      $('#empty').hidden = true; $('#pdfInner').hidden = false;
+      buildThumbStrip();
+      await renderView();
+    } catch (err) { console.error(err); alert('開啟失敗：' + err.message); }
+  }
+
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve();
+    return new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        ok();
+      };
+      s.onerror = () => fail(new Error('pdf.js 載入失敗（需要網路）'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function importPrn(f) {
+    const { pages: decoded, w, h } = PrnCore.decode(await f.arrayBuffer());
+    let note = '';
+    if (w !== W || h !== H) {
+      if (!pages.length) setPaper(w, h);   // 還沒有頁面：直接用這個檔案的紙張
+      else note = `（這個檔案是 ${inch(w)} × ${inch(h)} 吋，已依目前紙張裁切或補白）`;
+    }
+    for (const dots of decoded)
+      pages.push({ title: '', titleBrl: '', dots: w === W && h === H ? dots : resizeDots(dots, w, h, W, H), labels: [], src: null, opts: defaultOpts(), undo: [] });
+    $('#outName').value = f.name;
+    selectPage(pages.length - decoded.length);
+    if (note) $('#edStatus').textContent = '匯入 ' + decoded.length + ' 頁' + note;
+  }
+
+  // ── 紙張 ─────────────────────────────────────────────
+  const PAPER_KEY = 'pic-maker-paper';
+  const inch = d => +(d / PrnCore.DPI).toFixed(2);
+  function resizeDots(src, w0, h0, w1, h1) {   // 左上對齊，裁切或補白
+    const out = new Uint8Array(w1 * h1);
+    for (let y = 0; y < Math.min(h0, h1); y++) for (let x = 0; x < Math.min(w0, w1); x++) out[y * w1 + x] = src[y * w0 + x];
+    return out;
+  }
+  function setPaper(w, h) {
+    w = Math.max(40, Math.min(PrnCore.MAX_W, Math.round(w / 2) * 2));
+    h = Math.max(40, Math.min(800, Math.round(h)));
+    if (w !== W || h !== H) {
+      for (const pg of pages) {
+        pg.dots = resizeDots(pg.dots, W, H, w, h);
+        if (pg.fillMask) pg.fillMask = resizeDots(pg.fillMask, W, H, w, h);
+        pg.undo = [];   // 復原紀錄是舊尺寸，不能用了
+      }
+      W = w; H = h; setArea();
+    }
+    try { localStorage.setItem(PAPER_KEY, `${w}x${h}`); } catch (e) {}
+    const val = `${w}x${h}`, sel = $('#paper');
+    sel.value = [...sel.options].some(o => o.value === val) ? val : 'custom';
+    $('#paperCustom').hidden = sel.value !== 'custom';
+    $('#paperW').value = inch(w); $('#paperH').value = inch(h);
+    $('#paperInfo').textContent = `${w} × ${h} 點`;
+    $('#paperTitle').textContent = `${w} × ${h} 點，${inch(w)} × ${inch(h)} 吋`;
+    selBox = null;
+    refreshAll();
+  }
+  const askPaper = (w, h) => {
+    if (pages.length && (w !== W || h !== H) &&
+        !confirm(`改成 ${inch(w)} × ${inch(h)} 吋？\n現有 ${pages.length} 頁會從左上角裁切或補白（不能復原）。\n從 PDF 框選的頁面可以再按「重新產生圖形」依新紙張重新排版。`)) {
+      setPaper(W, H); return;
+    }
+    setPaper(w, h);
+  };
+  $('#paper').onchange = e => {
+    if (e.target.value === 'custom') { $('#paperCustom').hidden = false; return; }
+    const [w, h] = e.target.value.split('x').map(Number);
+    askPaper(w, h);
+  };
+  $('#paperApply').onclick = () => {
+    const w = Math.round(+$('#paperW').value * PrnCore.DPI), h = Math.round(+$('#paperH').value * PrnCore.DPI);
+    if (!(w > 0 && h > 0)) return;
+    askPaper(w, h);
+  };
+
+  // 空白頁：插在目前這頁後面
+  $('#btnBlank').onclick = () => {
+    const prev = pages[cur];
+    const title = prev ? prev.title : '';
+    const pg = { title, titleBrl: titleBraille(title).braille, dots: new Uint8Array(W * H), fillMask: new Uint8Array(W * H), labels: [], src: null, opts: defaultOpts(), undo: [] };
+    pages.splice(cur + 1, 0, pg);
+    selectPage(cur + 1);
+  };
+
+  // ── 來源檢視與框選 ─────────────────────────────────────
+  function goPage(n) {
+    if (!doc) return;
+    n = Math.max(1, Math.min(doc.numPages, n | 0));
+    if (n !== viewPage) { viewPage = n; sel = null; }
+    return renderView();
+  }
+  $('#prevPage').onclick = () => goPage(viewPage - 1);
+  $('#nextPage').onclick = () => goPage(viewPage + 1);
+  $('#pageNum').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); goPage(+e.target.value); } });
+  $('#pageNum').addEventListener('change', e => goPage(+e.target.value));
+
+  // 頁面縮圖列：捲到才畫；右上角的綠色數字 = 這頁框了幾張圖
+  let thumbObserver = null;
+  function buildThumbStrip() {
+    const strip = $('#thumbStrip');
+    strip.innerHTML = '';
+    if (thumbObserver) thumbObserver.disconnect();
+    strip.hidden = !doc || doc.kind !== 'pdf' || doc.numPages < 2;
+    if (strip.hidden) return;
+    thumbObserver = new IntersectionObserver(entries => {
+      for (const en of entries) {
+        if (!en.isIntersecting || en.target.dataset.drawn) continue;
+        en.target.dataset.drawn = '1';
+        const n = +en.target.dataset.page, cv = en.target.querySelector('canvas'), d = doc;
+        d.pdf.getPage(n).then(page => {
+          const vp = page.getViewport({ scale: 92 / page.getViewport({ scale: 1 }).width });
+          cv.width = vp.width; cv.height = vp.height;
+          return page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        }).catch(() => {});
+      }
+    }, { root: strip, rootMargin: '0px 200px' });
+    for (let n = 1; n <= doc.numPages; n++) {
+      const el = document.createElement('div');
+      el.className = 'th'; el.dataset.page = n; el.title = '第 ' + n + ' 頁';
+      el.innerHTML = `<canvas width="46" height="65"></canvas><span class="n">${n}</span>`;
+      el.onclick = () => goPage(n);
+      strip.appendChild(el);
+      thumbObserver.observe(el);
+    }
+    updateThumbStrip();
+  }
+  function updateThumbStrip() {
+    const strip = $('#thumbStrip');
+    if (strip.hidden) return;
+    for (const el of strip.children) {
+      const n = +el.dataset.page, used = pages.filter(p => p.src && p.src.doc === doc && p.src.page === n).length;
+      el.classList.toggle('cur', n === viewPage);
+      let b = el.querySelector('.b');
+      if (used && !b) { b = document.createElement('span'); b.className = 'b'; el.appendChild(b); }
+      if (b) { if (used) b.textContent = used; else b.remove(); }
+    }
+    const c = strip.children[viewPage - 1];
+    if (c) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+
+  // PDF 縮放：viewZoom 是相對「符合寬度」的倍數；anchor = 縮放後要留在原處的點（來源座標＋畫面位置）
+  let viewZoom = 1;
+  $('#viewZoom').onchange = e => setViewZoom(+e.target.value);
+  $('#pdfWrap').addEventListener('wheel', e => {
+    if (!e.ctrlKey || !doc) return;
+    e.preventDefault();
+    const b = $('#pdfOverlay').getBoundingClientRect(), wb = $('#pdfWrap').getBoundingClientRect();
+    setViewZoom(viewZoom * (e.deltaY < 0 ? 1.25 : 0.8), {
+      x: (e.clientX - b.left) / viewScale, y: (e.clientY - b.top) / viewScale,
+      sx: e.clientX - wb.left, sy: e.clientY - wb.top,
+    });
+  }, { passive: false });
+
+  let zoomTimer = null;
+  function setViewZoom(z, anchor) {
+    viewZoom = Math.max(0.5, Math.min(6, z));
+    const zs = $('#viewZoom');
+    let opt = [...zs.options].find(o => !o.dataset.custom && Math.abs(+o.value - viewZoom) < 0.01);
+    if (!opt) {
+      opt = zs.querySelector('option[data-custom]') || zs.appendChild(Object.assign(document.createElement('option'), { hidden: true }));
+      opt.dataset.custom = '1';
+      opt.value = viewZoom; opt.textContent = Math.round(viewZoom * 100) + '%';
+    }
+    zs.value = opt.value;
+    if (!anchor) {   // 沒有指定就以畫面中心為準
+      const wrap = $('#pdfWrap');
+      anchor = { x: (wrap.scrollLeft + wrap.clientWidth / 2) / viewScale, y: (wrap.scrollTop + wrap.clientHeight / 2) / viewScale, sx: wrap.clientWidth / 2, sy: wrap.clientHeight / 2 };
+    }
+    clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(async () => {
+      await renderView();
+      const wrap = $('#pdfWrap');
+      wrap.scrollLeft = anchor.x * viewScale - anchor.sx;
+      wrap.scrollTop = anchor.y * viewScale - anchor.sy;
+    }, 60);
+  }
+
+  async function renderView() {
+    if (!doc) return;
+    const cv = $('#pdfCanvas'), ctx = cv.getContext('2d');
+    const avail = $('#pdfWrap').clientWidth - 20;
+    const dpr = window.devicePixelRatio || 1;
+    let w, h;
+    if (doc.kind === 'pdf') {
+      const page = await doc.pdf.getPage(viewPage);
+      const vp1 = page.getViewport({ scale: 1 });
+      w = vp1.width; h = vp1.height;
+      viewScale = avail / w * viewZoom;
+      const vp = page.getViewport({ scale: viewScale * dpr });
+      cv.width = vp.width; cv.height = vp.height;
+      if (renderTask) renderTask.cancel();
+      renderTask = page.render({ canvasContext: ctx, viewport: vp });
+      try { await renderTask.promise; } catch (e) { if (e.name !== 'RenderingCancelledException') throw e; }
+      renderTask = null;
+    } else {
+      w = doc.img.naturalWidth; h = doc.img.naturalHeight;
+      viewScale = Math.min(avail / w, 2) * viewZoom;
+      cv.width = w * viewScale * dpr; cv.height = h * viewScale * dpr;
+      ctx.drawImage(doc.img, 0, 0, cv.width, cv.height);
+    }
+    cv.style.width = (w * viewScale) + 'px'; cv.style.height = (h * viewScale) + 'px';
+    const ov = $('#pdfOverlay');
+    ov.setAttribute('width', w * viewScale); ov.setAttribute('height', h * viewScale);
+    $('#pageInfo').textContent = `${doc.name}　第 ${viewPage} / ${doc.numPages} 頁`;
+    $('#pageNum').value = viewPage; $('#pageNum').max = doc.numPages; $('#pageNum').disabled = doc.numPages < 2;
+    $('#pageCount').textContent = '/ ' + doc.numPages;
+    $('#prevPage').disabled = viewPage <= 1;
+    $('#nextPage').disabled = viewPage >= doc.numPages;
+    updateThumbStrip();
+    drawOverlay();
+  }
+
+  function drawOverlay() {
+    const ov = $('#pdfOverlay');
+    const rect = (r, color, dash, label) =>
+      `<rect x="${r.x * viewScale}" y="${r.y * viewScale}" width="${r.w * viewScale}" height="${r.h * viewScale}" fill="${color}22" stroke="${color}" stroke-width="2" ${dash ? 'stroke-dasharray="6 4"' : ''}/>` +
+      (label ? `<text x="${r.x * viewScale + 4}" y="${r.y * viewScale + 16}" fill="${color}" font-size="14" font-weight="bold">${label}</text>` : '');
+    let s = '';
+    pages.forEach((p, i) => {
+      if (p.src && p.src.doc === doc && p.src.page === viewPage) s += rect(p.src.rect, i === cur ? '#e8590c' : '#2f9e44', false, '第 ' + (i + 1) + ' 頁');
+    });
+    if (sel) s += rect(sel, '#1a5fd0', true);
+    ov.innerHTML = s;
+    $('#btnAdd').disabled = !sel;
+    $('#btnReplace').disabled = !sel || cur < 0;
+  }
+
+  (function () {
+    const ov = $('#pdfOverlay');
+    let start = null;
+    const pt = e => { const b = ov.getBoundingClientRect(); return { x: (e.clientX - b.left) / viewScale, y: (e.clientY - b.top) / viewScale }; };
+    ov.addEventListener('pointerdown', e => { start = pt(e); ov.setPointerCapture(e.pointerId); sel = null; });
+    ov.addEventListener('pointermove', e => {
+      if (!start) return;
+      const p = pt(e);
+      sel = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) };
+      drawOverlay();
+    });
+    ov.addEventListener('pointerup', () => {
+      start = null;
+      if (sel && (sel.w * viewScale < 8 || sel.h * viewScale < 8)) sel = null;
+      drawOverlay();
+    });
+  })();
+
+  $('#btnAdd').onclick = addFromSelection;
+  $('#btnReplace').onclick = async () => {
+    if (!sel || cur < 0) return;
+    const pg = pages[cur];
+    pushUndo(pg);
+    pg.src = { doc, page: viewPage, rect: sel };
+    sel = null;
+    await generate(pg);
+    refreshAll();
+  };
+
+  async function addFromSelection() {
+    if (!sel) return;
+    const prev = pages[pages.length - 1];
+    const title = prev ? prev.title : '選擇 ';
+    const pg = { title, titleBrl: titleBraille(title).braille, dots: null, labels: [], src: { doc, page: viewPage, rect: sel }, opts: prev ? { ...prev.opts } : defaultOpts(), undo: [] };
+    sel = null;
+    await generate(pg);
+    pages.push(pg);
+    selectPage(pages.length - 1);
+    $('#titleText').focus();
+    $('#titleText').select();
+  }
+
+  // ── 來源 → 點陣 ──────────────────────────────────────
+  // 回傳 { bits, fw, fh, dpp }，dpp = 每個來源單位（pt 或像素）幾點
+  async function rasterize(src, opts) {
+    const r = src.rect;
+    const dpp = Math.min(AREA.w / r.w, AREA.h / r.h) * opts.scale / 100;
+    const fw = Math.max(1, Math.round(r.w * dpp)), fh = Math.max(1, Math.round(r.h * dpp));
+    const cv = document.createElement('canvas');
+    cv.width = fw * SS; cv.height = fh * SS;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    const k = dpp * SS;
+    if (src.doc.kind === 'pdf') {
+      if (opts.hideText) { ctx.fillText = () => {}; ctx.strokeText = () => {}; }
+      const page = await src.doc.pdf.getPage(src.page);
+      await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: k }), transform: [1, 0, 0, 1, -r.x * k, -r.y * k] }).promise;
+    } else {
+      ctx.drawImage(src.doc.img, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
+    }
+    const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    const lum = new Uint8Array(cv.width * cv.height), hist = new Uint32Array(256);
+    for (let i = 0; i < lum.length; i++) {
+      const v = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) | 0;
+      lum[i] = v; hist[v]++;
+    }
+    // 網底：灰階分布在 90–225 之間有明顯的峰（佔 3% 以上）。有的話線條門檻降到網底以下，網底另外轉成填色
+    let lineThr = opts.threshold, shadeLo = 256, shadeHi = 0;
+    if (opts.shade) {
+      let peak = -1, pc = 0;
+      for (let v = 90; v <= 225; v++) {
+        let c = 0;
+        for (let d = -3; d <= 3; d++) c += hist[v + d];
+        if (c > pc) { pc = c; peak = v; }
+      }
+      if (pc > lum.length * 0.03) {
+        lineThr = Math.max(40, Math.min(opts.threshold, peak - 45));
+        shadeLo = peak - 30; shadeHi = peak + 30;
+      }
+    }
+    // 每點統計：深色（線）、網底灰、其他灰（反鋸齒的細線邊緣）
+    const cnt = new Uint16Array(fw * fh), shadeCnt = new Uint16Array(fw * fh), midCnt = new Uint16Array(fw * fh);
+    for (let y = 0; y < cv.height; y++) {
+      const row = ((y / SS) | 0) * fw;
+      for (let x = 0; x < cv.width; x++) {
+        const v = lum[y * cv.width + x], c = row + ((x / SS) | 0);
+        if (v < lineThr) cnt[c]++;
+        else if (v < 235) { midCnt[c]++; if (v >= shadeLo && v <= shadeHi) shadeCnt[c]++; }
+      }
+    }
+    const bits = new Uint8Array(fw * fh), shade = new Uint8Array(fw * fh);
+    for (let i = 0; i < bits.length; i++) shade[i] = cnt[i] < MIN_PX && shadeCnt[i] >= SS * SS * 0.5 ? 1 : 0;
+    // 網底裡的洞（例如網底上的白字）補起來：一塊空白四周全是網底（沒碰到線、沒碰到邊）就整塊填成網底
+    if (shadeHi > 0) {
+      const seen = new Uint8Array(fw * fh);
+      for (let s0 = 0; s0 < shade.length; s0++) {
+        if (seen[s0] || shade[s0] || cnt[s0] >= MIN_PX) continue;
+        const comp = [], st = [s0];
+        let enclosed = true;
+        seen[s0] = 1;
+        while (st.length) {
+          const i = st.pop(); comp.push(i);
+          const x = i % fw, y = (i / fw) | 0;
+          for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+            if (nx < 0 || ny < 0 || nx >= fw || ny >= fh) { enclosed = false; continue; }
+            const j = ny * fw + nx;
+            if (shade[j]) continue;
+            if (cnt[j] >= MIN_PX) { enclosed = false; continue; }
+            if (!seen[j]) { seen[j] = 1; st.push(j); }
+          }
+        }
+        if (enclosed && comp.length <= fw * fh * 0.02) for (const i of comp) shade[i] = 1;
+      }
+    }
+    for (let i = 0; i < bits.length; i++) {
+      // 線：深色夠多；或不是網底、但灰色像素不少（淡的細線）
+      bits[i] = cnt[i] >= MIN_PX || (!shade[i] && shadeHi > 0 && midCnt[i] >= SS + 2) ? 1 : 0;
+      if (bits[i]) shade[i] = 0;
+    }
+    if (opts.thin) thin(bits, fw, fh);
+    const specks = opts.dropSpecks ? dropSpecks(bits, fw, fh) : [];
+    if (opts.thin && opts.straighten !== false) straighten(bits, fw, fh);
+    if (shadeHi > 0) closeShade(shade, bits, fw, fh);
+    return { bits, fw, fh, dpp, shade, specks, shadeFound: shadeHi > 0 };
+  }
+
+  // ── 點陣拉直：細化後的骨架常有削平的尖角、交會處的小鉤子 ──
+  //   骨架拆成「節點」（端點、交叉點）之間的邊 → 每條邊用折線近似（Douglas–Peucker）
+  //   → 每段用最小平方法擬合直線 → 轉折點、節點改用相鄰直線的交點 → 重新逐點畫
+  function straighten(b, w, h) {
+    const N8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+    const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && b[y * w + x];
+    const P = i => [i % w, (i / w) | 0];
+    // 繞一圈 0→1 的次數：1 = 端點，2 = 線上，≥3 = 交叉
+    const trans = i => {
+      const [x, y] = P(i); let t = 0;
+      for (let k = 0; k < 8; k++) if (!on(x + N8[k][0], y + N8[k][1]) && on(x + N8[(k + 1) % 8][0], y + N8[(k + 1) % 8][1])) t++;
+      return t;
+    };
+    const nbrs = i => {
+      const [x, y] = P(i), out = [];
+      // 上下左右優先，斜的在後（走樓梯狀的線不會跳過轉角點）
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]]) if (on(x + dx, y + dy)) out.push((y + dy) * w + x + dx);
+      return out;
+    };
+    const isNode = new Uint8Array(w * h);
+    for (let i = 0; i < b.length; i++) if (b[i] && trans(i) !== 2) isNode[i] = 1;
+    // 相鄰的節點像素合成一個節點
+    const nodeOf = new Int32Array(w * h).fill(-1), nodes = [];
+    for (let i = 0; i < b.length; i++) {
+      if (!isNode[i] || nodeOf[i] >= 0) continue;
+      const pix = [], st = [i]; nodeOf[i] = nodes.length;
+      while (st.length) { const j = st.pop(); pix.push(j); for (const k of nbrs(j)) if (isNode[k] && nodeOf[k] < 0) { nodeOf[k] = nodes.length; st.push(k); } }
+      const xs = pix.map(j => j % w), ys = pix.map(j => (j / w) | 0);
+      nodes.push({ pix, cx: xs.reduce((a, v) => a + v, 0) / pix.length, cy: ys.reduce((a, v) => a + v, 0) / pix.length, ends: [] });
+    }
+    // 沿線走：從節點出發，走到下一個節點
+    const used = new Uint8Array(w * h), edges = [];
+    const walk = (start, first) => {
+      const path = [start, first]; used[first] = 1;
+      let prev = start, cur = first;
+      for (;;) {
+        const ns = nbrs(cur).filter(k => k !== prev && !path.includes(k));
+        const node = ns.find(k => isNode[k] && (nodeOf[k] !== nodeOf[start] || path.length > 3));
+        if (node !== undefined) { path.push(node); return { path, a: nodeOf[start], z: nodeOf[node] }; }
+        const nx = ns.find(k => !isNode[k] && !used[k]);
+        if (nx === undefined) return { path, a: nodeOf[start], z: -1 };
+        used[nx] = 1; path.push(nx); prev = cur; cur = nx;
+      }
+    };
+    for (const nd of nodes) for (const p of nd.pix) for (const q of nbrs(p)) if (!isNode[q] && !used[q]) edges.push(walk(p, q));
+    // 沒有節點的封閉線（圓、多邊形）
+    for (let i = 0; i < b.length; i++) if (b[i] && !isNode[i] && !used[i]) {
+      used[i] = 1;
+      const nx = nbrs(i).find(k => !used[k]);
+      if (nx === undefined) continue;
+      const e = walk(i, nx); e.path.push(i); e.a = e.z = -1; edges.push(e);
+    }
+
+    // 同一條直線穿過交叉點（例如 AB 經過 D）：細化把它拆成兩段，兩段分開擬合會在交叉點折一下
+    //   交叉點上兩段方向相反、夾角 15° 以內的邊接回一條；記下穿過的位置（throughs），之後交叉點落在這條直線上
+    const outDir = (e, atStart) => {
+      const ps = e.path, n = Math.min(8, ps.length - 1);
+      const [x0, y0] = P(atStart ? ps[0] : ps[ps.length - 1]), [x1, y1] = P(atStart ? ps[n] : ps[ps.length - 1 - n]);
+      const L = Math.hypot(x1 - x0, y1 - y0) || 1;
+      return [(x1 - x0) / L, (y1 - y0) / L];
+    };
+    const flip = e => ({ path: [...e.path].reverse(), a: e.z, z: e.a, throughs: (e.throughs || []).map(t => ({ node: t.node, idx: e.path.length - 1 - t.idx })) });
+    for (let merged = true; merged;) {
+      merged = false;
+      for (let ni = 0; ni < nodes.length && !merged; ni++) {
+        const ends = [];
+        for (const e of edges) {
+          if (e.a === e.z || e.path.length < 4) continue;
+          if (e.a === ni) ends.push({ e, start: true, d: outDir(e, true) });
+          if (e.z === ni) ends.push({ e, start: false, d: outDir(e, false) });
+        }
+        let best = null, bd = -0.966;   // cos 165°
+        for (let i = 0; i < ends.length; i++) for (let j = i + 1; j < ends.length; j++) {
+          if (ends[i].e === ends[j].e) continue;
+          const d = ends[i].d[0] * ends[j].d[0] + ends[i].d[1] * ends[j].d[1];
+          if (d < bd) { bd = d; best = [ends[i], ends[j]]; }
+        }
+        if (!best) continue;
+        const e1 = best[0].start ? flip(best[0].e) : best[0].e;   // 讓 e1 結束在交叉點
+        const e2 = best[1].start ? best[1].e : flip(best[1].e);   // e2 從交叉點出發
+        const off = e1.path.length;
+        const m = {
+          path: e1.path.concat(e2.path), a: e1.a, z: e2.z,
+          throughs: [...(e1.throughs || []), { node: ni, idx: off - 1 }, ...(e2.throughs || []).map(t => ({ node: t.node, idx: t.idx + off }))],
+        };
+        edges.splice(edges.indexOf(best[0].e), 1);
+        edges.splice(edges.indexOf(best[1].e), 1);
+        edges.push(m);
+        merged = true;
+      }
+    }
+    for (const nd of nodes) nd.through = [];
+
+    // 折線近似
+    const dp = (pts, eps) => {
+      const last = pts.length - 1;
+      const keep = new Uint8Array(pts.length); keep[0] = keep[last] = 1;
+      let st = [[0, last]];
+      // 封閉的一圈（起點＝終點，例如長方形）：先用離起點最遠的點切成兩半，否則基準線長度是 0，整圈會只剩兩點
+      if (last > 2 && Math.hypot(pts[last][0] - pts[0][0], pts[last][1] - pts[0][1]) < 1.5) {
+        let far = 1, fd = -1;
+        for (let k = 1; k < last; k++) { const d = Math.hypot(pts[k][0] - pts[0][0], pts[k][1] - pts[0][1]); if (d > fd) { fd = d; far = k; } }
+        keep[far] = 1; st = [[0, far], [far, last]];
+      }
+      while (st.length) {
+        const [a, z] = st.pop();
+        const [ax, ay] = pts[a], [zx, zy] = pts[z], L = Math.hypot(zx - ax, zy - ay) || 1;
+        let best = -1, bd = eps;
+        for (let k = a + 1; k < z; k++) {
+          const d = Math.abs((zx - ax) * (ay - pts[k][1]) - (ax - pts[k][0]) * (zy - ay)) / L;
+          if (d > bd) { bd = d; best = k; }
+        }
+        if (best > 0) { keep[best] = 1; st.push([a, best], [best, z]); }
+      }
+      return [...keep.keys()].filter(k => keep[k]);
+    };
+    const fit = pts => {   // 最小平方（總最小平方）直線：中心 + 方向
+      const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n;
+      let sxx = 0, syy = 0, sxy = 0;
+      for (const [x, y] of pts) { sxx += (x - mx) ** 2; syy += (y - my) ** 2; sxy += (x - mx) * (y - my); }
+      const t = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+      return { cx: mx, cy: my, dx: Math.cos(t), dy: Math.sin(t) };
+    };
+    const cross = (l, m) => {
+      const c = l.dx * m.dy - l.dy * m.dx;
+      if (Math.abs(c) < 0.2) return null;   // 幾乎平行
+      const t = ((m.cx - l.cx) * m.dy - (m.cy - l.cy) * m.dx) / c;
+      return [l.cx + t * l.dx, l.cy + t * l.dy];
+    };
+    const near = (p, q, r) => p && Math.hypot(p[0] - q[0], p[1] - q[1]) <= r;
+
+    for (const e of edges) {
+      const pts = e.path.map(P);
+      const ks = dp(pts, 1.6);
+      // 太短的中間段（削平的尖角）拿掉，由兩旁的線延長相交
+      e.lines = [];
+      for (let k = 0; k + 1 < ks.length; k++) e.lines.push({ ...fit(pts.slice(ks[k], ks[k + 1] + 1)), len: Math.hypot(pts[ks[k + 1]][0] - pts[ks[k]][0], pts[ks[k + 1]][1] - pts[ks[k]][1]) });
+      const verts = [pts[0]];
+      for (let k = 1; k < e.lines.length; k++) {
+        const prev = e.lines[k - 1], cur = e.lines[k], next = e.lines[k + 1];
+        if (cur.len < 3 && next && k + 1 < e.lines.length) {
+          const x = cross(prev, next);
+          if (near(x, pts[ks[k]], 4)) { verts.push(x); k++; continue; }
+        }
+        const x = cross(prev, cur);
+        verts.push(near(x, pts[ks[k]], 3) ? x : pts[ks[k]]);
+      }
+      verts.push(pts[pts.length - 1]);
+      e.verts = verts;
+      for (const t of e.throughs || []) {   // 穿過交叉點的那一段直線
+        let k = 0;
+        while (k + 1 < ks.length - 1 && ks[k + 1] < t.idx) k++;
+        nodes[t.node].through.push(e.lines[k]);
+      }
+      if (e.a >= 0) nodes[e.a].ends.push({ e, at: 0, line: e.lines[0] });
+      if (e.z >= 0) nodes[e.z].ends.push({ e, at: verts.length - 1, line: e.lines[e.lines.length - 1] });
+    }
+
+    // 節點位置：交叉點取各線的最小平方交會點（穿過的直線權重加倍，交叉點會落在它上面）；端點投影到自己的線上
+    for (const nd of nodes) {
+      const c = [nd.cx, nd.cy];
+      let pos = c;
+      const lines = [...nd.ends.map(en => [en.line, 1]), ...nd.through.map(l => [l, 4])];
+      if (lines.length >= 2) {
+        let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+        for (const [l, wgt] of lines) {
+          const nx = -l.dy, ny = l.dx, d = nx * l.cx + ny * l.cy;
+          a11 += wgt * nx * nx; a12 += wgt * nx * ny; a22 += wgt * ny * ny; b1 += wgt * nx * d; b2 += wgt * ny * d;
+        }
+        const det = a11 * a22 - a12 * a12;
+        if (Math.abs(det) > 0.05) { const q = [(a22 * b1 - a12 * b2) / det, (a11 * b2 - a12 * b1) / det]; if (near(q, c, 3)) pos = q; }
+      } else if (nd.ends.length === 1 && !nd.through.length) {
+        const l = nd.ends[0].line, t = (c[0] - l.cx) * l.dx + (c[1] - l.cy) * l.dy;
+        pos = [l.cx + t * l.dx, l.cy + t * l.dy];
+      }
+      nd.pos = pos;
+      for (const en of nd.ends) en.e.verts[en.at] = pos;
+    }
+    // 兩個端點靠很近（尖角被細化切開）：兩條線延長相交，接在一起
+    const tips = nodes.filter(n => n.ends.length === 1 && !n.through.length);
+    for (let i = 0; i < tips.length; i++) for (let j = i + 1; j < tips.length; j++) {
+      const A = tips[i], B = tips[j];
+      if (!near(A.pos, B.pos, 5)) continue;
+      const x = cross(A.ends[0].line, B.ends[0].line);
+      if (near(x, A.pos, 5) && near(x, B.pos, 5)) { A.ends[0].e.verts[A.ends[0].at] = x; B.ends[0].e.verts[B.ends[0].at] = x; }
+    }
+
+    // 幾乎水平／垂直的線（一段一段經過交叉點）對齊到同一列／行，避免出現 1 點的台階
+    for (const axis of [1, 0]) {   // 1 = 水平線對齊 y，0 = 垂直線對齊 x
+      const groups = new Map(), find = v => { while (groups.has(v) && groups.get(v) !== v) v = groups.get(v); return v; };
+      const pts = new Set();
+      for (const e of edges) {
+        const v = e.verts;
+        for (let k = 0; k + 1 < v.length; k++) {
+          const d0 = v[k + 1][0] - v[k][0], d1 = v[k + 1][1] - v[k][1], len = Math.hypot(d0, d1);
+          const off = Math.abs(axis ? d1 : d0);
+          if (len < 6 || off / len > 0.06) continue;
+          for (const q of [v[k], v[k + 1]]) if (!groups.has(q)) groups.set(q, q);
+          groups.set(find(v[k + 1]), find(v[k]));
+          pts.add(v[k]); pts.add(v[k + 1]);
+        }
+      }
+      const bucket = new Map();
+      for (const q of pts) { const r = find(q); if (!bucket.has(r)) bucket.set(r, []); bucket.get(r).push(q); }
+      for (const qs of bucket.values()) {
+        const vals = qs.map(q => q[axis]).sort((m, n) => m - n), mid = Math.round(vals[vals.length >> 1]);
+        for (const q of qs) q[axis] = mid;
+      }
+    }
+
+    // 重畫；端點到交叉點的極短線（細化留下的刺）不畫
+    b.fill(0);
+    const set = (x, y) => { if (x >= 0 && y >= 0 && x < w && y < h) b[y * w + x] = 1; };
+    for (const e of edges) {
+      const isTip = n => n >= 0 && nodes[n].ends.length === 1 && !nodes[n].through.length;
+      const tip = isTip(e.a) || isTip(e.z);
+      if (tip && e.path.length <= 3 && e.a !== e.z) continue;
+      const v = e.verts;
+      for (let k = 0; k + 1 < v.length; k++)
+        for (const [x, y] of linePts(Math.round(v[k][0]), Math.round(v[k][1]), Math.round(v[k + 1][0]), Math.round(v[k + 1][1]))) set(x, y);
+    }
+    for (const nd of nodes) if (!nd.ends.length) for (const p of nd.pix) b[p] = 1;   // 單獨的點
+  }
+
+  // 網底收尾：線兩側的白邊、網底上的字被細化／移除後留下的洞補成網底
+  //   空白點周圍 5×5（不算線）有 65% 以上是網底就補；網底外緣有一半是白的，不會溢出
+  function closeShade(shade, bits, w, h) {
+    for (let pass = 0; pass < 4; pass++) {
+      const add = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (shade[i] || bits[i]) continue;
+        let sh = 0, n = 0;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) { n++; continue; }
+          const j = ny * w + nx;
+          if (bits[j]) continue;
+          n++; if (shade[j]) sh++;
+        }
+        if (n && sh / n >= 0.65) add.push(i);
+      }
+      for (const i of add) shade[i] = 1;
+      if (!add.length) break;
+    }
+    // 太小的網底碎塊（JPEG 雜訊、字的邊緣）拿掉
+    const seen = new Uint8Array(w * h);
+    for (let s0 = 0; s0 < shade.length; s0++) {
+      if (!shade[s0] || seen[s0]) continue;
+      const comp = [], st = [s0]; seen[s0] = 1;
+      while (st.length) {
+        const i = st.pop(); comp.push(i);
+        const x = i % w, y = (i / w) | 0;
+        for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const j = ny * w + nx;
+          if (shade[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+        }
+      }
+      if (comp.length < 8) for (const i of comp) shade[i] = 0;
+    }
+  }
+
+  // 移除和主圖不相連的小碎片（圖片裡的 A、B、C 等字），回傳碎片中心（之後在那裡放空白標籤）
+  function dropSpecks(b, w, h) {
+    const seen = new Uint8Array(w * h), comps = [];
+    for (let i = 0; i < b.length; i++) {
+      if (!b[i] || seen[i]) continue;
+      const cells = [], st = [i];
+      seen[i] = 1;
+      while (st.length) {
+        const j = st.pop(); cells.push(j);
+        const x = j % w, y = (j / w) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const k = ny * w + nx;
+          if (b[k] && !seen[k]) { seen[k] = 1; st.push(k); }
+        }
+      }
+      const xs = cells.map(j => j % w), ys = cells.map(j => (j / w) | 0);
+      comps.push({ cells, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) });
+    }
+    if (comps.length < 2) return [];
+    const big = Math.max(...comps.map(c => Math.max(c.x1 - c.x0, c.y1 - c.y0)));
+    const limit = Math.min(16, big * 0.25);
+    const out = [];
+    for (const c of comps) {
+      if (Math.max(c.x1 - c.x0, c.y1 - c.y0) > limit) continue;
+      for (const j of c.cells) b[j] = 0;
+      if (c.cells.length >= 3) out.push({ cx: (c.x0 + c.x1) / 2, cy: (c.y0 + c.y1) / 2 });
+    }
+    return out;
+  }
+
+  // ── 向量：直接讀 PDF 的線條，在點陣上逐點畫直線（角、交點不會變形） ──────
+  // 自動模式：框選範圍有內嵌圖片（掃描圖、貼上的圖）就用點陣，否則有線就用向量
+  async function toBits(src, opts) {
+    let mode = opts.mode || 'auto';
+    if (src.doc.kind !== 'pdf') mode = 'raster';
+    if (mode !== 'raster') {
+      const v = await getVectors(src.doc, src.page);
+      const r = src.rect, area = r.w * r.h;
+      const hasImage = v.images.some(b => {
+        const iw = Math.min(b.x1, r.x + r.w) - Math.max(b.x0, r.x), ih = Math.min(b.y1, r.y + r.h) - Math.max(b.y0, r.y);
+        return iw > 0 && ih > 0 && iw * ih > Math.min(0.2 * area, 0.5 * (b.x1 - b.x0) * (b.y1 - b.y0));
+      });
+      if (mode === 'vector' || !hasImage) {
+        const res = vectorize(v, r, opts);
+        if (mode === 'vector' || res.count) return { ...res, mode: 'vector' };
+      }
+    }
+    return { ...(await rasterize(src, opts)), mode: 'raster' };
+  }
+
+  // 解析 PDF 繪圖指令 → 線段（PDF 檢視座標，pt，y 向下）與圖片範圍；每頁快取
+  async function getVectors(doc, pageNo) {
+    doc.vcache = doc.vcache || {};
+    if (doc.vcache[pageNo]) return doc.vcache[pageNo];
+    const page = await doc.pdf.getPage(pageNo);
+    const vp = page.getViewport({ scale: 1 });
+    const ol = await page.getOperatorList();
+    const O = pdfjsLib.OPS, U = pdfjsLib.Util;
+    const shapes = [], images = [];
+    let ctm = vp.transform.slice(), st = { stroke: 0, fill: 0, dash: null }, stack = [];
+    let path = [], sub = null;
+    const T = (x, y) => U.applyTransform([x, y], ctm);
+    const scaleOf = m => Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2]));
+    const push = () => stack.push({ ctm: ctm.slice(), st: { ...st } });
+    const pop = () => { const s = stack.pop(); if (s) { ctm = s.ctm; st = s.st; } };
+    const LIGHT = 200;   // 比這亮的顏色（白、淺灰網底）不畫
+
+    const emit = (kind, close) => {
+      for (const p of path) {
+        if (p.length < 2 && !(kind === 'fill' && p.length === 1)) continue;
+        if (kind === 'stroke') shapes.push({ pts: p, closed: close || p.closed, dash: st.dash ? st.dash.map(d => d * scaleOf(ctm)) : null });
+        else shapes.push({ pts: p, closed: true, fill: true, lum: st.fill });
+      }
+      path = []; sub = null;
+    };
+    const paint = (stroke, fill, close) => {
+      if (stroke && st.stroke < LIGHT) emit('stroke', close);
+      else if (fill && st.fill < 240) emit('fill');
+      else { path = []; sub = null; }
+    };
+
+    for (let i = 0; i < ol.fnArray.length; i++) {
+      const fn = ol.fnArray[i], a = ol.argsArray[i];
+      switch (fn) {
+        case O.save: push(); break;
+        case O.restore: pop(); break;
+        case O.transform: ctm = U.transform(ctm, a); break;
+        case O.paintFormXObjectBegin: push(); if (a && a[0]) ctm = U.transform(ctm, a[0]); break;
+        case O.paintFormXObjectEnd: pop(); break;
+        case O.setDash: st.dash = a && a[0] && a[0].length ? [...a[0]] : null; break;
+        case O.setStrokeRGBColor: case O.setStrokeGray: case O.setStrokeCMYKColor: case O.setStrokeColor: case O.setStrokeColorN:
+          st.stroke = colorLum(a); break;
+        case O.setFillRGBColor: case O.setFillGray: case O.setFillCMYKColor: case O.setFillColor: case O.setFillColorN:
+          st.fill = colorLum(a); break;
+        case O.constructPath: {
+          const ops = a[0], args = a[1];
+          let k = 0;
+          for (const op of ops) {
+            const last = sub && sub.length ? sub[sub.length - 1] : null;
+            if (op === O.moveTo) { sub = [T(args[k], args[k + 1])]; path.push(sub); k += 2; }
+            else if (op === O.lineTo) { if (!sub) { sub = []; path.push(sub); } sub.push(T(args[k], args[k + 1])); k += 2; }
+            else if (op === O.curveTo || op === O.curveTo2 || op === O.curveTo3) {
+              let c1, c2, p;
+              if (op === O.curveTo) { c1 = T(args[k], args[k + 1]); c2 = T(args[k + 2], args[k + 3]); p = T(args[k + 4], args[k + 5]); k += 6; }
+              else if (op === O.curveTo2) { c1 = last; c2 = T(args[k], args[k + 1]); p = T(args[k + 2], args[k + 3]); k += 4; }
+              else { c1 = T(args[k], args[k + 1]); p = T(args[k + 2], args[k + 3]); c2 = p; k += 4; }
+              if (!sub) { sub = [c1]; path.push(sub); }
+              const p0 = last || c1;
+              for (let t = 1; t <= 16; t++) {
+                const u = t / 16, v = 1 - u;
+                sub.push([v * v * v * p0[0] + 3 * v * v * u * c1[0] + 3 * v * u * u * c2[0] + u * u * u * p[0],
+                          v * v * v * p0[1] + 3 * v * v * u * c1[1] + 3 * v * u * u * c2[1] + u * u * u * p[1]]);
+              }
+            }
+            else if (op === O.closePath) { if (sub && sub.length) { sub.closed = true; sub = [sub[0]]; path.push(sub); } }
+            else if (op === O.rectangle) {
+              const [x, y, w, h] = args.slice(k, k + 4); k += 4;
+              const r = [T(x, y), T(x + w, y), T(x + w, y + h), T(x, y + h)];
+              r.closed = true; path.push(r); sub = null;
+            }
+          }
+          break;
+        }
+        case O.stroke: paint(true, false, false); break;
+        case O.closeStroke: paint(true, false, true); break;
+        case O.fill: case O.eoFill: paint(false, true); break;
+        case O.fillStroke: case O.eoFillStroke: paint(true, true, false); break;
+        case O.closeFillStroke: case O.closeEOFillStroke: paint(true, true, true); break;
+        case O.endPath: path = []; sub = null; break;
+        case O.paintImageXObject: case O.paintInlineImageXObject: case O.paintImageMaskXObject: case O.paintImageXObjectRepeat: {
+          const c = [T(0, 0), T(1, 0), T(0, 1), T(1, 1)];
+          images.push({ x0: Math.min(...c.map(p => p[0])), x1: Math.max(...c.map(p => p[0])), y0: Math.min(...c.map(p => p[1])), y1: Math.max(...c.map(p => p[1])) });
+          break;
+        }
+      }
+    }
+    return (doc.vcache[pageNo] = { shapes, images });
+  }
+
+  // 顏色亮度 0–255；看不懂的（例如圖樣）當作深色
+  function colorLum(a) {
+    if (!a || !a.length) return 0;
+    if (typeof a[0] === 'string') {
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(a[0]);
+      return m ? 0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16) : 0;
+    }
+    const n = [...a].filter(v => typeof v === 'number');
+    if (!n.length) return 0;
+    const k = n.some(v => v > 1) ? 1 : 255;
+    if (n.length === 1) return n[0] * k;
+    if (n.length === 3) return (0.299 * n[0] + 0.587 * n[1] + 0.114 * n[2]) * k;
+    if (n.length === 4) return (1 - n[3] / (k === 1 ? 255 : 1)) * (0.299 * (1 - n[0]) + 0.587 * (1 - n[1]) + 0.114 * (1 - n[2])) * 255;
+    return 0;
+  }
+
+  function vectorize(v, r, opts) {
+    const dpp = Math.min(AREA.w / r.w, AREA.h / r.h) * opts.scale / 100;
+    const fw = Math.max(1, Math.round(r.w * dpp)), fh = Math.max(1, Math.round(r.h * dpp));
+    const bits = new Uint8Array(fw * fh), shade = new Uint8Array(fw * fh);
+    const toD = p => [(p[0] - r.x) * dpp, (p[1] - r.y) * dpp];
+    // 多邊形內部（點中心在裡面）標成網底
+    const fillPoly = pts => {
+      const ys = pts.map(p => p[1]);
+      for (let y = Math.max(0, Math.floor(Math.min(...ys))); y < Math.min(fh, Math.ceil(Math.max(...ys))); y++) {
+        const cy = y + 0.5, xs = [];
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const [a, b] = [pts[i], pts[i + 1]];
+          if ((a[1] <= cy) !== (b[1] <= cy)) xs.push(a[0] + (cy - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+        }
+        xs.sort((m, n) => m - n);
+        for (let k = 0; k + 1 < xs.length; k += 2)
+          for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x < Math.min(fw, xs[k + 1] - 0.5); x++) shade[y * fw + x] = 1;
+      }
+    };
+    let count = 0;
+
+    // 線段裁到框選範圍內（Liang–Barsky），回傳點陣上的端點或 null
+    const clip = (a, b) => {
+      let t0 = 0, t1 = 1;
+      const dx = b[0] - a[0], dy = b[1] - a[1], E = 1e-6;
+      for (const [p, q] of [[-dx, a[0]], [dx, fw - E - a[0]], [-dy, a[1]], [dy, fh - E - a[1]]]) {
+        if (p === 0) { if (q < 0) return null; continue; }
+        const t = q / p;
+        if (p < 0) { if (t > t1) return null; if (t > t0) t0 = t; }
+        else { if (t < t0) return null; if (t < t1) t1 = t; }
+      }
+      return [[a[0] + t0 * dx, a[1] + t0 * dy], [a[0] + t1 * dx, a[1] + t1 * dy]];
+    };
+    // 虛線：dash 是點數陣列；每段實線、空白至少 2 點才摸得出來
+    const draw = (pts, dash) => {
+      const pat = dash && dash.map(d => Math.max(2, d * dpp));
+      let di = 0, left = pat ? pat[0] : 0, on = true, prev = null;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const c = clip(pts[i], pts[i + 1]);
+        if (!c) { prev = null; continue; }
+        const seg = linePts(Math.floor(c[0][0]), Math.floor(c[0][1]), Math.floor(c[1][0]), Math.floor(c[1][1]));
+        for (const [x, y] of seg) {
+          if (pat && prev) {
+            left -= Math.hypot(x - prev[0], y - prev[1]);
+            while (left <= 0) { di = (di + 1) % pat.length; on = di % 2 === 0; left += pat[di]; }
+          }
+          if (on) bits[y * fw + x] = 1;
+          prev = [x, y];
+        }
+        count++;
+      }
+    };
+
+    for (const s of v.shapes) {
+      let pts = s.pts.map(toD);
+      if (s.closed && pts.length > 2) pts = [...pts, pts[0]];
+      if (s.fill) {
+        // 填色：很小的當成一個點；細長的四邊形（用填色畫的線）取中線；其他畫外框
+        const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+        const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
+        if (Math.max(bw, bh) < 1.5) {
+          const cx = Math.floor((Math.max(...xs) + Math.min(...xs)) / 2), cy = Math.floor((Math.max(...ys) + Math.min(...ys)) / 2);
+          if (cx >= 0 && cy >= 0 && cx < fw && cy < fh) { bits[cy * fw + cx] = 1; count++; }
+          continue;
+        }
+        if (s.pts.length === 4 || (s.pts.length === 5 && s.closed)) {
+          const q = pts.slice(0, 4), e = i => Math.hypot(q[(i + 1) % 4][0] - q[i][0], q[(i + 1) % 4][1] - q[i][1]);
+          const mid = (i) => [(q[i][0] + q[(i + 1) % 4][0]) / 2, (q[i][1] + q[(i + 1) % 4][1]) / 2];
+          if (Math.min(e(0), e(1)) < 1.2) {
+            draw(e(0) < e(1) ? [mid(0), mid(2)] : [mid(1), mid(3)], null);
+            continue;
+          }
+        }
+        if (opts.shade && s.lum >= 80) { fillPoly(pts); count++; continue; }   // 灰色：網底
+        draw(pts, null);
+      } else draw(pts, s.dash);
+    }
+    for (let i = 0; i < shade.length; i++) if (bits[i]) shade[i] = 0;
+    return { bits, fw, fh, dpp, count, shade, specks: [], shadeFound: shade.some(v => v) };
+  }
+
+  // Zhang–Suen 細化：粗線變成一點寬
+  function thin(b, w, h) {
+    const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : b[y * w + x];
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let step = 0; step < 2; step++) {
+        const del = [];
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          if (!b[y * w + x]) continue;
+          const p = [at(x, y - 1), at(x + 1, y - 1), at(x + 1, y), at(x + 1, y + 1), at(x, y + 1), at(x - 1, y + 1), at(x - 1, y), at(x - 1, y - 1)];
+          const n = p.reduce((a, v) => a + v, 0);
+          if (n < 2 || n > 6) continue;
+          let a = 0;
+          for (let i = 0; i < 8; i++) if (!p[i] && p[(i + 1) % 8]) a++;
+          if (a !== 1) continue;
+          const [p2, , p4, , p6, , p8] = p;
+          if (step === 0 ? (p2 && p4 && p6) || (p4 && p6 && p8) : (p2 && p4 && p8) || (p2 && p6 && p8)) continue;
+          del.push(y * w + x);
+        }
+        for (const i of del) b[i] = 0;
+        if (del.length) changed = true;
+      }
+    }
+  }
+
+  // PDF 文字裡像標籤的字：A、B、P、L1、M2、A'；字母右下較小的數字併成下標
+  async function extractLabels(src) {
+    if (src.doc.kind !== 'pdf') return [];
+    const page = await src.doc.pdf.getPage(src.page);
+    const vp = page.getViewport({ scale: 1 });
+    const tc = await page.getTextContent();
+    const r = src.rect;
+    const toks = [];
+    for (const it of tc.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const t = pdfjsLib.Util.transform(vp.transform, it.transform);
+      const fh = Math.hypot(t[2], t[3]) || 10;
+      const x0 = t[4], base = t[5], len = it.str.length;
+      const wpc = (it.width || fh * 0.6 * len) / len;
+      const re = /\S+/g; let m;
+      while ((m = re.exec(it.str))) {
+        const s = m[0];
+        if (!/^([A-Za-z][0-9]?['′]?|[0-9])$/.test(s)) continue;
+        const left = x0 + wpc * m.index, right = left + wpc * s.length;
+        toks.push({ text: s, left, right, cx: (left + right) / 2, cy: base - fh * 0.35, fh });
+      }
+    }
+    // 下標：數字在某個字母右邊、字比較小
+    const out = [];
+    const letters = toks.filter(t => /[A-Za-z]/.test(t.text));
+    for (const d of toks.filter(t => /^[0-9]$/.test(t.text))) {
+      const host = letters.find(l => !/[0-9]/.test(l.text) && d.fh < l.fh * 0.9 && d.left - l.right < l.fh * 0.6 && d.left - l.right > -l.fh * 0.3 && Math.abs(d.cy - l.cy) < l.fh * 0.8);
+      if (host) { host.text += d.text; host.right = d.right; host.cx = (host.left + host.right) / 2; }
+    }
+    for (const l of letters) {
+      if (l.cx < r.x || l.cx > r.x + r.w || l.cy < r.y || l.cy > r.y + r.h) continue;
+      out.push({ text: l.text.replace('′', "'"), cx: l.cx, cy: l.cy });
+    }
+    return out;
+  }
+
+  // keepLabels：保留現有標籤（含手動加的、拖過的），只隨圖形大小、位置一起搬移
+  async function generate(pg, keepLabels = false) {
+    const old = pg.fig;
+    const r = await toBits(pg.src, pg.opts);
+    pg.usedMode = r.mode;
+    pg.dots = new Uint8Array(W * H);
+    pg.fillMask = new Uint8Array(W * H);
+    const ox = Math.round(AREA.x + (AREA.w - r.fw) / 2), oy = Math.round(AREA.y + (AREA.h - r.fh) / 2);
+    for (let y = 0; y < r.fh; y++) for (let x = 0; x < r.fw; x++) {
+      if (!r.bits[y * r.fw + x]) continue;
+      const X = ox + x, Y = oy + y;
+      if (X >= 0 && X < W && Y >= 0 && Y < H) pg.dots[Y * W + X] = LINE;
+    }
+    if (r.shade) for (let y = 0; y < r.fh; y++) for (let x = 0; x < r.fw; x++) {
+      const X = ox + x, Y = oy + y;
+      if (r.shade[y * r.fw + x] && X >= 0 && X < W && Y >= 0 && Y < H && !pg.dots[Y * W + X]) pg.dots[Y * W + X] = SHADE_LEVEL;
+    }
+    pg.shadeFound = r.shadeFound;
+    pg.fig = { ox, oy, dpp: r.dpp };
+    if (keepLabels) {
+      const moved = old && (old.ox !== ox || old.oy !== oy || old.dpp !== r.dpp);
+      const map = (v, o0, o1) => moved ? o1 + (v - o0) * r.dpp / old.dpp : v;
+      for (const lb of pg.labels) {
+        const w = brlWidth(lb.brl);
+        const cx = map(lb.x + w / 2, old && old.ox, ox), cy = map(lb.y + BRL_HEIGHT / 2, old && old.oy, oy);
+        lb.x = Math.round(cx - w / 2); lb.y = Math.round(cy - BRL_HEIGHT / 2);
+        lb.cx = cx; lb.cy = cy;
+      }
+      // 填色：記下的起點跟著圖形搬，重新填一次（起點落在線上就往旁邊找空白點）
+      for (const f of pg.fills || []) {
+        f.x = Math.round(map(f.x, old && old.ox, ox)); f.y = Math.round(map(f.y, old && old.oy, oy));
+        const near = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
+          .map(([dx, dy]) => [f.x + dx, f.y + dy]).find(([x, y]) => x >= 0 && y >= 0 && x < W && y < H && pg.dots[y * W + x] === 0);
+        if (near) floodFill(pg, near[0], near[1], f.v);
+      }
+      return;
+    }
+    pg.fills = [];
+    const raw = await extractLabels(pg.src);
+    // 圖片裡的字被當碎片移除了：在原位置放空白標籤，讓使用者填字
+    for (const sp of r.specks || [])
+      if (!raw.some(l => Math.hypot(ox + (l.cx - pg.src.rect.x) * r.dpp - ox - sp.cx, oy + (l.cy - pg.src.rect.y) * r.dpp - oy - sp.cy) < 6))
+        raw.push({ text: '', cx: pg.src.rect.x + sp.cx / r.dpp, cy: pg.src.rect.y + sp.cy / r.dpp });
+    pg.labels = raw.map(l => ({
+      text: l.text, brl: labelBraille(l.text),
+      cx: ox + (l.cx - pg.src.rect.x) * r.dpp, cy: oy + (l.cy - pg.src.rect.y) * r.dpp,
+    }));
+    placeAll(pg);
+  }
+
+  // ── 標籤自動排位：離原位置最近、不壓線、不互相重疊 ─────────────
+  function placeAll(pg) {
+    const placed = [];
+    for (const lb of pg.labels) { placeLabel(pg, lb, placed); placed.push(lb); }
+  }
+  function placeLabel(pg, lb, others) {
+    const bw = brlWidth(lb.brl), bh = BRL_HEIGHT;
+    const x0 = Math.round(lb.cx - bw / 2), y0 = Math.round(lb.cy - bh / 2);
+    const fits = (x, y) => {
+      if (x < 1 || y < LABEL_TOP || x + bw > W - 1 || y + bh > H - 1) return false;
+      for (let yy = y - CLEAR; yy < y + bh + CLEAR; yy++) for (let xx = x - CLEAR; xx < x + bw + CLEAR; xx++)
+        if (yy >= 0 && yy < H && xx >= 0 && xx < W && pg.dots[yy * W + xx]) return false;
+      return !others.some(o => {
+        const ow = brlWidth(o.brl);
+        return x < o.x + ow + 3 && o.x < x + bw + 3 && y < o.y + bh + 3 && o.y < y + bh + 3;
+      });
+    };
+    for (let rad = 0; rad <= 20; rad++) {
+      let best = null, bd = Infinity;
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+        const d = dx * dx + dy * dy;
+        if (d < bd && fits(x0 + dx, y0 + dy)) { best = [x0 + dx, y0 + dy]; bd = d; }
+      }
+      if (best) { [lb.x, lb.y] = best; return; }
+    }
+    lb.x = Math.max(1, Math.min(W - bw - 1, x0)); lb.y = Math.max(LABEL_TOP, Math.min(H - bh - 1, y0));
+  }
+
+  // ── 合成與匯出 ───────────────────────────────────────
+  function compose(pg) {
+    const out = pg.dots.slice();
+    const clearFill = (x0, y0, w, h) => {
+      for (let y = y0 - 2; y < y0 + h + 2; y++) for (let x = x0 - 2; x < x0 + w + 2; x++)
+        if (x >= 0 && y >= 0 && x < W && y < H && ((out[y * W + x] > 0 && out[y * W + x] < LINE) || (pg.fillMask && pg.fillMask[y * W + x]))) out[y * W + x] = 0;
+    };
+    if (pg.titleBrl) { clearFill(TITLE_X, TITLE_Y, brlWidth(pg.titleBrl), BRL_HEIGHT); stampBraille(out, pg.titleBrl, TITLE_X, TITLE_Y, BRL, W, H); }
+    for (const lb of pg.labels) { clearFill(lb.x, lb.y, brlWidth(lb.brl), BRL_HEIGHT); stampBraille(out, lb.brl, lb.x, lb.y, BRL, W, H); }
+    return out;
+  }
+
+  // ── 填色（油漆桶）：從 (x, y) 把相連、數值相同的點改成 v，碰到線、點字就停 ──
+  //   上下左右四向相連，所以斜線（八向相連）也擋得住
+  //   黑色填色和線一樣是 7，用 pg.fillMask 記住哪些點是填色填的，才能再改成灰或白而不動到外框線
+  //   回傳填了幾點；區域沒封閉（超過半頁）就不填，回傳 -1
+  function floodFill(pg, x, y, v) {
+    if (x < 0 || y < 0 || x >= W || y >= H) return 0;
+    const dots = pg.dots, mask = pg.fillMask || (pg.fillMask = new Uint8Array(W * H));
+    const i0 = y * W + x, from = dots[i0];
+    const ok = j => dots[j] === from && (from < LINE || mask[j]);
+    if (!ok(i0) || from === v) return 0;
+    const seen = new Uint8Array(W * H), stack = [i0], cells = [];
+    seen[i0] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      cells.push(i);
+      if (cells.length > W * H / 2) return -1;
+      const cx = i % W, cy = (i / W) | 0;
+      for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (!seen[j] && ok(j)) { seen[j] = 1; stack.push(j); }
+      }
+    }
+    for (const i of cells) { dots[i] = v; mask[i] = v ? 1 : 0; }
+    return cells.length;
+  }
+
+  $('#btnExport').onclick = () => {
+    const bytes = PrnCore.encode(pages.map(compose), W, H);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+    let name = $('#outName').value.trim() || '觸摸圖.prn';
+    if (!/\.prn$/i.test(name)) name += '.prn';
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+
+  // ── 頁面清單與屬性 ─────────────────────────────────────
+  function selectPage(i) { cur = i; selLabel = null; selBox = null; refreshAll(); }
+
+  function refreshAll() { renderPageList(); renderProps(); drawEditor(); drawOverlay(); updateThumbStrip(); $('#btnExport').disabled = !pages.length; }
+
+  function drawThumb(cv, pg) {
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H), d = compose(pg);
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i], o = i * 4;
+      const k = 235 - v * 25;
+      const [r, g, b] = v === BRL ? [26, 95, 208] : v >= LINE ? [0, 0, 0] : v ? [k, k, k] : [255, 255, 255];
+      img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  let dragPage = -1;
+  function movePage(from, to) {
+    if (from === to || to < 0 || to >= pages.length) { renderPageList(); return; }
+    const [pg] = pages.splice(from, 1);
+    pages.splice(to, 0, pg);
+    selectPage(to);
+  }
+
+  function renderPageList() {
+    const box = $('#pageList');
+    if (!pages.length) { box.innerHTML = '<div class="muted">還沒有頁面</div>'; return; }
+    box.innerHTML = '';
+    pages.forEach((pg, i) => {
+      const el = document.createElement('div');
+      el.className = 'pg' + (i === cur ? ' cur' : '');
+      el.innerHTML = `<canvas></canvas><div class="t">${i + 1}. ${escapeHtml(pg.title || (pg.src ? '（無標題）' : '（匯入的 PRN）'))}</div>
+        <div class="ops"><button data-op="up" title="上移（Alt+↑）">▲</button><button data-op="down" title="下移（Alt+↓）">▼</button><button data-op="del" title="刪除">✕</button></div>`;
+      drawThumb(el.querySelector('canvas'), pg);
+      // 拖曳排序：拖到某頁的上半部插在它前面，下半部插在它後面
+      el.draggable = true;
+      el.addEventListener('dragstart', e => { dragPage = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); });
+      el.addEventListener('dragend', () => { dragPage = -1; for (const r of box.children) r.classList.remove('dragging', 'drop-before', 'drop-after'); });
+      el.addEventListener('dragover', e => {
+        if (dragPage < 0) return;
+        e.preventDefault(); e.stopPropagation();
+        const r = el.getBoundingClientRect(), before = e.clientY < r.top + r.height / 2;
+        for (const r of box.children) r.classList.remove('drop-before', 'drop-after');
+        el.classList.add(before ? 'drop-before' : 'drop-after');
+      });
+      el.addEventListener('drop', e => {
+        if (dragPage < 0) return;
+        e.preventDefault(); e.stopPropagation();
+        const r = el.getBoundingClientRect();
+        let to = e.clientY < r.top + r.height / 2 ? i : i + 1;
+        const from = dragPage;
+        dragPage = -1;
+        if (to > from) to--;
+        movePage(from, to);
+      });
+      el.onclick = e => {
+        const op = e.target.dataset && e.target.dataset.op;
+        if (op === 'up') movePage(i, i - 1);
+        else if (op === 'down') movePage(i, i + 1);
+        else if (op === 'del') { if (confirm(`刪除第 ${i + 1} 頁？`)) { pages.splice(i, 1); selectPage(Math.min(i, pages.length - 1)); } }
+        else if (!op) selectPage(i);
+      };
+      box.appendChild(el);
+    });
+    const c = box.children[cur];
+    if (c) c.scrollIntoView({ block: 'nearest' });
+  }
+
+  function updateThumb() {
+    const el = $('#pageList').children[cur];
+    if (!el) return;
+    drawThumb(el.querySelector('canvas'), pages[cur]);
+    el.querySelector('.t').textContent = `${cur + 1}. ${pages[cur].title || '（無標題）'}`;
+  }
+
+  function renderProps() {
+    const pg = pages[cur];
+    $('#pageProps').hidden = !pg;
+    if (!pg) return;
+    $('#titleText').value = pg.title;
+    titleBrlEl.value = pg.titleBrl;
+    showTitleWarn(pg);
+    $('#genBox').hidden = !pg.src;
+    $('#optMode').value = pg.opts.mode || 'auto';
+    $('#modeUsed').textContent = pg.usedMode ? '（這頁用' + (pg.usedMode === 'vector' ? '向量' : '點陣') + (pg.shadeFound ? '，有網底' : '') + '）' : '';
+    $('#rasterOpts').hidden = pg.usedMode === 'vector';
+    $('#optScale').value = pg.opts.scale;
+    $('#optThreshold').value = pg.opts.threshold;
+    $('#thrVal').textContent = pg.opts.threshold;
+    $('#optThin').checked = pg.opts.thin;
+    $('#optHideText').checked = pg.opts.hideText;
+    $('#optShade').checked = pg.opts.shade !== false;
+    $('#optStraight').checked = pg.opts.straighten !== false;
+    $('#optSpecks').checked = pg.opts.dropSpecks !== false;
+    $('#optHideText').parentElement.hidden = !pg.src || pg.src.doc.kind !== 'pdf';
+    renderLabelList();
+  }
+
+  function showTitleWarn(pg) {
+    const miss = titleBraille(pg.title).missing;
+    $('#titleWarn').textContent = !PrnCore.zhReady() && miss.length ? '中文點字表還沒載入（或載入失敗：請用網址開啟，不要直接開檔案）；國字點字可直接在點字欄輸入'
+      : miss.length ? '查不到點字：' + miss.join(' ') + '（可直接改點字欄）' : '';
+  }
+
+  $('#titleText').oninput = e => {
+    const pg = pages[cur]; if (!pg) return;
+    pg.title = e.target.value;
+    pg.titleBrl = titleBraille(pg.title).braille;
+    titleBrlEl.value = pg.titleBrl;
+    showTitleWarn(pg);
+    drawEditor(); updateThumb();
+  };
+  $('#optSupp').checked = suppOn();
+  $('#optSupp').onchange = e => {
+    try { localStorage.setItem(SUPP_KEY, e.target.checked ? '1' : '0'); } catch (err) {}
+    const pg = pages[cur]; if (!pg) return;
+    pg.titleBrl = titleBraille(pg.title).braille;
+    for (const lb of pg.labels) if (!lb.manual) lb.brl = labelBraille(lb.text);
+    renderProps(); drawEditor(); updateThumb();
+  };
+
+  // 六點輸入（vi-tools 的 shared.js）：面板用固定 id 找輸入框，所以把 id 交給目前聚焦的點字欄
+  const BRL_TARGET = 'brlTarget';
+  const setBrlTarget = el => {
+    const old = document.getElementById(BRL_TARGET);
+    if (old && old !== el) old.removeAttribute('id');
+    el.id = BRL_TARGET;
+  };
+  document.addEventListener('focusin', e => {
+    if (e.target.classList && e.target.classList.contains('brl-edit')) setBrlTarget(e.target);
+  });
+  // 兩顆「六點輸入」按鈕（標題、標籤）：按下時把面板的觸發 id 交給被按的那顆，並決定輸入到哪一欄
+  document.addEventListener('pointerdown', e => {
+    const btn = e.target.closest && e.target.closest('.dot-pad');
+    if (!btn) return;
+    const old = document.getElementById('dotPadBtn');
+    if (old && old !== btn) { old.removeAttribute('id'); old.classList.remove('kbd-on'); }
+    btn.id = 'dotPadBtn';
+    if (btn.dataset.for === 'title') setBrlTarget(titleBrlEl);
+    else setBrlTarget(selLabel && selLabel._row ? selLabel._row.querySelector('.brl-edit') : newLabelEl);
+  }, true);
+  if (typeof initBraillePanel === 'function') {
+    initBraillePanel({
+      triggerId: 'dotPadBtn', targetId: BRL_TARGET,
+      // 面板插入不會觸發 input 事件，補送一次讓資料同步
+      onInsert: () => { const el = document.getElementById(BRL_TARGET); if (el) el.dispatchEvent(new Event('input', { bubbles: true })); },
+    });
+  } else for (const b of document.querySelectorAll('.dot-pad')) b.hidden = true;
+
+  titleBrlEl.oninput = e => { const pg = pages[cur]; if (!pg) return; pg.titleBrl = e.target.value; drawEditor(); updateThumb(); };
+
+  function renderLabelList() {
+    const pg = pages[cur], box = $('#labelList');
+    box.innerHTML = pg.labels.length ? '' : '<div class="muted">沒有標籤</div>';
+    pg.labels.forEach(lb => {
+      const el = document.createElement('div');
+      el.className = 'lb' + (lb === selLabel ? ' sel' : '');
+      el.innerHTML = `<input type="text" title="文字（改了會重新轉點字）"><input type="text" class="brl brl-edit" title="點字（可直接修改）"><button title="刪除">✕</button>`;
+      const [inp, out] = el.querySelectorAll('input');
+      inp.value = lb.text; out.value = lb.brl;
+      if (!lb.text) inp.placeholder = '填字';
+      out.classList.toggle('manual', !!lb.manual);
+      const focus = () => { selLabel = lb; drawEditor(); markSelectedRow(); };
+      inp.onfocus = focus; out.addEventListener('focus', focus);
+      inp.oninput = () => { lb.text = inp.value; lb.brl = labelBraille(lb.text); lb.manual = false; out.value = lb.brl; out.classList.remove('manual'); drawEditor(); updateThumb(); };
+      out.oninput = () => { lb.brl = out.value; lb.manual = true; out.classList.add('manual'); drawEditor(); updateThumb(); };
+      el.querySelector('button').onclick = () => { pushUndo(pg); pg.labels.splice(pg.labels.indexOf(lb), 1); if (selLabel === lb) selLabel = null; renderLabelList(); drawEditor(); updateThumb(); };
+      lb._row = el;
+      box.appendChild(el);
+    });
+  }
+  function markSelectedRow() { for (const lb of pages[cur].labels) lb._row && lb._row.classList.toggle('sel', lb === selLabel); }
+
+  $('#btnReplace2').onclick = () => {
+    const pg = pages[cur]; if (!pg) return;
+    pushUndo(pg);
+    for (const lb of pg.labels) if (lb.cx == null) { lb.cx = lb.x + brlWidth(lb.brl) / 2; lb.cy = lb.y + 2; }
+    placeAll(pg); drawEditor(); updateThumb();
+  };
+
+  const optChanged = async () => {
+    const pg = pages[cur]; if (!pg || !pg.src) return;
+    pg.opts = { mode: $('#optMode').value, scale: +$('#optScale').value || 100, threshold: +$('#optThreshold').value, thin: $('#optThin').checked, hideText: $('#optHideText').checked, shade: $('#optShade').checked, dropSpecks: $('#optSpecks').checked, straighten: $('#optStraight').checked };
+    $('#thrVal').textContent = pg.opts.threshold;
+  };
+  for (const id of ['#optMode', '#optScale', '#optThreshold', '#optThin', '#optHideText', '#optShade', '#optSpecks', '#optStraight']) $(id).addEventListener('input', optChanged);
+  $('#btnRegen').onclick = async () => {
+    const pg = pages[cur]; if (!pg || !pg.src) return;
+    await optChanged();
+    pushUndo(pg);
+    await generate(pg, true);
+    refreshAll();
+  };
+
+  // ── 復原 ───────────────────────────────────────────
+  function pushUndo(pg) {
+    pg.undo.push({ dots: pg.dots && pg.dots.slice(), labels: pg.labels.map(l => ({ ...l, _row: undefined })), src: pg.src, fig: pg.fig, fills: (pg.fills || []).map(f => ({ ...f })), fillMask: pg.fillMask && pg.fillMask.slice() });
+    if (pg.undo.length > 60) pg.undo.shift();
+  }
+  function undo() {
+    const pg = pages[cur]; if (!pg || !pg.undo.length) return;
+    const s = pg.undo.pop();
+    pg.dots = s.dots; pg.labels = s.labels; pg.src = s.src; pg.fig = s.fig; pg.fills = s.fills; pg.fillMask = s.fillMask; selLabel = null;
+    refreshAll();
+  }
+  $('#btnUndo').onclick = undo;
+
+  // ── 點陣編輯器 ──────────────────────────────────────
+  for (const r of document.querySelectorAll('input[name=tool]')) r.onchange = () => { tool = r.value; drawEditor(); };
+  $('#zoom').onchange = e => { zoom = +e.target.value; drawEditor(); };
+
+  let preview = null;   // 形狀預覽：{ type, x0, y0, x1, y1, shift }
+  let selBox = null;    // 選取框 { x, y, w, h }（點）
+  let hover = null;     // 滑鼠所在的點（顯示筆刷範圍）
+  const brushSize = () => +$('#brushSize').value;
+  $('#brushSize').onchange = () => drawEditor();
+  function drawEditor() {
+    const cv = $('#ed'), z = zoom;
+    cv.width = W * z; cv.height = H * z;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#fffbe6'; ctx.fillRect(0, (TITLE_Y - 2) * z, cv.width, (BRL_HEIGHT + 3) * z);
+    ctx.strokeStyle = '#f0f1f3'; ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 10) { ctx.beginPath(); ctx.moveTo(x * z + .5, 0); ctx.lineTo(x * z + .5, cv.height); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 10) { ctx.beginPath(); ctx.moveTo(0, y * z + .5); ctx.lineTo(cv.width, y * z + .5); ctx.stroke(); }
+    const pg = pages[cur];
+    if (!pg) { $('#edStatus').textContent = '框選一張圖並加入，或開啟既有的 PRN'; return; }
+    const d = compose(pg), rad = z * 0.45;
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i]; if (!v) continue;
+      const fill = v < LINE;
+      ctx.fillStyle = v === BRL ? '#1a5fd0' : fill ? `rgb(${200 - v * 18},${200 - v * 18},${200 - v * 18})` : '#111';
+      const x = (i % W) * z + z / 2, y = ((i / W) | 0) * z + z / 2;
+      ctx.beginPath(); ctx.arc(x, y, v === BRL ? rad * 1.15 : fill ? rad * 0.7 : rad, 0, 7); ctx.fill();
+    }
+    if (hover && ['pen', 'eraser', 'line', 'arrow', 'rect', 'ellipse'].includes(tool)) {
+      const s = brushSize(), o = (s - 1) >> 1;
+      ctx.strokeStyle = tool === 'eraser' ? '#e8590c' : '#1a5fd0'; ctx.lineWidth = 1.5;
+      ctx.setLineDash(tool === 'eraser' ? [4, 3] : []);
+      ctx.strokeRect((hover[0] - o) * z + .5, (hover[1] - o) * z + .5, s * z - 1, s * z - 1);
+      ctx.setLineDash([]);
+    }
+    for (const lb of pg.labels) if (!lb.brl) {   // 空白標籤：橘色圓圈標出位置
+      ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc((lb.cx + 0.5) * z, (lb.cy + 0.5) * z, 3 * z, 0, 7); ctx.stroke();
+    }
+    if (selLabel && tool === 'label') {
+      ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 2;
+      ctx.strokeRect((selLabel.x - 1) * z, (selLabel.y - 1) * z, (brlWidth(selLabel.brl) + 2) * z, (BRL_HEIGHT + 2) * z);
+    }
+    if (preview) {
+      ctx.fillStyle = '#e8590c';
+      for (const [lx, ly] of shapePts(preview)) for (const [x, y] of brush(lx, ly, brushSize())) { ctx.beginPath(); ctx.arc(x * z + z / 2, y * z + z / 2, rad, 0, 7); ctx.fill(); }
+    }
+    if (selBox && tool === 'select') {
+      ctx.strokeStyle = '#1a5fd0'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.strokeRect(selBox.x * z, selBox.y * z, selBox.w * z, selBox.h * z);
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ── 形狀 → 點（照畫的順序，虛線才連續） ──
+  //   line / arrow：Shift 鎖定 0°／45°／90°；rect：Shift 正方形；ellipse：拖出外框，Shift 正圓
+  //   虛線：實 4 點、空 3 點；箭頭的頭一律實線
+  function shapePts({ type, x0, y0, x1, y1, shift }) {
+    let dx = x1 - x0, dy = y1 - y0;
+    if (shift && (type === 'line' || type === 'arrow')) {
+      if (Math.abs(dx) > 2 * Math.abs(dy)) dy = 0;
+      else if (Math.abs(dy) > 2 * Math.abs(dx)) dx = 0;
+      else { const m = Math.max(Math.abs(dx), Math.abs(dy)); dx = Math.sign(dx) * m; dy = Math.sign(dy) * m; }
+    }
+    if (shift && (type === 'rect' || type === 'ellipse')) {
+      const m = Math.max(Math.abs(dx), Math.abs(dy));
+      dx = (Math.sign(dx) || 1) * m; dy = (Math.sign(dy) || 1) * m;
+    }
+    x1 = x0 + dx; y1 = y0 + dy;
+    const path = [], heads = [];
+    const seg = (a, b, c, d) => { const p = linePts(a, b, c, d); if (path.length) p.shift(); path.push(...p); };
+    if (type === 'line' || type === 'arrow') {
+      seg(x0, y0, x1, y1);
+      const len = Math.hypot(dx, dy);
+      if (type === 'arrow' && len >= 3) {
+        const L = Math.min(5 + brushSize(), len * 0.6), ux = -dx / len, uy = -dy / len;
+        for (const a of [Math.PI / 6, -Math.PI / 6]) {
+          const hx = Math.round(x1 + L * (ux * Math.cos(a) - uy * Math.sin(a))), hy = Math.round(y1 + L * (ux * Math.sin(a) + uy * Math.cos(a)));
+          heads.push(...linePts(x1, y1, hx, hy));
+        }
+      }
+    } else if (type === 'rect') {
+      seg(x0, y0, x1, y0); seg(x1, y0, x1, y1); seg(x1, y1, x0, y1); seg(x0, y1, x0, y0);
+    } else if (type === 'ellipse') {
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = Math.abs(dx) / 2, ry = Math.abs(dy) / 2;
+      const n = Math.max(16, Math.ceil(Math.PI * (rx + ry)));
+      let prev = null;
+      for (let k = 0; k <= n; k++) {
+        const t = 2 * Math.PI * k / n, p = [Math.round(cx + rx * Math.cos(t)), Math.round(cy + ry * Math.sin(t))];
+        if (prev) seg(prev[0], prev[1], p[0], p[1]);
+        prev = p;
+      }
+    }
+    const dashed = $('#dashed').checked ? path.filter((_, k) => k % 7 < 4) : path;
+    return dashed.concat(heads);
+  }
+
+  // 選取範圍搬移：框內有東西的點（線、填色、匯入的點字）和中心在框內的標籤一起搬
+  function moveRegion(pg, box, dx, dy) {
+    const buf = [], mask = pg.fillMask;
+    for (let y = box.y; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const i = y * W + x;
+      if (!pg.dots[i]) continue;
+      buf.push([x, y, pg.dots[i], mask ? mask[i] : 0]);
+      pg.dots[i] = 0; if (mask) mask[i] = 0;
+    }
+    for (const [x, y, v, m] of buf) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      pg.dots[ny * W + nx] = v; if (mask) mask[ny * W + nx] = m;
+    }
+    for (const lb of labelsIn(pg, box)) { lb.x += dx; lb.y += dy; lb.cx = lb.x + brlWidth(lb.brl) / 2; lb.cy = lb.y + 2; }
+  }
+  function labelsIn(pg, box) {
+    return pg.labels.filter(lb => {
+      const cx = lb.brl ? lb.x + brlWidth(lb.brl) / 2 : lb.cx, cy = lb.brl ? lb.y + 2 : lb.cy;
+      return cx >= box.x && cx < box.x + box.w && cy >= box.y && cy < box.y + box.h;
+    });
+  }
+  function clearRegion(pg, box) {
+    for (let y = Math.max(0, box.y); y < Math.min(H, box.y + box.h); y++) for (let x = Math.max(0, box.x); x < Math.min(W, box.x + box.w); x++) {
+      pg.dots[y * W + x] = 0; if (pg.fillMask) pg.fillMask[y * W + x] = 0;
+    }
+    const gone = labelsIn(pg, box);
+    pg.labels = pg.labels.filter(lb => !gone.includes(lb));
+    if (gone.includes(selLabel)) selLabel = null;
+  }
+
+  // 以 (x, y) 為中心、邊長 s 的方塊
+  function brush(x, y, s) {
+    const pts = [], o = (s - 1) >> 1;
+    for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) pts.push([x - o + dx, y - o + dy]);
+    return pts;
+  }
+
+  function linePts(x0, y0, x1, y1) {
+    const pts = [], dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      pts.push([x0, y0]);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x0 += sx; }
+      if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+    return pts;
+  }
+
+  (function () {
+    const cv = $('#ed');
+    let drag = null, last = null;
+    const at = e => { const b = cv.getBoundingClientRect(); return [Math.floor((e.clientX - b.left) / zoom), Math.floor((e.clientY - b.top) / zoom)]; };
+    const setDot = (pg, x, y, v) => {
+      if (x < 0 || y < 0 || x >= W || y >= H) return;
+      pg.dots[y * W + x] = v;
+      if (pg.fillMask) pg.fillMask[y * W + x] = 0;   // 畫線、擦掉的點不再算填色
+    };
+    const pen = (pg, x, y) => { for (const [px, py] of brush(x, y, brushSize())) setDot(pg, px, py, LINE); };
+    const erase = (pg, x, y) => { for (const [px, py] of brush(x, y, brushSize())) setDot(pg, px, py, 0); };
+    const hitLabel = (pg, x, y) => [...pg.labels].reverse().find(l => x >= l.x - 1 && x <= l.x + brlWidth(l.brl) && y >= l.y - 1 && y <= l.y + BRL_HEIGHT);
+
+    cv.addEventListener('pointerdown', e => {
+      const pg = pages[cur]; if (!pg) return;
+      cv.setPointerCapture(e.pointerId);
+      const [x, y] = at(e);
+      last = [x, y];
+      if (tool === 'label') {
+        const hit = hitLabel(pg, x, y);
+        if (hit) { pushUndo(pg); selLabel = hit; drag = { dx: x - hit.x, dy: y - hit.y, moved: false }; }
+        else {
+          const text = newLabelEl.value.trim();
+          if (text) {
+            pushUndo(pg);
+            const brl = labelBraille(text);
+            const lb = { text, brl, x: Math.round(x - brlWidth(brl) / 2), y: y - 2, cx: x, cy: y };
+            pg.labels.push(lb); selLabel = lb;
+            newLabelEl.value = '';
+            renderLabelList(); updateThumb();
+          } else selLabel = null;
+        }
+        markSelectedRow();
+      } else if (tool === 'select') {
+        if (selBox && x >= selBox.x && x < selBox.x + selBox.w && y >= selBox.y && y < selBox.y + selBox.h) {
+          pushUndo(pg);
+          drag = { move: true, sx: x, sy: y, box: { ...selBox }, dots: pg.dots.slice(), mask: pg.fillMask && pg.fillMask.slice(),
+                   labels: pg.labels.map(l => [l, l.x, l.y, l.cx, l.cy]), moved: false };
+        } else { selBox = null; drag = { sel: true, sx: x, sy: y }; }
+      } else {
+        pushUndo(pg);
+        if (tool === 'pen') pen(pg, x, y);
+        else if (tool === 'eraser') erase(pg, x, y);
+        else if (tool === 'fill') {
+          const v = +$('#fillLevel').value;
+          const n = floodFill(pg, x, y, v);
+          if (n > 0) { (pg.fills = pg.fills || []).push({ x, y, v }); $('#edStatus').textContent = `填了 ${n} 點`; }
+          else { pg.undo.pop(); $('#edStatus').textContent = n < 0 ? '這個區域沒有封閉（線有缺口），沒有填色' : '點在線上，或已經是這個顏色'; }
+          drawEditor(); updateThumb();
+          return;
+        }
+        else if (['line', 'arrow', 'rect', 'ellipse'].includes(tool)) preview = { type: tool, x0: x, y0: y, x1: x, y1: y, shift: e.shiftKey };
+        drag = {};
+      }
+      drawEditor();
+    });
+    cv.addEventListener('pointermove', e => {
+      const pg = pages[cur]; if (!pg) return;
+      const [x, y] = at(e);
+      hover = [x, y];
+      $('#edStatus').textContent = `位置 (${x}, ${y})`;
+      if (!drag) { if (tool !== 'label') drawEditor(); return; }
+      if (tool === 'label' && selLabel && drag.dx != null) {
+        selLabel.x = x - drag.dx; selLabel.y = y - drag.dy; drag.moved = true;
+        selLabel.cx = selLabel.x + brlWidth(selLabel.brl) / 2; selLabel.cy = selLabel.y + 2;
+      } else if (tool === 'pen') { for (const [px, py] of linePts(...last, x, y)) pen(pg, px, py); }
+      else if (tool === 'eraser') { for (const [px, py] of linePts(...last, x, y)) erase(pg, px, py); }
+      else if (preview) { preview.x1 = x; preview.y1 = y; preview.shift = e.shiftKey; }
+      else if (drag.sel) {
+        selBox = { x: Math.min(drag.sx, x), y: Math.min(drag.sy, y), w: Math.abs(x - drag.sx) + 1, h: Math.abs(y - drag.sy) + 1 };
+      } else if (drag.move) {
+        const dx = x - drag.sx, dy = y - drag.sy;
+        pg.dots = drag.dots.slice(); if (drag.mask) pg.fillMask = drag.mask.slice();
+        for (const [l, lx, ly, cx, cy] of drag.labels) { l.x = lx; l.y = ly; l.cx = cx; l.cy = cy; }
+        moveRegion(pg, drag.box, dx, dy);
+        selBox = { ...drag.box, x: drag.box.x + dx, y: drag.box.y + dy };
+        drag.moved = dx !== 0 || dy !== 0;
+      }
+      last = [x, y];
+      drawEditor();
+    });
+    cv.addEventListener('pointerleave', () => { hover = null; drawEditor(); });
+    // 換工具時把選取框收掉
+    for (const r of document.querySelectorAll('input[name=tool]')) r.addEventListener('change', () => { if (tool !== 'select') selBox = null; });
+    cv.addEventListener('pointerup', () => {
+      const pg = pages[cur];
+      if (pg && preview) { for (const [px, py] of shapePts(preview)) pen(pg, px, py); preview = null; }
+      if (pg && drag && drag.move && !drag.moved) pg.undo.pop();
+      if (drag && drag.sel && selBox && selBox.w * selBox.h <= 1) selBox = null;
+      if (pg && tool === 'label' && drag && drag.dx != null && !drag.moved) pg.undo.pop();
+      drag = null;
+      drawEditor(); updateThumb();
+    });
+  })();
+
+  // ── 鍵盤 ───────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const inInput = e.target.matches('input[type=text], input[type=number]');
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !inInput) { e.preventDefault(); undo(); return; }
+    if (inInput) return;
+    if (e.key === 'Enter' && sel) { e.preventDefault(); addFromSelection(); return; }
+    if (doc && !e.altKey && !e.ctrlKey) {
+      const n = { PageUp: viewPage - 1, PageDown: viewPage + 1, Home: 1, End: doc.numPages }[e.key];
+      if (n) { e.preventDefault(); goPage(n); return; }
+    }
+    const pg = pages[cur];
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && pg) {   // 移動目前這頁
+      e.preventDefault(); movePage(cur, cur + (e.key === 'ArrowUp' ? -1 : 1)); return;
+    }
+    if (pg && selBox && tool === 'select') {
+      const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (mv) { e.preventDefault(); pushUndo(pg); moveRegion(pg, selBox, mv[0], mv[1]); selBox.x += mv[0]; selBox.y += mv[1]; }
+      else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); pushUndo(pg); clearRegion(pg, selBox); renderLabelList(); }
+      else if (e.key === 'Escape') selBox = null;
+      else return;
+      drawEditor(); updateThumb();
+      return;
+    }
+    if (!pg || !selLabel) return;
+    const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (mv) {
+      e.preventDefault(); pushUndo(pg);
+      selLabel.x += mv[0]; selLabel.y += mv[1];
+      selLabel.cx = selLabel.x + brlWidth(selLabel.brl) / 2; selLabel.cy = selLabel.y + 2;
+      drawEditor(); updateThumb();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault(); pushUndo(pg);
+      pg.labels.splice(pg.labels.indexOf(selLabel), 1); selLabel = null;
+      renderLabelList(); drawEditor(); updateThumb();
+    }
+  });
+
+  window.addEventListener('resize', () => { if (doc) renderView(); });
+  function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  (async () => {
+    try {
+      const [ctb, supp] = await Promise.all([
+        fetch('table/zh-tw.ctb').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+        fetch('bt-zh-supplement-rules.json').then(r => r.ok ? r.json() : []).catch(() => []),
+      ]);
+      PrnCore.loadZh(ctb, supp);
+      for (const pg of pages) {
+        if (pg.title) pg.titleBrl = titleBraille(pg.title).braille;
+        for (const lb of pg.labels) if (!lb.manual) lb.brl = labelBraille(lb.text);
+      }
+      if (pages.length) refreshAll();
+    } catch (e) {
+      console.warn('點字表載入失敗：', e);
+    }
+  })();
+
+  // ── 主題（與其他工具相同：localStorage site-theme；在首頁 iframe 裡聽 setTheme） ──
+  const setTheme = t => { document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; };
+  try { setTheme(localStorage.getItem('site-theme') || 'light'); } catch (e) { setTheme('light'); }
+  window.addEventListener('message', e => { if (e.data && e.data.type === 'setTheme') setTheme(e.data.theme); });
+
+  try { const v = localStorage.getItem(PAPER_KEY); if (v) { const [w, h] = v.split('x').map(Number); if (w && h) setPaper(w, h); } } catch (e) {}
+  if (!$('#paperInfo').textContent) setPaper(W, H);
+  drawEditor();
+})();
+</script>
+<script data-goatcounter="https://vi-tools.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
