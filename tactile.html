@@ -141,6 +141,7 @@
       <label title="Shift：正方形"><input type="radio" name="tool" value="rect">矩形</label>
       <label title="拖出外框；Shift：正圓"><input type="radio" name="tool" value="ellipse">橢圓</label>
       <label><input type="radio" name="tool" value="eraser">橡皮擦</label>
+      <label title="拉出矩形，放開就清掉框內的線條與填色（標籤保留）；適合清掉點陣圖裡的字"><input type="radio" name="tool" value="boxerase">框選擦</label>
       <select id="brushSize" title="畫點、直線、箭頭、矩形、橢圓、橡皮擦的粗細">
         <option value="1" selected>1 點</option><option value="2">2 點</option><option value="3">3 點</option><option value="5">5 點</option><option value="9">9 點</option>
       </select>
@@ -212,6 +213,7 @@
         <li>線條一律同一高度；藍點是點字</li>
         <li>畫直線、箭頭時按住 Shift 鎖定角度，矩形變正方形、橢圓變正圓</li>
         <li>「選取」框起一塊後可拖曳搬移、方向鍵微調、Delete 刪除</li>
+        <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色（標籤保留），適合清掉點陣圖裡的字</li>
         <li>頁面清單可以拖曳排序，或用 Alt+↑／↓ 移動目前這頁</li>
         <li>來源換頁：PgUp／PgDn、Home／End、輸入頁碼，或點上方的頁面縮圖（綠色數字是那頁框了幾張圖）</li>
         <li>匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印</li>
@@ -1609,6 +1611,7 @@
 
   let preview = null;   // 形狀預覽：{ type, x0, y0, x1, y1, shift }
   let selBox = null;    // 選取框 { x, y, w, h }（點）
+  let eraseBox = null;  // 框選擦拖曳中的範圍
   let hover = null;     // 滑鼠所在的點（顯示筆刷範圍）
   const brushSize = () => +$('#brushSize').value;
   $('#brushSize').onchange = () => drawEditor();
@@ -1649,6 +1652,13 @@
     if (preview) {
       ctx.fillStyle = '#e8590c';
       for (const [lx, ly] of shapePts(preview)) for (const [x, y] of brush(lx, ly, brushSize())) { ctx.beginPath(); ctx.arc(x * z + z / 2, y * z + z / 2, rad, 0, 7); ctx.fill(); }
+    }
+    if (eraseBox) {
+      ctx.fillStyle = 'rgba(232, 89, 12, 0.12)';
+      ctx.fillRect(eraseBox.x * z, eraseBox.y * z, eraseBox.w * z, eraseBox.h * z);
+      ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.strokeRect(eraseBox.x * z, eraseBox.y * z, eraseBox.w * z, eraseBox.h * z);
+      ctx.setLineDash([]);
     }
     if (selBox && tool === 'select') {
       ctx.strokeStyle = '#1a5fd0'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
@@ -1785,6 +1795,9 @@
           } else selLabel = null;
         }
         markSelectedRow();
+      } else if (tool === 'boxerase') {
+        drag = { erase: true, sx: x, sy: y };
+        eraseBox = { x, y, w: 1, h: 1 };
       } else if (tool === 'select') {
         if (selBox && x >= selBox.x && x < selBox.x + selBox.w && y >= selBox.y && y < selBox.y + selBox.h) {
           pushUndo(pg);
@@ -1820,7 +1833,9 @@
       } else if (tool === 'pen') { for (const [px, py] of linePts(...last, x, y)) pen(pg, px, py); }
       else if (tool === 'eraser') { for (const [px, py] of linePts(...last, x, y)) erase(pg, px, py); }
       else if (preview) { preview.x1 = x; preview.y1 = y; preview.shift = e.shiftKey; }
-      else if (drag.sel) {
+      else if (drag.erase) {
+        eraseBox = { x: Math.min(drag.sx, x), y: Math.min(drag.sy, y), w: Math.abs(x - drag.sx) + 1, h: Math.abs(y - drag.sy) + 1 };
+      } else if (drag.sel) {
         selBox = { x: Math.min(drag.sx, x), y: Math.min(drag.sy, y), w: Math.abs(x - drag.sx) + 1, h: Math.abs(y - drag.sy) + 1 };
       } else if (drag.move) {
         const dx = x - drag.sx, dy = y - drag.sy;
@@ -1840,6 +1855,19 @@
       const pg = pages[cur];
       if (pg && preview) { for (const [px, py] of shapePts(preview)) pen(pg, px, py); preview = null; }
       if (pg && drag && drag.move && !drag.moved) pg.undo.pop();
+      if (pg && drag && drag.erase && eraseBox) {   // 清掉框內有東西的點（線、填色、匯入 PRN 裡的點字），標籤不動
+        const b = eraseBox, before = pg.dots.slice(), mask = pg.fillMask && pg.fillMask.slice();
+        let n = 0;
+        for (let y = Math.max(0, b.y); y < Math.min(H, b.y + b.h); y++) for (let x = Math.max(0, b.x); x < Math.min(W, b.x + b.w); x++) {
+          const i = y * W + x;
+          if (pg.dots[i]) { pg.dots[i] = 0; n++; }
+          if (pg.fillMask) pg.fillMask[i] = 0;
+        }
+        if (n) { pg.undo.push({ dots: before, labels: pg.labels.map(l => ({ ...l, _row: undefined })), src: pg.src, fig: pg.fig, fills: (pg.fills || []).map(f => ({ ...f })), fillMask: mask });
+                 if (pg.undo.length > 60) pg.undo.shift(); }
+        $('#edStatus').textContent = n ? `清掉 ${n} 點` : '框內沒有線條';
+        eraseBox = null;
+      }
       if (drag && drag.sel && selBox && selBox.w * selBox.h <= 1) selBox = null;
       if (pg && tool === 'label' && drag && drag.dx != null && !drag.moved) pg.undo.pop();
       drag = null;
