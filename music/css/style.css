@@ -149,7 +149,37 @@ label { display: inline-flex; gap: 6px; align-items: center; }
   body.print-score .preview > :not(.paper) { display: none !important; }
   body.print-score .paper { overflow: visible; max-height: none; }
   body.print-score .paper .hl, body.print-score .paper .playing { fill: #000 !important; }
+  body.print-dual { background: #fff; }
+  body.print-dual > :not(main) { display: none !important; }
+  body.print-dual main > :not(.dual) { display: none !important; }
+  body.print-dual .dual { border: 0; padding: 0; }
+  body.print-dual .dual > :not(.dv-sheet) { display: none !important; }
+  body.print-dual .dv-sheet { overflow: visible; max-height: none; padding: 0; }
+  body.print-dual .dv-line { break-inside: avoid; }
+  body.print-dual .dv-hl, body.print-dual .dv-play { background: none !important; }
 }
+
+/* 雙視對照：每一方點字固定寬度（--cw），墨字以方為單位定位；像點字紙一樣固定白底 */
+.dv-sheet { --dvsize: 28px; --cw: calc(var(--dvsize) * 1.15); position: relative; overflow: auto; max-height: 75vh; background: #fff; color: #000; border-radius: 6px; padding: 12px 16px; font-size: var(--dvsize); }
+.dv-line { position: relative; width: max-content; }
+.dv-top { position: relative; height: calc(var(--stack, 1) * 0.6em + 0.35em); }
+.dv-top.dv-empty { height: 0.25em; }
+.dv-top > span { position: absolute; bottom: 0.2em; display: flex; flex-direction: column; align-items: center; font-size: 0.5em; line-height: 1.2; white-space: nowrap; cursor: default; }
+.dv-top > .dv-note, .dv-top > .dv-lyric { cursor: pointer; }
+.dv-top > .dv-lyric, .dv-top > .dv-text { font-size: 0.6em; line-height: 1; }
+.dv-top > .u1::after, .dv-top > .u2::after { content: ''; position: absolute; left: 0; right: 0; bottom: -0.25em; border-bottom: 1.5px solid currentColor; }
+.dv-top > .u2::after { border-bottom: 4px double currentColor; bottom: -0.35em; }
+.dv-top > .gap::after { right: 0.4em; }
+.dv-brl { white-space: nowrap; line-height: 1.3; }
+.dv-cell { display: inline-block; width: var(--cw); text-align: center; font-family: var(--braille); cursor: pointer; }
+.dv-bar { position: absolute; top: 0.15em; bottom: 0.15em; width: 0; border-left: 1.5px solid #555; pointer-events: none; }
+.dv-sheet.brf .dv-cell { font-family: var(--mono); font-size: 0.7em; line-height: calc(1.3em / 0.7); }
+.dv-sheet.simbraille .dv-cell { font-family: 'SimBraille', var(--mono); }
+.dual summary { cursor: pointer; }
+.dual summary h2 { display: inline; }
+.dual[open] summary { margin-bottom: 8px; }
+.dv-sheet .dv-hl { background: #ffe27a; }
+.dv-sheet .dv-play { background: #b8e3c4; }
 
 .messages ul { margin: 0; padding-left: 0; list-style: none; }
 .messages li { padding: 6px 10px; border-radius: 6px; margin-top: 6px; }

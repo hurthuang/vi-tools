@@ -90,6 +90,13 @@
   function tempoSig(t) {
     return NOTE.C[D.valueClass(t.value)] + "'".repeat(t.dots || 0) + '7#' + B.upperNumber(t.bpm);
   }
+  /** 雙視對照：調號與拍號的墨字，例如「2♯ 4/4」「C」。 */
+  function sigLabel(key, meter) {
+    const out = [];
+    if (key && key.fifths) out.push(Math.abs(key.fifths) + (key.fifths > 0 ? '♯' : '♭'));
+    if (meter) out.push(meter.symbol === 'C' && meter.num === 4 ? 'C' : meter.symbol === 'C|' && meter.num === 2 ? '¢' : meter.num + '/' + meter.den);
+    return out.join(' ');
+  }
   /** 調號（含換調時的還原記號）+ 拍號。 */
   function signatureText(key, prevKey, meter) {
     let s = '';
@@ -725,11 +732,18 @@
   }
 
   // ---------- 行 ----------
-  function Line(prefix) {
+  // kind：'title' 曲名、'head' 樂曲標頭、'lyric' 歌詞、'chord' 和弦名稱，其他是音樂；
+  // labels：雙視對照要印在點字上方的墨字 {start, end, text}（音符的名稱由 dualview.js 依 spans 另外產生）
+  function Line(prefix, kind) {
     this.text = prefix || '';
     this.spans = [];
+    this.labels = [];
+    this.kind = kind || 'music';
     this.content = false;
   }
+  Line.prototype.label = function (start, end, text) {
+    if (text && end > start) this.labels.push({ start, end, text: String(text) });
+  };
   Line.prototype.add = function (str, id, measure) {
     const s = this.text.length;
     this.text += str;
@@ -740,6 +754,7 @@
     for (const p of pieces) {
       const s = this.text.length;
       this.add(p.text, p.id, mi);
+      if (p.label) this.label(s, this.text.length, p.label);
       // 小節重複記號：被重複小節的每個音都對應到 ⠶
       if (p.ids) for (const id of p.ids) this.spans.push({ id, start: s, end: this.text.length, measure: mi });
     }
@@ -765,25 +780,39 @@
 
     // 曲名（Par. 1.6.1）：置中的文字標題；樂曲標頭前空一行（Par. 1.7）
     if (opts.title !== false && score.title) {
-      const t = titleBrf(score.title);
+      const tl = [];
+      const t = titleBrf(score.title, tl);
       if (t) {
-        const l = new Line();
-        l.add(center(t, opts.width));
+        const l = new Line('', 'title');
+        const c = center(t, opts.width);
+        l.add(c);
+        const pad = c.length - t.length;
+        tl.forEach((x) => l.label(pad + x.start, pad + x.end, x.text));
         lines.push(l, new Line());
       } // 中文曲名需要國語點字表；單獨使用時沒有，就不寫曲名
     }
     // 樂曲標頭（Par. 1.7）：速度、調號、拍號置中
     const m0 = first.measures[0];
     const headParts = [];
-    if (score.tempo) headParts.push(tempoSig(score.tempo));
+    const headLabels = new Map(); // 標頭各部分的墨字
+    if (score.tempo) {
+      headParts.push(tempoSig(score.tempo));
+      headLabels.set(headParts[headParts.length - 1], '♩=' + score.tempo.bpm);
+    }
     const sig = signatureText(m0.key, null, m0.meter);
-    if (sig) headParts.push(sig);
+    if (sig) {
+      headParts.push(sig);
+      headLabels.set(sig, sigLabel(m0.key, m0.meter));
+    }
     // 開頭行的速度文字（例如 Allegro、中板，Par. 1.7(a)）：ABC 的 Q:"Allegro"、MusicXML 和速度數字在一起的文字。
     // 第一個音上的其他文字表情照 Ex 22.3.8-1 寫在音樂裡
     let headBrf = '';
     if (score.tempoText) {
       const e = encodeWords(score.tempoText, true);
-      if (e.brf) headBrf = e.brf;
+      if (e.brf) {
+        headBrf = e.brf;
+        headLabels.set(headBrf, score.tempoText);
+      }
       else env.warnings.push({ msg: '國語點字表沒有載入，速度文字「' + score.tempoText + '」無法轉換，已略過' });
     }
     // 整個開頭行放不下（兩邊至少各留三方空白）時，速度數字與調號拍號移到下一行置中（Par. 1.7(c)）
@@ -794,8 +823,15 @@
       if (headParts.length) headLines.push(headParts.join(' '));
     } else if (all) headLines.push(all);
     for (const h of headLines) {
-      const l = new Line();
-      l.add(center(h, opts.width));
+      const l = new Line('', 'head');
+      const c = center(h, opts.width);
+      l.add(c);
+      // 各部分以空方分隔，依序找出位置
+      let at = c.length - h.length;
+      for (const p of h.split(' ')) {
+        l.label(at, at + p.length, headLabels.get(p));
+        at += p.length + 1;
+      }
       lines.push(l);
     }
 
@@ -813,13 +849,15 @@
   function finish(lines, warnings) {
     let brf = '';
     const map = [];
+    const layout = []; // 每一行的類型、墨字與音符位置（雙視對照用）
     lines.forEach((l, i) => {
       const off = brf.length;
       const text = l.text.replace(/\s+$/, '');
       brf += text + (i < lines.length - 1 ? '\n' : '');
-      l.spans.forEach((s) => map.push({ id: s.id, start: off + s.start, end: off + s.end, measure: s.measure }));
+      l.spans.forEach((s) => map.push({ id: s.id, start: off + s.start, end: off + s.end, measure: s.measure, lyric: l.kind === 'lyric' || undefined }));
+      layout.push({ text, kind: l.kind, labels: l.labels, spans: l.spans });
     });
-    return { brf, unicode: B.toUnicode(brf), map, warnings };
+    return { brf, unicode: B.toUnicode(brf), map, warnings, layout };
   }
 
   function needsForce(part, mi, prevInaccord) {
@@ -1061,14 +1099,16 @@
   }
 
   /** 曲名（Par. 1.6.1：文字標題，置中）：中文用國語點字，外文用字母。無法轉換時回傳 null。 */
-  function titleBrf(title) {
+  function titleBrf(title, labels) {
     const zh = MB.zhBraille;
     const chars = [...title];
     const hasZh = chars.some((c) => /[㐀-鿿豈-﫿　-〿＀-￯]/.test(c));
     if (hasZh && !(zh && zh.isLoaded())) return null;
     const out = hasZh ? zh.translate(title) : null;
     let s = '';
+    const pos = []; // 每個字在點字中的位置（雙視對照）
     chars.forEach((c, i) => {
+      const from = s.length;
       if (c === ' ') s += ' ';
       else if (DIGIT_OF[c] != null) s += B.lowerNumber(DIGIT_OF[c]);
       else if (out && out[i].known && /[^\x00-\x7f]/.test(c)) s += B.toBrf(out[i].brl);
@@ -1076,7 +1116,10 @@
         const b = latinBrf(c);
         if (b != null) s += b;
       }
+      if (c !== ' ') pos.push({ start: from, end: s.length, text: c });
     });
+    const lead = s.length - s.trimStart().length;
+    if (labels) pos.forEach((x) => labels.push({ start: x.start - lead, end: x.end - lead, text: x.text }));
     return s.trim() || null;
   }
 
@@ -1145,7 +1188,7 @@
         // 句末標點（。？！）後面空一方（台灣注音點字標點規則，和工具集「文字轉點字」相同）
         return { brl, id: x.id, mi: x.mi, cjk, joined, terminal: '。？！'.includes(last) };
       });
-      const out = [new Line('')];
+      const out = [new Line('', 'lyric')];
       let cur = out[0];
       pieces.forEach((pc, j) => {
         const prevPc = pieces[j - 1];
@@ -1153,7 +1196,7 @@
         let sep = '';
         if (prevPc) sep = prevPc.terminal ? ' ' : prevPc.cjk && pc.cjk ? (opts.lyricSpacing === 'space' ? ' ' : '') : prevPc.joined ? '' : ' ';
         if (cur.content && cur.text.length + sep.length + pc.brl.length > W) {
-          cur = new Line('    '); // 續行從第 5 方開始（Par. 35.1）
+          cur = new Line('    ', 'lyric'); // 續行從第 5 方開始（Par. 35.1）
           out.push(cur);
           sep = '';
         }
@@ -1199,7 +1242,7 @@
         lines.push(line);
         // 和弦行接在音樂行下面
         if (line.chord && /\S/.test(line.chord)) {
-          const c = new Line();
+          const c = new Line('', 'chord');
           c.text = line.chord.replace(/\s+$/, '');
           c.content = true;
           lines.push(c);
@@ -1220,6 +1263,7 @@
       if (lead || segLines === 0 || lines.length === 0 || (opts.lineMode !== 'abc' && segLines >= opts.segmentLines)) {
         // 段落從被拆開小節的後半開始時，編號後加點 3（Par. 24.1.1）
         line = new Line('#' + B.upperNumber(numbers[mi]) + (part.measures[mi].splitCont ? "' " : ' '));
+        line.label(0, 1 + B.upperNumber(numbers[mi]).length, numbers[mi]);
         segLines = 1;
       } else {
         line = new Line('  ');
@@ -1278,7 +1322,7 @@
         const sig = signatureText(m.key, prevKey, m.meter);
         if (sig) {
           if (sig.length > room()) newLine(mi);
-          put([{ text: sig, id: null }], mi);
+          put([{ text: sig, id: null, label: sigLabel(m.key, m.meter) }], mi);
         }
       }
       if (m.key) prevKey = m.key;
@@ -1406,8 +1450,10 @@
       if (mi > 0 && (rh.measures[mi].key || rh.measures[mi].meter)) {
         const sig = signatureText(rh.measures[mi].key, prevKey, rh.measures[mi].meter);
         if (sig) {
-          const l = new Line();
-          l.add(center(sig, W));
+          const l = new Line('', 'head');
+          const c = center(sig, W);
+          l.add(c);
+          l.label(c.length - sig.length, c.length, sigLabel(rh.measures[mi].key, rh.measures[mi].meter));
           lines.push(l);
         }
       }
@@ -1419,6 +1465,7 @@
       }
       // 從被拆開小節的後半開始時，編號後接點 3（Par. 29.3）
       const R = new Line(pad(numbers[mi]) + (rh.measures[mi].splitCont ? "'" : ' '));
+      R.label(numW - String(numbers[mi]).length, pad(numbers[mi]).length, numbers[mi]);
       const L = new Line(indent);
       const extraR = [];
       const extraL = [];

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>點字樂譜轉換器</title>
-  <script src="js/theme.js?v=44"></script>
-  <link rel="stylesheet" href="css/style.css?v=44">
+  <script src="js/theme.js?v=46"></script>
+  <link rel="stylesheet" href="css/style.css?v=46">
 </head>
 <body>
   <header class="site-header">
@@ -137,6 +137,32 @@
       <p class="hint" id="player-status" aria-live="polite"></p>
     </section>
 
+    <details class="pane dual" id="dual-pane">
+      <summary><h2 id="h-dual">雙視對照</h2></summary>
+      <div class="pane-head">
+        <div class="pane-tools">
+          <label>點字上方標示
+            <select id="dual-names">
+              <option value="solfa">唱名</option>
+              <option value="letter">音名</option>
+              <option value="jianpu">簡譜</option>
+              <option value="none">不標示音符</option>
+            </select>
+          </label>
+          <label>字級
+            <select id="dual-size">
+              <option value="20">小</option>
+              <option value="28" selected>中</option>
+              <option value="36">大</option>
+            </select>
+          </label>
+          <button type="button" id="btn-print-dual">列印／存成 PDF</button>
+        </div>
+      </div>
+      <p class="hint">給明眼教學者對照點字用：分行和下載的點字（BRF）相同，音符名稱、歌詞印在對應的點字上方，小節之間畫小節線，八分音符畫一條底線、十六分音符畫兩條（同一拍連在一起）。點一下音符或歌詞會標示並播放該音。點字的顯示方式跟著點字樂譜區（Unicode 點字或 ASCII）。報讀軟體使用者請用上方的點字樂譜編輯區。</p>
+      <div id="dual" class="dv-sheet" aria-hidden="true"></div>
+    </details>
+
     <section class="pane messages" aria-labelledby="h-msg">
       <h2 id="h-msg">轉換訊息</h2>
       <ul id="messages" aria-live="polite"></ul>
@@ -164,7 +190,7 @@
           <select id="opt-repeat">
             <option value="all">整小節與部分小節都使用</option>
             <option value="full">只用在整小節</option>
-            <option value="none">不使用（每個小節都寫出）</option>
+            <option value="none" selected>不使用（每個小節都寫出）</option>
           </select>
         </label>
         <label title="點位不變，只是字母寫成大寫，@ [ \ ] ^ 取代 ` { | } ~">
@@ -215,6 +241,7 @@
           <li>「下載 MusicXML」的檔案可以用 MuseScore、BME、Finale 開啟成五線譜再編輯；五線譜也可以直接匯出成 SVG、PNG，或列印、存成 PDF。</li>
           <li>點字分行預設跟隨 ABC 換行：ABC 的每一行是點字的一段，開頭寫小節編號。可在「轉換設定」改成寫滿才換行。</li>
           <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數，方便印成學習單。</li>
+          <li>「雙視對照」：以點字為主，唱名（或音名、簡譜）與歌詞印在對應的點字上方，畫出小節線與時值底線，分行和點字輸出相同，給明眼教學者對照點字，也可以列印。</li>
         </ul>
         <h3>播放與快速鍵</h3>
         <ul>
@@ -248,25 +275,26 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=44"></script>
-  <script src="js/model.js?v=44"></script>
-  <script src="js/durations.js?v=44"></script>
-  <script src="js/abc-parse.js?v=44"></script>
-  <script src="js/braille-write.js?v=44"></script>
-  <script src="js/braille-parse.js?v=44"></script>
-  <script src="js/abc-write.js?v=44"></script>
-  <script src="js/annotate.js?v=44"></script>
-  <script src="js/xml.js?v=44"></script>
-  <script src="js/musicxml.js?v=44"></script>
-  <script src="js/describe.js?v=44"></script>
-  <script src="js/zh-braille.js?v=44"></script>
-  <script src="js/samples.js?v=44"></script>
+  <script src="js/brf.js?v=46"></script>
+  <script src="js/model.js?v=46"></script>
+  <script src="js/durations.js?v=46"></script>
+  <script src="js/abc-parse.js?v=46"></script>
+  <script src="js/braille-write.js?v=46"></script>
+  <script src="js/braille-parse.js?v=46"></script>
+  <script src="js/abc-write.js?v=46"></script>
+  <script src="js/annotate.js?v=46"></script>
+  <script src="js/dualview.js?v=46"></script>
+  <script src="js/xml.js?v=46"></script>
+  <script src="js/musicxml.js?v=46"></script>
+  <script src="js/describe.js?v=46"></script>
+  <script src="js/zh-braille.js?v=46"></script>
+  <script src="js/samples.js?v=46"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=44"></script>
+  <script src="js/app.js?v=46"></script>
 </body>
 </html>

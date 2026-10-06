@@ -932,6 +932,23 @@ async function mxlTests() {
   check('未壓縮 MusicXML：直接讀取', plain === MUSESCORE_XML);
 }
 
+// ---------- 雙視對照 ----------
+{
+  const r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nQ:1/4=96\nK:G\nG E/F/ G z | A/B/ c/d/ e2 |]\n');
+  const b = MB.toBraille(r.score, {});
+  check('雙視：layout 的各行合起來就是點字', b.layout.map((l) => l.text).join('\n') === b.brf);
+  const head = b.layout.find((l) => l.kind === 'head');
+  check('雙視：標頭標示速度與調號拍號', head && head.labels.map((l) => l.text).join(',') === '♩=96,1♯ 4/4', head && JSON.stringify(head.labels));
+  const box = { innerHTML: '' };
+  MB.dualView.render(box, b, r.score, { names: 'solfa' });
+  const notes = [...box.innerHTML.matchAll(/class="dv-note([^"]*)"[^>]*>((?:<span>[^<]*<\/span>)+)/g)].map((m) => m[2].replace(/<\/?span>/g, '') + m[1].replace(/ /g, ''));
+  check('雙視：唱名與時值底線（同一拍連在一起）', notes.join(' ') === '4Sol Miu1 Fau1gap Sol 休 Lau1 Siu1gap Dou1 Reu1gap Mi', notes.join(' '));
+  check('雙視：小節之間一條小節線、最後一小節不畫', (box.innerHTML.match(/dv-bar/g) || []).length === 1);
+  check('雙視：小節編號', /dv-text[^>]*><span>1<\/span>/.test(box.innerHTML));
+  MB.dualView.render(box, b, r.score, { names: 'jianpu' });
+  check('雙視：簡譜休止符寫 0', />0<\/span>/.test(box.innerHTML));
+}
+
 mxlTests().then(() => {
   console.log('\n通過 ' + pass + '，失敗 ' + fail);
   process.exit(fail ? 1 : 0);

@@ -108,7 +108,8 @@
     if (settings.title === false) $('opt-title').checked = false;
     if (settings.lyricSpace) $('opt-lyric-space').value = settings.lyricSpace;
     // 舊版存的是勾選框（true/false）
-    if (settings.repeat != null) $('opt-repeat').value = settings.repeat === false ? 'none' : settings.repeat === true ? 'all' : settings.repeat;
+    // 新名稱：預設改為不使用重複記號（點字對照、雙視才對得起來），舊版存的 repeat 不沿用
+    if (settings.repeat2) $('opt-repeat').value = settings.repeat2;
     if (settings.brlMode) $('brl-mode').value = settings.brlMode;
     if (settings.brfUpper) $('opt-brf-upper').checked = true;
     if (settings.sixKey === false) $('six-key').checked = false;
@@ -122,6 +123,8 @@
     if (settings.echoCaret) $('echo-caret').checked = true;
     if (settings.echoScope) $('echo-scope').value = settings.echoScope;
     if (settings.solfege) $('solfege').checked = true;
+    if (settings.dualNames) $('dual-names').value = settings.dualNames;
+    if (settings.dualSize) $('dual-size').value = settings.dualSize;
   }
   function saveSettings() {
     Object.assign(settings, {
@@ -134,7 +137,7 @@
       lyrics: $('opt-lyrics').value,
       title: $('opt-title').checked,
       lyricSpace: $('opt-lyric-space').value,
-      repeat: $('opt-repeat').value,
+      repeat2: $('opt-repeat').value,
       brlMode: $('brl-mode').value,
       brfUpper: $('opt-brf-upper').checked,
       paperFit: $('paper-fit').value,
@@ -146,6 +149,8 @@
       echoCaret: $('echo-caret').checked,
       echoScope: $('echo-scope').value,
       solfege: $('solfege').checked,
+      dualNames: $('dual-names').value,
+      dualSize: $('dual-size').value,
     });
     store.set('settings', settings);
   }
@@ -301,6 +306,7 @@
     state.visual = null;
     showMessages([]);
     $('abc-status').textContent = '';
+    renderDual();
     document.dispatchEvent(new Event('score-changed'));
   }
 
@@ -316,6 +322,7 @@
     state.paperAbc = abcText;
     renderPaper(abcText);
     showMessages(warnings);
+    renderDual();
     $('cell-info').textContent = '';
     abcEd.setMarks([]);
     brlEd.setMarks([]);
@@ -388,7 +395,8 @@
       let src = abcText;
       let toSrc = (p) => p;
       if (annot !== 'none' && state.score) {
-        const a = MB.annotate.annotatedAbc(state.score, MB.toBraille(state.score, Object.assign(writeOpts(), { lyrics: false })), { names: annot === 'brl' ? 'none' : annot, measuresPerLine: +$('paper-per-line').value });
+        // 小節重複記號只寫在被重複小節的第一個音，其他音下方沒有點字而對不起來：點字對照一律把每個小節寫出來
+        const a = MB.annotate.annotatedAbc(state.score, MB.toBraille(state.score, Object.assign(writeOpts(), { lyrics: false, measureRepeat: false, partRepeat: false })), { names: annot === 'brl' ? 'none' : annot, measuresPerLine: +$('paper-per-line').value });
         const byId = new Map(state.infos.map((inf) => [inf.id, inf]));
         src = a.abc;
         // p 落在某個事件裡（開頭 ≤ p < 結尾）就對到它的開頭；落在事件之間（abcjs 的範圍會含前後空白）就對到前一個事件的結尾
@@ -583,6 +591,7 @@
     else brlEd.setMarks([]);
     if (from !== 'abc' && inf.abc) abcEd.reveal(inf.abc[0]);
     if (from !== 'brl' && inf.brl) brlEd.reveal(inf.brl[0]);
+    if (state.dual) state.dual.highlight(inf.id, from !== 'dual');
     const desc = describe(inf);
     let cells = '';
     if (inf.brl) {
@@ -782,6 +791,7 @@
     brlEd.setMarks(hits.filter((h) => h.brl).map((h) => ({ start: h.brl[0], end: h.brl[1], cls: 'play' })));
     abcEd.setMarks(hits.filter((h) => h.abc).map((h) => ({ start: h.abc[0], end: h.abc[1], cls: 'play' })));
     if (hits[0] && hits[0].brl) brlEd.reveal(hits[0].brl[0]);
+    if (state.dual) state.dual.playing(hits[0] && hits[0].id);
     // 游標跟著播放：開始播放時所在的編輯區，游標移到正在播放的音（停止後從這裡按 Ctrl+Enter 可以接著播）
     const ed = state.playEditor;
     if (ed && hits[0] && hits[0][ed]) {
@@ -805,6 +815,7 @@
     synth = null;
     timing = null;
     document.querySelectorAll('#paper .playing').forEach((el) => el.classList.remove('playing'));
+    if (state.dual) state.dual.playing(null);
     $('btn-play').textContent = '▶ 播放';
   }
 
@@ -1173,6 +1184,7 @@
       brlTA.setSelectionRange(pos[0], pos[1]);
       applyBrlLook();
       saveSettings();
+      renderDual();
     });
   $('brl-size').addEventListener('change', () => {
     applyBrlLook();
@@ -1191,6 +1203,61 @@
     settings.sixKey = $('six-key').checked;
     saveSettings();
   });
+  // ---------- 雙視對照 ----------
+  /** 依目前的樂譜重新產生點字（和下載的 BRF 相同的分行），畫出墨字對齊點字的版面。 */
+  function renderDual() {
+    const box = $('dual');
+    state.dual = null;
+    box.style.setProperty('--dvsize', $('dual-size').value + 'px');
+    // 收合時不畫，展開時再畫
+    if (!state.score || !$('dual-pane').open) {
+      box.innerHTML = '';
+      return;
+    }
+    let res;
+    try {
+      res = MB.toBraille(state.score, writeOpts());
+    } catch (e) {
+      console.error(e);
+      box.innerHTML = '';
+      return;
+    }
+    // 點字顯示方式和點字樂譜區相同（Unicode 點字、ASCII、ASCII + SimBraille 字型）
+    box.classList.toggle('brf', brlMode() === 'brf');
+    box.classList.toggle('simbraille', brlMode() === 'brf-font');
+    state.dual = MB.dualView.render(box, res, state.score, {
+      names: $('dual-names').value,
+      cell: (c) => (brlMode() === 'unicode' ? B.toUnicode(c === ' ' ? '' : c) || '⠀' : caseBrf(c)),
+      onPick(id) {
+        const inf = state.infos.find((x) => x.id === id);
+        if (!inf) return;
+        select(inf, 'dual');
+        echoNote(inf.ev);
+      },
+    });
+    if (state.current) state.dual.highlight(state.current.id);
+  }
+  $('dual-pane').addEventListener('toggle', renderDual);
+  for (const id of ['dual-names', 'dual-size'])
+    $(id).addEventListener('change', () => {
+      saveSettings();
+      renderDual();
+    });
+  $('btn-print-dual').addEventListener('click', () => {
+    if (!state.dual) return;
+    const oldTitle = document.title;
+    document.title = baseName() + '（雙視）';
+    document.body.classList.add('print-dual');
+    const done = () => {
+      document.body.classList.remove('print-dual');
+      document.title = oldTitle;
+      window.removeEventListener('afterprint', done);
+    };
+    window.addEventListener('afterprint', done);
+    window.print();
+    setTimeout(done, 1000);
+  });
+
   function rerenderPaper() {
     if (state.paperAbc == null) return;
     stopPlay();
