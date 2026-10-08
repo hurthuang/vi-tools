@@ -683,6 +683,9 @@
   let synth = null;
   let timing = null;
   let audioCtx = null;
+  // 準備好的播放器（整首的聲音已經算好）：樂譜和速度沒變時直接再用，不用每次重新準備；慢的電腦每次重新準備要好幾秒
+  let primed = null; // {vis, warp, synth}
+  let soundLoaded = false; // 這個頁面已經下載過音色（之後只需要準備，不用再下載）
   function playerStatus(t) {
     $('player-status').textContent = t || '';
   }
@@ -733,17 +736,24 @@
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       await audioCtx.resume();
-      playerStatus('載入音色中…');
-      synth = new ABCJS.synth.CreateSynth();
-      await synth.init({
-        audioContext: audioCtx,
-        visualObj: vis,
-        millisecondsPerMeasure: vis.millisecondsPerMeasure() / warp,
-        // 鋼琴音色固定用 jsDelivr 上指定版本的檔案（內容與 abcjs 預設的 paulrosen.github.io 相同），
-        // 視障輔助工具集桌面版會把這個網址改給內附的檔案，離線也能播放
-        options: { program: 0, soundFontUrl: SOUNDFONT_URL },
-      });
-      await synth.prime();
+      if (primed && primed.vis === vis && primed.warp === warp) synth = primed.synth;
+      else {
+        primed = null;
+        playerStatus(soundLoaded ? '準備播放…' : '載入音色中…');
+        const s = new ABCJS.synth.CreateSynth();
+        await s.init({
+          audioContext: audioCtx,
+          visualObj: vis,
+          millisecondsPerMeasure: vis.millisecondsPerMeasure() / warp,
+          // 鋼琴音色固定用 jsDelivr 上指定版本的檔案（內容與 abcjs 預設的 paulrosen.github.io 相同），
+          // 視障輔助工具集桌面版會把這個網址改給內附的檔案，離線也能播放
+          options: { program: 0, soundFontUrl: SOUNDFONT_URL },
+        });
+        await s.prime();
+        soundLoaded = true;
+        primed = { vis, warp, synth: s };
+        synth = s;
+      }
       timing = new ABCJS.TimingCallbacks(vis, {
         qpm: vis.getBpm() * warp,
         eventCallback: onPlayEvent,

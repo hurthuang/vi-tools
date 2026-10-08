@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>點字樂譜練習</title>
+  <script src="js/theme.js?v=47"></script>
+  <link rel="stylesheet" href="css/style.css?v=47">
+  <style>
+    .st-main { max-width: 960px; margin: 0 auto; }
+    .st-editor textarea { width: 100%; min-height: 9em; box-sizing: border-box; font-family: var(--braille); font-size: 32px; line-height: 1.5; padding: 10px 12px; background: var(--panel); color: var(--ink); border: 2px solid var(--control); border-radius: 8px; resize: vertical; }
+    .st-editor textarea:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .st-status { min-height: 1.6em; margin: 8px 0 0; font-size: 1.15rem; }
+    .st-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+    .st-keys { margin: 0; padding-left: 20px; }
+    .st-keys kbd { font-family: var(--mono); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>點字樂譜練習</h1>
+    <p class="subtitle">打點字樂譜，每打一個音就聽到它；寫好可以播放、存檔、匯出 MusicXML・<a href="index.html">點字樂譜轉換器</a></p>
+  </header>
+
+  <main class="st-main">
+    <nav class="pane st-bar" aria-label="檔案">
+      <button type="button" id="btn-new">開新檔</button>
+      <button type="button" id="btn-open">開啟…</button>
+      <input type="file" id="file" accept=".brf,.brl,.txt" hidden>
+      <button type="button" id="btn-save">存檔（點字 BRF）</button>
+      <button type="button" id="btn-xml" title="可用 MuseScore、BME、Finale 等軟體開啟">匯出 MusicXML</button>
+      <button type="button" id="btn-full" title="在點字樂譜轉換器打開，可以看五線譜、雙視對照">在轉換器開啟</button>
+    </nav>
+
+    <section class="pane st-editor" aria-labelledby="h-brl">
+      <h2 id="h-brl">點字樂譜</h2>
+      <textarea id="brl" spellcheck="false" autocomplete="off" aria-label="點字樂譜，打一個音會聽到聲音；Ctrl+Enter 播放" aria-describedby="keys-brief"></textarea>
+      <p class="sr-only" id="keys-brief">六點輸入用 F D S J K L。Ctrl+Enter 從游標播放，Ctrl+Shift+Enter 從頭播放，Esc 停止，Alt+N 念目前的音，Alt+M 念這一小節，Alt+上下鍵到上一小節或下一小節。</p>
+      <div class="st-bar" role="group" aria-label="播放">
+        <button type="button" id="btn-play" class="primary" aria-keyshortcuts="Control+Enter">▶ 播放</button>
+        <button type="button" id="btn-play-all" aria-keyshortcuts="Control+Shift+Enter">⏮ 從頭播放</button>
+        <button type="button" id="btn-stop" aria-keyshortcuts="Escape">■ 停止</button>
+      </div>
+      <p class="st-status" id="status"></p>
+      <!-- 報讀軟體：打完一個音、移動小節時念出（assertive 蓋過報讀軟體念的點字字元） -->
+      <p class="sr-only" id="say" aria-live="assertive" aria-atomic="true"></p>
+    </section>
+
+    <section class="pane preview" aria-labelledby="h-staff">
+      <div class="pane-head">
+        <h2 id="h-staff">五線譜</h2>
+        <div class="pane-tools">
+          <label><input type="checkbox" id="s-staff" checked> 顯示五線譜</label>
+        </div>
+      </div>
+      <p class="hint">點字打到哪裡，五線譜就標示到哪裡；點五線譜上的音，游標會移到那個音的點字並播放它。</p>
+      <div id="paper" class="paper" aria-hidden="true"></div>
+    </section>
+
+    <details class="pane settings" id="settings">
+      <summary>設定</summary>
+      <div class="settings-grid">
+        <label>曲名
+          <input type="text" id="s-title">
+        </label>
+        <label>拍號
+          <select id="s-meter">
+            <option value="2/4">2/4</option>
+            <option value="3/4">3/4</option>
+            <option value="4/4" selected>4/4</option>
+            <option value="6/8">6/8</option>
+          </select>
+        </label>
+        <label>調號
+          <select id="s-key">
+            <option value="0" selected>C 大調（沒有升降）</option>
+            <option value="1">G 大調（1 個升記號）</option>
+            <option value="2">D 大調（2 個升記號）</option>
+            <option value="-1">F 大調（1 個降記號）</option>
+            <option value="-2">B♭ 大調（2 個降記號）</option>
+          </select>
+        </label>
+        <label>速度（每分鐘四分音符）
+          <input type="number" id="s-tempo" min="40" max="200" step="10" value="90">
+        </label>
+        <label>分小節
+          <select id="s-bars">
+            <option value="auto" selected>自動（依拍號，不用打空方）</option>
+            <option value="manual">自己用空方分小節（檢查每小節拍數）</option>
+          </select>
+        </label>
+        <label>念音的方式
+          <select id="s-names">
+            <option value="solfa" selected>唱名（Do Re Mi）</option>
+            <option value="letter">音名（C D E）</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="s-echo" checked> 打完一個音就播放</label>
+        <label><input type="checkbox" id="s-speak" checked> 打完一個音就念出音名和時值</label>
+        <label><input type="checkbox" id="s-tts"> 用瀏覽器語音念（沒有開報讀軟體時）</label>
+        <label><input type="checkbox" id="six-key" checked> 六點輸入（F D S J K L 同時按，需要英文輸入法）</label>
+      </div>
+    </details>
+
+    <details class="pane help">
+      <summary>使用說明</summary>
+      <div class="help-body">
+        <h3>輸入</h3>
+        <ul>
+          <li>電腦鍵盤：F D S J K L 六個鍵同時按下打一方（點 1 2 3 4 5 6），空白鍵是空方。請先切到英文輸入法。</li>
+          <li>點字顯示器的六點鍵盤：NVDA 的點字輸入表請選「英文北美電腦點字碼」這類電腦點字表，打進來的字元會自動換成點字。</li>
+          <li>第一個音不寫八度記號時，當作第 4 八度（中央 C 那一個八度）。</li>
+          <li>時值只用全、二分、四分、八分音符（和休止符），可以加附點。</li>
+          <li>「分小節」預設自動：一直打下去就好，程式依拍號分小節，一個小節打滿時會告訴你。熟練後可以改成自己打空方分小節，打空方時會檢查這一小節的拍數。</li>
+        </ul>
+        <h3>快速鍵（在點字區）</h3>
+        <ul class="st-keys">
+          <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>：從游標所在的音開始播放；播放中再按一次停止</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>：從頭播放</li>
+          <li><kbd>Esc</kbd>：停止播放，游標停在最後播放的音</li>
+          <li><kbd>Alt</kbd>+<kbd>N</kbd>：念出並播放游標所在的音</li>
+          <li><kbd>Alt</kbd>+<kbd>M</kbd>：念出游標所在的這一小節</li>
+          <li><kbd>Alt</kbd>+<kbd>↓</kbd>／<kbd>Alt</kbd>+<kbd>↑</kbd>：到下一小節／上一小節的開頭，並念出那一小節</li>
+        </ul>
+        <h3>存檔與交給老師</h3>
+        <ul>
+          <li>內容會自動保存在這台電腦的瀏覽器裡，關掉再打開還在。</li>
+          <li>「存檔」存成點字檔（.brf），之後可以用「開啟」再打開。</li>
+          <li>頁面下方的五線譜會跟著點字即時更新（需要網路連線載入，桌面版有內附）。</li>
+          <li>「匯出 MusicXML」可以用 MuseScore 等打譜軟體打開成五線譜；「在轉換器開啟」會在點字樂譜轉換器裡打開，看五線譜和雙視對照。</li>
+        </ul>
+      </div>
+    </details>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
+  <script src="js/brf.js?v=47"></script>
+  <script src="js/model.js?v=47"></script>
+  <script src="js/durations.js?v=47"></script>
+  <script src="js/abc-parse.js?v=47"></script>
+  <script src="js/braille-write.js?v=47"></script>
+  <script src="js/braille-parse.js?v=47"></script>
+  <script src="js/abc-write.js?v=47"></script>
+  <script src="js/xml.js?v=47"></script>
+  <script src="js/musicxml.js?v=47"></script>
+  <script src="js/describe.js?v=47"></script>
+  <script src="js/student.js?v=47"></script>
+</body>
+</html>

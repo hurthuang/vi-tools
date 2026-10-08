@@ -949,6 +949,28 @@ async function mxlTests() {
   check('雙視：簡譜休止符寫 0', />0<\/span>/.test(box.innerHTML));
 }
 
+// ---------- 學生版 ----------
+{
+  const S = MB.student;
+  const says = (t, o) => [...t].map((_, k) => S.feedback(t.slice(0, k + 1), S.analyse(t.slice(0, k + 1), o || {}), k + 1, o || {}).say);
+  // 沒有八度記號、沒有空方：自動分小節，第一個音當第 4 八度
+  let a = S.analyse('⠹⠫⠳⠧⠹⠫⠳⠧⠝', {});
+  check('學生版：自動分小節', a.measures.map((m) => m.events.length).join(',') === '4,4,1' && a.score.parts[0].measures.length === 3);
+  check('學生版：第一個音沒有八度記號當第 4 八度', a.events[0].ev.notes[0].octave === 4);
+  check('學生版：小節滿了說出來', says('⠹⠫⠳⠧')[3] === '四分休止符，第 1 小節完成', says('⠹⠫⠳⠧')[3]);
+  // 拍數太多時不改讀成小時值（一般轉換會把多出來的音讀成 64 分音符）
+  a = S.analyse('⠹⠫⠳⠫', { meter: '3/4', bars: 'manual' });
+  check('學生版：時值只讀成全、二分、四分、八分', a.events.every((x) => x.ev.value === 4));
+  check('學生版：自己分小節時打空方檢查拍數', says('⠹⠫⠳⠫⠀', { meter: '3/4', bars: 'manual' })[4] === '第 1 小節，多了 1 拍', says('⠹⠫⠳⠫⠀', { meter: '3/4', bars: 'manual' })[4]);
+  check('學生版：跨過小節線', says('⠹⠫⠝', { meter: '3/4' })[2] === 'Do 二分音符，超過小節線');
+  // 臨時記號在自動分出的新小節不再有效
+  a = S.analyse('⠩⠫⠫⠫⠫⠫', {});
+  check('學生版：臨時記號依自動分出的小節計算', a.events.map((x) => x.ev.notes[0].alter).join('') === '11110');
+  const s2 = says('⠐⠹⠁⠉');
+  check('學生版：前置記號、指法、不是音符的點字', s2[0] === '第 4 八度記號' && s2[1] === 'Do 四分音符' && s2[2] === '指法 1（加在前一個音上）' && s2[3] === '點 1-4，不是音符', s2.join(' / '));
+  check('學生版：匯出 MusicXML', /<measure number="2"/.test(MB.toMusicXML(S.analyse('⠹⠫⠳⠧⠹', {}).score)));
+}
+
 mxlTests().then(() => {
   console.log('\n通過 ' + pass + '，失敗 ' + fail);
   process.exit(fail ? 1 : 0);

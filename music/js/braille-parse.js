@@ -524,6 +524,10 @@
    * opts.intervalDir: 單聲部時和弦音程的方向 'down'（高音譜，預設）或 'up'（低音譜）。
    * 點字單行格式本身不記載譜號，方向依規範應在轉譯者註記中說明（Par. 9.2）。
    */
+  /**
+   * options.intervalDir：單聲部和弦音程方向；options.musicOnly：每一行都當作音樂（學生版：沒有曲名、標頭，
+   * 第一個音不寫音層記號也算）；options.largeOnly：時值一律讀成全、二分、四分、八分音符；options.key、options.meter：沒有寫在點字裡時使用的調號、拍號。
+   */
   function parseBraille(input, options) {
     const opts = options || {};
     const warnings = [];
@@ -569,8 +573,8 @@
       }
 
     const score = { title: '', composer: '', tempo: null, keyboard, parts: [] };
-    let headKey = null;
-    let headMeter = null;
+    let headKey = opts.key || null;
+    let headMeter = opts.meter || null;
 
     /** 開頭行的速度文字；中文等無法還原的文字只提醒。 */
     function headText(h) {
@@ -654,6 +658,7 @@
       // 歌曲「一行歌詞、一行音樂」格式（Par. 35.1）：沒有段落編號，歌詞從行首寫起，音樂行從第 3 方開始，續行從第 5 方開始。
       // 歌詞行目前無法讀回（中文同音字無法還原），先略過，只讀音樂；記下每個平行段從哪裡開始
       const vocalFmt =
+        !opts.musicOnly &&
         !lines.some((l) => /^#[A-J]+'?\s/.test(l.text)) &&
         lines.some((l, k) => k > 0 && /^ {2}\S/.test(l.text) && /^\S/.test(lines[k - 1].text));
       let block = null;
@@ -686,11 +691,11 @@
             continue;
           }
           // 第一個置中的文字行是曲名（Par. 1.6.1，無法還原成國字，略過）；其他置中的行視為標題文字；靠左的行視為沒有小節編號的音樂
-          if (/^\s{3,}/.test(l.text) && !titleSkipped) {
+          if (!opts.musicOnly && /^\s{3,}/.test(l.text) && !titleSkipped) {
             titleSkipped = true;
             continue;
           }
-          if (/^\s{3,}/.test(l.text) || !looksLikeMusic(l.text)) {
+          if (!opts.musicOnly && (/^\s{3,}/.test(l.text) || !looksLikeMusic(l.text))) {
             warn('第一行音樂前的文字行已略過：「' + B.toUnicode(l.text.trim()) + '」', l.off);
             continue;
           }
@@ -979,7 +984,7 @@
     M.syncNav(score);
 
     // ---------- 音高、時值 ----------
-    for (const part of score.parts) buildEvents(part, warn, opts.intervalDir);
+    for (const part of score.parts) buildEvents(part, warn, opts.intervalDir, opts.largeOnly);
     if (!score.keyboard) {
       // 單聲部：依音程方向或音域選擇譜號
       const part = score.parts[0];
@@ -1122,7 +1127,7 @@
     return { id: M.newId(), kind: 'rest', measureRest: true, value: 1, dots: 0, notes: [], src: {} };
   }
 
-  function buildEvents(part, warn, intervalDir) {
+  function buildEvents(part, warn, intervalDir, largeOnly) {
     const dir = part.hand === 'L' ? 'up' : part.hand === 'R' ? 'down' : intervalDir === 'up' ? 'up' : 'down';
     let prev = null;
     let run = null;
@@ -1178,6 +1183,11 @@
       }
       const apply = (c) => c.forEach(([n, o]) => tups.forEach((t) => t.n === n && (t.of = o)));
       const items = () => [].concat(...raws.map(itemsOf));
+      // 學生版的初學時值：一律是全、二分、四分、八分音符，不依拍號改讀成小時值（拍數不對時由學生版提醒）
+      if (largeOnly) {
+        apply(combos[0]);
+        return items().map((it) => D.LARGE[it.cls]);
+      }
       // 每種比例都試，取最合理（需要縮短成小時值的音最少）的解
       let best = null;
       for (const c of combos) {
