@@ -148,7 +148,9 @@
       <label title="直線、箭頭、矩形、橢圓畫成虛線（實 4 點、空 3 點）"><input type="checkbox" id="dashed">虛線</label>
       <label><input type="radio" name="tool" value="fill">填色</label>
       <select id="fillLevel" title="填色：灰 = 高度 3，黑 = 和線一樣高，白 = 清除">
-        <option value="3" selected>填色：灰</option><option value="7">填色：黑</option><option value="0">填色：白（清除）</option>
+        <option value="3" selected>填色：灰</option><option value="7">填色：黑</option>
+        <option value="dots">填色：點狀</option><option value="diag">填色：斜線</option><option value="grid">填色：格線</option>
+        <option value="0">填色：白（清除）</option>
       </select>
       <button id="btnUndo" title="Ctrl+Z">復原</button>
       <span id="selOps" hidden>
@@ -1167,7 +1169,11 @@
     const bits = new Uint8Array(fw * fh), shade = new Uint8Array(fw * fh);
     const toD = p => [(p[0] - r.x) * dpp, (p[1] - r.y) * dpp];
     // 多邊形內部（點中心在裡面）標成網底
-    const fillPoly = pts => {
+    // 灰色區塊的深淺分級：只有一種灰就是實心灰；好幾種時由深到淺：實心灰、點狀、斜線、格線（shade 值 = 填色標記）
+    const lumKey = l => Math.round(l / 12);
+    const grays = [...new Set(v.shapes.filter(s => s.fill && !s.glyph && s.lum >= 80 && s.lum < 240).map(s => lumKey(s.lum)))].sort((a, b) => a - b);
+    const levelOf = l => Math.min(4, 1 + Math.max(0, grays.indexOf(lumKey(l))));
+    const fillPoly = (pts, level = 1) => {
       const ys = pts.map(p => p[1]);
       for (let y = Math.max(0, Math.floor(Math.min(...ys))); y < Math.min(fh, Math.ceil(Math.max(...ys))); y++) {
         const cy = y + 0.5, xs = [];
@@ -1177,7 +1183,7 @@
         }
         xs.sort((m, n) => m - n);
         for (let k = 0; k + 1 < xs.length; k += 2)
-          for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x < Math.min(fw, xs[k + 1] - 0.5); x++) shade[y * fw + x] = 1;
+          for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x < Math.min(fw, xs[k + 1] - 0.5); x++) shade[y * fw + x] = level;
       }
     };
     let count = 0;
@@ -1249,7 +1255,7 @@
             continue;
           }
         }
-        if (opts.shade && s.lum >= 80) { fillPoly(pts); count++; continue; }   // 灰色：網底
+        if (opts.shade && s.lum >= 80) { fillPoly(pts, levelOf(s.lum)); count++; continue; }   // 灰色：網底（依深淺分級）
         draw(pts, null);
       } else draw(pts, s.dash);
     }
@@ -1378,7 +1384,10 @@
     }
     if (r.shade) for (let y = 0; y < r.fh; y++) for (let x = 0; x < r.fw; x++) {
       const X = ox + x, Y = oy + y;
-      if (r.shade[y * r.fw + x] && X >= 0 && X < W && Y >= 0 && Y < H && !pg.dots[Y * W + X]) pg.dots[Y * W + X] = SHADE_LEVEL;
+      const lv = r.shade[y * r.fw + x];
+      if (!lv || X < 0 || X >= W || Y < 0 || Y >= H || pg.dots[Y * W + X]) continue;
+      if (lv === 1) pg.dots[Y * W + X] = SHADE_LEVEL;   // 實心灰（不加標記，同以前）
+      else { pg.dots[Y * W + X] = texOn(lv, X, Y) && !nearLine(pg.dots, pg.fillMask, X, Y) ? LINE : 0; pg.fillMask[Y * W + X] = lv; }
     }
     pg.shadeFound = r.shadeFound;
     pg.fig = { ox, oy, dpp: r.dpp };
@@ -1458,12 +1467,38 @@
   //   上下左右四向相連，所以斜線（八向相連）也擋得住
   //   黑色填色和線一樣是 7，用 pg.fillMask 記住哪些點是填色填的，才能再改成灰或白而不動到外框線
   //   回傳填了幾點；區域沒封閉（超過半頁）就不填，回傳 -1
+  // 填色標記（fillMask）：0 不是填色、1 實心（灰 3／黑 7）、2 點狀、3 斜線、4 格線
+  //   紋理：凸點和線一樣高（7），但緊鄰線的點不放，摸得出線和紋理的分界
+  const TEX = { dots: 2, diag: 3, grid: 4 };
+  function texOn(t, x, y) {
+    if (t === 2) return (y % 8 === 0 && x % 4 === 0) || (y % 8 === 4 && x % 4 === 2);   // 點狀：間隔 4 點、交錯
+    if (t === 3) return (x + y) % 6 === 0;                                              // 斜線：45°，間隔 6 點
+    if (t === 4) return x % 6 === 0 || y % 6 === 0;                                     // 格線：6 點一格
+    return false;
+  }
+  // (x, y) 旁邊 8 點有沒有線（不是填色的 7）
+  function nearLine(dots, mask, x, y) {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if ((dx || dy) && nx >= 0 && ny >= 0 && nx < W && ny < H && dots[ny * W + nx] >= LINE && !(mask && mask[ny * W + nx])) return true;
+    }
+    return false;
+  }
+  // 依填色種類寫入一點：v 是 0／3／7 或 'dots'／'diag'／'grid'
+  function paintFillCell(pg, i, v) {
+    const tex = TEX[v] || 0, x = i % W, y = (i / W) | 0;
+    if (tex) { pg.dots[i] = texOn(tex, x, y) && !nearLine(pg.dots, pg.fillMask, x, y) ? LINE : 0; pg.fillMask[i] = tex; }
+    else { pg.dots[i] = +v || 0; pg.fillMask[i] = +v ? 1 : 0; }
+  }
+
   function floodFill(pg, x, y, v) {
     if (x < 0 || y < 0 || x >= W || y >= H) return 0;
     const dots = pg.dots, mask = pg.fillMask || (pg.fillMask = new Uint8Array(W * H));
-    const i0 = y * W + x, from = dots[i0];
-    const ok = j => dots[j] === from && (from < LINE || mask[j]);
-    if (!ok(i0) || from === v) return 0;
+    const i0 = y * W + x, from = dots[i0], fm = mask[i0], tex = TEX[v] || 0;
+    // 同一塊：紋理看標記、實心看標記與高度、沒填過的看高度（碰到線就停）
+    const ok = fm >= 2 ? (j => mask[j] === fm) : fm === 1 ? (j => mask[j] === 1 && dots[j] === from) : (j => !mask[j] && dots[j] === from && from < LINE);
+    if (!ok(i0)) return 0;
+    if (tex ? fm === tex : (fm < 2 && from === +v)) return 0;   // 已經是這種填色
     const seen = new Uint8Array(W * H), stack = [i0], cells = [];
     seen[i0] = 1;
     while (stack.length) {
@@ -1477,7 +1512,8 @@
         if (!seen[j] && ok(j)) { seen[j] = 1; stack.push(j); }
       }
     }
-    for (const i of cells) { dots[i] = v; mask[i] = v ? 1 : 0; }
+    if (tex) for (const i of cells) { mask[i] = 0; dots[i] = 0; }   // 先清掉舊的填色，判斷緊鄰線時才不會把舊的凸點當成線
+    for (const i of cells) paintFillCell(pg, i, v);
     return cells.length;
   }
 
@@ -1825,7 +1861,7 @@
     const base = pg.dots.slice(), mbase = pg.fillMask ? pg.fillMask.slice() : null, cells = [];
     for (let y = Math.max(0, box.y); y < Math.min(H, box.y + box.h); y++) for (let x = Math.max(0, box.x); x < Math.min(W, box.x + box.w); x++) {
       const i = y * W + x;
-      if (!base[i]) continue;
+      if (!base[i] && !(mbase && mbase[i])) continue;
       cells.push([x - box.x, y - box.y, base[i], mbase ? mbase[i] : 0]);
       base[i] = 0; if (mbase) mbase[i] = 0;
     }
@@ -1886,7 +1922,8 @@
     const sx = nw / vec.w, sy = nh / vec.h, grid = new Uint8Array(nw * nh), mk = new Uint8Array(nw * nh);
     for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {   // 填色：反向取樣，放大也不會有洞
       const ox = Math.min(vec.w - 1, Math.floor((x + 0.5) / sx)), oy = Math.min(vec.h - 1, Math.floor((y + 0.5) / sy));
-      grid[y * nw + x] = vec.fill[oy * vec.w + ox]; mk[y * nw + x] = vec.fillMk[oy * vec.w + ox];
+      const m = vec.fillMk[oy * vec.w + ox];
+      grid[y * nw + x] = m >= 2 ? (texOn(m, x, y) ? LINE : 0) : vec.fill[oy * vec.w + ox]; mk[y * nw + x] = m;   // 紋理依新位置重排
     }
     const put = (x, y, v) => { if (x >= 0 && y >= 0 && x < nw && y < nh) { grid[y * nw + x] = v; mk[y * nw + x] = 0; } };
     const P = p => [Math.round((p[0] + 0.5) * sx - 0.5), Math.round((p[1] + 0.5) * sy - 0.5)];
@@ -1898,8 +1935,15 @@
           for (const [bx, by] of brush(lx, ly, vec.thick)) put(bx, by, LINE);
     }
     for (const [dx, dy, v] of vec.other) { const [x, y] = P([dx, dy]); put(x, y, v); }
+    // 紋理的凸點不貼著線（和填色時一樣留 1 點間隔）
+    const isLine = (x, y) => x >= 0 && y >= 0 && x < nw && y < nh && grid[y * nw + x] >= LINE && !mk[y * nw + x];
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+      const i = y * nw + x;
+      if (mk[i] < 2 || grid[i] < LINE) continue;
+      for (let dy = -1; dy <= 1 && grid[i]; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && isLine(x + dx, y + dy)) { grid[i] = 0; break; }
+    }
     const cells = [];
-    for (let i = 0; i < grid.length; i++) if (grid[i]) cells.push([i % nw, (i / nw) | 0, grid[i], mk[i]]);
+    for (let i = 0; i < grid.length; i++) if (grid[i] || mk[i]) cells.push([i % nw, (i / nw) | 0, grid[i], mk[i]]);
     return { cells, labels: vec.labels.map(([lb, cx, cy]) => [lb, cx * sx, cy * sy]) };
   }
 
@@ -2018,10 +2062,10 @@
         if (tool === 'pen') pen(pg, x, y);
         else if (tool === 'eraser') erase(pg, x, y);
         else if (tool === 'fill') {
-          const v = +$('#fillLevel').value;
+          const fv = $('#fillLevel').value, v = isNaN(+fv) ? fv : +fv;
           const n = floodFill(pg, x, y, v);
           if (n > 0) { (pg.fills = pg.fills || []).push({ x, y, v }); $('#edStatus').textContent = `填了 ${n} 點`; }
-          else { pg.undo.pop(); $('#edStatus').textContent = n < 0 ? '這個區域沒有封閉（線有缺口），沒有填色' : '點在線上，或已經是這個顏色'; }
+          else { pg.undo.pop(); $('#edStatus').textContent = n < 0 ? '這個區域沒有封閉（線有缺口），沒有填色' : '點在線上，或已經是這種填色'; }
           drawEditor(); updateThumb();
           return;
         }
