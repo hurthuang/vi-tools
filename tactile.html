@@ -205,8 +205,9 @@
           <div class="field"><span></span><label><input id="optThin" type="checkbox"> 線條細化成一點寬</label></div>
           <div class="field"><span></span><label><input id="optStraight" type="checkbox"> 拉直線條、修正尖角</label></div>
           <div class="field"><span></span><label><input id="optHideText" type="checkbox"> 不畫 PDF 裡的文字</label></div>
-          <div class="field"><span></span><label><input id="optSpecks" type="checkbox"> 去除圖片裡的字（留空白標籤給你填）</label></div>
         </div>
+        <div class="field"><span></span><label><input id="optSpecks" type="checkbox"> 去除圖裡的字（圖片裡的字、轉成外框的字）</label></div>
+        <div class="field"><span></span><label><input id="optBlank" type="checkbox"> 在去掉的字的位置留空白標籤</label></div>
         <div class="bar"><button id="btnRegen">重新產生圖形</button><span class="muted">標籤保留；手畫、擦掉的線會重來（可復原）</span></div>
       </div>
     </div>
@@ -250,7 +251,7 @@
   const suppOn = () => { try { return localStorage.getItem(SUPP_KEY) === '1'; } catch (e) { return false; } };
   const titleBraille = t => toBraille(t, { supplement: suppOn() });
   const labelBraille = t => toBraille(t, { lowerDigits: true, supplement: suppOn() }).braille;
-  const defaultOpts = () => ({ mode: 'auto', scale: 100, threshold: 180, thin: true, hideText: true, shade: true, dropSpecks: true, straighten: true });
+  const defaultOpts = () => ({ mode: 'auto', scale: 100, threshold: 180, thin: true, hideText: true, shade: true, dropSpecks: true, blankLabels: true, straighten: true });
 
   const $ = s => document.querySelector(s);
   const titleBrlEl = $('[data-role=titleBrl]');   // id 會被六點輸入借走，用 data-role 找
@@ -707,7 +708,7 @@
       if (bits[i]) shade[i] = 0;
     }
     if (opts.thin) thin(bits, fw, fh);
-    const specks = opts.dropSpecks ? dropSpecks(bits, fw, fh) : [];
+    const specks = opts.dropSpecks ? groupWords(dropSpecks(bits, fw, fh)) : [];
     if (opts.thin && opts.straighten !== false) straighten(bits, fw, fh);
     if (shadeHi > 0) closeShade(shade, bits, fw, fh);
     return { bits, fw, fh, dpp, shade, specks, shadeFound: shadeHi > 0 };
@@ -1008,7 +1009,7 @@
     for (const c of comps) {
       if (Math.max(c.x1 - c.x0, c.y1 - c.y0) > limit) continue;
       for (const j of c.cells) b[j] = 0;
-      if (c.cells.length >= 3) out.push({ cx: (c.x0 + c.x1) / 2, cy: (c.y0 + c.y1) / 2 });
+      if (c.cells.length >= 3) out.push({ x0: c.x0, y0: c.y0, x1: c.x1 + 1, y1: c.y1 + 1 });
     }
     return out;
   }
@@ -1050,18 +1051,39 @@
     const pop = () => { const s = stack.pop(); if (s) { ctm = s.ctm; st = s.st; } };
     const LIGHT = 200;   // 比這亮的顏色（白、淺灰網底）不畫
 
+    // 轉成外框的字：深色實心、高度像字（4.5–16pt）、筆畫複雜（10 段以上，或有好幾個外框，例如「甲」）
+    //   箭頭（3、4 段）、小圓點（4 段曲線）、砂岩的點狀花紋（太小）不算
+    let segs = 0;
+    const isGlyph = () => {
+      if (st.fill >= 80) return false;
+      const subs = path.filter(p => p.length >= 2);
+      if (!subs.length) return false;
+      const xs = subs.flat().map(q => q[0]), ys = subs.flat().map(q => q[1]);
+      const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+      return h >= 4.5 && h <= 16 && w <= 160 && (segs >= 10 || subs.length >= 2);
+    };
+    // 大小像字的深色實心小圖形（例如筆畫簡單的「1」）：本身不確定，緊鄰確定是字的圖形時才當成字
+    const isTextLike = () => {
+      if (st.fill >= 80) return false;
+      const pts = path.flat();
+      if (!pts.length) return false;
+      const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+      const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+      return h >= 3 && h <= 16 && w <= 16;
+    };
     const emit = (kind, close) => {
+      const glyph = kind === 'fill' && isGlyph(), textLike = kind === 'fill' && !glyph && isTextLike();
       for (const p of path) {
         if (p.length < 2 && !(kind === 'fill' && p.length === 1)) continue;
         if (kind === 'stroke') shapes.push({ pts: p, closed: close || p.closed, dash: st.dash ? st.dash.map(d => d * scaleOf(ctm)) : null });
-        else shapes.push({ pts: p, closed: true, fill: true, lum: st.fill });
+        else shapes.push({ pts: p, closed: true, fill: true, lum: st.fill, glyph, textLike });
       }
-      path = []; sub = null;
+      path = []; sub = null; segs = 0;
     };
     const paint = (stroke, fill, close) => {
       if (stroke && st.stroke < LIGHT) emit('stroke', close);
       else if (fill && st.fill < 240) emit('fill');
-      else { path = []; sub = null; }
+      else { path = []; sub = null; segs = 0; }
     };
 
     for (let i = 0; i < ol.fnArray.length; i++) {
@@ -1082,6 +1104,7 @@
           let k = 0;
           for (const op of ops) {
             const last = sub && sub.length ? sub[sub.length - 1] : null;
+            if (op !== O.moveTo && op !== O.closePath) segs++;
             if (op === O.moveTo) { sub = [T(args[k], args[k + 1])]; path.push(sub); k += 2; }
             else if (op === O.lineTo) { if (!sub) { sub = []; path.push(sub); } sub.push(T(args[k], args[k + 1])); k += 2; }
             else if (op === O.curveTo || op === O.curveTo2 || op === O.curveTo3) {
@@ -1111,7 +1134,7 @@
         case O.fill: case O.eoFill: paint(false, true); break;
         case O.fillStroke: case O.eoFillStroke: paint(true, true, false); break;
         case O.closeFillStroke: case O.closeEOFillStroke: paint(true, true, true); break;
-        case O.endPath: path = []; sub = null; break;
+        case O.endPath: path = []; sub = null; segs = 0; break;
         case O.paintImageXObject: case O.paintInlineImageXObject: case O.paintImageMaskXObject: case O.paintImageXObjectRepeat: {
           const c = [T(0, 0), T(1, 0), T(0, 1), T(1, 1)];
           images.push({ x0: Math.min(...c.map(p => p[0])), x1: Math.max(...c.map(p => p[0])), y0: Math.min(...c.map(p => p[1])), y1: Math.max(...c.map(p => p[1])) });
@@ -1191,9 +1214,24 @@
       }
     };
 
+    // 先找出確定是字的外框，再把緊鄰它們、大小像字的小圖形也算進去
+    const boxOf = pts => { const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]); return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }; };
+    const sure = v.shapes.filter(s => s.glyph).map(s => boxOf(s.pts.map(toD)));
+    const nearGlyph = b => sure.some(g => {
+      const h = Math.max(g.y1 - g.y0, b.y1 - b.y0, 1);
+      const vOverlap = Math.min(g.y1, b.y1) - Math.max(g.y0, b.y0), gap = Math.max(g.x0, b.x0) - Math.min(g.x1, b.x1);
+      return vOverlap > -0.5 && gap < h;
+    });
+    const glyphBoxes = [];
     for (const s of v.shapes) {
       let pts = s.pts.map(toD);
       if (s.closed && pts.length > 2) pts = [...pts, pts[0]];
+      if ((s.glyph || (s.textLike && nearGlyph(boxOf(pts)))) && opts.dropSpecks !== false) {   // 轉成外框的字：不畫，記下位置
+        const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+        const b = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+        if (b.x1 > 0 && b.y1 > 0 && b.x0 < fw && b.y0 < fh) glyphBoxes.push(b);
+        continue;
+      }
       if (s.fill) {
         // 填色：很小的當成一個點；細長的四邊形（用填色畫的線）取中線；其他畫外框
         const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
@@ -1216,7 +1254,7 @@
       } else draw(pts, s.dash);
     }
     for (let i = 0; i < shade.length; i++) if (bits[i]) shade[i] = 0;
-    return { bits, fw, fh, dpp, count, shade, specks: [], shadeFound: shade.some(v => v) };
+    return { bits, fw, fh, dpp, count, shade, specks: groupWords(glyphBoxes), shadeFound: shade.some(v => v) };
   }
 
   // Zhang–Suen 細化：粗線變成一點寬
@@ -1245,40 +1283,84 @@
     }
   }
 
-  // PDF 文字裡像標籤的字：A、B、P、L1、M2、A'；字母右下較小的數字併成下標
+  // PDF 文字裡的標籤：字母（A、L1、M2、A'）、數字（1921、500m、30°N、25%）、短的中文詞（甲、砂岩、男性）
+  //   先把同一列、緊鄰的文字片段接起來（中文常一字一段，下標是緊貼的小字），再依空白切開、分類
+  //   圖說（圖五、圖(五)）與超過 8 個字的句子不算
   async function extractLabels(src) {
     if (src.doc.kind !== 'pdf') return [];
     const page = await src.doc.pdf.getPage(src.page);
     const vp = page.getViewport({ scale: 1 });
     const tc = await page.getTextContent();
     const r = src.rect;
-    const toks = [];
+    // 每個字元的位置
+    const items = [];
     for (const it of tc.items) {
-      if (!it.str || !it.str.trim()) continue;
+      if (!it.str) continue;
       const t = pdfjsLib.Util.transform(vp.transform, it.transform);
-      const fh = Math.hypot(t[2], t[3]) || 10;
-      const x0 = t[4], base = t[5], len = it.str.length;
-      const wpc = (it.width || fh * 0.6 * len) / len;
-      const re = /\S+/g; let m;
-      while ((m = re.exec(it.str))) {
-        const s = m[0];
-        if (!/^([A-Za-z][0-9]?['′]?|[0-9])$/.test(s)) continue;
-        const left = x0 + wpc * m.index, right = left + wpc * s.length;
-        toks.push({ text: s, left, right, cx: (left + right) / 2, cy: base - fh * 0.35, fh });
-      }
+      const fh = Math.hypot(t[2], t[3]) || 10, chars = [...it.str];
+      if (!chars.length) continue;
+      const wpc = (it.width || fh * 0.6 * chars.length) / chars.length;
+      items.push({ chars: chars.map((c, k) => ({ c, x0: t[4] + wpc * k, x1: t[4] + wpc * (k + 1) })), base: t[5], fh, x0: t[4], x1: t[4] + wpc * chars.length });
     }
-    // 下標：數字在某個字母右邊、字比較小
+    // 排成一列一列：基線相差不到 0.45 個字高算同一列（下標的基線略低也算）
+    items.sort((p, q) => p.base - q.base);
+    const lines = [];
+    for (const it of items) {
+      const ln = lines.find(l => Math.abs(l.base - it.base) < 0.45 * Math.max(l.fh, it.fh));
+      if (ln) { ln.items.push(it); ln.fh = Math.max(ln.fh, it.fh); } else lines.push({ base: it.base, fh: it.fh, items: [it] });
+    }
+    const toks = [];
+    for (const ln of lines) {
+      ln.items.sort((p, q) => p.x0 - q.x0);
+      // 依序串成字元流，片段之間距離超過半個字高就當成空白
+      const flow = [];
+      ln.items.forEach((it, k) => {
+        if (k && it.x0 - ln.items[k - 1].x1 > ln.fh * 0.5) flow.push({ c: ' ', x0: it.x0, x1: it.x0 });
+        for (const ch of it.chars) flow.push({ ...ch, fh: it.fh, base: it.base });
+      });
+      let cur = [];
+      const flush = () => {
+        if (cur.length) {
+          const text = cur.map(c => c.c).join(''), fh = Math.max(...cur.map(c => c.fh));
+          toks.push({ text, cx: (cur[0].x0 + cur[cur.length - 1].x1) / 2, cy: ln.base - fh * 0.35 });
+        }
+        cur = [];
+      };
+      for (const ch of flow) { if (/\s/.test(ch.c)) flush(); else cur.push(ch); }
+      flush();
+    }
+    const CJK = /[\u3400-\u9fff]/;
+    const isLabel = t =>
+      /^[A-Za-z][0-9]*['′]?$/.test(t) ||                                        // A、L1、A'
+      /^[-−]?\d+(\.\d+)?(°[NSEW]?|%|[a-zA-Z]{1,3})?$/.test(t) ||                // 1921、500m、30°N、25%
+      (CJK.test(t) && [...t].length <= 8 && /^[\u3400-\u9fff\u3000-\u303f（）()、0-9A-Za-z°%]+$/.test(t)
+        && !/^圖[（(]?[一二三四五六七八九十0-9]/.test(t));                       // 甲、砂岩、男性；不要圖說
     const out = [];
-    const letters = toks.filter(t => /[A-Za-z]/.test(t.text));
-    for (const d of toks.filter(t => /^[0-9]$/.test(t.text))) {
-      const host = letters.find(l => !/[0-9]/.test(l.text) && d.fh < l.fh * 0.9 && d.left - l.right < l.fh * 0.6 && d.left - l.right > -l.fh * 0.3 && Math.abs(d.cy - l.cy) < l.fh * 0.8);
-      if (host) { host.text += d.text; host.right = d.right; host.cx = (host.left + host.right) / 2; }
-    }
-    for (const l of letters) {
-      if (l.cx < r.x || l.cx > r.x + r.w || l.cy < r.y || l.cy > r.y + r.h) continue;
-      out.push({ text: l.text.replace('′', "'"), cx: l.cx, cy: l.cy });
+    for (const t of toks) {
+      const text = t.text.replace('′', "'").replace(/^[（(](.*)[）)]$/, '$1');
+      if (!text || !isLabel(text)) continue;
+      if (t.cx < r.x || t.cx > r.x + r.w || t.cy < r.y || t.cy > r.y + r.h) continue;
+      out.push({ text, cx: t.cx, cy: t.cy });
     }
     return out;
+  }
+
+  const opts_blank = pg => pg.opts.blankLabels !== false;
+
+  // 去掉的字（碎片或外框字）合併成詞：中心距離近的歸成一組，每組留一個空白標籤
+  //   boxes：[{ x0, y0, x1, y1 }]（圖形點座標）；同一列（垂直重疊）且水平間隔小於 1 個字高的算同一個詞
+  function groupWords(boxes) {
+    const n = boxes.length, parent = boxes.map((_, i) => i);
+    const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = boxes[i], b = boxes[j], h = Math.max(a.y1 - a.y0, b.y1 - b.y0, 2);
+      const vOverlap = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0), gap = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1);
+      const hOverlap = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), vgap = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1);
+      if ((vOverlap > -1 && gap < h * 1.0) || (hOverlap > -1 && vgap < 1.5)) parent[find(i)] = find(j);
+    }
+    const groups = new Map();
+    boxes.forEach((b, i) => { const r = find(i), g = groups.get(r) || { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 }; g.x0 = Math.min(g.x0, b.x0); g.y0 = Math.min(g.y0, b.y0); g.x1 = Math.max(g.x1, b.x1); g.y1 = Math.max(g.y1, b.y1); groups.set(r, g); });
+    return [...groups.values()].map(g => ({ cx: (g.x0 + g.x1) / 2, cy: (g.y0 + g.y1) / 2 }));
   }
 
   // keepLabels：保留現有標籤（含手動加的、拖過的），只隨圖形大小、位置一起搬移
@@ -1321,7 +1403,7 @@
     pg.fills = [];
     const raw = await extractLabels(pg.src);
     // 圖片裡的字被當碎片移除了：在原位置放空白標籤，讓使用者填字
-    for (const sp of r.specks || [])
+    for (const sp of opts_blank(pg) ? r.specks || [] : [])
       if (!raw.some(l => Math.hypot(ox + (l.cx - pg.src.rect.x) * r.dpp - ox - sp.cx, oy + (l.cy - pg.src.rect.y) * r.dpp - oy - sp.cy) < 6))
         raw.push({ text: '', cx: pg.src.rect.x + sp.cx / r.dpp, cy: pg.src.rect.y + sp.cy / r.dpp });
     pg.labels = raw.map(l => ({
@@ -1505,6 +1587,7 @@
     $('#optShade').checked = pg.opts.shade !== false;
     $('#optStraight').checked = pg.opts.straighten !== false;
     $('#optSpecks').checked = pg.opts.dropSpecks !== false;
+    $('#optBlank').checked = pg.opts.blankLabels !== false;
     $('#optHideText').parentElement.hidden = !pg.src || pg.src.doc.kind !== 'pdf';
     renderLabelList();
   }
@@ -1593,10 +1676,10 @@
 
   const optChanged = async () => {
     const pg = pages[cur]; if (!pg || !pg.src) return;
-    pg.opts = { mode: $('#optMode').value, scale: +$('#optScale').value || 100, threshold: +$('#optThreshold').value, thin: $('#optThin').checked, hideText: $('#optHideText').checked, shade: $('#optShade').checked, dropSpecks: $('#optSpecks').checked, straighten: $('#optStraight').checked };
+    pg.opts = { mode: $('#optMode').value, scale: +$('#optScale').value || 100, threshold: +$('#optThreshold').value, thin: $('#optThin').checked, hideText: $('#optHideText').checked, shade: $('#optShade').checked, dropSpecks: $('#optSpecks').checked, blankLabels: $('#optBlank').checked, straighten: $('#optStraight').checked };
     $('#thrVal').textContent = pg.opts.threshold;
   };
-  for (const id of ['#optMode', '#optScale', '#optThreshold', '#optThin', '#optHideText', '#optShade', '#optSpecks', '#optStraight']) $(id).addEventListener('input', optChanged);
+  for (const id of ['#optMode', '#optScale', '#optThreshold', '#optThin', '#optHideText', '#optShade', '#optSpecks', '#optBlank', '#optStraight']) $(id).addEventListener('input', optChanged);
   $('#btnRegen').onclick = async () => {
     const pg = pages[cur]; if (!pg || !pg.src) return;
     await optChanged();
