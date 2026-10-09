@@ -203,6 +203,7 @@
           </select> <span id="modeUsed" class="muted"></span></span></div>
         <div class="field"><span>大小</span><span><input id="optScale" type="number" min="20" max="200" step="5" style="width:70px"> %</span></div>
         <div class="field"><span></span><label><input id="optShade" type="checkbox"> 灰色網底轉成填色（高度 3）</label></div>
+        <p id="photoWarn" class="warn" hidden>這張看起來是照片，轉出來通常摸不出重點。建議改用文字描述，或勾「描圖」照著原圖手畫重點線條。</p>
         <div id="rasterOpts">
           <div class="field"><span>深色門檻</span><span><input id="optThreshold" type="range" min="60" max="245" style="width:150px"> <span id="thrVal" class="muted"></span></span></div>
           <div class="field"><span></span><label><input id="optThin" type="checkbox"> 線條細化成一點寬</label></div>
@@ -658,32 +659,40 @@
       const v = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) | 0;
       lum[i] = v; hist[v]++;
     }
-    // 網底：灰階分布在 90–225 之間有明顯的峰（佔 3% 以上）。有的話線條門檻降到網底以下，網底另外轉成填色
-    let lineThr = opts.threshold, shadeLo = 256, shadeHi = 0;
-    if (opts.shade) {
-      let peak = -1, pc = 0;
-      for (let v = 90; v <= 225; v++) {
-        let c = 0;
-        for (let d = -3; d <= 3; d++) c += hist[v + d];
-        if (c > pc) { pc = c; peak = v; }
-      }
-      if (pc > lum.length * 0.03) {
-        lineThr = Math.max(40, Math.min(opts.threshold, peak - 45));
-        shadeLo = peak - 30; shadeHi = peak + 30;
-      }
-    }
-    // 每點統計：深色（線）、網底灰、其他灰（反鋸齒的細線邊緣）
-    const cnt = new Uint16Array(fw * fh), shadeCnt = new Uint16Array(fw * fh), midCnt = new Uint16Array(fw * fh);
+    // 照片（連續色調）：中間灰階佔很多、而且分散在很多種灰（不是幾種固定的網底灰）
+    const photo = isPhoto(lum, cv.width, cv.height);
+    // 網底：灰階分布在 90–232 之間的峰（各佔 3% 以上、彼此相差 25 以上），最多 4 種，由深到淺對應實心灰、點狀、斜線、格線
+    //   有網底的話，線條門檻降到最深的網底以下
+    let lineThr = opts.threshold;
+    const peaks = opts.shade && !photo ? grayPeaks(hist, lum.length) : [];
+    const shadeHi = peaks.length ? 1 : 0;
+    if (peaks.length) lineThr = Math.max(40, Math.min(opts.threshold, peaks[0] - 45));
+    // 每個灰階屬於哪一種網底（0 = 不是網底）：最接近的峰，相差不超過 30、也不超過和隔壁峰的一半
+    const lvOf = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) peaks.forEach((pk, k) => {
+      const half = Math.min(30, ...peaks.filter((_, j) => j !== k).map(q => Math.abs(q - pk) / 2));
+      if (Math.abs(v - pk) <= half && v <= 245) lvOf[v] = k + 1;   // 很淡的灰（約 228）的 JPEG 雜訊會到 245
+    });
+    // 每點統計：深色（線）、各種網底灰、其他灰（反鋸齒的細線邊緣）
+    const cnt = new Uint16Array(fw * fh), midCnt = new Uint16Array(fw * fh);
+    const shadeCnt = peaks.map(() => new Uint16Array(fw * fh));
     for (let y = 0; y < cv.height; y++) {
       const row = ((y / SS) | 0) * fw;
       for (let x = 0; x < cv.width; x++) {
         const v = lum[y * cv.width + x], c = row + ((x / SS) | 0);
         if (v < lineThr) cnt[c]++;
-        else if (v < 235) { midCnt[c]++; if (v >= shadeLo && v <= shadeHi) shadeCnt[c]++; }
+        else { if (v < 235) midCnt[c]++; if (lvOf[v]) shadeCnt[lvOf[v] - 1][c]++; }
       }
     }
     const bits = new Uint8Array(fw * fh), shade = new Uint8Array(fw * fh);
-    for (let i = 0; i < bits.length; i++) shade[i] = cnt[i] < MIN_PX && shadeCnt[i] >= SS * SS * 0.5 ? 1 : 0;
+    for (let i = 0; i < bits.length; i++) {
+      if (cnt[i] >= MIN_PX) continue;
+      let best = 0, bc = SS * SS * 0.5 - 1;
+      shadeCnt.forEach((sc, k) => { if (sc[i] > bc) { bc = sc[i]; best = k + 1; } });
+      shade[i] = best ? Math.min(4, best) : 0;
+    }
+    // 粗的深色色塊（5×5 點以上都是深色，例如人口金字塔、地圖上的黑色區塊）：轉成黑色填色，不要細化成骨架
+    const solid = opts.shade ? solidBlocks(cnt, fw, fh) : null;
     // 網底裡的洞（例如網底上的白字）補起來：一塊空白四周全是網底（沒碰到線、沒碰到邊）就整塊填成網底
     if (shadeHi > 0) {
       const seen = new Uint8Array(fw * fh);
@@ -703,19 +712,30 @@
             if (!seen[j]) { seen[j] = 1; st.push(j); }
           }
         }
-        if (enclosed && comp.length <= fw * fh * 0.02) for (const i of comp) shade[i] = 1;
+        if (enclosed && comp.length <= fw * fh * 0.02) {
+          // 補成四周最多的那種網底
+          const votes = [0, 0, 0, 0, 0];
+          for (const i of comp) { const x = i % fw, y = (i / fw) | 0; for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) { const j = ny * fw + nx; if (nx >= 0 && ny >= 0 && nx < fw && ny < fh && shade[j]) votes[shade[j]]++; } }
+          const lv = votes.indexOf(Math.max(...votes));
+          for (const i of comp) shade[i] = lv || 1;
+        }
       }
     }
     for (let i = 0; i < bits.length; i++) {
       // 線：深色夠多；或不是網底、但灰色像素不少（淡的細線）
       bits[i] = cnt[i] >= MIN_PX || (!shade[i] && shadeHi > 0 && midCnt[i] >= SS + 2) ? 1 : 0;
       if (bits[i]) shade[i] = 0;
+      if (solid && solid[i]) bits[i] = 0;   // 黑色色塊另外處理
     }
     if (opts.thin) thin(bits, fw, fh);
     const specks = opts.dropSpecks ? groupWords(dropSpecks(bits, fw, fh)) : [];
     if (opts.thin && opts.straighten !== false) straighten(bits, fw, fh);
     if (shadeHi > 0) closeShade(shade, bits, fw, fh);
-    return { bits, fw, fh, dpp, shade, specks, shadeFound: shadeHi > 0 };
+    if (solid) for (let i = 0; i < solid.length; i++) if (solid[i]) { shade[i] = 5; bits[i] = 0; }
+    // 不同填色相鄰的地方畫一條分界線
+    if (shadeHi > 0 || solid) fillBorders(shade, bits, fw, fh);
+    const found = shade.some(v => v);
+    return { bits, fw, fh, dpp, shade, specks, shadeFound: found, photo };
   }
 
   // ── 點陣拉直：細化後的骨架常有削平的尖角、交會處的小鉤子 ──
@@ -949,6 +969,83 @@
 
   // 網底收尾：線兩側的白邊、網底上的字被細化／移除後留下的洞補成網底
   //   空白點周圍 5×5（不算線）有 65% 以上是網底就補；網底外緣有一半是白的，不會溢出
+  // 照片判斷：照片幾乎整張都有顏色（非白 65% 以上），而且顏色是漸變的
+  //   （相隔一點的像素差 3–24 的佔非白的 25% 以上；用一點的間隔比，放大的小圖也看得出來）
+  //   圖表、地圖是大片平塗加上清楚的邊，漸變很少；線稿大部分是白的
+  function isPhoto(lum, w, h) {
+    let nonWhite = 0, smooth = 0, total = 0;
+    for (let y = 0; y + SS < h; y++) for (let x = 0; x + SS < w; x++) {
+      const i = y * w + x, v = lum[i];
+      total++;
+      if (v >= 235) continue;
+      nonWhite++;
+      const d = Math.max(Math.abs(lum[i + SS] - v), Math.abs(lum[i + SS * w] - v));
+      if (d >= 3 && d <= 24) smooth++;
+    }
+    return nonWhite >= total * 0.65 && smooth >= nonWhite * 0.25;
+  }
+  // 灰色的峰（90–232，很淡的灰也算）：平滑後的局部最大值，佔 3% 以上、彼此相差 25 以上，由深到淺最多 4 個
+  function grayPeaks(hist, total) {
+    const sm = v => { let c = 0; for (let d = -3; d <= 3; d++) c += hist[v + d] || 0; return c; };
+    const cand = [];
+    for (let v = 90; v <= 232; v++) {
+      const c = sm(v);
+      if (c > total * 0.03 && c >= sm(v - 1) && c > sm(v + 1)) cand.push({ v, c });
+    }
+    cand.sort((a, b) => b.c - a.c);
+    const out = [];
+    for (const k of cand) if (out.every(v => Math.abs(v - k.v) >= 25)) out.push(k.v);
+    return out.slice(0, 4).sort((a, b) => a - b);
+  }
+  // 粗的深色色塊：以 5×5 都是深色的點為核心，連成 12 點以上的一塊，再往外長 2 點（回到原本的範圍）
+  function solidBlocks(cnt, w, h) {
+    const dark = i => cnt[i] >= SS * SS * 0.6;
+    const core = new Uint8Array(w * h);
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+      let all = true;
+      for (let dy = -2; dy <= 2 && all; dy++) for (let dx = -2; dx <= 2; dx++) if (!dark((y + dy) * w + x + dx)) { all = false; break; }
+      if (all) core[y * w + x] = 1;
+    }
+    const seen = new Uint8Array(w * h), out = new Uint8Array(w * h);
+    let any = false;
+    for (let s0 = 0; s0 < core.length; s0++) {
+      if (!core[s0] || seen[s0]) continue;
+      const comp = [], st = [s0]; seen[s0] = 1;
+      while (st.length) {
+        const i = st.pop(); comp.push(i);
+        const x = i % w, y = (i / w) | 0;
+        for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+          const j = ny * w + nx;
+          if (nx >= 0 && ny >= 0 && nx < w && ny < h && core[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+        }
+      }
+      if (comp.length < 12) continue;
+      any = true;
+      for (const i of comp) {
+        const x = i % w, y = (i / w) | 0;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const j = (y + dy) * w + x + dx;
+          if (dark(j)) out[j] = 1;
+        }
+      }
+    }
+    return any ? out : null;
+  }
+  // 兩種不同的填色相鄰（不含空白）：在其中一邊畫分界線
+  function fillBorders(shade, bits, w, h) {
+    const add = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, a = shade[i];
+      if (!a) continue;
+      for (const [nx, ny] of [[x + 1, y], [x, y + 1]]) {
+        if (nx >= w || ny >= h) continue;
+        const b = shade[ny * w + nx];
+        if (b && b !== a) add.push(a === 5 ? ny * w + nx : i);   // 黑色色塊保持完整，線畫在另一邊
+      }
+    }
+    for (const i of add) { bits[i] = 1; shade[i] = 0; }
+  }
+
   function closeShade(shade, bits, w, h) {
     for (let pass = 0; pass < 4; pass++) {
       const add = [];
@@ -956,16 +1053,17 @@
         const i = y * w + x;
         if (shade[i] || bits[i]) continue;
         let sh = 0, n = 0;
+        const votes = [0, 0, 0, 0, 0];
         for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
           const nx = x + dx, ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= w || ny >= h) { n++; continue; }
           const j = ny * w + nx;
           if (bits[j]) continue;
-          n++; if (shade[j]) sh++;
+          n++; if (shade[j]) { sh++; votes[shade[j]]++; }
         }
-        if (n && sh / n >= 0.65) add.push(i);
+        if (n && sh / n >= 0.65) add.push([i, votes.indexOf(Math.max(...votes))]);
       }
-      for (const i of add) shade[i] = 1;
+      for (const [i, lv] of add) shade[i] = lv;
       if (!add.length) break;
     }
     // 太小的網底碎塊（JPEG 雜訊、字的邊緣）拿掉
@@ -1389,9 +1487,11 @@
       const lv = r.shade[y * r.fw + x];
       if (!lv || X < 0 || X >= W || Y < 0 || Y >= H || pg.dots[Y * W + X]) continue;
       if (lv === 1) pg.dots[Y * W + X] = SHADE_LEVEL;   // 實心灰（不加標記，同以前）
+      else if (lv === 5) { pg.dots[Y * W + X] = LINE; pg.fillMask[Y * W + X] = 1; }   // 黑色色塊
       else { pg.dots[Y * W + X] = texOn(lv, X, Y) && !nearLine(pg.dots, pg.fillMask, X, Y) ? LINE : 0; pg.fillMask[Y * W + X] = lv; }
     }
     pg.shadeFound = r.shadeFound;
+    pg.photo = !!r.photo;
     pg.fig = { ox, oy, dpp: r.dpp };
     if (keepLabels) {
       const moved = old && (old.ox !== ox || old.oy !== oy || old.dpp !== r.dpp);
@@ -1616,6 +1716,7 @@
     $('#genBox').hidden = !pg.src;
     $('#optMode').value = pg.opts.mode || 'auto';
     $('#modeUsed').textContent = pg.usedMode ? '（這頁用' + (pg.usedMode === 'vector' ? '向量' : '點陣') + (pg.shadeFound ? '，有網底' : '') + '）' : '';
+    $('#photoWarn').hidden = !(pg.photo && pg.usedMode !== 'vector');
     $('#rasterOpts').hidden = pg.usedMode === 'vector';
     $('#optScale').value = pg.opts.scale;
     $('#optThreshold').value = pg.opts.threshold;
