@@ -161,6 +161,7 @@
         <button id="opPaste" title="貼上（Ctrl+V）">貼上</button>
       </span>
       <span style="flex:1"></span>
+      <label class="muted" title="在編輯區底下半透明顯示原圖，照著描（原圖不會匯出）"><input type="checkbox" id="trace"> 描圖</label>
       <select id="zoom"><option value="2">200%</option><option value="3" selected>300%</option><option value="4">400%</option></select>
     </div>
     <div id="edWrap"><canvas id="ed"></canvas></div>
@@ -224,6 +225,7 @@
         <li>畫直線、箭頭時按住 Shift 鎖定角度，矩形變正方形、橢圓變正圓</li>
         <li>「選取」框起一塊後可拖曳搬移、拖四個角縮放（Shift 等比例）、方向鍵微調、Delete 刪除；Ctrl+C／X／V 複製剪下貼上（可跨頁）、Ctrl+D 複製一份；翻轉、旋轉 90° 按工具列的按鈕</li>
         <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色（標籤保留），適合清掉點陣圖裡的字</li>
+        <li>勾「描圖」會在編輯區底下半透明顯示原圖，可以用直線、畫點等工具照著描（原圖不會匯出）</li>
         <li>頁面清單可以拖曳排序，或用 Alt+↑／↓ 移動目前這頁</li>
         <li>來源換頁：PgUp／PgDn、Home／End、輸入頁碼，或點上方的頁面縮圖（綠色數字是那頁框了幾張圖）</li>
         <li>匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印</li>
@@ -1741,6 +1743,7 @@
   // ── 點陣編輯器 ──────────────────────────────────────
   for (const r of document.querySelectorAll('input[name=tool]')) r.onchange = () => { tool = r.value; drawEditor(); };
   $('#zoom').onchange = e => { zoom = +e.target.value; drawEditor(); };
+  $('#trace').onchange = () => drawEditor();
 
   let preview = null;   // 形狀預覽：{ type, x0, y0, x1, y1, shift }
   let selBox = null;    // 選取框 { x, y, w, h }（點）
@@ -1759,6 +1762,11 @@
     for (let y = 0; y <= H; y += 10) { ctx.beginPath(); ctx.moveTo(0, y * z + .5); ctx.lineTo(cv.width, y * z + .5); ctx.stroke(); }
     const pg = pages[cur];
     if (!pg) { $('#edStatus').textContent = '框選一張圖並加入，或開啟既有的 PRN'; return; }
+    $('#trace').disabled = !(pg.src && pg.fig);
+    if ($('#trace').checked && pg.src && pg.fig) {
+      const t = traceCanvas(pg, z);
+      if (t) { ctx.globalAlpha = 0.35; ctx.drawImage(t, pg.fig.ox * z, pg.fig.oy * z); ctx.globalAlpha = 1; }
+    }
     const d = compose(pg), rad = z * 0.45;
     for (let i = 0; i < d.length; i++) {
       const v = d[i]; if (!v) continue;
@@ -1989,6 +1997,28 @@
   function selCorners() {
     const b = selBox;
     return b ? [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]] : [];
+  }
+
+  // 描圖用的原圖：照這頁轉換時的位置與大小，畫在編輯區的倍率上；換倍率或重新產生後重畫（非同步，畫好再更新畫面）
+  function traceCanvas(pg, z) {
+    const key = [z, pg.fig.dpp, pg.src.page, pg.src.rect.x, pg.src.rect.y, pg.src.rect.w, pg.src.rect.h].join(',');
+    if (pg.trace && pg.trace.key === key) return pg.trace.canvas;
+    if (pg.tracing === key) return null;
+    pg.tracing = key;
+    (async () => {
+      const r = pg.src.rect, k = pg.fig.dpp * z;
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(r.w * k)); cv.height = Math.max(1, Math.round(r.h * k));
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      if (pg.src.doc.kind === 'pdf') {
+        const page = await pg.src.doc.pdf.getPage(pg.src.page);
+        await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: k }), transform: [1, 0, 0, 1, -r.x * k, -r.y * k] }).promise;
+      } else ctx.drawImage(pg.src.doc.imgs[pg.src.page - 1], r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
+      pg.trace = { key, canvas: cv }; pg.tracing = null;
+      if (pages[cur] === pg) drawEditor();
+    })().catch(e => { console.warn('描圖底圖畫不出來', e); pg.tracing = null; });
+    return null;
   }
 
   // 以 (x, y) 為中心、邊長 s 的方塊
