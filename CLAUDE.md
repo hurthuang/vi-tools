@@ -1076,5 +1076,8 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - 點字規則（使用者確認）：標籤大寫記號＋字母、數字一律下位數字；單獨數字、以數字開頭、空白或 = < > 後的數字加數字記號；字母後的數字是下標（M₁ ⠠⠍⠂）；運算符號照 Nemeth（等號前後空方）。標題用 ⠼＋上位數字（「選擇 4. 圖一」）
 - 來源：PDF（pdf.js）、圖片、.docx（JSZip 取 word/media 裡被 a:blip／v:imagedata 引用的 PNG／JPG／GIF／BMP，依文件順序一張一頁，小於 40×40 的略過；Word 圖案（非文字方塊的 wps:wsp、沒有圖片的 w:pict）與 EMF／WMF 讀不到，計數提示另存 PDF）。圖片文件 `doc.kind === 'img'`、`doc.imgs[]`
 - 圖形：PDF 向量線條直接逐點畫（`getVectors`／`vectorize`）；框選範圍有內嵌圖片時用點陣：網底偵測（灰階峰值）→ 細化 → 去小碎片（圖片裡的字，留空白標籤）→ 拉直（`straighten`：骨架拆邊、Douglas–Peucker、共線邊穿過交叉點時接回、角取直線交點、水平垂直對齊）→ 網底收尾
+- 向量：`getVectors` 記下每次填色的段數／外框數，深色、字高 4.5–16pt、10 段以上或多個外框的填色當「轉成外框的字」（會考 PDF 的圖中文字常這樣，pdf.js 抓不到文字），不畫，`groupWords` 合併成詞留空白標籤；緊鄰這些字、大小像字的簡單圖形（「1」）也算。`extractLabels` 抓 PDF 文字裡的字母、數字（500m、30°N）、8 字以內的中文詞，排除圖說
+- 填色標記 `pg.fillMask`：0 非填色、1 實心（灰 3／黑 7）、2 點狀、3 斜線、4 格線（`texOn` 決定花紋；紋理凸點高 7，緊鄰線的點不放）。轉換結果的 `shade` 值同樣：1–4 依灰的深淺（向量依填色亮度、點陣依灰階峰 `grayPeaks`），5 = 黑色色塊（點陣 `solidBlocks`：5×5 深色核心、12 點以上），`fillBorders` 在不同填色相鄰處畫線；`isPhoto` 判斷照片（非白 ≥65% 且相隔一點的像素差 3–24 佔 ≥25%）顯示提醒
+- 說明頁 `tactile-help.html`（操作說明＋會考圖的處理方式）：tactile.html 的「❓ 說明」用頁內 iframe 蓋著顯示，不用新視窗（桌面版的 NewWindowRequested 會把主畫面導走、丟掉正在做的圖）
 - 測試：`node tools/check-tactile.mjs`（核心）；`desktop/tests/cases/tactile.mjs`（app 斷線時的點字表、紙張、匯出）；點陣除錯 `tools/tactile-raster-harness.mjs`
 - 尚未驗證：實際用 Tiger 印表機印；Tiger Designer 開啟本工具產生的檔案

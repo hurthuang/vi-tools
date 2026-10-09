@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>觸摸圖說明</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #fff; --line: #d8dbe0; --text: #1d2330; --muted: #667085;
+    --accent: #1a5fd0; --accent-soft: #e6eefb; --warn: #b54708; --kbd: #fafafa;
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    --bg: #1a1a2e; --panel: #16213e; --line: #2a3a5a; --text: #e0e0e0; --muted: #9aa5bc;
+    --accent: #5a99ff; --accent-soft: #1d3157; --warn: #ffb366; --kbd: #0f3460;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.7 "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif; color: var(--text); background: var(--bg); }
+  main { max-width: 860px; margin: 0 auto; padding: 16px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent-soft); }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p, li { margin: 4px 0; }
+  ul { padding-left: 22px; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 4px; font-size: 14px; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); font-size: 14px; }
+  .note { background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  .warn { color: var(--warn); }
+  kbd { font: 12px/1 Consolas, monospace; padding: 2px 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--kbd); }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); white-space: nowrap; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 12px; margin-top: 16px; }
+  @media (max-width: 600px) { th { white-space: normal; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>✋ 觸摸圖說明</h1>
+  <p class="muted">把試題 PDF、Word 或截圖裡的圖，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn）。這個工具還在測試中，匯出後請先用 Tiger Designer 開啟檢查再印。</p>
+  <nav>
+    <a href="#flow">基本流程</a><a href="#convert">轉換方式</a><a href="#labels">標籤</a><a href="#edit">修改圖形</a>
+    <a href="#fill">填色與紋理</a><a href="#pages">頁面與匯出</a><a href="#keys">快速鍵</a><a href="#exam">會考圖的處理</a>
+  </nav>
+
+  <section id="flow">
+    <h2>基本流程</h2>
+    <ol>
+      <li>按「開啟」選 PDF、Word（.docx）、圖片或既有的 .prn；也可以把檔案拖進來，或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
+      <li>在左邊框選一張圖（連同 A、B、甲、乙等標籤一起框），按「加入成新的一頁」或 <kbd>Enter</kbd>。每張圖一頁。</li>
+      <li>中間的編輯區修線、補標籤；右邊填每頁第一行的點字標題，例如「選擇 4. 圖一」。</li>
+      <li>按「匯出 PRN」，所有頁面存成一個 .prn。</li>
+    </ol>
+    <p>Word 會依文件順序取出裡面的圖片，一張圖一頁。用 Word 圖案工具畫的圖、EMF／WMF 格式的圖讀不到，請先在 Word「另存新檔」成 PDF 再開；PDF 的線條是向量，品質最好。舊版 .doc 不支援。</p>
+  </section>
+
+  <section id="convert">
+    <h2>轉換方式</h2>
+    <p>右邊「圖形轉換」可以切換方式、調整大小，改完按「重新產生圖形」（標籤保留；手畫、擦掉的線會重來，可以復原）。</p>
+    <h3>向量（PDF 的線條）</h3>
+    <ul>
+      <li>直接照 PDF 的線畫，角與交點最準。框選範圍裡沒有圖片時自動用這個方式。</li>
+      <li>灰色區塊轉成填色：只有一種灰時是實心灰；有好幾種灰時，由深到淺依序是實心灰、點狀、斜線、格線。</li>
+      <li>PDF 裡的字如果是「轉成外框的字」（看起來是字，其實是圖形，會考的 PDF 常這樣），勾「去除圖裡的字」會把它們拿掉，並在原位置留空白標籤讓你填字。</li>
+    </ul>
+    <h3>點陣（圖片、掃描）</h3>
+    <ul>
+      <li>框選範圍有圖片時自動用這個方式：線條細化成一點寬、拉直並修正尖角。</li>
+      <li>灰色網底依深淺分成不同填色（最多四種）；粗的黑色色塊（例如人口金字塔、旗子）轉成黑色填色，不會被細化成骨架線；兩種填色相鄰的地方自動畫分界線。</li>
+      <li>圖片裡的字會被移除，一個詞留一個空白標籤；不想留空白標籤可以取消勾選「在去掉的字的位置留空白標籤」。</li>
+      <li>「深色門檻」調整多深的顏色算線：線斷斷續續就調高，多出雜點就調低。</li>
+      <li class="warn">出現「這張看起來是照片」的提醒時，轉出來通常摸不出重點，建議改用文字描述，或用描圖模式手畫重點線條。</li>
+    </ul>
+  </section>
+
+  <section id="labels">
+    <h2>標籤</h2>
+    <ul>
+      <li>PDF 裡的字母（A、B、L₁、A′）、數字（1921、500m、30°N、25%）和短的中文詞（甲、砂岩、男性）會自動轉成點字，放在不壓到線的位置。圖說（圖一、圖(五)）與長句不會變成標籤。</li>
+      <li>字母前加大寫記號；字母後的數字當下標，用下位數字（M₁ → ⠠⠍⠂）。單獨的數字、以數字開頭的式子、等號或不等號後的數字前面加數字記號。中文照「文字轉點字」的規則轉注音點字，可勾選多音字補充規則。</li>
+      <li>「標籤」工具：拖曳移動、方向鍵微調 1 點、<kbd>Delete</kbd> 刪除。在「新增」欄輸入文字或點字，再點圖上的位置加標籤。點字欄可以直接修改（橘框表示手動改過），也可以用六點輸入。</li>
+      <li>空白標籤：自動抓不到文字的地方（圖片裡的字、外框字）會留空白標籤，在右邊清單填字即可；勾「描圖」對照原圖比較好找。</li>
+    </ul>
+  </section>
+
+  <section id="edit">
+    <h2>修改圖形</h2>
+    <ul>
+      <li>畫點、直線、箭頭、矩形、橢圓、橡皮擦共用「粗細」；勾「虛線」畫輔助線。直線、箭頭按 <kbd>Shift</kbd> 鎖定 0°／45°／90°，矩形變正方形、橢圓變正圓。線條一律同一高度；藍點是點字。</li>
+      <li>「選取」框起一塊後可以拖曳搬移、方向鍵微調、<kbd>Delete</kbd> 刪除，框內的標籤一起處理。點框外、換工具或按 <kbd>Esc</kbd> 才放下。</li>
+      <li>選取框四個角可以拖曳縮放（<kbd>Shift</kbd> 維持比例）：線條重新畫成乾淨的線、粗細不變，填色的紋理會重新排列；點字標籤大小不變，只跟著移動位置。工具列有左右翻轉、上下翻轉、旋轉 90°。</li>
+      <li>選取後 <kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>V</kbd> 複製、剪下、貼上（可以貼到別頁），<kbd>Ctrl</kbd>+<kbd>D</kbd> 原地複製一份。</li>
+      <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色，標籤保留；適合清掉圖裡沒抓乾淨的字。</li>
+      <li><b>描圖</b>：勾編輯區上方的「描圖」，原圖會半透明顯示在點陣下面，可以用直線、畫點等工具照著描，或對照原圖填空白標籤。原圖不會匯出。</li>
+    </ul>
+  </section>
+
+  <section id="fill">
+    <h2>填色與紋理</h2>
+    <p>選「填色」工具，在選單選種類，點在封閉的區域裡。線有缺口時不會填（會提示）。</p>
+    <table>
+      <tr><th>種類</th><th>摸起來</th><th>適合</th></tr>
+      <tr><td>灰</td><td>比線低的整片凸面</td><td>只有一兩種區域要區分時</td></tr>
+      <tr><td>黑</td><td>和線一樣高的整片</td><td>小面積的重點區塊（箭頭、圖例方塊）</td></tr>
+      <tr><td>點狀</td><td>間隔 4 點的交錯凸點</td><td>地圖、圓餅圖、地層的不同區域</td></tr>
+      <tr><td>斜線</td><td>45° 斜線，間隔 6 點</td><td>同上</td></tr>
+      <tr><td>格線</td><td>6 點一格的方格</td><td>同上</td></tr>
+      <tr><td>白</td><td>清除填色</td><td>改掉填錯的區域</td></tr>
+    </table>
+    <ul>
+      <li>紋理的凸點不會緊貼外框線，留一點空隙，摸得出區域的邊界。</li>
+      <li>已經填好的區域可以直接換成別種填色。</li>
+      <li>一張圖建議不要超過 3～4 種填色，相鄰的區域用差別大的紋理（例如點狀旁邊放斜線）。</li>
+    </ul>
+  </section>
+
+  <section id="pages">
+    <h2>頁面、紙張與匯出</h2>
+    <ul>
+      <li>右邊的頁面清單可以拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。</li>
+      <li>來源換頁：<kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd>、輸入頁碼，或點上方的頁面縮圖（綠色數字是那頁框了幾張圖）。縮放用選單或 <kbd>Ctrl</kbd>+滾輪。</li>
+      <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
+      <li>「匯出 PRN」把所有頁面存成一個 .prn。<b>請先用 Tiger Designer 開啟檢查</b>再印。</li>
+    </ul>
+  </section>
+
+  <section id="keys">
+    <h2>快速鍵</h2>
+    <table>
+      <tr><th>按鍵</th><th>功能</th></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>貼上截圖（沒有選取時）；有複製的選取範圍時貼上圖形</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>把框選的圖加入成新的一頁</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>復原</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>D</kbd></td><td>複製、剪下、原地複製選取範圍</td></tr>
+      <tr><td><kbd>Delete</kbd></td><td>刪除選取的標籤或範圍</td></tr>
+      <tr><td>方向鍵</td><td>微調標籤或選取範圍 1 點</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>放下選取範圍</td></tr>
+      <tr><td><kbd>Shift</kbd></td><td>畫線鎖定角度；矩形、橢圓變正方形、正圓；縮放維持比例</td></tr>
+      <tr><td><kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd></td><td>來源換頁</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd></td><td>移動目前這頁的順序</td></tr>
+    </table>
+  </section>
+
+  <section id="exam">
+    <h2>會考圖的處理</h2>
+    <p>國中教育會考的試題 PDF 多半是向量圖，用這個工具轉換的效果最好。下面整理常見圖形的處理方式。</p>
+    <div class="note">原則：觸摸圖只留作答需要的資訊。點字讀者一次只摸得到手指下的範圍，線越少越好讀；裝飾、陰影、和題目無關的細節都可以刪。</div>
+
+    <h3>先判斷要不要做成觸摸圖</h3>
+    <ul>
+      <li><b>做成觸摸圖</b>：幾何圖形、座標圖、統計圖（長條、折線、圓餅、人口金字塔）、簡單的地圖、等高線圖、地層剖面、電路圖、實驗裝置的簡圖、關係圖（例如親屬關係圖）。</li>
+      <li><b>改成文字說明</b>：照片、寫實的插圖與漫畫、以顏色區分為主而形狀不重要的圖、資訊太密的地圖。題目只需要圖裡的一兩個數字或關係時，也是直接寫成文字比較快。</li>
+      <li>不確定時，想想：拿掉這張圖、只看文字，題目還能作答嗎？如果需要「摸到形狀、位置、趨勢」才能作答，就做成觸摸圖。</li>
+    </ul>
+
+    <h3>常見圖形</h3>
+    <table>
+      <tr><th>圖形</th><th>處理方式</th></tr>
+      <tr><td>幾何圖形、座標圖</td><td>用向量方式，A、B、L₁ 等標籤會自動轉點字。檢查標籤有沒有壓到線、角的記號是否清楚。</td></tr>
+      <tr><td>關係圖、流程圖</td><td>框和線照畫。框裡的字常是外框字，會留空白標籤，照原圖填（甲、乙、男性…）；圖例可以移到標題或另外說明，省下空間。</td></tr>
+      <tr><td>等高線圖</td><td>線很多時把圖放大（調「大小」或換大一點的紙張），刪掉和題目無關的線；高度數字（1000、500m）會變成標籤或空白標籤，只保留題目用得到的。河流等灰色細線可以改成虛線，和等高線區分。</td></tr>
+      <tr><td>人口金字塔、長條圖</td><td>黑色色塊照畫成黑色填色；座標刻度數字很多時只留頭尾和中間幾個；左右兩張比較時放同一頁、同樣的比例。</td></tr>
+      <tr><td>圓餅圖、分區地圖</td><td>各區用不同的填色（灰、點狀、斜線、格線），相鄰的區用差別大的紋理；區名、百分比放在區內或用引線拉出。區域太多（超過 4～5 種）時，合併不重要的區或改成文字表格。</td></tr>
+      <tr><td>地層剖面</td><td>PDF 原本的花紋（砂岩的點、頁岩的斜線）會照畫；灰色的層會轉成填色。岩層名稱多半是外框字，在空白標籤填上。</td></tr>
+      <tr><td>天氣、實驗示意圖</td><td>保留題目問到的部分（例如風向箭頭、地面、甲乙位置），雲、雨的寫實外形可以簡化或刪掉。</td></tr>
+    </table>
+
+    <h3>標籤與文字</h3>
+    <ul>
+      <li>會考 PDF 圖裡的中文常是「轉成外框的字」，不是真的文字，自動抓不到，工具會在原位置留空白標籤。勾「描圖」對照原圖填字。</li>
+      <li>圖說（圖一、圖(五)）放在每頁第一行的標題，例如「選擇 4. 圖一」，不要放在圖裡。</li>
+      <li>標籤太擠時，可以改用代號（甲、乙、A、B），在標題下或題目文字裡說明代號的意思。</li>
+    </ul>
+
+    <h3>學校自製考卷（掃描、截圖）</h3>
+    <ul>
+      <li>圖片會用點陣方式轉換，效果取決於原圖品質。解析度太低的圖，建議用「描圖」照著原圖重畫重點線條。</li>
+      <li>字黏在線上時沒辦法自動移除，用「框選擦」清掉，再加標籤。</li>
+      <li>有好幾種灰色的地圖會分成不同的紋理；顏色很接近的灰可能被當成同一種，轉完後用「填色」工具改。</li>
+    </ul>
+  </section>
+</main>
+<script>
+  // 主題：和其他工具相同（localStorage site-theme）；在觸摸圖或首頁的 iframe 裡聽 setTheme
+  (function () {
+    const setTheme = t => { document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; };
+    try { setTheme(localStorage.getItem('site-theme') || 'light'); } catch (e) { setTheme('light'); }
+    window.addEventListener('message', e => { if (e.data && e.data.type === 'setTheme') setTheme(e.data.theme); });
+    // 在觸摸圖頁面上蓋著顯示時，Esc 關閉
+    if (window.parent !== window) document.addEventListener('keydown', e => { if (e.key === 'Escape') window.parent.postMessage({ type: 'closeTactileHelp' }, '*'); });
+  })();
+</script>
+</body>
+</html>

@@ -30,6 +30,11 @@
   button:disabled { opacity: .45; cursor: default; }
   .muted { color: var(--muted); font-size: 13px; }
   .warn { color: var(--warn); font-size: 13px; }
+  #helpBox { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #helpBox[hidden] { display: none; }
+  #helpBox .helpCard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; width: min(900px, 100%); height: min(88vh, 100%); display: flex; flex-direction: column; overflow: hidden; }
+  #helpBox .helpBar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  #helpBox iframe { flex: 1; border: 0; width: 100%; background: var(--bg); }
   main { display: grid; grid-template-columns: minmax(360px, 1fr) auto 320px; gap: 10px; padding: 10px; align-items: start; }
   section, aside { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
   h2 { font-size: 15px; margin: 0 0 8px; }
@@ -82,6 +87,7 @@
   <input id="fileIn" type="file" accept=".pdf,.docx,.prn,image/*" hidden>
   <span class="muted">也可以拖曳檔案進來，或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖</span>
   <span style="flex:1"></span>
+  <button id="btnHelp" title="操作說明、會考圖的處理方式">❓ 說明</button>
   <label class="muted" for="paper">紙張</label>
   <select id="paper" title="整份文件共用；改尺寸會裁切或補白現有頁面">
     <option value="240x220">12 × 11 吋</option>
@@ -216,24 +222,15 @@
       </div>
     </div>
 
-    <details style="margin-top:14px">
-      <summary>操作說明</summary>
-      <ul class="muted" style="padding-left:18px;margin:6px 0">
-        <li>左邊框選圖 → 「加入成新的一頁」，每張圖一頁</li>
-        <li>標籤（A、B、M₁…）會自動轉成點字，放在不壓到線的位置</li>
-        <li>「標籤」工具：拖曳移動；方向鍵微調 1 點；<kbd>Delete</kbd> 刪除</li>
-        <li>線條一律同一高度；藍點是點字</li>
-        <li>畫直線、箭頭時按住 Shift 鎖定角度，矩形變正方形、橢圓變正圓</li>
-        <li>「選取」框起一塊後可拖曳搬移、拖四個角縮放（Shift 等比例）、方向鍵微調、Delete 刪除；Ctrl+C／X／V 複製剪下貼上（可跨頁）、Ctrl+D 複製一份；翻轉、旋轉 90° 按工具列的按鈕</li>
-        <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色（標籤保留），適合清掉點陣圖裡的字</li>
-        <li>勾「描圖」會在編輯區底下半透明顯示原圖，可以用直線、畫點等工具照著描（原圖不會匯出）</li>
-        <li>頁面清單可以拖曳排序，或用 Alt+↑／↓ 移動目前這頁</li>
-        <li>來源換頁：PgUp／PgDn、Home／End、輸入頁碼，或點上方的頁面縮圖（綠色數字是那頁框了幾張圖）</li>
-        <li>匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印</li>
-      </ul>
-    </details>
   </aside>
 </main>
+
+<div id="helpBox" hidden role="dialog" aria-modal="true" aria-label="觸摸圖說明">
+  <div class="helpCard">
+    <div class="helpBar"><b>觸摸圖說明</b><span style="flex:1"></span><a href="tactile-help.html" target="_blank" rel="noopener" id="helpNewTab" class="muted">在新分頁開啟</a><button id="helpClose" title="關閉（Esc）">✕</button></div>
+    <iframe id="helpFrame" title="觸摸圖說明"></iframe>
+  </div>
+</div>
 
 <script src="shared.js"></script>
 <script src="prn-core.js"></script>
@@ -2349,6 +2346,23 @@
       console.warn('點字表載入失敗：', e);
     }
   })();
+
+  // ── 說明：在頁面上蓋一層顯示 tactile-help.html（不離開這頁，桌面版也不會丟掉正在做的圖） ──
+  const helpBox = $('#helpBox'), helpFrame = $('#helpFrame');
+  if (/vitools\.local$/i.test(location.hostname) || window.chrome && window.chrome.webview) $('#helpNewTab').hidden = true;
+  const openHelp = () => {
+    if (!helpFrame.src) {
+      helpFrame.src = 'tactile-help.html';
+      helpFrame.onload = () => helpFrame.contentWindow.postMessage({ type: 'setTheme', theme: document.documentElement.dataset.theme }, '*');
+    } else helpFrame.contentWindow.postMessage({ type: 'setTheme', theme: document.documentElement.dataset.theme }, '*');
+    helpBox.hidden = false; $('#helpClose').focus();
+  };
+  const closeHelp = () => { helpBox.hidden = true; $('#btnHelp').focus(); };
+  $('#btnHelp').onclick = openHelp;
+  $('#helpClose').onclick = closeHelp;
+  helpBox.addEventListener('click', e => { if (e.target === helpBox) closeHelp(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !helpBox.hidden) { e.stopImmediatePropagation(); closeHelp(); } }, true);
+  window.addEventListener('message', e => { if (e.source === helpFrame.contentWindow && e.data && e.data.type === 'closeTactileHelp') closeHelp(); });
 
   // ── 主題（與其他工具相同：localStorage site-theme；在首頁 iframe 裡聽 setTheme） ──
   const setTheme = t => { document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; };
