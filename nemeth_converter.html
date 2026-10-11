@@ -3268,7 +3268,22 @@ function l2nSaveInput(){dl(document.getElementById('l2n-in').value,'latex_input.
 // rows themselves only helps if the row has *some* content to lay out —
 // so we also fill genuinely empty rows with &nbsp; as a belt-and-braces
 // fix that keeps the blank line visible even under different CSS.
+// (3) MathJax's CHTML output only renders with the stylesheet MathJax
+// injects into the live page (digits are CSS ::before content, and the
+// assistive MathML copy is hidden by that same CSS). Without it the saved
+// file shows stray ∶ glyphs followed by the raw MathML — so swap each
+// <mjx-container> for its assistive <math>, which browsers render natively.
+function mathJaxToMathML(inner){
+  var t=document.createElement('template');
+  t.innerHTML=inner;
+  t.content.querySelectorAll('mjx-container').forEach(function(c){
+    var m=c.querySelector('mjx-assistive-mml > math');
+    if(m)c.replaceWith(m);
+  });
+  return t.innerHTML;
+}
 function buildStandalonePreviewHtml(inner,title){
+  inner=mathJaxToMathML(inner);
   inner=inner.replace(/(<div data-line="\d+")(><\/div>)/g,'$1>&nbsp;</div>');
   var style='body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;'
     +'background:#ffffff;color:#101320;font-size:16px;line-height:1.65;'
