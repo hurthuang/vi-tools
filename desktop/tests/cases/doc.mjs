@@ -55,6 +55,7 @@ export default {
     await cdp.ev(`${D}.getElementById('btn-tts-export').click()`);
     const r = await saveDialog(path);
     check('匯出：存檔視窗處理完成、檔案寫出', r.ok, r.out);
+    check('匯出：桌面版的匯出按鈕實際顯示', await cdp.ev(`${W}.getComputedStyle(${D}.getElementById('btn-tts-export')).display !== 'none'`));
     check('匯出：MP3 格式正確', audioKind(path) === 'mp3', audioKind(path));
     const sent = await cdp.ev(`window.__sent.filter(m => m.type === 'export').pop()`);
     check('匯出：從第 2 句開始、內容是報讀文字', /^第二題：已知 n 階乘 等於 120/.test(sent?.text || ''), sent?.text);

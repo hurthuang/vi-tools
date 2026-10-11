@@ -112,9 +112,10 @@ export default {
 第二題：已知 \(n!=120\)，求 n。`)})`);
       await cdp.ev(`${PW}.switchTab('tts')`);
       for (let i = 0; i < 60 && !/算式已轉成報讀文字/.test(await cdp.ev(`${PD}.getElementById('tts-status').textContent`)); i++) await sleep(500);
-      const docInfo = await cdp.ev(`({ mode: !${PD}.getElementById('tts-mode').hidden, exp: ${PD}.getElementById('btn-tts-export').hidden,
+      const docInfo = await cdp.ev(`({ mode: !${PD}.getElementById('tts-mode').hidden, exp: ${PW}.getComputedStyle(${PD}.getElementById('btn-tts-export')).display === 'none'
+          && ${PW}.getComputedStyle(${PD}.getElementById('tts-split')).display === 'none',
         speak: ${PW}.eval('_ttsSentences') })`);
-      check('文件整理：有朗讀內容選項、沒有匯出按鈕', docInfo.mode && docInfo.exp, JSON.stringify({ mode: docInfo.mode, exp: docInfo.exp }));
+      check('文件整理：有朗讀內容選項、匯出按鈕與分段匯出實際隱藏（不只有 hidden 屬性）', docInfo.mode && docInfo.exp, JSON.stringify({ mode: docInfo.mode, exp: docInfo.exp }));
       check('文件整理：算式轉成報讀文字（含單個 $）', /x 平方 等於 16/.test(docInfo.speak[0] || '') && /n 階乘/.test(docInfo.speak[1] || ''), JSON.stringify(docInfo.speak));
       await cdp.ev(`${PD}.querySelector('input[name=tts-mode][value=render]').click()`);
       let n = 0;

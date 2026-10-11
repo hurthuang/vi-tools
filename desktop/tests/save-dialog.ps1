@@ -2,6 +2,7 @@
 # 檔名由環境變數 VTD_PATH 傳入；VTD_CANCEL=1 時改按「取消」
 $path = $env:VTD_PATH
 $cancel = $env:VTD_CANCEL -eq '1'
+# 視窗標題由 VTD_TITLE 傳入（網頁一般存檔是「另存新檔」）；沒給時找「匯出音檔」
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
 public static class VtdDlg {
@@ -21,7 +22,7 @@ public static class VtdDlg {
 }
 '@
 # 視窗標題「匯出音檔」用字碼組出來，避免這個檔案的編碼被 PowerShell 5.1 誤讀
-$title = [string]::new([char[]]@(0x532F, 0x51FA, 0x97F3, 0x6A94))
+$title = if ($env:VTD_TITLE) { $env:VTD_TITLE } else { [string]::new([char[]]@(0x532F, 0x51FA, 0x97F3, 0x6A94)) }
 $h = [IntPtr]::Zero
 for ($i = 0; $i -lt 60 -and $h -eq [IntPtr]::Zero; $i++) {
   $h = [VtdDlg]::FindWindow('#32770', $title)

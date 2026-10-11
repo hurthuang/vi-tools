@@ -20,7 +20,7 @@ node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號
 - 預設 `VITOOLS_UPDATE_URL=none` 不自動檢查更新（不連真正的 GitHub）；`update.mjs` 改指向本機假伺服器
 - 預設 `VITOOLS_WEB=local` 用內附網頁，結果不受線上網頁內容影響；`VITOOLS_SIMULATE_OFFLINE=1` 模擬斷線（除了本機網頁與內附檔案，對外請求都失敗）。這兩個環境變數只給測試用
 - 視窗標題與訊息視窗網頁裡看不到，用 PowerShell 讀（`appTitle()`、`closeAppMessageBox()`）
-- 存檔視窗用 `save-dialog.ps1`（Win32 API 找「匯出音檔」視窗、填檔名、按存檔），以 `powershell -Command` 執行，不需要改執行原則
+- 存檔視窗用 `save-dialog.ps1`（Win32 API 找「匯出音檔」視窗（`VTD_TITLE` 可改找其他標題，例如「另存新檔」）、填檔名、按存檔），以 `powershell -Command` 執行，不需要改執行原則
 - 輸出音檔放在 `%TEMP%\vitools-tests\`
 - 每個需要 app 的測試結束時會檢查 app 還在執行（沒有當掉），並列出頁面丟出的錯誤
 
@@ -29,16 +29,18 @@ node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號
 | 檔案 | 內容 |
 |---|---|
 | `findmath.mjs` | `findMath()` 算式判斷規則（網頁 `math-speech.js`：單個 `$` 的 Pandoc 規則、金額、`\$`、`$$`、數學點字頁的 `MATH_RE`），不開 app |
+| `examsplit.mjs` | `exam-split.js` 試卷分段規則（NVDA 試題本、PDF 的題號與編號清單、題組提示行、非選擇題、手動 `===` 記號），不開 app |
 | `langseg.mjs` | `lang-segments.js` 中英切段規則（兩個以上英文單字才切、縮寫、夾數字、標點跟著前一段、撇號），不開 app |
 | `cli-tts.mjs` | `ViTools.exe --tts-test` 直接合成 WAV／MP3，不開視窗 |
-| `browser.mjs` | 一般瀏覽器（無視窗 Edge + 本機網頁伺服器）開網頁版：`desktop-audio.js` 不加面板；數學點字報讀區塊與存報讀檔、文件整理三種朗讀模式都能用，但沒有匯出按鈕；網頁照常轉換、相關檔案沒有錯誤，不開 app |
+| `browser.mjs` | 一般瀏覽器（無視窗 Edge + 本機網頁伺服器）開網頁版：`desktop-audio.js` 不加面板；數學點字報讀區塊與存報讀檔、文件整理三種朗讀模式都能用，但匯出按鈕實際隱藏；網頁照常轉換、相關檔案沒有錯誤，不開 app |
 | `b2t-convert.mjs` | 點字轉文字主轉換（無視窗 Edge，不開 app）：reg-b2t.html 回歸測試全部通過；「給」不消失、ㄦ 接在音節後（偶爾、嬰兒、愛爾蘭）不被判成英文、唷／崖、輕聲（時候）、一聲音節（思議）、詞間空格、英文點字仍是英文 |
 | `web-root.mjs` | 網頁來源：開發版用 vi-tools 根目錄，可攜版用內附 `web\` |
-| `api.mjs` | `window.vitoolsDesktop`：每個頁面都有、版本號、`getVoices`、`previewAudio`（含錯誤）、同時多個請求、`exportAudio` 取消 |
+| `api.mjs` | `window.vitoolsDesktop`：每個頁面都有、版本號、`getVoices`、`previewAudio`（含錯誤）、同時多個請求、`exportAudio` 取消；網頁一般存檔（`<a download>`）跳「另存新檔」視窗、存到選的位置 |
 | `b2t-speech.mjs` | 點字轉文字的報讀區塊：朗讀內容切換、點字讀音（同音字、英文反向翻譯、字典沒有的音節）、自動更新、點一行朗讀 |
 | `bt-speech.mjs` | 文字轉點字的報讀區塊：點字讀音（多音字兩個「行」念不同字、UEB 二級縮寫反向翻譯、自動換行處的詞間空格、Nemeth 念「數學」）、點一行朗讀 |
 | `music.mjs` | 點字樂譜（`music/`），模擬斷線：abcjs 與鋼琴音色用內附、五線譜畫出、按播放能播、全曲報讀有文字與「匯出音檔」、六點輸入用工具集的浮動面板 |
 | `tactile.mjs` | 觸摸圖（`tactile.html`），模擬斷線：中文點字表（`table/zh-tw.ctb`）載入、標題轉點字、六點輸入面板、Letter 紙張、空白頁畫矩形、匯出 .prn 的標頭（寬高、檢查碼）與內容、開啟 .docx（JSZip 用內附、列出圖片、提示 Word 圖案讀不到） |
+| `split.mjs` | 文件整理的分段匯出：預覽清單（檔名、編號、報讀文字、記號不念）、調整（改名、併入上一檔、不匯出）後保留、匯出到資料夾（檔名、MP3、播放清單）、同名資料夾改存「(2)」 |
 | `doc.mjs` | 文件整理（網頁本身的功能）：三種朗讀模式、起始句保留、匯出內容與語音對應、轉換中按播放、單個 `$`、沒有算式 |
 | `math.mjs` | 數學點字的報讀區塊：舊面板已移除、Alt+Shift+A、轉報讀文字、朗讀與停止、逐行清單（點第 2 行從那行念、反白、Esc、方向鍵）、存報讀檔、自動更新、匯出 MP3、點字→數學方向、單個 `$`（和轉點字一致） |
 | `offline.mjs` | 模擬斷線：數學點字頁的 MathJax 預覽、報讀區塊（含 `\ratio`）、文件整理開 PDF（pdf.js 與 worker）與 DOCX（JSZip）、數學式模式都用內附檔案，頁面沒有錯誤 |

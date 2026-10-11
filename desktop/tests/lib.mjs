@@ -151,10 +151,10 @@ export async function cancelDialog() {
 }
 
 // ── 存檔視窗：用 Win32 API 找「匯出音檔」視窗，填入檔名並按「存檔」；等檔案寫出來
-export async function saveDialog(path, ms = 30000) {
+export async function saveDialog(path, ms = 30000, title = '') {
   try { rmSync(path, { force: true }); } catch {}
   const out = await new Promise(r => execFile('powershell', ['-NoProfile', '-Command', saveDialogScript],
-    { env: { ...process.env, VTD_PATH: path } }, (e, stdout) => r((stdout || '').trim())));
+    { env: { ...process.env, VTD_PATH: path, VTD_TITLE: title } }, (e, stdout) => r((stdout || '').trim())));
   for (let t = 0; t < ms; t += 250) {
     if (existsSync(path) && statSync(path).size > 0) { await sleep(300); return { ok: true, out }; }
     await sleep(250);

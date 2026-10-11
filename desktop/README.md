@@ -80,6 +80,12 @@ dotnet publish -p:PublishProfile=Portable
   - **原文**：照 LaTeX 原文顯示和念，可用來校對原始碼
   - 切換時先停止播放，保留目前的起始句；切句時避開算式內部（如 `n!`），三種模式的句子一一對應
 
+**文件整理的分段匯出**（試卷：題組文章、題目、選項各一個音檔）：朗讀分頁的「分段匯出」（`vitoolsDesktop.features` 含 `'batch'` 才顯示，瀏覽器版沒有）：
+- 切分規則在 `../exam-split.js`（`tests/cases/examsplit.mjs` 有各種寫法的範例）：題目認行首「第1題」與「1.」（「1.」依題號順序判斷，避免文章裡的編號清單、注意事項）；選項認行首「(A)」「（Ａ）」，一題的選項合成一段；題組認「回答25及26題」「回答第 44 至 45 題」提示行、單獨一行「第20及21題」「(20-21)」；大標題（一、單題／第二部分）併入下一段；第一題之前是「說明」。用會考 113–115 年 NVDA 試題本與 PDF 驗證過題號全部正確
+- 手動分割記號（比照 Balabolka）：單獨一行 `===`，後面可接名稱；那一行不念。「切分方式」可改成「只用 === 記號切」
+- 匯出前先列出清單（預覽）：一列一個音檔，可改檔名、試聽（Windows 語音前 300 字）、併入上一檔、不匯出；文字和朗讀內容模式沒變時保留這些調整
+- 每段念的內容和「播放」一致（朗讀內容模式、中英分語音）；匯出時存檔視窗選位置並輸入名稱，app 以這個名稱建資料夾（已存在且有檔案時加「 (2)」），音檔依順序編號，另寫播放清單 `.m3u8`
+
 **數學點字**：網頁本身的「🔊 報讀」區塊（`../speech-block.js` + `../math-speech.js`，「數學→點字」「點字→數學」各一個，預設收合；Alt+Shift+A 展開並移到「朗讀」）。瀏覽器版也有，桌面版多「匯出音檔」：
 - 算式經 MathJax 轉 MathML、再由 [MathCAT](https://github.com/daisy/MathCAT) 轉成中文報讀文字（例：`x^2-5x+6=0` →「x 平方 減 5 x 加 6; 等於 0」），其餘中文照舊；認算式沿用頁面轉點字的 `MATH_RE`（`\( \)` 與單個 `$ $`），逐行處理，和轉點字一致
 - 報讀文字一行一個項目：點一行（或方向鍵移到那行按 Enter／空白鍵）從那行念到結尾，念到的行反白，Esc 停止；方向鍵只移動、不自動開始念（避免和 NVDA 同時出聲）
@@ -96,6 +102,8 @@ dotnet publish -p:PublishProfile=Portable
 - 桌面版需要 `vitoolsDesktop.features` 含 `'segments'`；舊版 app 沒有時照原本整段單一語音匯出
 
 存檔視窗可選 MP3（單聲道 64kbps，約每小時 28MB）或 WAV，會記住上次選的格式。
+
+**網頁的一般存檔**（儲存輸出、存報讀檔、存 docx／html 等，網頁用 `<a download>` 下載的檔案）：WebView2 預設直接存進「下載」資料夾，app 改成跳「另存新檔」視窗讓使用者選位置（`MainForm.cs` 的 `DownloadStarting`），和匯出音檔共用上次存檔的資料夾。
 
 測試語音合成：`ViTools.exe --tts-test out.wav`（或 `out.mp3`）
 
@@ -114,10 +122,12 @@ function onDesktop(fn) {
 |---|---|
 | `apiVersion` | 目前 `1`。只有不相容的改變才加 1；新增功能不加，網頁用 `'功能名' in vitoolsDesktop` 判斷 |
 | `appVersion` | app 版本（`ViTools.csproj` 的 `<Version>`），例如 `'0.1.0'` |
-| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（分段匯出） |
+| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（中英分語音匯出）、`'batch'`（`exportAudioBatch`） |
 | `getVoices()` | → `[{ id, name, lang, isDefault }]`，Windows 內建語音 |
 | `previewAudio({ text, voiceId, rate, volume })` | 合成前 300 字 → WAV 的 base64（`new Audio('data:audio/wav;base64,' + 結果)`）。播放要在使用者操作之後，否則瀏覽器會擋 |
 | `exportAudio({ text, voiceId, rate, volume, fileName }, onProgress)` | 跳出存檔視窗（MP3／WAV）→ `{ saved: true, path }` 或 `{ saved: false }`（取消）。有 `segments: [{ text, voiceId }]` 時忽略 `text`、`voiceId`，逐段用各自的語音合成再接起來，`pause`（`natural`／`original`／`min`）決定段落交界的靜音長度。`onProgress({ stage: 'synthesize', done, total })`、`onProgress({ stage: 'encode' })` |
+
+| `exportAudioBatch({ items, voiceId, rate, volume, fileName, pause }, onProgress)` | 分段匯出（`'batch'`）：存檔視窗選位置、輸入資料夾名稱（MP3／WAV）→ 建資料夾，`items: [{ name, text, segments? }]` 每項存成「name.mp3」（`segments` 同 `exportAudio`），另寫播放清單「資料夾名稱.m3u8」→ `{ saved: true, path, count }` 或 `{ saved: false }`。`onProgress({ stage: 'file', done, total, name })` |
 
 錯誤（例如沒有文字）以 Promise reject 回報。原生層只接受本工具網頁（`https://vitools.local/`、`https://hurthuang.github.io/vi-tools/`）送來的訊息。
 

@@ -350,6 +350,20 @@ select.setting-select {
 #tts-status { min-height: 1.4em; font-size: .85rem; }
 #tts-status.err, #tts-voice-warn { color: #e53935; }
 #tts-voice-warn { font-size: .85rem; }
+#btn-tts-export[hidden] { display: none; }  /* .btn 的 display 會蓋掉 hidden */
+/* 分段匯出（桌面版） */
+#tts-split > summary { cursor: pointer; font-size: .88rem; }
+#tts-split .split-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: .88rem; }
+#tts-split .split-help { font-size: .8rem; margin: 6px 0; line-height: 1.6; }
+#split-summary { font-size: .85rem; margin: 4px 0; }
+#split-list { max-height: 40vh; overflow-y: auto; margin: 0; padding: 0; list-style: none; border: 1px solid #ccc; border-radius: 6px; }
+#split-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 8px; border-bottom: 1px solid #ddd; font-size: .82rem; }
+#split-list li.split-skip { opacity: .5; }
+#split-list li.split-merge { padding-left: 28px; }
+#split-list .split-num { font-family: monospace; min-width: 3em; }
+#split-list input[type=text] { font: inherit; width: 13em; }
+#split-list select, #split-list button { font: inherit; font-size: .8rem; }
+#split-list .split-preview { flex: 1 1 100%; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #tts-bilingual > summary { cursor: pointer; font-size: .88rem; }
 #tts-bilingual-controls .vs-controls { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: .88rem; }
 #tts-bilingual-controls label[hidden] { display: none; }
@@ -566,6 +580,7 @@ input[type=range] { accent-color: var(--accent2); }
 <script src="math-speech.js"></script>
 <!-- 中英分語音：朗讀時英文段用英文語音（設定各頁共用） -->
 <script src="lang-segments.js"></script>
+<script src="exam-split.js"></script>
 <script src="voice-settings.js"></script>
 <script src="desktop-audio.js"></script>
 </head>
@@ -804,6 +819,24 @@ input[type=range] { accent-color: var(--accent2); }
       <details id="tts-bilingual">
         <summary>中英語音設定</summary>
         <div id="tts-bilingual-controls"></div>
+      </details>
+      <!-- 分段匯出：只在桌面版（vitoolsDesktop.features 含 'batch'）顯示 -->
+      <details id="tts-split" hidden>
+        <summary>分段匯出（試卷：題組文章、題目、選項各一個音檔）</summary>
+        <div class="split-bar">
+          <label for="split-how">切分方式</label>
+          <select id="split-how" class="setting-select">
+            <option value="auto">自動判斷題目與選項（另可加 === 記號）</option>
+            <option value="manual">只用 === 記號切</option>
+          </select>
+          <button class="btn btn-neutral" id="btn-split-refresh" type="button">重新判斷</button>
+          <button class="btn btn-green" id="btn-split-export" type="button"><span aria-hidden="true">💾</span> 匯出到資料夾…</button>
+        </div>
+        <p class="split-help">匯出前先檢查下面的清單：一列一個音檔，可以改檔名、試聽、併入上一檔或不匯出。
+          自動判斷切錯時，在「編輯」分頁單獨一行打 <code>===</code> 從那裡切開，後面可以接名稱（例：<code>=== 閱讀測驗一</code>），這一行不會念出來。
+          匯出時選好位置、輸入資料夾名稱，音檔依順序編號存進這個資料夾，另附播放清單。</p>
+        <p id="split-summary" role="status"></p>
+        <ol id="split-list"></ol>
       </details>
       <p id="tts-voice-warn" hidden></p>
       <fieldset id="tts-mode" hidden>
@@ -1459,7 +1492,7 @@ function switchTab(name) {
     tabEl.setAttribute('tabindex', isActive ? '0' : '-1');
   });
   if (name === 'preview') buildPreview();
-  if (name === 'tts') buildTtsDisplay();
+  if (name === 'tts') { buildTtsDisplay(); if (window.__splitRefresh) window.__splitRefresh(); }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1807,6 +1840,7 @@ if (window.vitoolsVoiceSettings) vitoolsVoiceSettings.mount(document.getElementB
     ttsMode = e.target.value;
     try { localStorage.setItem(TTS_MODE_KEY, ttsMode); } catch (err) {}
     if (ttsViewActive()) ttsRebuild(); else _ttsBuiltKey = null;
+    if (window.__splitRefresh) window.__splitRefresh();
     ttsSetStatus(`已切換為${TTS_MODES[ttsMode]}` + (ttsMode !== 'raw' && ttsMathSummary() ? '；' + ttsMathSummary() : ''));
   });
 })();
@@ -1883,6 +1917,7 @@ if (window.vitoolsVoiceSettings) vitoolsVoiceSettings.mount(document.getElementB
       btn.disabled = false;
     }
     btn.addEventListener('click', doExport);
+    if (api.features && api.features.includes('batch') && window.vitoolsExamSplit) initSplitExport(api, nativeVoice, () => voices);
     // Alt+Shift+A：匯出（桌面版首頁的快捷鍵也會轉給 __vtdToggle）
     window.__vtdToggle = () => { btn.focus(); doExport(); };
     document.addEventListener('keydown', e => {
@@ -1890,6 +1925,152 @@ if (window.vitoolsVoiceSettings) vitoolsVoiceSettings.mount(document.getElementB
     });
   });
 })();
+
+// ════════════════════════════════════════════════════════════
+//  分段匯出（桌面版，vitoolsDesktop.features 含 'batch'）：試卷的題組文章、題目、選項各存成一個音檔
+//  切分規則在 exam-split.js；匯出前列出清單（比照 Balabolka 切割前預覽），可改檔名、試聽、併入上一檔、不匯出
+//  每段的朗讀內容和「播放」一致：照目前的朗讀內容模式（算式念報讀文字或原文）、中英語音設定
+// ════════════════════════════════════════════════════════════
+function initSplitExport(api, nativeVoice, getVoices) {
+  const box = document.getElementById('tts-split');
+  const list = document.getElementById('split-list');
+  const how = document.getElementById('split-how');
+  const summary = document.getElementById('split-summary');
+  const exportBtn = document.getElementById('btn-split-export');
+  const HOW_KEY = 'p2a-split-how';
+  try { if (localStorage.getItem(HOW_KEY) === 'manual') how.value = 'manual'; } catch (e) {}
+  box.hidden = false;
+  let rows = [], builtKey = null, audio = null;
+  const num = id => Number(document.getElementById(id).value) || 1;
+
+  // 手動記號那行不念
+  const strip = t => t.split('\n').filter(l => !vitoolsExamSplit.isMarker(l)).join('\n').trim();
+  // 每段要念的文字：有算式且不是「原文」模式時，用朗讀區同一份報讀文字（依句子在原文的位置對應到段）
+  async function speechTexts(txt, segs) {
+    if (!ttsHasMath(txt) || ttsMode === 'raw')
+      return segs.map(s => strip(txt.slice(s.speakStart, s.end)));
+    const r = await ttsEnsureConverted(txt);
+    const out = segs.map(() => []);
+    let pos = 0, k = 0;
+    for (const sen of r.sentences) {
+      while (k + 1 < segs.length && pos >= segs[k + 1].start) k++;
+      if (!vitoolsExamSplit.isMarker(sen.raw.trim())) out[k].push(r.error ? sen.raw : sen.speak);
+      pos += sen.raw.length;
+    }
+    return out.map(a => a.join('').trim());
+  }
+
+  // 編號：單獨一檔的依序編號；併入上一檔的顯示 ↳；不匯出的顯示 —
+  function renumber() {
+    let n = 0;
+    for (const r of rows) {
+      const c = r.choice.value;
+      const own = c === 'own' || (c === 'merge' && n === 0);
+      if (c !== 'skip' && own) n++;
+      r.li.className = c === 'skip' ? 'split-skip' : own ? '' : 'split-merge';
+      r.num.textContent = c === 'skip' ? '—' : own ? String(n).padStart(3, '0') : '↳';
+    }
+    const merged = rows.filter(r => r.choice.value === 'merge').length, skipped = rows.filter(r => r.choice.value === 'skip').length;
+    const stems = rows.filter(r => r.seg.kind === 'stem').length, groups = rows.filter(r => r.seg.kind === 'passage').length;
+    summary.textContent = `共 ${n} 個音檔` + (how.value === 'auto' ? `（找到 ${stems} 題、${groups} 個題組）` : '') +
+      (merged ? `；${merged} 段併入上一檔` : '') + (skipped ? `；${skipped} 段不匯出` : '');
+  }
+
+  // 文字或模式沒變時不重建，保留使用者改過的檔名與選擇
+  async function build(force) {
+    const txt = getEditorText();
+    const key = txt + '|' + how.value + '|' + (ttsHasMath(txt) ? ttsMode : 'plain');
+    if (!force && key === builtKey) return;
+    builtKey = key;
+    list.innerHTML = '';
+    rows = [];
+    if (!txt.trim()) { summary.textContent = '沒有文字'; return; }
+    const segs = vitoolsExamSplit.split(txt, { auto: how.value === 'auto' });
+    summary.textContent = '整理清單中…';
+    const texts = await speechTexts(txt, segs);
+    if (builtKey !== key) return;
+    segs.forEach((seg, i) => {
+      const li = document.createElement('li');
+      const numEl = document.createElement('span');
+      numEl.className = 'split-num';
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.value = seg.label;
+      name.setAttribute('aria-label', `第 ${i + 1} 段的檔名`);
+      const choice = document.createElement('select');
+      choice.setAttribute('aria-label', `第 ${i + 1} 段（${seg.label}）怎麼匯出`);
+      choice.innerHTML = '<option value="own">單獨一檔</option><option value="merge">併入上一檔</option><option value="skip">不匯出</option>';
+      if (!texts[i]) choice.value = 'skip';
+      choice.addEventListener('change', renumber);
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.textContent = '▶ 試聽';
+      play.setAttribute('aria-label', `試聽 ${seg.label}`);
+      play.addEventListener('click', () => preview(texts[i]));
+      const pv = document.createElement('span');
+      pv.className = 'split-preview';
+      pv.textContent = texts[i].replace(/\s+/g, ' ').slice(0, 80) || '（沒有要念的文字）';
+      li.append(numEl, name, choice, play, pv);
+      list.append(li);
+      rows.push({ seg, text: texts[i], li, num: numEl, name, choice });
+    });
+    renumber();
+  }
+
+  // 試聽用匯出時的 Windows 語音（前 300 字）
+  async function preview(text) {
+    if (audio) { audio.pause(); audio = null; }
+    if (!text) return;
+    try {
+      const b64 = await api.previewAudio({ text, voiceId: nativeVoice().id, rate: num('tts-rate'), volume: num('tts-vol') });
+      audio = new Audio('data:audio/wav;base64,' + b64);
+      audio.play();
+    } catch (e) { summary.textContent = '試聽失敗：' + e.message; }
+  }
+
+  async function doExport() {
+    await build(false);
+    // 依選擇組成音檔：併入上一檔的接在前一個音檔後面，不匯出的略過
+    const items = [];
+    for (const r of rows) {
+      const c = r.choice.value;
+      if (c === 'skip' || !r.text) continue;
+      if (c === 'merge' && items.length) items[items.length - 1].text += '\n' + r.text;
+      else items.push({ label: r.name.value.trim() || r.seg.label, text: r.text });
+    }
+    if (!items.length) { summary.textContent = '沒有要匯出的段落'; return; }
+    const v = nativeVoice();
+    const voices = getVoices();
+    const fileName = document.getElementById('fi-name').textContent.trim().replace(/\.[^.]+$/, '') || '分段音檔';
+    const width = Math.max(3, String(items.length).length);
+    let note = '', pause;
+    const payload = items.map((it, i) => {
+      const bi = window.vitoolsVoiceSettings ? vitoolsVoiceSettings.exportArgs(it.text, v.id, voices, api) : {};
+      if (bi.note) note = bi.note;
+      if (bi.pause) pause = bi.pause;
+      return { name: `${String(i + 1).padStart(width, '0')}_${it.label}`, text: it.text, segments: bi.segments };
+    });
+    exportBtn.disabled = true;
+    summary.textContent = [v.note, note, '請選擇存檔位置並輸入資料夾名稱…'].filter(Boolean).join('；');
+    try {
+      const r = await api.exportAudioBatch({ items: payload, voiceId: v.id, rate: num('tts-rate'), volume: num('tts-vol'), fileName, pause },
+        p => { summary.textContent = `匯出中… ${p.done + 1} / ${p.total}：${p.name}`; });
+      summary.textContent = r.saved ? `已匯出 ${r.count} 個音檔到：${r.path}` : '已取消';
+    } catch (e) { summary.textContent = '錯誤：' + e.message; }
+    exportBtn.disabled = false;
+  }
+
+  box.addEventListener('toggle', () => { if (box.open) build(false); });
+  how.addEventListener('change', () => {
+    try { localStorage.setItem(HOW_KEY, how.value); } catch (e) {}
+    build(true);
+  });
+  document.getElementById('btn-split-refresh').addEventListener('click', () => build(true));
+  exportBtn.addEventListener('click', doExport);
+  // 切到朗讀分頁、換朗讀內容模式時：清單展開中才更新
+  window.__splitRefresh = () => { if (box.open) build(false); };
+  window.__splitBuild = build;   // 測試用
+}
 
 // ════════════════════════════════════════════════════════════
 //  Find / Replace

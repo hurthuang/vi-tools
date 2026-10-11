@@ -95,6 +95,32 @@ public class MainForm : Form
         };
         core.DocumentTitleChanged += (_, _) => UpdateTitle();
 
+        // 網頁的「儲存」（<a download>）WebView2 預設直接存進「下載」資料夾，改成先跳存檔視窗讓使用者選位置
+        // 存檔視窗是強制回應，在事件裡直接開會重入，所以先延後處理（GetDeferral + BeginInvoke）
+        core.DownloadStarting += (_, e) =>
+        {
+            var deferral = e.GetDeferral();
+            BeginInvoke(() =>
+            {
+                using (deferral)
+                {
+                    string name = Path.GetFileName(e.ResultFilePath);
+                    string ext = Path.GetExtension(name);
+                    using var dlg = new SaveFileDialog
+                    {
+                        Title = "另存新檔",
+                        Filter = (ext.Length > 1 ? $"{ext[1..].ToUpperInvariant()} 檔 (*{ext})|*{ext}|" : "") + "所有檔案 (*.*)|*.*",
+                        FileName = name,
+                        InitialDirectory = _lastSaveDir,
+                    };
+                    if (dlg.ShowDialog(this) != DialogResult.OK) { e.Cancel = true; return; }
+                    _lastSaveDir = Path.GetDirectoryName(dlg.FileName) ?? _lastSaveDir;
+                    e.ResultFilePath = dlg.FileName;
+                    e.Handled = true;   // 不顯示 WebView2 的下載清單
+                }
+            });
+        };
+
         // 線上網頁載入失敗（斷線、網站出錯）：自動改用內附的同一頁
         core.NavigationCompleted += (_, e) =>
         {
@@ -391,6 +417,9 @@ public class MainForm : Form
                 case "export":
                     await ExportAsync(msg, Reply);
                     break;
+                case "exportBatch":
+                    await ExportBatchAsync(msg, Reply);
+                    break;
                 case "toggleWebSource":
                     await ToggleWebSourceAsync();
                     break;
@@ -418,25 +447,11 @@ public class MainForm : Form
         var (text, voiceId, rate) = ReadTtsArgs(msg);
         double volume = ReadVolume(msg);
         string name = msg.TryGetProperty("fileName", out var n) ? n.GetString() ?? "" : "";
-        using var dlg = new SaveFileDialog
-        {
-            Title = "匯出音檔",
-            Filter = "MP3 音檔 (*.mp3)|*.mp3|WAV 音檔 (*.wav)|*.wav",
-            FilterIndex = _lastMp3 ? 1 : 2,
-            FileName = SafeFileName(string.IsNullOrWhiteSpace(name) ? "朗讀" : name),
-            InitialDirectory = _lastSaveDir,
-        };
-        if (dlg.ShowDialog(this) != DialogResult.OK)
+        if (AskAudioPath("匯出音檔", name) is not var (path, mp3))
         {
             reply(new { type = "exportCancelled" });
             return;
         }
-        _lastSaveDir = Path.GetDirectoryName(dlg.FileName) ?? _lastSaveDir;
-        // 以副檔名決定格式；使用者自己打的副檔名優先於下拉選單
-        string ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
-        bool mp3 = ext == ".mp3" || (ext != ".wav" && dlg.FilterIndex == 1);
-        _lastMp3 = mp3;
-        string path = Path.ChangeExtension(dlg.FileName, mp3 ? ".mp3" : ".wav");
 
         var progress = new Progress<(int done, int total)>(p =>
             reply(new { type = "progress", done = p.done, total = p.total }));
@@ -453,6 +468,77 @@ public class MainForm : Form
         }
         await File.WriteAllBytesAsync(path, audio);
         reply(new { type = "exportDone", path });
+    }
+
+    // 存檔視窗（MP3／WAV），回傳不含副檔名的路徑與格式；取消回傳 null
+    (string path, bool mp3)? AskAudioPath(string title, string name)
+    {
+        using var dlg = new SaveFileDialog
+        {
+            Title = title,
+            Filter = "MP3 音檔 (*.mp3)|*.mp3|WAV 音檔 (*.wav)|*.wav",
+            FilterIndex = _lastMp3 ? 1 : 2,
+            FileName = SafeFileName(string.IsNullOrWhiteSpace(name) ? "朗讀" : name),
+            InitialDirectory = _lastSaveDir,
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return null;
+        _lastSaveDir = Path.GetDirectoryName(dlg.FileName) ?? _lastSaveDir;
+        // 以副檔名決定格式；使用者自己打的副檔名優先於下拉選單
+        string ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
+        bool mp3 = ext == ".mp3" || (ext != ".wav" && dlg.FilterIndex == 1);
+        _lastMp3 = mp3;
+        return (Path.ChangeExtension(dlg.FileName, mp3 ? ".mp3" : ".wav"), mp3);
+    }
+
+    // 分段匯出（試卷：題目、選項各一個音檔）：存檔視窗選位置並輸入名稱，以這個名稱建資料夾，
+    // 每段存成一個音檔（檔名由網頁給，已依順序編號），另寫一份播放清單 .m3u8
+    // items：[{ name, text, segments? }]；語音、速度、音量、停頓全部共用
+    async Task ExportBatchAsync(JsonElement msg, Action<object> reply)
+    {
+        var items = new List<(string name, string text, List<(string text, string? voiceId)> segs)>();
+        if (msg.TryGetProperty("items", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            foreach (var it in arr.EnumerateArray())
+            {
+                string t = it.TryGetProperty("text", out var tt) ? tt.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(t)) continue;
+                string nm = it.TryGetProperty("name", out var nn) ? nn.GetString() ?? "" : "";
+                items.Add((SafeFileName(string.IsNullOrWhiteSpace(nm) ? $"{items.Count + 1:000}" : nm), t, ReadSegments(it)));
+            }
+        if (items.Count == 0) throw new ArgumentException("沒有可匯出的段落");
+        string? voiceId = msg.TryGetProperty("voiceId", out var v) ? v.GetString() : null;
+        double rate = msg.TryGetProperty("rate", out var r) && r.TryGetDouble(out var d) ? d : 1.0;
+        double volume = ReadVolume(msg);
+        string pause = msg.TryGetProperty("pause", out var pz) ? pz.GetString() ?? "natural" : "natural";
+        string name = msg.TryGetProperty("fileName", out var n) ? n.GetString() ?? "" : "";
+
+        if (AskAudioPath("分段匯出音檔（輸入資料夾名稱）", name) is not var (picked, mp3))
+        {
+            reply(new { type = "exportCancelled" });
+            return;
+        }
+        // 資料夾已存在且有檔案時加上 (2)、(3)…，不覆蓋原有的音檔
+        string baseDir = Path.ChangeExtension(picked, null);
+        string dir = baseDir;
+        for (int k = 2; Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any(); k++) dir = $"{baseDir} ({k})";
+        Directory.CreateDirectory(dir);
+
+        string ext = mp3 ? ".mp3" : ".wav";
+        var files = new List<string>();
+        for (int i = 0; i < items.Count; i++)
+        {
+            var (itemName, text, segs) = items[i];
+            reply(new { type = "batchProgress", done = i, total = items.Count, name = itemName });
+            byte[] audio = segs.Count > 0
+                ? await TtsService.SynthesizeSegmentsWavAsync(segs, rate, pause, null, volume)
+                : await TtsService.SynthesizeWavAsync(text, voiceId, rate, null, volume);
+            if (mp3) audio = await TtsService.WavToMp3Async(audio);
+            string file = itemName + ext;
+            await File.WriteAllBytesAsync(Path.Combine(dir, file), audio);
+            files.Add(file);
+        }
+        await File.WriteAllTextAsync(Path.Combine(dir, Path.GetFileName(dir) + ".m3u8"),
+            "#EXTM3U\r\n" + string.Concat(files.Select(f => f + "\r\n")), new System.Text.UTF8Encoding(false));
+        reply(new { type = "batchDone", path = dir, count = files.Count });
     }
 
     static (string text, string? voiceId, double rate) ReadTtsArgs(JsonElement msg)

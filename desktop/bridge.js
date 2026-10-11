@@ -49,9 +49,11 @@
     switch (m.type) {
       case 'progress': if (w.onProgress) w.onProgress({ stage: 'synthesize', done: m.done, total: m.total }); return;
       case 'encoding': if (w.onProgress) w.onProgress({ stage: 'encode' }); return;
+      case 'batchProgress': if (w.onProgress) w.onProgress({ stage: 'file', done: m.done, total: m.total, name: m.name }); return;
       case 'voices': w.resolve(m.voices); break;
       case 'previewAudio': w.resolve(m.data); break;
       case 'exportDone': w.resolve({ saved: true, path: m.path }); break;
+      case 'batchDone': w.resolve({ saved: true, path: m.path, count: m.count }); break;
       case 'exportCancelled': w.resolve({ saved: false }); break;
       case 'error': w.reject(new Error(m.message)); break;
       default: return;
@@ -70,7 +72,8 @@
     appVersion: '__VITOOLS_APP_VERSION__',
     // 新增的功能（網頁先檢查再用，舊版 app 沒有）：
     //   'segments' exportAudio 可傳 segments（中英分語音，每段指定語音）與 pause
-    features: Object.freeze(['segments']),
+    //   'batch'    exportAudioBatch（分段匯出：一段一個音檔，存進同一個資料夾）
+    features: Object.freeze(['segments', 'batch']),
     // Windows 語音清單：[{ id, name, lang, isDefault }]
     getVoices: () => call('getVoices', {}),
     // 試聽：合成前 300 字，回傳 WAV 的 base64
@@ -80,6 +83,11 @@
     // onProgress({ stage: 'synthesize', done, total }｜{ stage: 'encode' })
     exportAudio: ({ text, voiceId, rate = 1, volume = 1, fileName = '', segments, pause }, onProgress) =>
       call('export', { text, voiceId, rate, volume, fileName, segments, pause }, onProgress),
+    // 分段匯出：跳出存檔視窗（選位置、輸入資料夾名稱、MP3／WAV），建立資料夾，items 每項存成「name.mp3」，另寫播放清單 .m3u8
+    // items：[{ name, text, segments? }]（segments 同 exportAudio，每項各自的中英分段）
+    // 回傳 { saved: true, path（資料夾）, count } 或 { saved: false }；onProgress({ stage: 'file', done, total, name })
+    exportAudioBatch: ({ items, voiceId, rate = 1, volume = 1, fileName = '', pause }, onProgress) =>
+      call('exportBatch', { items, voiceId, rate, volume, fileName, pause }, onProgress),
   });
   window.vitoolsDesktop = api;
   window.dispatchEvent(new Event('vitoolsdesktop-ready'));

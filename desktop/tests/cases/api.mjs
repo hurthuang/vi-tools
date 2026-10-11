@@ -1,16 +1,17 @@
+import { readFileSync } from 'node:fs';
 import { VER, re } from '../version.mjs';
 
 // window.vitoolsDesktop：桌面版提供給網頁的功能（第 2 步起網頁透過它使用桌面功能）
 export default {
   name: 'window.vitoolsDesktop 介面',
   needsApp: true,
-  async run({ cdp, check, win, sleep, cancelDialog }) {
+  async run({ cdp, check, win, sleep, cancelDialog, saveDialog, outPath }) {
     // 首頁與各工具分頁都要有，版本號正確
     for (const where of ['首頁', 'frame-bt', 'frame-g2', 'frame-nc', 'frame-p2a']) {
       const W = where === '首頁' ? 'window' : win(where);
-      const info = await cdp.ev(`(() => { const d = ${W}.vitoolsDesktop; return d && { api: d.apiVersion, app: d.appVersion, fns: ['getVoices', 'previewAudio', 'exportAudio'].every(k => typeof d[k] === 'function') }; })()`);
-      check(`${where}：有 vitoolsDesktop（apiVersion 1、appVersion ${VER}、三個函式）`,
-        info && info.api === 1 && info.app === VER && info.fns, JSON.stringify(info));
+      const info = await cdp.ev(`(() => { const d = ${W}.vitoolsDesktop; return d && { api: d.apiVersion, app: d.appVersion, fns: ['getVoices', 'previewAudio', 'exportAudio', 'exportAudioBatch'].every(k => typeof d[k] === 'function'), batch: d.features.includes('batch') }; })()`);
+      check(`${where}：有 vitoolsDesktop（apiVersion 1、appVersion ${VER}、四個函式、batch 功能）`,
+        info && info.api === 1 && info.app === VER && info.fns && info.batch, JSON.stringify(info));
     }
     const dl = await cdp.ev(`document.getElementById('app-download').textContent`);
     check('首頁下方的下載連結改成顯示目前版本', new RegExp(`目前使用 Windows 桌面版 v${re(VER)}`).test(dl) && !(await cdp.ev(`!!document.querySelector('#app-download a')`)), dl);
@@ -49,6 +50,13 @@ export default {
     const out = await cancelDialog();
     const r = await cdp.ev(`window.__exp`);
     check('exportAudio：按取消回傳 { saved: false }', out === 'cancelled' && r && r.saved === false, `${out} / ${JSON.stringify(r)}`);
+    await sleep(300);
+    // 網頁的一般存檔（<a download>）：跳「另存新檔」視窗讓使用者選位置，不直接存進「下載」資料夾
+    const dlPath = outPath('download-test.txt');
+    await cdp.ev(`(() => { const w = ${win('frame-p2a')}; const a = w.document.createElement('a');
+      a.href = w.URL.createObjectURL(new w.Blob(['下載測試'], { type: 'text/plain' })); a.download = 'b2t_output.txt'; a.click(); return true; })()`);
+    const sv = await saveDialog(dlPath, 10000, '另存新檔');
+    check('網頁存檔跳出「另存新檔」視窗，存到選的位置', sv.ok && readFileSync(dlPath, 'utf8') === '下載測試', JSON.stringify(sv));
     await sleep(300);
   },
 };
