@@ -228,7 +228,7 @@ function cleanExamText(text, opts) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  handleOpenFile — 開啟檔案（txt/docx/odt/rtf/pdf）
+//  handleOpenFile — 開啟檔案（txt/brl/brf/docx/odt/rtf/pdf；brl 是臺灣點字檔、brf 是英文點字檔，都是純文字）
 //  taId:    目標 textarea 的 id
 //  onLoad:  載入後 callback（可為 null）
 // ════════════════════════════════════════════════════════════
@@ -246,7 +246,7 @@ async function handleOpenFile(event, taId, onLoad) {
         if (typeof onLoad === 'function') onLoad();
     };
 
-    if (ext === 'txt') {
+    if (ext === 'txt' || ext === 'brl' || ext === 'brf') {
         const reader = new FileReader();
         reader.onload = e => done(e.target.result);
         reader.readAsText(file, 'UTF-8');

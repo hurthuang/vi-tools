@@ -163,10 +163,10 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
         <span id="font-size-val" aria-live="polite">20px</span>
     </div>
     <div class="btn-group">
-        <input type="file" id="open-file-input" accept=".txt,.docx,.odt,.rtf,.pdf,.html,.htm" style="display:none"
+        <input type="file" id="open-file-input" accept=".txt,.brl,.brf,.docx,.odt,.rtf,.pdf,.html,.htm" style="display:none"
                aria-hidden="true" tabindex="-1"
                onchange="b2tHandleOpenFile(event)">
-        <button onclick="document.getElementById('open-file-input').click()" title="開啟點字檔，或先前儲存的校對檔（.txt .html）" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
+        <button onclick="document.getElementById('open-file-input').click()" title="開啟點字檔（.brl .brf .txt），或先前儲存的校對檔（.html）" style="background:#795548;color:white;border-color:#5d4037;" aria-label="開啟檔案"><span aria-hidden="true">📂</span> 開啟檔案</button>
         <button onclick="b2tSaveInputBraille()" title="將點字輸入儲存成 .txt 檔案" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="儲存編輯"><span aria-hidden="true">💾</span> 儲存編輯</button>
         <button onclick="saveOutputTxt()" title="將轉換結果儲存成 .txt 檔案" style="background:#2e7d32;color:white;border-color:#1b5e20;" aria-label="儲存輸出"><span aria-hidden="true">💾</span> 儲存輸出</button>
         <button onclick="saveParallelHtml()" title="儲存雙視校對檔，可重新開啟繼續修編" style="background:#546e7a;color:white;border-color:#37474f;" aria-label="儲存校對"><span aria-hidden="true">📄</span> 儲存校對</button>
