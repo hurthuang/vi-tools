@@ -134,7 +134,6 @@ function onDesktop(fn) {
 
 ## 待辦
 
-- **刪除舊資料夾 `E:\Project\vi-desktop`**：桌面版搬進 vi-tools 的 `desktop/` 之前的副本。等搬移後的所有步驟都確認沒問題、commit 之後才刪。
 - **數學點字頁「整理」按鈕的包覆記號問題**（上層 `nemeth_converter.html` 數學編輯器的 `convertAllDelimiters()`，屬於網頁部分，非桌面版）：遇到 `$` 就切換進出算式，沒有判斷上下文：
   - 金額會被誤判：「$100 和 $200」→ `\(100 和 \)200`
   - `$$x$$` 被拆成 `\(\)x\(\)`，獨立算式壞掉

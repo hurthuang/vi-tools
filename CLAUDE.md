@@ -5,6 +5,21 @@
 GitHub：https://github.com/hurthuang/vi-tools
 網址：https://hurthuang.github.io/vi-tools/
 
+## 共用素材區（repo 外，不進版控）
+`../materials/`（`E:\Project\materials\`）放各 repo 共用的參考資料，worktree 也讀得到：
+- `braille-rules/`：UEB 2013/2024、Nemeth 2022、NFB Nemeth 課程、化學 Nemeth（`理化/`）
+- `dict-correction/`：NVDA-DictSwitcher 破音字校對的語料（`工作檔/book_txt`、`exam_txt`、`wiki_txt`）、
+  `做法B/` 萌典與審訂表查證表、會考語音詞庫檢查報告；是 `tools/` 的 check-speech-dict 等工具的輸入
+- `math-curriculum/`、`music/Score/`（點字樂譜測試用樂譜）、`tactile/`（觸摸圖試題樣本）
+
+新的大型參考資料放這裡，不要放進 `document/`。已被取代的舊資料放 `E:\Project\_archive\`（g2pW 模型在 `_archive\dict-correction-g2pw\`）。
+
+## 待辦：用 DictSwitcher 1.6.0 破音字修正字庫補 bt 多音字規則
+`bt-zh-supplement-rules.json`（702 筆）2026-07-04 建立，只參考舊版 my_dict（見下方「多音字補充規則」）。
+DictSwitcher 1.6.0（2026-09-30）的 `globalPlugins/my_dict.dic`（433 行）經會考讀音標注、萌典、
+審訂表、g2pW 驗證。它修的是 Hanhan 念錯，不是 bt 選錯讀音，不能整份搬：逐條丟進 bt
+比對，只收 bt 轉錯的；可引用 `../materials/dict-correction/做法B/` 的查證表。
+
 ## 桌面版（desktop/）
 `desktop/` 是 Windows 桌面版（C# .NET 10 + WebView2，app 名稱 ViTools），包裝本 repo 的網頁，另加網頁做不到的「匯出音檔」（Windows 內建語音，MP3/WAV）。細節、建置、打包、待辦都在 `desktop/README.md`；自動測試在 `desktop/tests/`（`node desktop/tests/run.mjs`）。
 
@@ -15,7 +30,7 @@ GitHub：https://github.com/hurthuang/vi-tools
 - Release 放本 repo，標籤 `desktop-v*`；累積一定更新才發版，小修不發
 
 ### 順序（一步一步做，每步跑完 `desktop/tests` 確認不會崩潰）
-1. 把原本的 `E:\Project\vi-desktop` 搬進 `desktop/`（已完成，尚未 commit；舊資料夾等全部確認後才刪）
+1. 把原本的 `E:\Project\vi-desktop` 搬進 `desktop/`（已完成；舊資料夾 2026-10-11 移到 `E:\Project\_archive\vi-desktop`）
 2. 定義 `window.vitoolsDesktop`（已完成 2a：API v1，說明在 `desktop/README.md`「給網頁用的介面」；2b：文字轉點字、點字轉文字的匯出面板已搬到網頁 `desktop-audio.js`；2c：數學點字頁的「🔊 報讀」區塊，瀏覽器也能用；2d：文件整理三種朗讀模式與匯出寫進 `pdf-to-accessible.html`，`bridge.js` 只剩 API），再逐一把桌面版 `bridge.js` 的功能搬進網頁：匯出按鈕、算式轉 MathCAT 報讀文字、文件整理三種朗讀模式（報讀文字／數學式（聽報讀）／原文）、單個 `$` 判斷、缺語音提示
 3. 線上優先、離線內附，並攔截 CDN 函式庫（pdf.js、JSZip、MathJax）改讀內附檔（已完成 2026-09-25；Ctrl+Shift+O 切換；**網頁要先推上 GitHub，app 的線上版才看得到新功能**）
 4. 檢查更新（照 6d-IME 的 GitHub releases 做法）+ GitHub Actions 發佈（已完成 2026-09-26：Ctrl+Shift+U；`.github/workflows/desktop-release.yml` 推送 `desktop-vX.Y.Z` 標籤時建立可攜版 Release，標籤要和 `ViTools.csproj` 的 `<Version>` 相同）
