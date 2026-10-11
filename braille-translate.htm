@@ -1798,7 +1798,7 @@ function isCJKContext(text, pos) {
 // 或字串開頭。通用的左邊界檢查，目前有兩處在用：
 // 1. 7.5.2-7.5.4：問號 ⠦ 跟「his」lower wordsign／開雙引號共用同一格，只有在
 //    這個位置才會被誤讀，需要加 grade-1 symbol indicator ⠰ 消歧義（用
-//    document/2024_braille.txt 官方例句 ?-1750／(?—1750)／10:30-?／
+//    ../materials/braille-rules/2024_braille.txt 官方例句 ?-1750／(?—1750)／10:30-?／
 //    "Replace each ? with a letter: ?e??u" 驗證過）。
 // 2. 單字母 wordsign（WS_LETTERS，如 e=every、p=people）只有真正 standing alone
 //    時才需要 ⠰，見 translateWordWithApos 內的檢查（"?e??u" 裡的 e/u 前面緊接
@@ -3329,7 +3329,7 @@ const WS_OPEN_BLOCKING = new Set(['(', '[', '{', '‘', '“']);
 // 序列裡有沒有上位點訊號，不是單純鄰接判斷）——liblouis WASM oracle 對這兩個字的
 // 交叉驗證結果不可信（見下方 LOWER_WS_SEQ_SET 註解），過去沒有 abcbraille.com/
 // BrailleBlaster 交叉驗證不敢照抄；2026-09-03 改用官方規則書 docx 轉出的文字＋
-// 點字（document/2024_braille.txt）當 ground truth，10.5.2/10.5.3/10.5.4 官方
+// 點字（../materials/braille-rules/2024_braille.txt）當 ground truth，10.5.2/10.5.3/10.5.4 官方
 // 例句齊全可以直接核對，已實作見下方 LOWER_WS_SEQ_SET。
 const LOWER_WS_SET = new Set(['be', 'was', 'his', 'were']);
 const LOWER_WS_ALLOW_TRAILING = new Set([')', ']', '}', ' ', '⠀']);
@@ -3341,7 +3341,7 @@ const LOWER_WS_ALLOW_TRAILING = new Set([')', ']', '}', ' ', '⠀']);
 // 兩者共同受 10.5.4「lower sign rule」約束：緊接的標點序列裡只要有一個訊號含上位點
 // （字母/數字/右括號）就還能用縮寫；連字號/破折號本身視為穿透（繼續往後看）；序列
 // 一路到空白或字串結尾都沒找到，才退回逐字母/groupsign 拼寫。
-// 用 document/2024_braille.txt（Rules of Unified English Braille 2024 官方 docx
+// 用 ../materials/braille-rules/2024_braille.txt（Rules of Unified English Braille 2024 官方 docx
 // 轉出的文字＋點字，見 CLAUDE.md「UEB 規則書 docx 突破」）10.5.2/10.5.3/10.5.4 全部
 // 官方例句驗證：it was enough／GIVE MORE THAN ENOUGH／Buy meat (enough for 2).／
 // Enough's happened.／mother-in-law／listen-in／-in／had-enough mood／

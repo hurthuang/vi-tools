@@ -14,3 +14,7 @@ correction/
 
 # 其他專案（vi-slides）誤匯出到這裡的檔案
 outputs/
+
+# 教材建置的除錯輸出
+document/教材/.build/_dbg*/
+document/教材/.build/braille_list*.json

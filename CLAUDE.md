@@ -430,8 +430,8 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 `|`=dots1256），而非直覺預期的 `y"<`。用 repo 自己的 `build-no-tables-utf32.js` +
 `en-ueb-g2.ctb` 寫 Node script 直接掛 liblouis WASM 驗證（繞開瀏覽器 fetch，改用
 `fs.readFileSync` 把整個 `table/` 目錄塞進 `M.FS`），結果與兩個外部工具一致：
-`y|"<` 才是對的。查 `document/Rules of Unified English Braille 2024.pdf`
-（`document/2024_nolayout.txt`）Rule 10.1.1／10.2.1：alphabetic/strong wordsign
+`y|"<` 才是對的。查 `../materials/braille-rules/Rules of Unified English Braille 2024.pdf`
+（`../materials/braille-rules/2024_nolayout.txt`）Rule 10.1.1／10.2.1：alphabetic/strong wordsign
 只有在整詞「standing alone」（Section 2.6）時才能用單格縮寫；Rule 2.6.3 列出
 後方哪些標點仍算 standing alone（逗號/分號/冒號/句點/驚嘆號/問號/**閉**括號/
 閉引號/撇號…），但**開**括號、開引號不在清單內。緊接開括號時（`you(`），wordsign
@@ -482,7 +482,7 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 `G2_LOWWORD`（`his`/`was`/`were`/`enough`/`be`/`in`，見 `ueb-g2-rules.js`）發現
 `was,`/`was.`/`was;`/`was:`/`was!`/`was?`/`was'`/`was"`/`was-`/`was[`/`was{` 全部
 要退回逐字母拼寫（`w-a-s`），只有 `was)`/`was]`/`was}`（右括號類）才保留 lower
-wordsign——比對 `document/Rules of Unified English Braille 2024.pdf` Rule 10.5.1
+wordsign——比對 `../materials/braille-rules/Rules of Unified English Braille 2024.pdf` Rule 10.5.1
 確認：這條規則比 10.1.1/10.2.1 更嚴，除了 standing alone 之外，「緊接任何**只有
 下位點**的標點（含連字號/破折號，任何引號一律視為只有下位點）」就不能用縮寫，
 即使該標點原本在 2.6.3 允許清單內（逗號、句號等）也一樣擋，因為右括號類完整點字
@@ -540,7 +540,7 @@ be/enough/his/was/were 那幾條規則有個字元類別跟 NVDA 版本語法不
 
 ### docx 突破：解除「PDF 點字圖形抽不出來」的舊限制
 使用者把官方 `Rules of Unified English Braille 2024.pdf` 轉成
-`document/Rules of Unified English Braille 2024.docx`（未進版控）。確認這份 docx
+`../materials/braille-rules/Rules of Unified English Braille 2024.docx`（未進版控）。確認這份 docx
 裡的點字範例雖然顯示用 `SimBraille` 字型，但 `word/document.xml` 底層文字層存的是
 **真正的 Unicode 點字字元**（U+2800-U+28FF），不是圖形也不是圖片——整份文件約
 24,000 處這類 SimBraille 文字 run，全部可直接讀取比對，直接解掉舊稽核（見上面
@@ -548,19 +548,19 @@ be/enough/his/was/were 那幾條規則有個字元類別跟 NVDA 版本語法不
 卡住的「PDF 裡的點字方格是內嵌字型/圖形，pdftotext 抽不出實際點位」限制。
 
 用 Node 腳本（正規表達式抽取所有 `<w:t>` 文字，含 Unicode 點字）把 docx 轉成乾淨的
-文字＋點字交錯純文字檔，存到 **`document/2024_braille.txt`**（未進版控，跟其他
-`document/` 底下的規則書衍生檔一致）。**踩過的坑**：自封閉的 `<w:t xml:space=
+文字＋點字交錯純文字檔，存到 **`../materials/braille-rules/2024_braille.txt`**（放在 repo 外的共用素材區 `E:\Project\materials\`，
+所有 worktree 共用，不進版控）。**踩過的坑**：自封閉的 `<w:t xml:space=
 "preserve"/>` 標籤如果沒排在正規表達式優先順序最前面，會被誤判成開始標籤、非貪婪
 比對一路吃到文件後面很遠的下一個 `</w:t>`，把中間一大段原始 XML 當文字吐出來——
 加了「輸出裡不該殘留任何 `<w:...>` 標籤」的完整性檢查才抓到。
 
-之後任何 UEB 稽核都優先用 `document/2024_braille.txt`（grep 規則編號或關鍵字找
-`Examples:` 段落），比舊的 `document/2024_nolayout.txt`（無點字，只有條文說明）
+之後任何 UEB 稽核都優先用 `../materials/braille-rules/2024_braille.txt`（grep 規則編號或關鍵字找
+`Examples:` 段落），比舊的 `../materials/braille-rules/2024_nolayout.txt`（無點字，只有條文說明）
 更完整可信；10.10-10.13（之前卡住的章節）跟完全沒碰過的 Section 1-9 現在都
 具備重新稽核的條件。
 
 ### enough/in（10.5.2-10.5.4）Lower sign rule 已實作
-用 `document/2024_braille.txt` 找到 10.5.2/10.5.3/10.5.4 全部官方例句，取代原本
+用 `../materials/braille-rules/2024_braille.txt` 找到 10.5.2/10.5.3/10.5.4 全部官方例句，取代原本
 「沒有 abcbraille.com/BrailleBlaster 交叉驗證不敢照抄 liblouis oracle」的延後決定。
 規則跟 be/his/was/were（10.5.1，`LOWER_WS_SET`）不同：
 - **enough（10.5.2）**：仍需 standing alone（跟一般 wordsign 同一套 2.6.3 開括號/
@@ -724,7 +724,7 @@ CLAUDE.md 本身也是 CRLF，同一個坑之後改這個檔案時也可能踩�
    純標點（`!t.isEnglish`）一律放行、繼續往後找下一個全大寫詞。
 
 ### 驗證
-用 `document/2024_braille.txt` 官方例句（`GIVE MORE THAN ENOUGH`／
+用 `../materials/braille-rules/2024_braille.txt` 官方例句（`GIVE MORE THAN ENOUGH`／
 `CAUTION: WET PAINT!`／`STOP RUNNING NOW!  It's dangerous.`／
 `Please KEEP OFF THE GRASS in this area.`／`FOR SALE: 1975 FIREBIRD`／
 `THE BBC AFRICA NEWS`）真瀏覽器 render() 跑過，**6/7 逐字元完全吻合**，一般
@@ -798,7 +798,7 @@ space 有交集的案例還沒測）、6.8（spaced numeric indicator，⠼ 後�
 ## bt：UEB Section 3（一般符號）稽核抓到的重大 bug——standing alone 右邊界判斷是「擋清單」不是「允許清單」（已修，2026-09-03）
 
 ### 背景
-Section 3 大部分是符號對照表（©®±貨幣符號等），逐一跟 `document/2024_braille.txt`
+Section 3 大部分是符號對照表（©®±貨幣符號等），逐一跟 `../materials/braille-rules/2024_braille.txt`
 比對後發現 bt 現有 `UEB_PUNCT` 擴充表本身是對的（先前已對照 liblouis ctb 原始碼
 校正過）。但測 Rule 3.1（ampersand）官方範例 `B&B` 時發現 bt 輸出多了一個不該有
 的 grade-1 indicator（`⠰⠠⠃⠈⠯⠠⠃`，官方是 `⠠⠃⠈⠯⠠⠃`，B 前面不該有 ⠰）。
@@ -846,7 +846,7 @@ capsphrase、一般句子）確認零 regression；446 條回歸測試全過。
 ## bt：UEB 10.10-10.13 稽核（進行中，2026-09-03）
 
 ### 10.11.1（複合詞不可跨界縮寫）/ 10.11.2（h 不發音時照常縮寫）/ 10.11.3（be/con/dis 字首）：抽測全過，確認已正確
-用 `document/2024_braille.txt` 抓出官方範例逐條測（compound word 25 個、
+用 `../materials/braille-rules/2024_braille.txt` 抓出官方範例逐條測（compound word 25 個、
 aspirated-h 8 個+3 個「But」反例、be/con/dis 字首 7 個），**全部逐字元吻合**，
 沒有動手改任何東西——這幾條規則本質是「哪些詞的縮寫要被特定字母組合擋掉」的
 詞彙表資料，bt 現有的 `G2_WORD`/blocking predicate 顯然已經是從可靠來源（很可能

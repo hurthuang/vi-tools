@@ -371,7 +371,7 @@ function blocksEnAnywhere(word, pos) {
 // （如 "Come in," "stay in."）判斷「in」不能用 wordsign、要退回逐字母拼寫——這時
 // 如果 ANYWHERE groupsign 沒有這條防呆，會用同一個點位的 groupsign 把縮寫寫回去，
 // 等於完全沒退到逐字母、白費 wordsign 那邊擋掉的判斷。用官方規則書 docx 例句
-// （document/2024_braille.txt："Come in, stay in." → in,/in. 都是逐字母 ⠊⠝，
+// （../materials/braille-rules/2024_braille.txt："Come in, stay in." → in,/in. 都是逐字母 ⠊⠝，
 // 不是 groupsign ⠔）驗證這個防呆是必要的，2026-09-03 補上。
 function blocksInAnywhere(word, pos) {
     return pos === 0 && word.length === 2 && word.toLowerCase() === 'in';

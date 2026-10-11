@@ -7,9 +7,9 @@
 
 來源縮寫：
 - **Nemeth 2022** = *The Nemeth Braille Code for Mathematics and Science Notation, 2022*（BANA），
-  文字擷取於 `document/nemeth2022.txt`。
+  文字擷取於 `../materials/braille-rules/nemeth2022.txt`。
 - **Chem 2023** = *Chemical Notation Using the Nemeth Braille Code, 2023*（BANA），
-  文字擷取於 `document/教材/理化/chem_notation.txt`。
+  文字擷取於 `../materials/braille-rules/理化/chem_notation.txt`。
 - **教育部彙編2000** = 教育部（主持人：張訓誥）《點字符號彙編》（數學點字、理化點字等冊），
   臺北市：教育部，民國89年12月，ISBN 957-02-7406-9。台灣理化／數學點字教材長期沿用的
   範本，無電子檔，依使用者提供的實體書內頁照片逐格解碼比對。
