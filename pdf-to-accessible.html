@@ -827,6 +827,7 @@ input[type=range] { accent-color: var(--accent2); }
           <label for="split-how">切分方式</label>
           <select id="split-how" class="setting-select">
             <option value="auto">自動判斷題目與選項（另可加 === 記號）</option>
+            <option value="blank">依空行切（同 Balabolka，空行後的第一行開始新的一段）</option>
             <option value="manual">只用 === 記號切</option>
           </select>
           <button class="btn btn-neutral" id="btn-split-refresh" type="button">重新判斷</button>
@@ -834,6 +835,7 @@ input[type=range] { accent-color: var(--accent2); }
         </div>
         <p class="split-help">匯出前先檢查下面的清單：一列一個音檔，可以改檔名、試聽、併入上一檔或不匯出。
           自動判斷切錯時，在「編輯」分頁單獨一行打 <code>===</code> 從那裡切開，後面可以接名稱（例：<code>=== 閱讀測驗一</code>），這一行不會念出來。
+          以前為 Balabolka 用空行分好段的文字檔，切分方式選「依空行切」，切法和以前一樣。
           匯出時選好位置、輸入資料夾名稱，音檔依順序編號存進這個資料夾，另附播放清單。</p>
         <p id="split-summary" role="status"></p>
         <ol id="split-list"></ol>
@@ -1044,6 +1046,15 @@ document.getElementById('file-input').addEventListener('change', e => {
   e.target.value = '';
 });
 
+// 文字檔編碼：UTF-16（有 BOM）、UTF-8，都不是時當 Big5（舊的 Windows 中文文字檔，例如以前給 Balabolka 用的試卷）
+function decodeTextFile(buf) {
+  const b = new Uint8Array(buf);
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { return new TextDecoder('big5').decode(buf); }
+}
+
 async function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   const fiInfo = document.getElementById('file-info');
@@ -1057,7 +1068,7 @@ async function handleFile(file) {
   try {
     let text = '';
     if (ext === 'txt') {
-      text = await file.text();
+      text = decodeTextFile(await file.arrayBuffer());
       setProgress(100, '完成');
     } else if (ext === 'pdf') {
       text = await readPdf(file);
@@ -1938,7 +1949,7 @@ function initSplitExport(api, nativeVoice, getVoices) {
   const summary = document.getElementById('split-summary');
   const exportBtn = document.getElementById('btn-split-export');
   const HOW_KEY = 'p2a-split-how';
-  try { if (localStorage.getItem(HOW_KEY) === 'manual') how.value = 'manual'; } catch (e) {}
+  try { const v = localStorage.getItem(HOW_KEY); if (v === 'manual' || v === 'blank') how.value = v; } catch (e) {}
   box.hidden = false;
   let rows = [], builtKey = null, audio = null;
   const num = id => Number(document.getElementById(id).value) || 1;
@@ -1972,7 +1983,7 @@ function initSplitExport(api, nativeVoice, getVoices) {
     }
     const merged = rows.filter(r => r.choice.value === 'merge').length, skipped = rows.filter(r => r.choice.value === 'skip').length;
     const stems = rows.filter(r => r.seg.kind === 'stem').length, groups = rows.filter(r => r.seg.kind === 'passage').length;
-    summary.textContent = `共 ${n} 個音檔` + (how.value === 'auto' ? `（找到 ${stems} 題、${groups} 個題組）` : '') +
+    summary.textContent = `共 ${n} 個音檔` + (how.value !== 'manual' ? `（找到 ${stems} 題、${groups} 個題組）` : '') +
       (merged ? `；${merged} 段併入上一檔` : '') + (skipped ? `；${skipped} 段不匯出` : '');
   }
 
@@ -1985,7 +1996,7 @@ function initSplitExport(api, nativeVoice, getVoices) {
     list.innerHTML = '';
     rows = [];
     if (!txt.trim()) { summary.textContent = '沒有文字'; return; }
-    const segs = vitoolsExamSplit.split(txt, { auto: how.value === 'auto' });
+    const segs = vitoolsExamSplit.split(txt, { mode: how.value });
     summary.textContent = '整理清單中…';
     const texts = await speechTexts(txt, segs);
     if (builtKey !== key) return;

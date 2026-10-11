@@ -123,6 +123,15 @@ export default {
       check('文件整理：數學式模式渲染（瀏覽器從 CDN 載入 MathJax）', n >= 2, `${n} 個`);
       await cdp.ev(`${PD}.querySelector('input[name=tts-mode][value=speech]').click()`);
 
+      // 文字檔編碼：Big5（舊的 Windows 中文文字檔）、UTF-8、UTF-16 都能讀
+      const enc = await cdp.ev(`(() => {
+        const big5 = new Uint8Array([0xA4, 0xA4, 0xA4, 0xE5, 0x31, 0x2E, 0xB4, 0xFA, 0xB8, 0xD5]);   // 「中文1.測試」
+        const utf8 = new TextEncoder().encode('中文1.測試');
+        const u16 = new Uint8Array([0xFF, 0xFE, 0x2D, 0x4E, 0x87, 0x65]);                          // BOM + 「中文」
+        return [${PW}.decodeTextFile(big5.buffer), ${PW}.decodeTextFile(utf8.buffer), ${PW}.decodeTextFile(u16.buffer)];
+      })()`);
+      check('文件整理：文字檔 Big5、UTF-8、UTF-16 都能讀', JSON.stringify(enc) === JSON.stringify(['中文1.測試', '中文1.測試', '中文']), JSON.stringify(enc));
+
       // 存報讀檔在瀏覽器也能用
       await captureDownloads(cdp, 'frame-nc');
       await cdp.ev(`${NC}.getElementById('l2n-speech-save').click()`);

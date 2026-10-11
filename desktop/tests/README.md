@@ -29,7 +29,7 @@ node tests/run.mjs --only math,bilingual              # 多個關鍵字用逗號
 | 檔案 | 內容 |
 |---|---|
 | `findmath.mjs` | `findMath()` 算式判斷規則（網頁 `math-speech.js`：單個 `$` 的 Pandoc 規則、金額、`\$`、`$$`、數學點字頁的 `MATH_RE`），不開 app |
-| `examsplit.mjs` | `exam-split.js` 試卷分段規則（NVDA 試題本、PDF 的題號與編號清單、題組提示行、非選擇題、手動 `===` 記號），不開 app |
+| `examsplit.mjs` | `exam-split.js` 試卷分段規則（NVDA 試題本、PDF 的題號與編號清單、題組提示行、非選擇題、學校段考的作答括號／選項是圖／英聽／閱讀測驗 A.、依空行切、手動 `===` 記號），不開 app |
 | `langseg.mjs` | `lang-segments.js` 中英切段規則（兩個以上英文單字才切、縮寫、夾數字、標點跟著前一段、撇號），不開 app |
 | `cli-tts.mjs` | `ViTools.exe --tts-test` 直接合成 WAV／MP3，不開視窗 |
 | `browser.mjs` | 一般瀏覽器（無視窗 Edge + 本機網頁伺服器）開網頁版：`desktop-audio.js` 不加面板；數學點字報讀區塊與存報讀檔、文件整理三種朗讀模式都能用，但匯出按鈕實際隱藏；網頁照常轉換、相關檔案沒有錯誤，不開 app |

@@ -39,22 +39,23 @@ export default {
     const rows = () => cdp.ev(`[...${D}.querySelectorAll('#split-list li')].map(li => ({ num: li.querySelector('.split-num').textContent,
       name: li.querySelector('input').value, how: li.querySelector('select').value, pv: li.querySelector('.split-preview').textContent }))`);
     let r = await rows();
-    const want = ['說明', '第1題_題目', '第1題_選項', '第2題', '第3至4題_題組', '第3題_題目', '第3題_選項', '補充', '第4題_題目', '第4題_選項'];
+    const want = ['說明', '第1題_題目', '第1題_選項', '第2題', '二、題組', '第3至4題_題組', '第3題_題目', '第3題_選項', '補充', '第4題_題目', '第4題_選項'];
     check('預覽清單：自動判斷的檔名', JSON.stringify(r.map(x => x.name)) === JSON.stringify(want), JSON.stringify(r.map(x => x.name)));
-    check('預覽清單：依順序編號', r.map(x => x.num).join(',') === '001,002,003,004,005,006,007,008,009,010', r.map(x => x.num).join(','));
+    check('預覽清單：依順序編號', r.map(x => x.num).join(',') === '001,002,003,004,005,006,007,008,009,010,011', r.map(x => x.num).join(','));
     check('預覽清單：算式照朗讀內容念報讀文字', /x 平方 等於 16/.test(r[1]?.pv), r[1]?.pv);
-    check('預覽清單：手動記號那行不念', r[7]?.pv === '這段是手動切開的。', r[7]?.pv);
-    check('預覽清單：摘要', /共 10 個音檔（找到 4 題、1 個題組）/.test(await cdp.ev(`${D}.getElementById('split-summary').textContent`)),
+    check('預覽清單：手動記號那行不念', r[8]?.pv === '這段是手動切開的。', r[8]?.pv);
+    check('預覽清單：摘要', /共 11 個音檔（找到 4 題、1 個題組）/.test(await cdp.ev(`${D}.getElementById('split-summary').textContent`)),
       await cdp.ev(`${D}.getElementById('split-summary').textContent`));
 
-    // 調整：「補充」併入上一檔、第2題不匯出、說明改名
+    // 調整：「補充」併入上一檔、第2題與大標題不匯出、說明改名
     const setHow = (i, v) => cdp.ev(`(() => { const s = ${D}.querySelectorAll('#split-list select')[${i}]; s.value = '${v}'; s.dispatchEvent(new Event('change')); })()`);
-    await setHow(7, 'merge');
+    await setHow(8, 'merge');
     await setHow(3, 'skip');
+    await setHow(4, 'skip');
     await cdp.ev(`${D}.querySelectorAll('#split-list input')[0].value = '考試說明'`);
     r = await rows();
-    check('調整後重新編號（不匯出 —、併入上一檔 ↳）', r.map(x => x.num).join(',') === '001,002,003,—,004,005,006,↳,007,008', r.map(x => x.num).join(','));
-    check('調整後摘要', /共 8 個音檔.*1 段併入上一檔；1 段不匯出/.test(await cdp.ev(`${D}.getElementById('split-summary').textContent`)));
+    check('調整後重新編號（不匯出 —、併入上一檔 ↳）', r.map(x => x.num).join(',') === '001,002,003,—,—,004,005,006,↳,007,008', r.map(x => x.num).join(','));
+    check('調整後摘要', /共 8 個音檔.*1 段併入上一檔；2 段不匯出/.test(await cdp.ev(`${D}.getElementById('split-summary').textContent`)));
 
     // 切到編輯再回朗讀：文字沒變，保留使用者的調整
     await cdp.ev(`${W}.switchTab('raw')`);
@@ -88,5 +89,12 @@ export default {
     await saveDialog(folder + '.mp3', 500, '分段匯出音檔（輸入資料夾名稱）');
     await waitFor(cdp, `/^已匯出.*\\(2\\)/.test(${D}.getElementById('split-summary').textContent)`, 120000);
     check('同名資料夾已有檔案時改存到「(2)」', existsSync(join(folder + ' (2)', '001_考試說明.mp3')), await cdp.ev(`${D}.getElementById('split-summary').textContent`));
+
+    // 切分方式改「依空行切」：測試文字沒有空行，只有手動記號切開 → 說明、補充兩段
+    await cdp.ev(`(() => { const h = ${D}.getElementById('split-how'); h.value = 'blank'; h.dispatchEvent(new Event('change')); })()`);
+    await sleep(800);
+    const blank = (await rows()).map(x => x.name);
+    check('切分方式「依空行切」', JSON.stringify(blank) === JSON.stringify(['說明', '補充']), JSON.stringify(blank));
+    await cdp.ev(`(() => { const h = ${D}.getElementById('split-how'); h.value = 'auto'; h.dispatchEvent(new Event('change')); })()`);
   },
 };
