@@ -403,7 +403,61 @@
     return Object.assign({}, score, { parts });
   }
 
+  /**
+   * 只有和弦名稱的聲部：全部都是休止符，且至少有一個和弦名稱
+   * （例如 TMD 匯出的 Piano 聲部，用休止符承載伴奏和弦）。
+   */
+  function isChordOnly(part) {
+    let chords = false;
+    for (const m of part.measures)
+      for (const v of m.voices)
+        for (const ev of v) {
+          if (ev.kind !== 'rest') return false;
+          if (ev.chords && ev.chords.length) chords = true;
+        }
+    return chords;
+  }
+
+  /**
+   * 把 source 的和弦名稱依拍點併到 target 第一聲部的事件上（小節依序對齊）。
+   * 拍點上沒有音或休止符開始時，放到正在響的那個事件上，回傳這種情況的次數。
+   */
+  function mergeChords(target, source) {
+    let moved = 0;
+    const n = Math.min(target.measures.length, source.measures.length);
+    for (let i = 0; i < n; i++) {
+      const list = target.measures[i].voices[0];
+      if (!list || !list.length) continue;
+      const starts = [];
+      let t = 0;
+      for (const ev of list) {
+        starts.push(t);
+        t += ev.measureRest ? 0 : eventTicks(ev);
+      }
+      for (const v of source.measures[i].voices) {
+        let at = 0;
+        for (const ev of v) {
+          if (ev.chords && ev.chords.length) {
+            let k = starts.indexOf(at);
+            if (k < 0) {
+              k = 0;
+              while (k + 1 < starts.length && starts[k + 1] <= at) k++;
+              moved++;
+            }
+            const dst = list[k];
+            dst.chords = dst.chords || [];
+            for (const c of ev.chords) if (!dst.chords.includes(c)) dst.chords.push(c);
+          }
+          at += ev.measureRest ? 0 : eventTicks(ev);
+        }
+      }
+    }
+    return moved;
+  }
+
   MB.model = {
+    isChordOnly,
+    mergeChords,
     performanceOrder,
     performanceScore,
     syncNav,

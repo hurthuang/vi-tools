@@ -31,7 +31,10 @@
     const root = X.child(el, 'root');
     if (!root) return null;
     let s = X.textOf(root, 'root-step') + altText(+(X.textOf(root, 'root-alter') || 0));
-    s += kind && kind.attrs.text != null ? kind.attrs.text : KIND_SUFFIX[kv] || '';
+    // 顯示文字原樣使用；但只有數字、又和種類不符的是級數（TMD 匯出的 text="1"、"4"、"5"），改用種類的後綴
+    const kt = kind && kind.attrs.text != null ? kind.attrs.text : null;
+    const sfx = KIND_SUFFIX[kv] || '';
+    s += kt != null && !(/^\d+$/.test(kt.trim()) && kt.trim() !== sfx) ? kt : sfx;
     for (const d of X.children(el, 'degree')) {
       const v = X.textOf(d, 'degree-value');
       const a = altText(+(X.textOf(d, 'degree-alter') || 0));
@@ -374,6 +377,11 @@
     let pi = 0;
     if (opts.part === 'piano') {
       const f = partInfo.find((x) => x.staves >= 2);
+      pi = f ? f.index : 0;
+    } else if (opts.part === 'auto') {
+      // 開檔預設：名稱像旋律的聲部優先（TMD 匯出時 Bass 在前、Lead 在後）；沒有音符的聲部（只有和弦）不選
+      const pitched = partInfo.filter((x) => X.children(partEls[x.index], 'measure').some((m) => X.children(m, 'note').some((n) => X.child(n, 'pitch'))));
+      const f = pitched.find((x) => /lead|melod|voice|vocal|soprano|旋律|歌/i.test(x.name)) || pitched[0];
       pi = f ? f.index : 0;
     } else if (Number.isInteger(opts.part) && partEls[opts.part]) pi = opts.part;
     if (partEls.length > 1)
@@ -880,6 +888,20 @@
       f.meter = f.meter || { num: 4, den: 4, symbol: null };
     }
     mergeLayoutSplits(out);
+    // 其他只有和弦名稱的聲部（全是休止符，例如 TMD 的 Piano 聲部）：和弦併到目前聲部的第一行譜表
+    if (!opts._noMerge) {
+      const selfChords = out.length === 1 && M.isChordOnly(out[0]);
+      if (selfChords) partInfo[pi].chordsOnly = true;
+      partEls.forEach((pe, k) => {
+        if (k === pi || !X.children(pe, 'measure').some((m) => X.child(m, 'harmony'))) return;
+        const o = parseMusicXML(text, { part: k, _noMerge: true }).score.parts;
+        if (o.length !== 1 || !M.isChordOnly(o[0])) return;
+        partInfo[k].chordsOnly = true;
+        if (selfChords) return;
+        const moved = M.mergeChords(out[0], o[0]);
+        warn('聲部「' + partInfo[k].name + '」只有和弦名稱，已併入目前的聲部' + (moved ? '（其中 ' + moved + ' 個不在音的開頭，放在正在響的音上）' : ''));
+      });
+    }
     score.parts = out;
     // 單一休止符填滿整小節時視為整小節休止
     if (MB.markMeasureRests) out.forEach(MB.markMeasureRests);

@@ -1125,7 +1125,7 @@
     r.parts.forEach((p) => {
       const o = document.createElement('option');
       o.value = p.index;
-      o.textContent = p.name.replace(/\s+/g, ' ') + (p.staves >= 2 ? '（鋼琴雙手）' : '');
+      o.textContent = p.name.replace(/\s+/g, ' ') + (p.staves >= 2 ? '（鋼琴雙手）' : p.chordsOnly ? '（只有和弦）' : '');
       sel.appendChild(o);
     });
     sel.value = String(r.partIndex);
@@ -1148,7 +1148,7 @@
       try {
         const xmlText = await MB.readMusicXMLBytes(await f.arrayBuffer());
         state.xml = { text: xmlText, name: f.name };
-        importMusicXML(0);
+        importMusicXML('auto');
       } catch (err) {
         console.error(err);
         showMessages([{ msg: '無法讀取 MusicXML：' + err.message, where: 'xml' }]);

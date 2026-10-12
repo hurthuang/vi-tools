@@ -971,6 +971,44 @@ async function mxlTests() {
   check('學生版：匯出 MusicXML', /<measure number="2"/.test(MB.toMusicXML(S.analyse('⠹⠫⠳⠧⠹', {}).score)));
 }
 
+// ---------- 只有和弦的聲部（TMD 匯出的格式） ----------
+{
+  const chordsOf = (part) => part.measures.map((m) => m.voices[0].map((e) => (e.chords || []).join('+') || '-').join(' ')).join(' | ');
+  // ABC：Bass 在前、旋律在後，第三聲部只有和弦
+  let r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1 name="Bass"\nV:2 name="Lead"\nV:3 name="Piano"\n[V:1]\nC,2 G,,2|C,4|\n[V:2]\nc c g g|a a g2|\n[V:3]\n"C"z2 "G"z2|"F"z z "C"z2|\n');
+  check('ABC 和弦聲部：音域高的當右手', r.score.parts.map((p) => p.name + p.hand).join(',') === 'LeadR,BassL', r.score.parts.map((p) => p.name + p.hand).join(','));
+  check('ABC 和弦聲部：和弦併入右手', chordsOf(r.score.parts[0]) === 'C - G - | F - C', chordsOf(r.score.parts[0]));
+  check('ABC 和弦聲部：提示', r.warnings.some((w) => /「Piano」只有和弦名稱，已併入右手/.test(w.msg)), r.warnings.map((w) => w.msg).join('\n'));
+  // 和弦不在音的開頭：放在正在響的音上
+  r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1\nc4|\nV:2\n"C"z2 "G"z2|\n');
+  check('ABC 和弦聲部：拍點上沒有音', chordsOf(r.score.parts[0]) === 'C+G' && r.score.parts.length === 1, chordsOf(r.score.parts[0]));
+  // 一般鋼琴譜（右手在前）不對調
+  r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1\nc d e f|\nV:2 clef=bass\nC, D, E, F,|\n');
+  check('ABC 兩聲部：右手在前不對調', r.score.parts[0].measures[0].voices[0][0].notes[0].octave === 5 && !r.warnings.length, r.warnings.map((w) => w.msg).join('\n'));
+  // 只寫級數的和弦記號
+  r = MB.parseAbc('X:1\nL:1/4\nK:C\n"1"C D E F|\n');
+  check('ABC 級數和弦記號：提示', r.warnings.length === 1 && /只寫了級數（"1"）/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));
+
+  // MusicXML：kind text="1" 是級數；只有和弦的聲部併入目前聲部
+  const note = (step, dur) => `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>${dur}</duration><type>${dur === 2 ? 'half' : 'quarter'}</type></note>`;
+  const rest = (dur) => `<note><rest/><duration>${dur}</duration><type>half</type></note>`;
+  const harm = (step, text, kind) => `<harmony><root><root-step>${step}</root-step></root><kind text="${text}">${kind || 'major'}</kind></harmony>`;
+  const attrs = '<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>';
+  const x = `<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Lead</part-name></score-part><score-part id="P2"><part-name>Piano</part-name></score-part></part-list>
+<part id="P1"><measure number="1">${attrs}${note('C', 1)}${note('C', 1)}${note('G', 1)}${note('G', 1)}</measure></part>
+<part id="P2"><measure number="1">${attrs}${harm('C', '1')}${rest(2)}${harm('G', '7', 'dominant')}${rest(2)}</measure></part></score-partwise>`;
+  let mx = MB.parseMusicXML(x, { part: 0 });
+  check('MusicXML 和弦聲部：併入目前聲部、級數改成和弦名稱', chordsOf(mx.score.parts[0]) === 'C - G7 -', chordsOf(mx.score.parts[0]));
+  check('MusicXML 和弦聲部：聲部選單標示', mx.parts[1].chordsOnly === true && !mx.parts[0].chordsOnly);
+  // 開檔預設：名稱像旋律的聲部優先，只有和弦的聲部不選
+  const x3 = x.replace('<score-part id="P1"><part-name>Lead</part-name></score-part>', '<score-part id="P0"><part-name>Bass</part-name></score-part><score-part id="P1"><part-name>Lead</part-name></score-part>')
+    .replace('<part id="P1">', `<part id="P0"><measure number="1">${attrs}${note('C', 2)}${note('G', 2)}</measure></part><part id="P1">`);
+  check('MusicXML 開檔預設選旋律聲部', MB.parseMusicXML(x3, { part: 'auto' }).partIndex === 1);
+  check('MusicXML 開檔預設不選只有和弦的聲部', MB.parseMusicXML(x.replace('>Lead<', '>Flute<').replace('>Piano<', '>Lead<'), { part: 'auto' }).partIndex === 0);
+  mx = MB.parseMusicXML(x, { part: 1 });
+  check('MusicXML 和弦聲部：選和弦聲部本身時不合併', chordsOf(mx.score.parts[0]) === 'C G7' && mx.parts[1].chordsOnly, chordsOf(mx.score.parts[0]));
+}
+
 mxlTests().then(() => {
   console.log('\n通過 ' + pass + '，失敗 ' + fail);
   process.exit(fail ? 1 : 0);

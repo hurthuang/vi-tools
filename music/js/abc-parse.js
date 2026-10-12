@@ -436,6 +436,9 @@
           else if (/^\s*([A-G]|N\.?\s*C\.?\s*$)/.test(m[1])) v.deco.chords.push(m[1].trim());
           // 其他文字（例如沒加位置記號的 "cresc."）當作文字表情
           else if (/[A-Za-z\u00c0-\u024f\u3400-\u9fff]/.test(m[1])) v.deco.words.push(m[1].trim());
+          // \u53ea\u5beb\u7d1a\u6578\uff08TMD \u532f\u51fa\u7684 "1"\u3001"4"\u3001"5"\uff09\uff1a\u4e0d\u77e5\u9053\u6839\u97f3\uff0c\u7121\u6cd5\u64ad\u653e\u4e5f\u7121\u6cd5\u8f49\u9ede\u5b57
+          else if (/^\s*\d+\s*$/.test(m[1]))
+            warnKind('chorddegree', '\u548c\u5f26\u8a18\u865f\u53ea\u5beb\u4e86\u7d1a\u6578\uff08"' + m[1].trim() + '"\uff09\uff0c\u6c92\u6709\u548c\u5f26\u540d\u7a31\uff0c\u5df2\u7565\u904e\uff1b\u8acb\u5728\u5f15\u865f\u5167\u5beb\u548c\u5f26\u540d\u7a31\uff08\u4f8b\u5982 "C"\uff09\uff0cTMD \u7684\u6a02\u8b5c\u53ef\u6539\u958b MusicXML \u6a94', pos);
           else warnKind('chordsym', '無法辨識的和弦名稱或註記（"' + m[1] + '"），已略過', pos);
           i += m[0].length;
           continue;
@@ -783,10 +786,35 @@
     }
 
     // 組成 Score
-    const used = voices.filter((v) => v.measures.length);
+    let used = voices.filter((v) => v.measures.length);
     if (!used.length) used.push(voices[0]);
+    // 只有和弦名稱的聲部（全是休止符）：和弦併到旋律聲部，不另外當成一手
+    const chordVoices = used.filter((v) => M.isChordOnly(v));
+    if (chordVoices.length && chordVoices.length < used.length) used = used.filter((v) => !chordVoices.includes(v));
+    else chordVoices.length = 0;
     if (used.length > 2) warn('目前只轉換前兩個聲部（右手、左手），其餘聲部已略過', null);
     const chosen = used.slice(0, 2);
+    // 兩個聲部時，音域高的當右手（例如 TMD 匯出的 Bass 在前、旋律在後）；
+    // 已用譜號標明第一聲部高音、第二聲部低音的照原本順序
+    if (chosen.length === 2 && !(chosen[0].clef === 'treble' && chosen[1].clef === 'bass')) {
+      const mean = (v) => {
+        let s = 0;
+        let c = 0;
+        for (const m of v.measures) for (const l of m.voices) for (const ev of l) for (const nn of ev.notes || []) (s += M.diatonic(nn)), c++;
+        return c ? s / c : null;
+      };
+      const a = mean(chosen[0]);
+      const b = mean(chosen[1]);
+      if (a != null && b != null && b - a >= 3) {
+        chosen.reverse();
+        const nm = (v) => '「' + (v.name || v.id) + '」';
+        warn('聲部' + nm(chosen[0]) + '音域較高，當作右手；' + nm(chosen[1]) + '當作左手', null);
+      }
+    }
+    for (const cv of chordVoices) {
+      const moved = M.mergeChords(chosen[0], cv);
+      warn('聲部「' + (cv.name || cv.id) + '」只有和弦名稱，已併入' + (chosen.length === 2 ? '右手' : '旋律') + (moved ? '（其中 ' + moved + ' 個不在音的開頭，放在正在響的音上）' : ''), null);
+    }
     score.keyboard = chosen.length === 2;
     const maxLen = Math.max(...chosen.map((v) => v.measures.length));
     chosen.forEach((v, idx) => {
