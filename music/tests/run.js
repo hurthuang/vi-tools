@@ -985,6 +985,12 @@ async function mxlTests() {
   // 一般鋼琴譜（右手在前）不對調
   r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1\nc d e f|\nV:2 clef=bass\nC, D, E, F,|\n');
   check('ABC 兩聲部：右手在前不對調', r.score.parts[0].measures[0].voices[0][0].notes[0].octave === 5 && !r.warnings.length, r.warnings.map((w) => w.msg).join('\n'));
+  // 三個聲部：前兩個轉點字，全部聲部照原本順序留給播放；多聲部 ABC 讀回來的音相同
+  r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1 name="A"\nc d e f|\nV:2 name="B" clef=bass\nC, D, E, F,|\nV:3 name="C"\ng a b c\'|\n');
+  check('ABC 全部聲部：第三聲部留給播放', r.ensemble && r.ensemble.map((p) => p.name).join() === 'A,B,C' && r.ensemble[0] === r.score.parts[0], r.ensemble && r.ensemble.map((p) => p.name).join());
+  const ens = MB.toAbc(Object.assign({}, r.score, { keyboard: false, ensemble: true, parts: r.ensemble })).abc;
+  check('ABC 全部聲部：寫出每個聲部（前兩個聲部是鋼琴雙手）', /%%score \{P1 P2\} P3/.test(ens) && /V:P2 clef=bass name="B"/.test(ens) && /V:P3\ng2 a2 b2 c'2/.test(ens), ens);
+  check('ABC 全部聲部：鋼琴雙手用大括號', /%%score P1 \{P2 P3\}/.test(MB.toAbc(Object.assign({}, r.score, { ensemble: true, parts: r.ensemble.map((p, k) => Object.assign({}, p, { group: k ? 'g' : null })) })).abc));
   // 只寫級數的和弦記號
   r = MB.parseAbc('X:1\nL:1/4\nK:C\n"1"C D E F|\n');
   check('ABC 級數和弦記號：提示', r.warnings.length === 1 && /只寫了級數（"1"）/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));

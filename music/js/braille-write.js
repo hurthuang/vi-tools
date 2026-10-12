@@ -1524,6 +1524,11 @@
   }
 
   MB.toBraille = toBraille;
+  /** 置中的文字標題（曲名、總譜裡的聲部名稱）；中文需要國語點字表，沒有時回傳 null。 */
+  MB.brailleHeading = (text, width) => {
+    const t = titleBrf(text, []);
+    return t ? center(t, width || 40) : null;
+  };
   MB.brailleSigns = { NOTE, REST, OCT, ACC, INTERVAL, ARTIC, HAND, needOctave, keySig, meterSig, tempoSig };
   if (typeof module !== 'undefined' && module.exports) module.exports = MB;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

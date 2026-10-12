@@ -116,6 +116,7 @@
     if (settings.paperFit) $('paper-fit').value = settings.paperFit;
     if (settings.paperAnnot) $('paper-annot').value = settings.paperAnnot;
     if (settings.paperPerLine != null) $('paper-per-line').value = settings.paperPerLine;
+    if (settings.paperAll) $('paper-all').checked = true;
     $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
     if (settings.brlSize) $('brl-size').value = settings.brlSize;
     if (settings.autoSpeak) $('auto-speak').checked = true;
@@ -143,6 +144,7 @@
       paperFit: $('paper-fit').value,
       paperAnnot: $('paper-annot').value,
       paperPerLine: $('paper-per-line').value,
+      paperAll: $('paper-all').checked,
       brlSize: $('brl-size').value,
       autoSpeak: $('auto-speak').checked,
       echoInput: $('echo-input').checked,
@@ -197,6 +199,47 @@
     brlEd.render();
   }
 
+  /**
+   * 全部聲部的點字（分聲部總譜，唯讀）：曲名，再依序寫出每個聲部（聲部名稱置中當標題，鋼琴雙手一起寫）。
+   * map 只含轉點字的聲部（位置加上前面的長度），游標對照只對得到它。
+   */
+  function fullBraille(r) {
+    const o = Object.assign(writeOpts(), { title: false });
+    const W = o.width || 40;
+    let brf = '';
+    const map = [];
+    let warnings = [];
+    // 中文標題需要國語點字表；沒有時改用聲部編號
+    const heading = (t, k) => MB.brailleHeading(t, W) || (k ? MB.brailleHeading(String(k), W) : null) || '';
+    const title = r.score.title ? heading(r.score.title, 0) : '';
+    if (title) brf += title + '\n\n';
+    // 依 group 分段：同一個 group 相連的是鋼琴雙手
+    const blocks = [];
+    for (const p of r.ensemble) {
+      const last = blocks[blocks.length - 1];
+      if (last && p.group != null && last[0].group === p.group) last.push(p);
+      else blocks.push([p]);
+    }
+    blocks.forEach((blk, k) => {
+      const isSel = blk.every((p) => r.score.parts.includes(p));
+      const sc = isSel ? r.score : Object.assign({}, r.score, { keyboard: blk.length === 2, parts: blk.map((p, i) => Object.assign({}, p, { hand: blk.length === 2 ? (i ? 'L' : 'R') : null })) });
+      let res;
+      try {
+        res = MB.toBraille(sc, o);
+      } catch (e) {
+        console.error(e);
+        return;
+      }
+      brf += heading(blk.map((p) => p.name).filter(Boolean).join(' ') || String(k + 1), k + 1) + '\n';
+      if (isSel) {
+        for (const m of res.map) map.push(Object.assign({}, m, { start: m.start + brf.length, end: m.end + brf.length }));
+        warnings = res.warnings;
+      }
+      brf += res.brf.replace(/\n+$/, '') + '\n\n';
+    });
+    return { brf: brf.replace(/\n+$/, '\n'), map, warnings };
+  }
+
   function convertFromAbc(extraWarnings) {
     const extra = Array.isArray(extraWarnings) ? extraWarnings : [];
     state.lastSource = 'abc';
@@ -206,12 +249,17 @@
     let r;
     let b;
     try {
-      r = MB.parseAbc(text);
+      r = MB.parseAbc(text, { unit: state.unit });
       b = MB.toBraille(r.score, writeOpts());
+      if (r.ensemble && $('brl-scope').value === 'all') b = fullBraille(r);
     } catch (e) {
       console.error(e);
       return showMessages([{ msg: '轉換時發生錯誤：' + e.message, where: 'abc' }]);
     }
+    state.abcEnsemble = r.ensemble;
+    updatePartMenu(r);
+    $('brl-scope-wrap').hidden = !r.ensemble;
+    brlTA.readOnly = !!r.ensemble && $('brl-scope').value === 'all';
     setBraille(b);
     const infos = collect(r.score, (ev) => (ev.src && ev.src.abc) || null, null);
     const byId = new Map(infos.map((x) => [x.id, x]));
@@ -241,6 +289,9 @@
     const infos = collect(r.score, null, (ev) => (ev.src && ev.src.brl) || null);
     const byId = new Map(infos.map((x) => [x.id, x]));
     for (const m of a.map) if (byId.has(m.id)) byId.get(m.id).abc = [m.start, m.end];
+    state.abcEnsemble = null;
+    updatePartMenu(null);
+    $('brl-scope-wrap').hidden = true;
     finish(r.score, infos, tag(r.warnings, 'brl'), a.abc);
   }
 
@@ -320,6 +371,7 @@
     $('abc-status').textContent =
       (score.keyboard ? '鋼琴雙手' : '單聲部') + '・' + nMeasures + ' 小節';
     state.paperAbc = abcText;
+    $('paper-all-wrap').hidden = !ensembleScore();
     renderPaper(abcText);
     showMessages(warnings);
     renderDual();
@@ -394,20 +446,55 @@
       const annot = $('paper-annot').value;
       let src = abcText;
       let toSrc = (p) => p;
-      if (annot !== 'none' && state.score) {
-        // 小節重複記號只寫在被重複小節的第一個音，其他音下方沒有點字而對不起來：點字對照一律把每個小節寫出來
-        const a = MB.annotate.annotatedAbc(state.score, MB.toBraille(state.score, Object.assign(writeOpts(), { lyrics: false, measureRepeat: false, partRepeat: false })), { names: annot === 'brl' ? 'none' : annot, measuresPerLine: +$('paper-per-line').value });
+      // 由樂譜產生的 ABC：畫面位置透過事件 id 對回原本的 ABC；
+      // p 落在某個事件裡（開頭 ≤ p < 結尾）就對到它的開頭，落在事件之間（abcjs 的範圍會含前後空白）就對到前一個事件的結尾
+      const mapById = (map) => {
         const byId = new Map(state.infos.map((inf) => [inf.id, inf]));
-        src = a.abc;
-        // p 落在某個事件裡（開頭 ≤ p < 結尾）就對到它的開頭；落在事件之間（abcjs 的範圍會含前後空白）就對到前一個事件的結尾
-        const spans = a.map.filter((m) => byId.get(m.id) && byId.get(m.id).abc);
-        toSrc = (p) => {
+        const spans = map.filter((m) => byId.get(m.id) && byId.get(m.id).abc);
+        return (p) => {
           const inside = spans.find((m) => m.start <= p && p < m.end);
           if (inside) return byId.get(inside.id).abc[0];
           let before = null;
           for (const m of spans) if (m.end <= p && (!before || m.end > before.end)) before = m;
           return before ? byId.get(before.id).abc[1] : -1;
         };
+      };
+      // 全部聲部：編輯區的 ABC 本來就有全部聲部，照原本畫；點字對照則畫在整份樂譜上，每個聲部各自轉點字
+      const full = $('paper-all').checked ? ensembleScore() : null;
+      let genMap = null; // 由樂譜產生的 ABC：位置 → 事件 id
+      if (state.abcEnsemble && !full && annot === 'none' && state.score) {
+        // 沒勾「顯示全部聲部」：只畫轉點字的聲部
+        const a = MB.toAbc(state.score);
+        src = a.abc;
+        genMap = a.map;
+        toSrc = mapById(a.map);
+      } else if (annot !== 'none' && state.score) {
+        // 小節重複記號只寫在被重複小節的第一個音，其他音下方沒有點字而對不起來：點字對照一律把每個小節寫出來
+        const bo = Object.assign(writeOpts(), { lyrics: false, measureRepeat: false, partRepeat: false });
+        const res = [MB.toBraille(state.score, bo)];
+        let target = state.score;
+        if (full) {
+          // 其他聲部各自轉點字（同一個 group 的鋼琴雙手一起轉），轉得出來的才加點字對照
+          const done = new Set();
+          const ok = new Set();
+          for (const p of full.parts) {
+            if (!p.noAnnot || done.has(p)) continue;
+            const grp = p.group != null ? full.parts.filter((q) => q.group === p.group) : [p];
+            grp.forEach((q) => done.add(q));
+            const two = grp.length === 2;
+            try {
+              res.push(MB.toBraille(Object.assign({}, state.score, { keyboard: two, parts: grp.map((q, k) => Object.assign({}, q, { hand: two ? (k ? 'L' : 'R') : null })) }), bo));
+              grp.forEach((q) => ok.add(q));
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          target = Object.assign({}, full, { parts: full.parts.map((p) => (ok.has(p) ? Object.assign({}, p, { noAnnot: false }) : p)) });
+        }
+        const a = MB.annotate.annotatedAbc(target, res, { names: annot === 'brl' ? 'none' : annot, measuresPerLine: +$('paper-per-line').value });
+        src = a.abc;
+        genMap = a.map;
+        toSrc = mapById(a.map);
       }
       const disp = displayAbc(src);
       paperMap = (p) => toSrc(disp.toOrig(p));
@@ -433,12 +520,31 @@
         const t = svg.querySelector('title');
         if (t) t.textContent = label;
       });
+      // 畫面上每個音對應的事件 id（播放時用 id 標示，不轉點字的聲部也跟得上）：
+      // 產生的 ABC 用它的位置表；編輯區的 ABC 用各事件在 ABC 的位置（含不轉點字的其餘聲部）
+      let idSpans = genMap;
+      if (!idSpans) {
+        idSpans = state.infos.filter((inf) => inf.abc).map((inf) => ({ id: inf.id, start: inf.abc[0], end: inf.abc[1] }));
+        for (const p of state.abcEnsemble || [])
+          if (!state.score.parts.includes(p))
+            for (const m of p.measures) for (const v of m.voices) for (const ev of v) if (ev.src && ev.src.abc) idSpans.push({ id: ev.id, start: ev.src.abc[0], end: ev.src.abc[1] });
+      }
+      const idAt = (s, e) => {
+        let best = null;
+        let bo = 0;
+        for (const m of idSpans) {
+          const o = Math.min(m.end, e) - Math.max(m.start, s);
+          if (o > bo) (bo = o), (best = m.id);
+        }
+        return best;
+      };
       state.noteEls = [];
       (vis.lines || []).forEach((line) =>
         (line.staff || []).forEach((st) =>
           (st.voices || []).forEach((v) =>
             v.forEach((el) => {
-              if (el.el_type === 'note' && el.abselem) state.noteEls.push({ start: paperMap(el.startChar), end: paperMap(el.endChar), els: el.abselem.elemset || [] });
+              if (el.el_type === 'note' && el.abselem)
+                state.noteEls.push({ start: paperMap(el.startChar), end: paperMap(el.endChar), id: idAt(disp.toOrig(el.startChar), disp.toOrig(el.endChar)), els: el.abselem.elemset || [] });
             })
           )
         )
@@ -520,7 +626,9 @@
       t.querySelectorAll('tspan').forEach((sp) => sp.hasAttribute('x') && sp.setAttribute('x', x));
     }
     if (!state.simFont) return;
-    for (const node of brlNodes.concat(brlAnn)) {
+    // 和弦名稱下面那行點字也換字型
+    const brlChord = [...svg.querySelectorAll('text.abcjs-chord')].filter((t) => BRL_RE.test(t.textContent));
+    for (const node of brlNodes.concat(brlAnn, brlChord)) {
       const host = node.tagName === 'tspan' ? node.parentNode : node;
       const base = (num(host, 'font-size') || 16) * 1.25;
       const w0 = node.getComputedTextLength();
@@ -695,8 +803,10 @@
    */
   function performance() {
     if (!state.score) return null;
-    if (state.perf && state.perf.score === state.score) return state.perf;
-    const out = MB.toAbc(MB.model.performanceScore(state.score));
+    // 「顯示全部聲部」時播放整份樂譜（游標跟隨只對得到轉點字的聲部）
+    const src = ($('paper-all').checked && ensembleScore()) || state.score;
+    if (state.perf && state.perf.score === src) return state.perf;
+    const out = MB.toAbc(MB.model.performanceScore(src));
     let holder = document.getElementById('perf-paper');
     if (!holder) {
       holder = document.createElement('div');
@@ -706,8 +816,22 @@
       document.body.appendChild(holder);
     }
     const vis = ABCJS.renderAbc(holder, out.abc, {})[0];
-    state.perf = { score: state.score, abc: out.abc, map: out.map, visual: vis };
+    state.perf = { score: src, abc: out.abc, map: out.map, visual: vis };
     return state.perf;
+  }
+
+  /**
+   * 「顯示全部聲部」用的整份樂譜：轉點字的聲部（state.score，事件 id 相同才能對回編輯區）加上 ABC 裡其餘的聲部；
+   * 沒有其他聲部時為 null。不轉點字的聲部標 noAnnot（點字對照另外轉）。
+   */
+  function ensembleScore() {
+    const sc = state.score;
+    if (!sc || !state.abcEnsemble) return null;
+    if (state.ens && state.ens.score === sc) return state.ens.value;
+    const parts = state.abcEnsemble.map((p) => (sc.parts.includes(p) ? p : Object.assign({}, p, { noAnnot: true })));
+    const value = Object.assign({}, sc, { keyboard: false, ensemble: true, parts });
+    state.ens = { score: sc, value };
+    return value;
   }
   /** 展開 ABC 的字元位置 → 原本的事件。 */
   function infoFromPerf(start, end) {
@@ -796,8 +920,15 @@
       const inf = infoFromPerf(s, ends[k]);
       if (inf) hits.push(inf);
     });
-    // 在原本的五線譜上標示（播放用的是展開後的隱藏樂譜）
-    setScoreClass('playing', hits.map((h) => h.abc));
+    // 在原本的五線譜上標示（播放用的是展開後的隱藏樂譜）；用事件 id 對應，不轉點字的聲部也一起標示
+    const ids = new Set();
+    const perf = state.perf;
+    if (perf)
+      starts.forEach((s, k) => {
+        for (const m of perf.map) if (m.id && Math.min(m.end, ends[k]) - Math.max(m.start, s) > 0) ids.add(m.id);
+      });
+    document.querySelectorAll('#paper .playing').forEach((el) => el.classList.remove('playing'));
+    for (const n of state.noteEls) if (n.id && ids.has(n.id)) n.els.forEach((el) => el && el.classList && el.classList.add('playing'));
     brlEd.setMarks(hits.filter((h) => h.brl).map((h) => ({ start: h.brl[0], end: h.brl[1], cls: 'play' })));
     abcEd.setMarks(hits.filter((h) => h.abc).map((h) => ({ start: h.abc[0], end: h.abc[1], cls: 'play' })));
     if (hits[0] && hits[0].brl) brlEd.reveal(hits[0].brl[0]);
@@ -947,6 +1078,7 @@
   let chord = 0;
   const down = new Set();
   function insertText(ta, text) {
+    if (ta.readOnly) return; // 點字區顯示全部聲部時唯讀
     ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -1111,34 +1243,52 @@
     setTimeout(done, 1000);
   });
 
-  /** 匯入目前保留的 MusicXML 的第 partIndex 個聲部；有多個聲部時顯示聲部選單。 */
-  function importMusicXML(partIndex) {
-    const { text, name } = state.xml;
-    const r = MB.parseMusicXML(text, { part: partIndex });
+  /**
+   * 匯入 MusicXML：所有聲部寫成一份多聲部 ABC（鋼琴雙手用 %%score 的大括號），
+   * 轉點字的聲部由聲部選單決定（ABC 檔也一樣）。
+   */
+  function importMusicXML(text, name) {
+    const first = MB.parseMusicXML(text, { part: 0, _noMerge: true });
+    const warnings = [];
+    const parts = [];
+    for (const p of first.parts) {
+      const r = p.index === 0 ? first : MB.parseMusicXML(text, { part: p.index, _noMerge: true });
+      for (const w of r.warnings) if (!/個聲部，目前轉換/.test(w.msg) && !warnings.some((x) => x.msg === w.msg)) warnings.push(w);
+      const two = r.score.parts.length === 2;
+      r.score.parts.forEach((q, i) => parts.push(Object.assign(q, { name: i ? '' : p.name.replace(/\s+/g, ' '), group: two ? 'g' + p.index : null })));
+    }
+    // 各聲部小節數對齊（不足的補全休止）
+    const N = Math.max(...parts.map((q) => q.measures.length));
+    for (const q of parts) while (q.measures.length < N) q.measures.push({ voices: [[{ id: MB.model.newId(), kind: 'rest', measureRest: true, value: 1, dots: 0, notes: [], src: {} }]], barline: 'single' });
     stopPlay();
-    state.title = r.score.title || name.replace(/\.[^.]+$/, '');
-    r.score.title = state.title;
-    abcTA.value = MB.toAbc(r.score).abc;
+    state.title = first.score.title || name.replace(/\.[^.]+$/, '');
+    const score = first.parts.length > 1 ? Object.assign({}, first.score, { title: state.title, keyboard: false, ensemble: true, parts }) : Object.assign(first.score, { title: state.title });
+    abcTA.value = MB.toAbc(score).abc;
     $('sample').value = '';
+    state.unit = null; // 自動選（名稱像旋律的聲部優先）
+    convertFromAbc(tag(warnings, 'xml'));
+  }
+  /** 聲部選單：ABC 有多個可選的聲部時顯示。 */
+  function updatePartMenu(r) {
     const sel = $('part-select');
+    const units = (r && r.units) || [];
+    $('part-wrap').hidden = units.length < 2;
+    if (units.length < 2) return;
     sel.innerHTML = '';
-    r.parts.forEach((p) => {
+    for (const u of units) {
       const o = document.createElement('option');
-      o.value = p.index;
-      o.textContent = p.name.replace(/\s+/g, ' ') + (p.staves >= 2 ? '（鋼琴雙手）' : p.chordsOnly ? '（只有和弦）' : '');
+      o.value = u.key;
+      o.textContent = u.label.replace(/\s+/g, ' ');
       sel.appendChild(o);
-    });
-    sel.value = String(r.partIndex);
-    $('part-wrap').hidden = r.parts.length < 2;
-    // 多聲部的提示改由選單呈現，不再列在轉換訊息
-    convertFromAbc(tag(r.warnings.filter((w) => !/個聲部，目前轉換/.test(w.msg)), 'xml'));
+    }
+    sel.value = r.unit;
   }
   $('part-select').addEventListener('change', () => {
-    if (state.xml) importMusicXML(+$('part-select').value);
+    state.unit = $('part-select').value;
+    convertFromAbc();
   });
-  // 改成編輯其他內容時，聲部選單不再適用
-  for (const id of ['sample']) $(id).addEventListener('change', () => ($('part-wrap').hidden = true));
-
+  // 點字區：選到的聲部（可編輯）或全部聲部（總譜，唯讀）
+  $('brl-scope').addEventListener('change', () => convertFromAbc());
   $('btn-open').addEventListener('click', () => $('file').click());
   $('file').addEventListener('change', async (e) => {
     const f = e.target.files[0];
@@ -1146,9 +1296,7 @@
     e.target.value = '';
     if (/\.(musicxml|xml|mxl)$/i.test(f.name)) {
       try {
-        const xmlText = await MB.readMusicXMLBytes(await f.arrayBuffer());
-        state.xml = { text: xmlText, name: f.name };
-        importMusicXML('auto');
+        importMusicXML(await MB.readMusicXMLBytes(await f.arrayBuffer()), f.name);
       } catch (err) {
         console.error(err);
         showMessages([{ msg: '無法讀取 MusicXML：' + err.message, where: 'xml' }]);
@@ -1156,6 +1304,7 @@
       return;
     }
     const text = await f.text();
+    state.unit = null;
     if (/\.abc$/i.test(f.name)) {
       abcTA.value = text.replace(/\r/g, '');
       convertFromAbc();
@@ -1274,7 +1423,7 @@
     renderPaper(state.paperAbc);
     if (state.current) setScoreClass('hl', [state.current.abc]);
   }
-  for (const id of ['paper-fit', 'paper-annot', 'paper-per-line'])
+  for (const id of ['paper-fit', 'paper-annot', 'paper-per-line', 'paper-all'])
     $(id).addEventListener('change', () => {
       $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
       saveSettings();
@@ -1308,6 +1457,7 @@
   sel.addEventListener('change', () => {
     if (sel.value === '') return;
     stopPlay();
+    state.unit = null;
     abcTA.value = MB.samples[+sel.value].abc;
     state.title = '';
     convertFromAbc();

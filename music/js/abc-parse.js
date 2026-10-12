@@ -107,7 +107,11 @@
     return null;
   }
 
-  function parseAbc(text) {
+  /**
+   * options.unit：要轉點字的聲部（parseAbc 回傳的 units 裡的 key）；沒有或找不到就自動選。
+   */
+  function parseAbc(text, options) {
+    const opt = options || {};
     const warnings = [];
     const warnOnce = new Set();
     function warn(msg, pos) {
@@ -126,6 +130,7 @@
     let headerClef = null;
 
     const voices = []; // {id, name, clef, measures, cur, ...}
+    let scoreGroups = null; // %%score 的分組（聲部 id 陣列的陣列）
     const userDeco = {}; // U: 自訂裝飾記號
     const voiceById = {};
     let curVoice = null;
@@ -297,6 +302,21 @@
     let inHeader = true;
     for (const { text: raw, pos } of lines) {
       const line = raw;
+      // %%score / %%staves：大括號裡的聲部是同一個樂器的雙手（鋼琴），其他各自一個聲部
+      const sd = /^\s*%%(?:score|staves)\s+(.*)$/.exec(line);
+      if (sd) {
+        scoreGroups = [];
+        let brace = null;
+        for (const tok of sd[1].match(/[{}]|[^\s{}()[\]|]+/g) || []) {
+          if (tok === '{') brace = [];
+          else if (tok === '}') {
+            if (brace && brace.length) scoreGroups.push(brace);
+            brace = null;
+          } else if (brace) brace.push(tok);
+          else scoreGroups.push([tok]);
+        }
+        continue;
+      }
       if (/^\s*%/.test(line)) continue; // 註解與 %% 指令
       if (inHeader) {
         const f = /^([A-Za-z]):(.*)$/.exec(line);
@@ -792,11 +812,37 @@
     const chordVoices = used.filter((v) => M.isChordOnly(v));
     if (chordVoices.length && chordVoices.length < used.length) used = used.filter((v) => !chordVoices.includes(v));
     else chordVoices.length = 0;
-    if (used.length > 2) warn('目前只轉換前兩個聲部（右手、左手），其餘聲部已略過', null);
-    const chosen = used.slice(0, 2);
-    // 兩個聲部時，音域高的當右手（例如 TMD 匯出的 Bass 在前、旋律在後）；
+    // 可選擇轉點字的聲部（units）：有 %%score 時照它分組（大括號是鋼琴雙手）；
+    // 沒有時前兩個聲部當鋼琴雙手（預設），也可以單獨選任一聲部
+    const units = [];
+    if (scoreGroups) {
+      const seen = new Set();
+      for (const g of scoreGroups) {
+        const vs = g.map((id) => voiceById[id]).filter((v) => v && used.includes(v) && !seen.has(v));
+        vs.forEach((v) => seen.add(v));
+        if (vs.length >= 2) units.push({ voices: vs.slice(0, 2), keyboard: true });
+        else if (vs.length) units.push({ voices: vs, keyboard: false });
+        for (const v of vs.slice(2)) units.push({ voices: [v], keyboard: false });
+      }
+      for (const v of used) if (!seen.has(v)) units.push({ voices: [v], keyboard: false });
+    } else {
+      if (used.length >= 2) units.push({ voices: used.slice(0, 2), keyboard: true, legacy: true });
+      for (const v of used) units.push({ voices: [v], keyboard: false });
+    }
+    for (const u of units) {
+      u.key = u.voices.map((v) => v.id).join('+');
+      const names = [...new Set(u.voices.map((v) => v.name || '').filter(Boolean))];
+      u.label = u.keyboard ? (names.length ? names.join('＋') : u.voices.map((v) => v.id).join('＋')) + '（鋼琴雙手）' : u.voices[0].name || '聲部 ' + u.voices[0].id;
+    }
+    // 預設：有 %%score（例如從 MusicXML 匯入）時名稱像旋律的聲部優先，否則第一個
+    const unit =
+      units.find((u) => u.key === opt.unit) ||
+      (scoreGroups && units.find((u) => /lead|melod|voice|vocal|soprano|旋律|歌/i.test(u.voices.map((v) => v.name).join(' ')))) ||
+      units[0];
+    const chosen = unit.voices.slice();
+    // 沒有 %%score 的兩個聲部：音域高的當右手（例如 TMD 匯出的 Bass 在前、旋律在後）；
     // 已用譜號標明第一聲部高音、第二聲部低音的照原本順序
-    if (chosen.length === 2 && !(chosen[0].clef === 'treble' && chosen[1].clef === 'bass')) {
+    if (unit.legacy && !(chosen[0].clef === 'treble' && chosen[1].clef === 'bass')) {
       const mean = (v) => {
         let s = 0;
         let c = 0;
@@ -853,7 +899,26 @@
     M.markSplitMeasures(score);
     M.syncNav(score);
     M.resolveAlters(score);
-    return { score, warnings };
+    // 第三個以後的聲部不轉點字，只供「顯示全部聲部」的播放：照原本的聲部順序（轉點字的聲部是同一個物件）
+    let ensemble = null;
+    const others = used.filter((v) => !chosen.includes(v));
+    if (others.length) {
+      const extra = others.map((v) => {
+        const measures = v.measures.slice(0, maxLen);
+        while (measures.length < maxLen)
+          measures.push({ voices: [[{ id: M.newId(), kind: 'rest', measureRest: true, value: 1, dots: 0, notes: [], src: {} }]], barline: 'single' });
+        measures[0].key = measures[0].key || key || { fifths: 0, mode: 'major' };
+        measures[0].meter = measures[0].meter || meter || { num: 4, den: 4, symbol: null };
+        return { id: v.id, name: v.name, hand: null, clef: v.clef || 'treble', measures };
+      });
+      extra.forEach(markMeasureRests);
+      M.resolveAlters({ parts: extra });
+      const partOf = (v) => (chosen.includes(v) ? score.parts[chosen.indexOf(v)] : extra[others.indexOf(v)]);
+      // 鋼琴雙手的兩個聲部標同一個 group（畫成大括號、點字一起轉）
+      for (const u of units) if (u.keyboard && (u === unit || !u.voices.some((v) => chosen.includes(v)))) u.voices.forEach((v) => (partOf(v).group = u.key));
+      ensemble = used.map(partOf);
+    }
+    return { score, warnings, ensemble, units: units.map((u) => ({ key: u.key, label: u.label })), unit: unit.key };
   }
 
   function markMeasureRests(part) {

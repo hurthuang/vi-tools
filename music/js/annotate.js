@@ -65,12 +65,19 @@
 
   /**
    * 產生點字對照用的 ABC。
+   * res：toBraille 的結果，或多份結果的陣列（每個事件 id 只會出現在其中一份）。
    * opts.names：'none' | 'letter' | 'solfa' | 'jianpu'；opts.measuresPerLine：每行小節數（0 表示照原本的分行）。
    */
   function annotatedAbc(score, res, opts) {
     const o = opts || {};
-    const brl = brailleByEvent(res);
-    const marks = res.noteMarks || new Map();
+    // res 可以是多份點字結果（全部聲部時每個聲部各自轉點字）
+    const list = Array.isArray(res) ? res : [res];
+    const brl = new Map();
+    const marks = new Map();
+    for (const r of list) {
+      for (const [k, v] of brailleByEvent(r)) brl.set(k, v);
+      for (const [k, v] of r.noteMarks || []) marks.set(k, v);
+    }
     // 每個事件所在小節的調號
     const keyOf = new Map();
     for (const part of score.parts) {
@@ -84,8 +91,13 @@
       brl: brl.get(ev.id) || '',
       name: o.names && o.names !== 'none' ? nameOf(ev, o.names, keyOf.get(ev.id), marks.get(ev.id)) : '',
     });
+    // 和弦名稱下面一行寫它的點字（abcjs 的和弦文字用 \n 換行）
+    const chordText = (c) => {
+      const b = MB.brailleChords ? B.toUnicode(MB.brailleChords.encode(c)) : '';
+      return b ? c + '\\n' + b : c;
+    };
     const per = o.measuresPerLine || 0;
-    return MB.toAbc(score, { annot, measuresPerLine: per || 4, fixedLines: !!per });
+    return MB.toAbc(score, { annot, chordText, measuresPerLine: per || 4, fixedLines: !!per });
   }
 
   MB.annotate = { annotatedAbc, nameOf, brailleByEvent };

@@ -19,7 +19,7 @@
     </label>
     <button type="button" id="btn-open" title="可開啟 ABC、點字（BRF）、MusicXML（.musicxml、.xml、.mxl）">開啟檔案…</button>
     <input type="file" id="file" accept=".abc,.brf,.brl,.txt,.musicxml,.xml,.mxl" hidden>
-    <label id="part-wrap" hidden title="MusicXML 有多個聲部時，選擇要轉換哪一個">聲部
+    <label id="part-wrap" hidden title="有多個聲部時，選擇要轉成點字的聲部（鋼琴雙手算一個）">聲部
       <select id="part-select"></select>
     </label>
     <span class="sep" aria-hidden="true"></span>
@@ -51,6 +51,12 @@
                 <option value="unicode">Unicode 點字</option>
                 <option value="brf">ASCII</option>
                 <option value="brf-font">ASCII + SimBraille 字型</option>
+              </select>
+            </label>
+            <label id="brl-scope-wrap" hidden title="全部聲部：依序寫出每個聲部（分聲部總譜），只能看，不能修改">內容
+              <select id="brl-scope">
+                <option value="part">選到的聲部</option>
+                <option value="all">全部聲部（總譜，唯讀）</option>
               </select>
             </label>
             <label title="用 F D S J K L 六個鍵同時按下輸入一個點字方">
@@ -106,6 +112,9 @@
             <option value="fit">符合寬度（沒有捲軸）</option>
             <option value="scroll">原尺寸（有捲軸）</option>
           </select>
+        </label>
+        <label id="paper-all-wrap" hidden title="五線譜與播放包含檔案裡的所有聲部；點字只轉換選到的聲部">
+          <input type="checkbox" id="paper-all"> 顯示全部聲部
         </label>
         <label>點字對照
           <select id="paper-annot">
@@ -236,8 +245,9 @@
           <li>在左邊輸入 ABC，右邊會自動產生點字樂譜；在右邊輸入或修改點字，左邊會自動產生 ABC。</li>
           <li>點五線譜上的音符，或在任一邊移動游標，另外兩處會同步標示同一個音。</li>
           <li>點字可以貼上 Unicode 點字（⠿）或 BRF（ASCII 點字）。「六點輸入」預設開啟，可用 F D S J K L 六個鍵同時按下輸入一方（請先切換成英文輸入法）；要直接打 ASCII 字母時請先關閉。</li>
-          <li>單聲部的 ABC 會轉成單行格式（single-line）；有兩個聲部（V:）時視為鋼琴右手、左手，轉成 bar-over-bar 格式。</li>
-          <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、壓縮的 .mxl）。只轉換第一個聲部（part）；鋼琴大譜表的上下兩行會成為右手、左手。</li>
+          <li>單聲部的 ABC 會轉成單行格式（single-line）；鋼琴雙手轉成 bar-over-bar 格式。有多個聲部（V:）時，用上方的「聲部」選單選擇要轉點字的聲部：沒有 %%score 時預設前兩個聲部當鋼琴右手、左手（音域高的當右手）；有 %%score 時大括號裡的兩個聲部是鋼琴雙手。全是休止符、只有和弦名稱的聲部，和弦會併到轉點字的聲部上。</li>
+          <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、壓縮的 .mxl）。所有聲部（part）都寫進 ABC 編輯區，預設轉點字的是名稱像旋律的聲部（Lead、Melody、Voice 等），可在「聲部」選單切換；鋼琴大譜表的上下兩行會成為右手、左手。</li>
+          <li>有多個聲部時：五線譜預覽勾「顯示全部聲部」會畫出整份總譜並一起播放，點字對照也會標在每個聲部下；點字區的「內容」選「全部聲部（總譜，唯讀）」會依序寫出每個聲部（聲部名稱置中當標題），只能看，要修改請切回「選到的聲部」。</li>
           <li>「下載 MusicXML」的檔案可以用 MuseScore、BME、Finale 開啟成五線譜再編輯；五線譜也可以直接匯出成 SVG、PNG，或列印、存成 PDF。</li>
           <li>點字分行預設跟隨 ABC 換行：ABC 的每一行是點字的一段，開頭寫小節編號。可在「轉換設定」改成寫滿才換行。</li>
           <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數，方便印成學習單。</li>
@@ -265,7 +275,7 @@
           <li>反覆指示：<code>!segno!</code>、<code>!coda!</code>、<code>!fine!</code>、<code>!D.C.!</code>、<code>!D.C.alfine!</code>、<code>!D.S.alcoda!</code> 等，寫在該小節最後一個音之前；也可以用文字 <code>"^Fine"</code>、<code>"^D.C. al Fine"</code>、<code>"^To Coda"</code>、<code>"^Coda"</code>。</li>
         </ul>
         <h3>尚未支援</h3>
-        <p>有歌詞的歌曲與鋼琴譜的和弦名稱、打擊樂、第三個以後的聲部、多段歌詞、不同音層的重複縮寫、分頁與頁碼。遇到時會在「轉換訊息」列出。</p>
+        <p>有歌詞的歌曲與鋼琴譜的和弦名稱、打擊樂、多聲部總譜的小節對齊（bar-over-bar）寫法、多段歌詞、不同音層的重複縮寫、分頁與頁碼。遇到時會在「轉換訊息」列出。</p>
       </div>
     </details>
   </main>

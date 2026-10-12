@@ -46,7 +46,7 @@
     return ticks / k + '/' + M.TPW / k + '=' + t.bpm;
   }
 
-  function eventStr(ev, meter, count, note) {
+  function eventStr(ev, meter, count, note, chordText) {
     let s = '';
     if (ev.tuplet && ev.tuplet.start) {
       const def = { 2: 3, 3: 2, 4: 3, 6: 2, 8: 3 }[ev.tuplet.n];
@@ -66,7 +66,7 @@
     if (ev.pedalDown) s += '!ped!';
     if (ev.pedalUp) s += '!ped-up!';
     // 和弦名稱：沒有位置記號的引號文字，abcjs 畫在五線譜上方
-    for (const c of ev.chords || []) s += '"' + c.replace(/"/g, '') + '"';
+    for (const c of ev.chords || []) s += '"' + (chordText ? chordText(c) : c).replace(/"/g, '') + '"';
     // 文字表情：寫成五線譜上方的註解文字
     for (const w of ev.words || []) s += '"^' + w.replace(/"/g, "'") + '"';
     if (ev.dynamic) s += '!' + ev.dynamic + '!';
@@ -94,7 +94,7 @@
   }
 
   /**
-   * options.annot(ev, vi)：點字對照，回傳 { brl, name }（name 可省略）。第一聲部的音寫成兩行歌詞，
+   * options.annot(ev, vi)：點字對照，回傳 { brl, name }（name 可省略；part.noAnnot 的聲部不加）。options.chordText(c)：和弦名稱改寫成的文字。第一聲部的音寫成兩行歌詞，
    * 其他用註解文字 "_…"（名稱前加 \u200b，畫譜後用來辨認）。options.fixedLines：照 measuresPerLine 分行，不用原本的分行。
    */
   function toAbc(score, options) {
@@ -116,7 +116,21 @@
     add('M:' + meterStr(m0.meter || { num: 4, den: 4 }) + '\n');
     add('L:1/8\n');
     if (score.tempo || score.tempoText) add('Q:' + [score.tempoText ? '"' + score.tempoText + '"' : '', score.tempo ? tempoStr(score.tempo) : ''].filter(Boolean).join(' ') + '\n');
-    if (score.keyboard) {
+    // 全部聲部（score.ensemble）：每個聲部一行譜表，同一個 group（鋼琴雙手）用大括號
+    const vid = (k) => 'P' + (k + 1);
+    if (score.ensemble) {
+      let sc = '';
+      score.parts.forEach((p, k) => {
+        const prev = score.parts[k - 1];
+        const next = score.parts[k + 1];
+        const open = p.group != null && !(prev && prev.group === p.group);
+        const close = p.group != null && !(next && next.group === p.group);
+        sc += (k ? ' ' : '') + (open ? '{' : '') + vid(k) + (close ? '}' : '');
+      });
+      add('%%score ' + sc + '\n');
+      score.parts.forEach((p, k) => add('V:' + vid(k) + ' clef=' + (p.clef === 'bass' ? 'bass' : 'treble') + (p.name ? ' name="' + p.name.replace(/"/g, '') + '"' : '') + '\n'));
+      add('K:' + M.keyName(m0.key || { fifths: 0 }) + '\n');
+    } else if (score.keyboard) {
       add('%%score {RH | LH}\n');
       add('V:RH clef=treble name="R.H."\n');
       add('V:LH clef=bass name="L.H."\n');
@@ -132,8 +146,10 @@
         const m = part.measures[mi];
         const meter = M.meterAt(part, mi);
         if (mi === from && m.startRepeat) add('|:');
-        if (mi > 0 && m.key) add('[K:' + M.keyName(m.key) + ']');
-        if (mi > 0 && m.meter) add('[M:' + meterStr(m.meter) + ']');
+        // 全部聲部時，開頭的調號、拍號和檔頭不同的聲部（例如移調樂器）在第一小節寫出來
+        const own = (a, b) => score.ensemble && mi === 0 && a && JSON.stringify(a) !== JSON.stringify(b);
+        if ((mi > 0 && m.key) || own(m.key, m0.key)) add('[K:' + M.keyName(m.key) + ']');
+        if ((mi > 0 && m.meter) || own(m.meter, m0.meter)) add('[M:' + meterStr(m.meter) + ']');
         if (m.volta && mi === from) add('[' + m.volta + ' ');
         // 反覆指示只寫在第一個聲部
         if (nav && m.segno) add('!segno!');
@@ -157,12 +173,12 @@
               }
             }
             let note = '';
-            if (annot && (vi > 0 || ev.kind !== 'note')) {
+            if (annot && !part.noAnnot && (vi > 0 || ev.kind !== 'note')) {
               const a = annot(ev, vi);
               if (a && a.brl) note += '"_' + a.brl + '"';
               if (a && a.name) note += '"_\u200b' + a.name + '"';
             }
-            add(eventStr(ev, meter, count, note), ev.id);
+            add(eventStr(ev, meter, count, note, opts.chordText), ev.id);
           });
         });
         // 小節線
@@ -197,7 +213,7 @@
         if (line.replace(/[*_ ]/g, '')) add('w:' + line + '\n');
       }
       // 點字對照：一行點字、一行名稱（音名、唱名或簡譜）
-      if (annot) {
+      if (annot && !part.noAnnot) {
         const as = notes.map((ev) => annot(ev, 0) || {});
         const tok = (t) => (t ? t.replace(/[\s~_*|-]/g, '') || '*' : '*');
         add('w:' + as.map((a) => tok(a.brl)).join(' ') + '\n');
@@ -211,7 +227,12 @@
     for (let si = 0; si < starts.length; si++) {
       const from = starts[si];
       const to = si + 1 < starts.length ? starts[si + 1] : N;
-      if (score.keyboard) {
+      if (score.ensemble)
+        score.parts.forEach((p, k) => {
+          add('V:' + vid(k) + '\n');
+          writePartChunk(p, from, to, k === 0);
+        });
+      else if (score.keyboard) {
         add('V:RH\n');
         writePartChunk(score.parts[0], from, to, true);
         add('V:LH\n');
