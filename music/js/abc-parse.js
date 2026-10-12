@@ -858,8 +858,8 @@
       }
     }
     for (const cv of chordVoices) {
-      const moved = M.mergeChords(chosen[0], cv);
-      warn('聲部「' + (cv.name || cv.id) + '」只有和弦名稱，已併入' + (chosen.length === 2 ? '右手' : '旋律') + (moved ? '（其中 ' + moved + ' 個不在音的開頭，放在正在響的音上）' : ''), null);
+      const note = M.mergeNote(M.mergeChords(chosen[0], cv));
+      warn('聲部「' + (cv.name || cv.id) + '」只有和弦名稱，已併入' + (chosen.length === 2 ? '右手' : '旋律') + (note ? '（' + note + '）' : ''), null);
     }
     score.keyboard = chosen.length === 2;
     const maxLen = Math.max(...chosen.map((v) => v.measures.length));

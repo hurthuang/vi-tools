@@ -420,10 +420,13 @@
 
   /**
    * 把 source 的和弦名稱依拍點併到 target 第一聲部的事件上（小節依序對齊）。
-   * 拍點上沒有音或休止符開始時，放到正在響的那個事件上，回傳這種情況的次數。
+   * 拍點上沒有音或休止符開始時，放到正在響的那個事件上（moved 計數）；
+   * 和前一個和弦相同的不再寫（和弦持續到改變為止，skipped 計數）。
    */
   function mergeChords(target, source) {
     let moved = 0;
+    let skipped = 0;
+    let last = null;
     const n = Math.min(target.measures.length, source.measures.length);
     for (let i = 0; i < n; i++) {
       const list = target.measures[i].voices[0];
@@ -434,30 +437,45 @@
         starts.push(t);
         t += ev.measureRest ? 0 : eventTicks(ev);
       }
+      // 這個小節的和弦依時間排序（來源可能有多個聲部）
+      const items = [];
       for (const v of source.measures[i].voices) {
         let at = 0;
         for (const ev of v) {
-          if (ev.chords && ev.chords.length) {
-            let k = starts.indexOf(at);
-            if (k < 0) {
-              k = 0;
-              while (k + 1 < starts.length && starts[k + 1] <= at) k++;
-              moved++;
-            }
-            const dst = list[k];
-            dst.chords = dst.chords || [];
-            for (const c of ev.chords) if (!dst.chords.includes(c)) dst.chords.push(c);
-          }
+          if (ev.chords && ev.chords.length) items.push({ at, chords: ev.chords });
           at += ev.measureRest ? 0 : eventTicks(ev);
         }
       }
+      items.sort((a, b) => a.at - b.at);
+      for (const { at, chords } of items) {
+        const key = chords.join(' ');
+        if (key === last) {
+          skipped++;
+          continue;
+        }
+        last = key;
+        let k = starts.indexOf(at);
+        if (k < 0) {
+          k = 0;
+          while (k + 1 < starts.length && starts[k + 1] <= at) k++;
+          moved++;
+        }
+        const dst = list[k];
+        dst.chords = dst.chords || [];
+        for (const c of chords) if (!dst.chords.includes(c)) dst.chords.push(c);
+      }
     }
-    return moved;
+    return { moved, skipped };
+  }
+  /** mergeChords 結果的說明文字（給轉換訊息用）；沒有特別情況時是空字串。 */
+  function mergeNote(r) {
+    return [r.skipped ? '和前一個相同的 ' + r.skipped + ' 個和弦不再寫' : '', r.moved ? r.moved + ' 個不在音的開頭，放在正在響的音上' : ''].filter(Boolean).join('；');
   }
 
   MB.model = {
     isChordOnly,
     mergeChords,
+    mergeNote,
     performanceOrder,
     performanceScore,
     syncNav,

@@ -979,6 +979,10 @@ async function mxlTests() {
   check('ABC 和弦聲部：音域高的當右手', r.score.parts.map((p) => p.name + p.hand).join(',') === 'LeadR,BassL', r.score.parts.map((p) => p.name + p.hand).join(','));
   check('ABC 和弦聲部：和弦併入右手', chordsOf(r.score.parts[0]) === 'C - G - | F - C', chordsOf(r.score.parts[0]));
   check('ABC 和弦聲部：提示', r.warnings.some((w) => /「Piano」只有和弦名稱，已併入右手/.test(w.msg)), r.warnings.map((w) => w.msg).join('\n'));
+  // 和前一個相同的和弦（TMD 每兩拍標一次）不再寫，跨小節也一樣
+  r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1\nc c g g|a a g2|\nV:2\n"C"z2 "C"z2|"C"z2 "G"z2|\n');
+  check('ABC 和弦聲部：重複的和弦不再寫', chordsOf(r.score.parts[0]) === 'C - - - | - - G', chordsOf(r.score.parts[0]));
+  check('ABC 和弦聲部：提示省略的和弦數', r.warnings.some((w) => /和前一個相同的 2 個和弦不再寫/.test(w.msg)), r.warnings.map((w) => w.msg).join('\n'));
   // 和弦不在音的開頭：放在正在響的音上
   r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nV:1\nc4|\nV:2\n"C"z2 "G"z2|\n');
   check('ABC 和弦聲部：拍點上沒有音', chordsOf(r.score.parts[0]) === 'C+G' && r.score.parts.length === 1, chordsOf(r.score.parts[0]));

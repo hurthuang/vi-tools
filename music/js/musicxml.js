@@ -898,8 +898,8 @@
         if (o.length !== 1 || !M.isChordOnly(o[0])) return;
         partInfo[k].chordsOnly = true;
         if (selfChords) return;
-        const moved = M.mergeChords(out[0], o[0]);
-        warn('聲部「' + partInfo[k].name + '」只有和弦名稱，已併入目前的聲部' + (moved ? '（其中 ' + moved + ' 個不在音的開頭，放在正在響的音上）' : ''));
+        const note = M.mergeNote(M.mergeChords(out[0], o[0]));
+        warn('聲部「' + partInfo[k].name + '」只有和弦名稱，已併入目前的聲部' + (note ? '（' + note + '）' : ''));
       });
     }
     score.parts = out;

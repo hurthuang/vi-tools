@@ -200,7 +200,7 @@
   }
 
   /**
-   * 全部聲部的點字（分聲部總譜，唯讀）：曲名，再依序寫出每個聲部（聲部名稱置中當標題，鋼琴雙手一起寫）。
+   * 全部聲部的點字（各聲部分譜依序寫出，BANA Sec. 24 單行格式；不是 Sec. 33 的小節對齊總譜；唯讀）：曲名，再依序寫出每個聲部（聲部名稱置中當標題，鋼琴雙手一起寫）。
    * map 只含轉點字的聲部（位置加上前面的長度），游標對照只對得到它。
    */
   function fullBraille(r) {
@@ -1287,7 +1287,7 @@
     state.unit = $('part-select').value;
     convertFromAbc();
   });
-  // 點字區：選到的聲部（可編輯）或全部聲部（總譜，唯讀）
+  // 點字區：選到的聲部（可編輯）或全部聲部（分譜依序，唯讀）
   $('brl-scope').addEventListener('change', () => convertFromAbc());
   $('btn-open').addEventListener('click', () => $('file').click());
   $('file').addEventListener('change', async (e) => {
