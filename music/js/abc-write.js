@@ -199,12 +199,17 @@
     // w: 歌詞：每段一行，一個音一個音節；- 接同一個字的下一個音節，_ 延長，* 沒有歌詞
     const writeLyrics = (part, from, to) => {
       const notes = [];
-      for (let mi = from; mi < to; mi++) for (const ev of part.measures[mi].voices[0] || []) if (ev.kind === 'note') notes.push(ev);
-      const verses = Math.max(0, ...notes.map((ev) => (ev.lyrics ? ev.lyrics.length : 0)));
+      // abcjs 依 ABC 的文字順序把 w: 的音節配給每個音，同一小節 & 之後第二聲部的音也算：
+      // 第二聲部的音放 null（寫成 *，跳過），歌詞與點字對照才會留在第一聲部
+      for (let mi = from; mi < to; mi++)
+        part.measures[mi].voices.forEach((voice, vi) => {
+          for (const ev of voice) if (ev.kind === 'note') notes.push(vi === 0 ? ev : null);
+        });
+      const verses = Math.max(0, ...notes.map((ev) => (ev && ev.lyrics ? ev.lyrics.length : 0)));
       for (let v = 0; v < verses; v++) {
         let line = '';
         notes.forEach((ev, k) => {
-          const l = ev.lyrics && ev.lyrics[v];
+          const l = ev && ev.lyrics && ev.lyrics[v];
           const tok = !l ? '*' : l.extend ? '_' : l.text.replace(/-/g, '\\-').replace(/ /g, '~');
           const joined = l && !l.extend && (l.syllabic === 'begin' || l.syllabic === 'middle');
           line += tok + (k < notes.length - 1 ? (joined ? '-' : ' ') : '');
@@ -214,9 +219,15 @@
       }
       // 點字對照：一行點字、一行名稱（音名、唱名或簡譜）
       if (annot && !part.noAnnot) {
-        const as = notes.map((ev) => annot(ev, 0) || {});
+        const as = notes.map((ev) => (ev && annot(ev, 0)) || {});
         const tok = (t) => (t ? t.replace(/[\s~_*|-]/g, '') || '*' : '*');
-        add('w:' + as.map((a) => tok(a.brl)).join(' ') + '\n');
+        // 點字前後補空白（~），abcjs 排版時才會在相鄰的點字之間留空隙；畫好後五線譜那邊會把空白去掉
+        const pad = (t) => {
+          if (t === '*') return t;
+          const p = '~'.repeat(1 + Math.floor([...t].length / 3));
+          return p + t + p;
+        };
+        add('w:' + as.map((a) => pad(tok(a.brl))).join(' ') + '\n');
         if (as.some((a) => a.name)) add('w:' + as.map((a) => tok(a.name)).join(' ') + '\n');
       }
     };

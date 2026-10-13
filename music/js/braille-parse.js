@@ -660,7 +660,13 @@
       const vocalFmt =
         !opts.musicOnly &&
         !lines.some((l) => /^#[A-J]+'?\s/.test(l.text)) &&
-        lines.some((l, k) => k > 0 && /^ {2}\S/.test(l.text) && /^\S/.test(lines[k - 1].text));
+        lines.some((l, k) => {
+          if (k === 0 || !/^ {2}\S/.test(l.text)) return false;
+          // 前一行是歌詞行；歌詞太長時中間隔著歌詞的續行（從第 5 方開始）
+          let j = k - 1;
+          while (j > 0 && /^ {4}\S/.test(lines[j].text)) j--;
+          return /^\S/.test(lines[j].text);
+        });
       let block = null;
       let lyricLines = 0;
       let pendingStart = false;

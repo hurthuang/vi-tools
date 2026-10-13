@@ -397,6 +397,13 @@ for (const c of ABC_CASES) {
 }
 
 // ---------- 6. 內建範例 ----------
+// 國語點字表（工具集的 table/zh-tw.ctb）：中文歌詞要用；找不到時範例的歌詞點字測試略過
+const zhTable = (() => {
+  const p = require('path').join(__dirname, '..', '..', 'table', 'zh-tw.ctb');
+  if (!require('fs').existsSync(p)) return null;
+  MB.zhBraille.load(require('fs').readFileSync(p, 'utf8'));
+  return p;
+})();
 require('../js/samples.js');
 require('../js/describe.js');
 for (const s of MB.samples) {
@@ -406,7 +413,9 @@ for (const s of MB.samples) {
   check('範例「' + s.name + '」：點字無警告', b.warnings.length === 0, b.warnings.map((w) => '  ' + w.msg).join('\n') + '\n' + b.brf);
   check('範例「' + s.name + '」：每行不超過 40 方', b.brf.split('\n').every((l) => l.length <= 40), b.brf);
   const r2 = MB.parseBraille(b.brf);
-  check('範例「' + s.name + '」：點字來回一致', summary(r2.score) === summary(r.score) && r2.warnings.length === 0,
+  // 歌詞行讀不回來（只讀音樂），這個提示不算問題
+  const w2 = r2.warnings.filter((w) => !/^歌詞行（/.test(w.msg));
+  check('範例「' + s.name + '」：點字來回一致', summary(r2.score) === summary(r.score) && w2.length === 0,
     b.brf + '\n' + summary(r.score) + '\n' + summary(r2.score) + '\n' + r2.warnings.map((w) => w.msg).join('\n'));
   const r3 = MB.parseAbc(MB.toAbc(r2.score).abc);
   check('範例「' + s.name + '」：ABC 來回一致', summary(r3.score) === summary(r.score));
@@ -417,6 +426,18 @@ for (const s of MB.samples) {
     if (!ids.has(ev.id) || !ev.src.abc) missing++;
   });
   check('範例「' + s.name + '」：同步標示對應完整', missing === 0, missing + ' 個事件沒有對應');
+  // 多聲部：每個聲部都能單獨轉點字，合奏總譜（Sec. 33）每行不超過 40 方
+  if (r.ensemble && r.ensemble.length > 1) {
+    const bad = r.units.filter((u) => {
+      const ru = MB.parseAbc(s.abc, { unit: u.key });
+      return ru.warnings.length || MB.toBraille(ru.score).warnings.length;
+    });
+    check('範例「' + s.name + '」：每個聲部單獨轉點字無警告', bad.length === 0, bad.map((u) => u.label).join('、'));
+    const ps = r.ensemble.map((p, i, a) => Object.assign({}, p, { hand: p.group == null ? null : a[i - 1] && a[i - 1].group === p.group ? 'L' : 'R' }));
+    const eb = MB.toBraille(Object.assign({}, r.score, { keyboard: false, ensemble: true, parts: ps }), {});
+    const ew = eb.warnings.filter((w) => !/^合奏總譜裡的和弦名稱與歌詞/.test(w.msg));
+    check('範例「' + s.name + '」：合奏總譜無警告、每行不超過 40 方', ew.length === 0 && eb.brf.split('\n').every((l) => l.length <= 40), ew.map((w) => w.msg).join('\n') + '\n' + eb.brf);
+  }
 }
 {
   const r = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:G\n!p!F3/2 [CEG]/ z2 |]');
@@ -613,7 +634,7 @@ for (const s of MB.samples) {
 {
   const a = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\ne2 d c | A d2 c | B e2 d | c2 f e |\nd g2 f | e c a c | B/c/d/e/ f/g/a/b/ | c\'2 z2 |]');
   const res = MB.toBraille(a.score);
-  const w = (names) => MB.annotate.annotatedAbc(a.score, res, { names }).abc.split('\n').filter((l) => /^w:/.test(l));
+  const w = (names) => MB.annotate.annotatedAbc(a.score, res, { names }).abc.split('\n').filter((l) => /^w:/.test(l)).map((l) => l.replace(/~/g, ''));
   const lw = w('letter');
   check('點字對照：點字與音名（寫了音層記號的音前面加音層數字）', lw[0] === 'w:⠨⠏ ⠱ ⠹ ⠪ ⠨⠕ ⠹ ⠺ ⠨⠏ ⠱ ⠝ ⠻ ⠫' && lw[1] === 'w:5E D C A 5D C B 5E D C F E', lw.join(' | '));
   check('點字對照：唱名、簡譜', w('solfa')[1] === 'w:5Mi Re Do La 5Re Do Si 5Mi Re Do Fa Mi' && w('jianpu')[1] === 'w:⁵3 2 1 6 ⁵2 1 7 ⁵3 2 1 4 3', w('solfa')[1] + ' | ' + w('jianpu')[1]);
@@ -652,9 +673,7 @@ for (const s of MB.samples) {
   // 點字（一行歌詞、一行音樂，Par. 35.1）：需要工具集的國語點字表
   const path = require('path');
   const fs = require('fs');
-  const table = ['../tool-music/table/zh-tw.ctb', '../tool/table/zh-tw.ctb'].map((p) => path.join(__dirname, '..', '..', p.replace('../', ''))).find((p) => fs.existsSync(p));
-  if (table) {
-    MB.zhBraille.load(fs.readFileSync(table, 'utf8'));
+  if (zhTable) {
     const B_U = (s) => MB.brf.toUnicode(s);
     const b = MB.toBraille(r.score);
     const ls = b.brf.split('\n');
@@ -995,6 +1014,18 @@ async function mxlTests() {
   const ens = MB.toAbc(Object.assign({}, r.score, { keyboard: false, ensemble: true, parts: r.ensemble })).abc;
   check('ABC 全部聲部：寫出每個聲部（前兩個聲部是鋼琴雙手）', /%%score \{P1 P2\} P3/.test(ens) && /V:P2 clef=bass name="B"/.test(ens) && /V:P3\ng2 a2 b2 c'2/.test(ens), ens);
   check('ABC 全部聲部：鋼琴雙手用大括號', /%%score P1 \{P2 P3\}/.test(MB.toAbc(Object.assign({}, r.score, { ensemble: true, parts: r.ensemble.map((p, k) => Object.assign({}, p, { group: k ? 'g' : null })) })).abc));
+  // 合奏總譜（Sec. 33）：樂器表、Table 29 縮寫、鋼琴左右手分開、整組休止的樂器省略、音程由下往上
+  {
+    const e = MB.parseAbc('X:1\nT:Test\nM:4/4\nL:1/4\nK:C\n%%score P1 P2 {P3 P4}\nV:P1 name="Flute"\nV:P2 name="Violin I"\nV:P3 name="Piano"\nV:P4 clef=bass\nV:P1\nc d e f|g4|\nV:P2\nz4|z4|\nV:P3\n[ce]2 [df]2|[eg]4|\nV:P4\nC,4|G,,4|\n');
+    const ps = e.ensemble.map((p, i, a) => Object.assign({}, p, { hand: p.group == null ? null : a[i - 1] && a[i - 1].group === p.group ? 'L' : 'R' }));
+    const brf = MB.toBraille(Object.assign({}, e.score, { keyboard: false, ensemble: true, parts: ps }), {}).brf;
+    const ls = brf.split('\n');
+    check('合奏總譜：樂器表與縮寫', ls.some((l) => /^,FLUTE "+ +>FL'$/.test(l)) && ls.some((l) => /^,VIOLIN ,I "+ +>V1'$/.test(l)) && ls.some((l) => /RIGHT HAND +>PR'$/.test(l)) && ls.some((l) => /LEFT HAND +>PL'$/.test(l)), brf);
+    const music = ls.filter((l) => /^>\w+' /.test(l));
+    check('合奏總譜：整組休止的樂器省略、每個樂器一行', music.map((l) => l.split(' ')[0]).join() === ">FL',>PR',>PL'", brf);
+    check('合奏總譜：小節上下對齊、行首第一個音有音層記號', music.every((l) => l.indexOf(' ', 5) > 0) && music[0].startsWith(">FL' .") && music[1].startsWith(">PR' .N+"), brf);
+    check('合奏總譜：縮寫自動取字母與編號', MB.instrumentAbbrs([{ name: 'Lead' }, { name: 'Bass' }, { name: 'Violin II' }, { name: '小提琴' }, { name: '小提琴' }]).join() === ">LE',>BA',>V2',>V1',>V2'");
+  }
   // 只寫級數的和弦記號
   r = MB.parseAbc('X:1\nL:1/4\nK:C\n"1"C D E F|\n');
   check('ABC 級數和弦記號：提示', r.warnings.length === 1 && /只寫了級數（"1"）/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));

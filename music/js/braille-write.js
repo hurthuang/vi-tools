@@ -202,7 +202,7 @@
     const omit = new Set();
     const stream = [];
     // 依點字的聲部順序（同小節多聲部依音高排序）取第一聲部，與讀回時一致
-    const dir = part.hand === 'L' || (!part.hand && part.clef === 'bass') ? 'up' : 'down';
+    const dir = part.dir || (part.hand === 'L' || (!part.hand && part.clef === 'bass') ? 'up' : 'down');
     part.measures.forEach((m) => (orderVoices(m.voices.filter((v) => v.length), dir)[0] || []).forEach((ev) => stream.push(ev)));
     stream.forEach((ev, k) => {
       if (!ev.pedalUp) return;
@@ -599,7 +599,7 @@
   function renderMeasure(part, mi, env, opt) {
     const m = part.measures[mi];
     const meter = M.meterAt(part, mi);
-    const dir = part.hand === 'L' || (!part.hand && part.clef === 'bass') ? 'up' : 'down';
+    const dir = part.dir || (part.hand === 'L' || (!part.hand && part.clef === 'bass') ? 'up' : 'down');
     const last = mi === part.measures.length - 1;
     const voices = orderVoices(m.voices.filter((v) => v.length), dir);
     const pieces = [];
@@ -768,6 +768,8 @@
   // ---------- 主程式 ----------
   function toBraille(score, options) {
     const opts = Object.assign({ width: 40, grouping: true, segmentLines: 3, measureRepeat: true, partRepeat: true }, options || {});
+    // 合奏總譜：所有聲部的音程與 in-accord 都由下往上讀（Par. 33.4.2）
+    if (score.ensemble) score = Object.assign({}, score, { parts: score.parts.map((p) => Object.assign({}, p, { dir: 'up' })) });
     const warnings = [];
     const lines = [];
     const numbers = M.measureNumbers(score);
@@ -791,6 +793,17 @@
         lines.push(l, new Line());
       } // 中文曲名需要國語點字表；單獨使用時沒有，就不寫曲名
     }
+    // 合奏總譜（Sec. 33）：曲名後面是樂器表；各樂器調號不同時，調號不寫在標頭，改寫在每行的縮寫後面（Par. 33.4.1）
+    let abbrs = null;
+    let ownKeys = false;
+    if (score.ensemble) {
+      abbrs = instrumentAbbrs(score.parts);
+      instrumentTable(score.parts, abbrs, env, lines);
+      const kf = (p) => (p.measures[0].key ? p.measures[0].key.fifths : 0);
+      ownKeys = score.parts.some((p) => kf(p) !== kf(first));
+      if (score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((e) => e.chords || e.lyrics)))))
+        warnings.push({ msg: '合奏總譜裡的和弦名稱與歌詞目前不轉成點字，已略過' });
+    }
     // 樂曲標頭（Par. 1.7）：速度、調號、拍號置中
     const m0 = first.measures[0];
     const headParts = [];
@@ -799,7 +812,7 @@
       headParts.push(tempoSig(score.tempo));
       headLabels.set(headParts[headParts.length - 1], '♩=' + score.tempo.bpm);
     }
-    const sig = signatureText(m0.key, null, m0.meter);
+    const sig = signatureText(ownKeys ? null : m0.key, null, m0.meter);
     if (sig) {
       headParts.push(sig);
       headLabels.set(sig, sigLabel(m0.key, m0.meter));
@@ -835,7 +848,8 @@
       lines.push(l);
     }
 
-    if (score.keyboard) {
+    if (score.ensemble) writeEnsemble(score, env, lines, abbrs, ownKeys);
+    else if (score.keyboard) {
       if (score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics)))))
         warnings.push({ msg: '鋼琴譜中的歌詞目前不轉成點字（歌曲請用單一聲部）' });
       writeKeyboard(score, env, lines);
@@ -1523,7 +1537,176 @@
     }
   }
 
+  // ---------- 合奏總譜（Sec. 33）----------
+  // 樂器名稱縮寫（Table 29，英文、義大利文、法文、德文）與常見中文名稱；鋼琴、豎琴的左右手各算一個樂器（Par. 33.2.3）
+  const INSTR_ABBR = [
+    [/^(piccolo|flauto piccolo|petite fl[uû]te|kleine fl[oö]te|短笛)/, 'pc'],
+    [/^(flute|flauto|grande fl[uû]te|grosse fl[oö]te|fl[uû]te|長笛)/, 'fl'],
+    [/^(english horn|corno inglese|cor anglais|englisches horn|英國管)/, 'eh'],
+    [/^(oboe|hautbois|雙簧管)/, 'o'],
+    [/^(bass clarinet|clarinetto basso|clarinette basse|bassklarinette|低音單簧管|低音豎笛)/, 'bcl'],
+    [/^(clarinet|clarinetto|clarinette|klarinette|單簧管|豎笛)/, 'cl'],
+    [/^(double bassoon|contrabassoon|contrafagotto|contrebasson|doppelfagott|倍低音管)/, 'bb'],
+    [/^(bassoon|fagotto|basson|fagott|低音管|巴松管)/, 'b'],
+    [/^(horn|french horn|corno|cor\b|法國號)/, 'hn'],
+    [/^(trumpet|tromba|trompette|trompete|小號)/, 'tp'],
+    [/^(trombone|posaune|長號)/, 'tb'],
+    [/^(tuba|basstuba|低音號|土巴號)/, 'tu'],
+    [/^(kettledrums?|timpani|timbales|pauken|定音鼓)/, 'dr'],
+    [/^(cymbals?|cymbale|鈸)/, 'cym'],
+    [/^(triangle|triangolo|triangel|三角鐵)/, 'tri'],
+    [/^(snare drum|小鼓)/, 'sdr'],
+    [/^(bass drum|大鼓)/, 'bdr'],
+    [/^(violin|violino|violon|violine|小提琴)/, 'v'],
+    [/^(viola|bratsche|中提琴)/, 'vl'],
+    [/^(violoncello|cello|violoncelle|大提琴)/, 'vc'],
+    [/^(double bass|contrabass|contrabasso|contrebasse|kontrabass|低音提琴)/, 'db'],
+    [/^(harp|arpa|harpe|harfe|豎琴)/, 'h'],
+    [/^(piano|pianoforte|klavier|鋼琴)/, 'p'],
+  ];
+  /**
+   * 每個樂器（鋼琴每手一個）的縮寫 BRF：⠸ + 字母 + 編號（下位數字，不加數字記號，Par. 33.2.2）+ 點 3。
+   * 表裡沒有的英文名稱取前兩個字母（Par. 33.2.1：兩三個字母、讓人聯想到名稱）；中文查不到時用 pt 加編號。
+   */
+  function instrumentAbbrs(parts) {
+    const base = parts.map((p, k) => {
+      // 鋼琴的左手沒有名稱：沿用右手（同一個樂器）
+      const name = (p.name || (p.hand === 'L' && parts[k - 1] ? parts[k - 1].name : '') || '').trim().toLowerCase();
+      const num = /\b(\d+|i{1,3})$/i.exec(name);
+      const hit = INSTR_ABBR.find(([re]) => re.test(name));
+      let a = hit ? hit[1] : (name.match(/[a-z]/g) || []).slice(0, 2).join('');
+      if (!a) a = 'pt';
+      // 鋼琴、豎琴：右手、左手（Table 29：pr/pl、hr/hl）
+      if (p.hand && (a === 'p' || a === 'h')) a += p.hand === 'L' ? 'l' : 'r';
+      const n = num ? (/^\d+$/.test(num[1]) ? +num[1] : num[1].length) : null;
+      return { a, n: hit || a !== 'pt' ? n : k + 1 };
+    });
+    // 沒有編號、同一個縮寫出現兩次以上時依序編號
+    const count = {};
+    base.forEach((b) => b.n == null && (count[b.a] = (count[b.a] || 0) + 1));
+    const seen = {};
+    return base.map((b) => {
+      const n = b.n == null && count[b.a] > 1 ? (seen[b.a] = (seen[b.a] || 0) + 1) : b.n;
+      return '>' + b.a.toUpperCase() + (n != null ? B.lowerNumber(n) : '') + "'";
+    });
+  }
+
+  /** 樂器表（Par. 33.2）：左欄樂器名稱（不用縮寫字），右欄縮寫；名稱比最長的短三格以上時補點 5 的引導點。 */
+  function instrumentTable(parts, abbrs, env, lines) {
+    const names = parts.map((p, k) => {
+      const nm = p.name || (p.hand && parts[k - 1] ? parts[k - 1].name : '') || '';
+      const full = p.hand ? nm + (p.hand === 'L' ? ' left hand' : ' right hand') : nm;
+      const t = titleBrf(full.trim() || String(k + 1), []);
+      if (t == null) env.warnings.push({ msg: '樂器名稱「' + full + '」需要國語點字表，樂器表改用編號' });
+      return t == null ? B.upperNumber(k + 1) : t;
+    });
+    const longest = Math.max(...names.map((t) => t.length));
+    names.forEach((t, k) => {
+      const l = new Line('', 'text');
+      let s = t;
+      if (longest - t.length >= 3) s += ' ' + '"'.repeat(longest - t.length - 1);
+      l.add(s.padEnd(longest + 2) + abbrs[k]);
+      lines.push(l);
+    });
+    lines.push(new Line());
+  }
+
+  /**
+   * 合奏總譜的小節對齊（Sec. 33）：每個樂器一行，行首是縮寫（調號不同時接在後面），音樂從最長縮寫後空一方開始；
+   * 同一組（parallel）的小節上下對齊，空隙超過六方用引導點。整組都是休止的樂器省略（Par. 33.1）。
+   * 每一行第一個音寫音層記號（Par. 33.4）；組與組之間空一行，再一行寫起始小節號（Par. 33.3、33.4.6）。
+   */
+  function writeEnsemble(score, env, lines, abbrs, ownKeys) {
+    const { opts, numbers } = env;
+    const parts = score.parts;
+    const W = opts.width;
+    const prefixes = parts.map((p, k) => abbrs[k] + (ownKeys ? keySig(p.measures[0].key ? p.measures[0].key.fifths : 0) : ''));
+    const colW = Math.max(...prefixes.map((x) => x.length)) + 1;
+    const N = parts[0].measures.length;
+    const slurs = parts.map((p) => analyseSlurs(p, opts.slurStyle));
+    const abcStarts = opts.lineMode === 'abc' ? abcLineStarts(parts[0]) : null;
+    const hasNotes = (p, mi) => p.measures[mi].voices.some((v) => v.some((ev) => ev.kind === 'note'));
+    // 一行裡的一小節：同一行裡明顯的小節重複可以用（Par. 33.4.3），不用數字重複
+    const render = (k, mi, prev, first) => {
+      env.slurs = slurs[k];
+      if (!first && opts.measureRepeat && sameAsPrev(parts[k], mi)) return { pieces: [{ text: '7' + repeatTail(parts[k].measures[mi]), id: null, ids: measureIds(parts[k].measures[mi]) }], prev };
+      return renderMeasure(parts[k], mi, env, { prev, forceFirst: first, grouping: true });
+    };
+    let mi = 0;
+    let firstParallel = true;
+    while (mi < N) {
+      // 中途換拍號（各樂器調號相同時也含換調）：置中的段落標頭
+      const m0 = parts[0].measures[mi];
+      if (mi > 0 && (m0.meter || (!ownKeys && m0.key))) {
+        const sig = signatureText(ownKeys ? null : m0.key, null, m0.meter);
+        if (sig) {
+          const l = new Line('', 'head');
+          l.add(center(sig, W));
+          lines.push(l);
+        }
+      }
+      // 1. 決定這一組有哪些小節：用所有樂器的寬度估算（保守）
+      const len = parts.map(() => colW);
+      const prevs = parts.map(() => null);
+      let end = mi;
+      while (end < N) {
+        const m = parts[0].measures[end];
+        if (end > mi && (m.key || m.meter || m.segno || m.codaStart || (abcStarts && abcStarts.has(end)))) break;
+        const r = parts.map((p, k) => render(k, end, prevs[k], end === mi));
+        const col = end === mi ? colW : Math.max(...len) + 1;
+        const wide = Math.max(...r.map((x) => piecesText(x.pieces).length));
+        if (end > mi && col + wide > W) break;
+        r.forEach((x, k) => {
+          len[k] = col + piecesText(x.pieces).length;
+          prevs[k] = x.prev;
+        });
+        end++;
+      }
+      // 2. 這組有音的樂器（都沒有時留第一個，休止也要寫出來）
+      let active = parts.map((p, k) => k).filter((k) => parts[k].measures.slice(mi, end).some((m, j) => hasNotes(parts[k], mi + j)));
+      if (!active.length) active = [0];
+      // 3. 組與組之間：空一行，再寫起始小節號（縮排到音樂開始處再多一方）
+      if (!firstParallel) {
+        lines.push(new Line());
+        const nl = new Line(' '.repeat(colW + 1));
+        nl.add('#' + B.upperNumber(numbers[mi]));
+        lines.push(nl);
+      }
+      firstParallel = false;
+      // 4. 寫出各樂器的行，小節上下對齊
+      const out = active.map((k) => ({ k, line: new Line(prefixes[k].padEnd(colW)), extra: [], prev: null }));
+      for (let j = mi; j < end; j++) {
+        const rs = out.map((o) => render(o.k, j, o.prev, j === mi));
+        const col = j === mi ? colW : Math.max(...out.map((o) => o.line.text.length)) + 1;
+        out.forEach((o, i) => {
+          const pieces = rs[i].pieces;
+          o.prev = rs[i].prev;
+          if (j > mi) {
+            const gap = col - o.line.text.length;
+            o.line.add(gap >= 7 ? ' ' + "'".repeat(gap - 2) + ' ' : ' '.repeat(gap));
+          }
+          // 只有一小節而放不下：run-over，續行縮排兩方（Par. 33.4.7）
+          if (end === mi + 1 && colW + piecesText(pieces).length > W) {
+            env.slurs = slurs[o.k];
+            const sp = splitMeasure(parts[o.k], j, env, null, W - colW, W - colW - 2, true);
+            sp.rows.forEach((row, ri) => {
+              if (ri === 0) o.line.addPieces(row, j);
+              else {
+                const x = new Line(' '.repeat(colW + 2));
+                x.addPieces(row, j);
+                o.extra.push(x);
+              }
+            });
+          } else o.line.addPieces(pieces, j);
+        });
+      }
+      for (const o of out) lines.push(o.line, ...o.extra);
+      mi = end;
+    }
+  }
+
   MB.toBraille = toBraille;
+  MB.instrumentAbbrs = instrumentAbbrs;
   /** 置中的文字標題（曲名、總譜裡的聲部名稱）；中文需要國語點字表，沒有時回傳 null。 */
   MB.brailleHeading = (text, width) => {
     const t = titleBrf(text, []);
