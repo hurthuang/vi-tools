@@ -95,16 +95,6 @@
   const abcEd = new Editor(abcTA);
   const brlEd = new Editor(brlTA);
 
-  // ---------- 介面：簡易版隱藏 .adv 的按鈕與選項（設定值不變） ----------
-  const uiSel = $('ui-mode');
-  const applyUi = () => document.body.classList.toggle('ui-simple', uiSel.value === 'simple');
-  uiSel.value = store.get('ui', 'full') === 'simple' ? 'simple' : 'full';
-  applyUi();
-  uiSel.addEventListener('change', () => {
-    store.set('ui', uiSel.value);
-    applyUi();
-  });
-
   // ---------- 設定 ----------
   const settings = store.get('settings', {});
   function applySettingsToForm() {
