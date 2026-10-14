@@ -621,7 +621,7 @@
       const plan = planValues(voice, meter, last || split || M.mayBeIncomplete(part, mi), opt.grouping && env.opts.grouping);
       if (plan.mismatch && !env.warned.has(part.id + ':' + mi + ':' + vi)) {
         env.warned.add(part.id + ':' + mi + ':' + vi);
-        env.warnings.push({ msg: '第 ' + env.numbers[mi] + ' 小節' + (part.hand ? (part.hand === 'R' ? '（右手）' : '（左手）') : '') + '的拍數與拍號不符', measure: mi });
+        env.warnings.push({ msg: '第 ' + env.numbers[mi] + ' 小節' + (part.hand ? { R: '（右手）', L: '（左手）', O: '（旋律提示）' }[part.hand] : '') + '的拍數與拍號不符', measure: mi });
       }
       ctx.wordEnd = false;
       // 有和弦名稱的小節不用部分小節重複：重複記號不帶和弦名稱（Par. 27.1.2）
@@ -1430,15 +1430,18 @@
     const numW = Math.max(...numbers.map((n) => String(n).length));
     const slR = analyseSlurs(rh, opts.slurStyle);
     const slL = analyseSlurs(lh, opts.slurStyle);
+    // 伴奏的旋律提示（Par. 29.8）：右手上方一行，手號 ⠐⠜；小節號寫在這一行
+    const ol = score.outline || null;
+    const slO = ol ? analyseSlurs(ol, opts.slurStyle) : null;
     const pad = (n) => ' '.repeat(numW - String(n).length) + B.upperNumber(n);
     const indent = ' '.repeat(numW + 1);
     let prevKey = rh.measures[0].key;
     const abcStarts = opts.lineMode === 'abc' ? abcLineStarts(rh) : null;
 
     const handText = (part, pieces, segno) => {
-      const hs = HAND[part.hand];
+      const hs = part.hand === 'O' ? '">' : HAND[part.hand];
       // Segno 與手號之間空一方（Par. 20.3）
-      if (segno) return [{ text: hs + ' + ', id: null }].concat(pieces);
+      if (segno && part.hand !== 'O') return [{ text: hs + ' + ', id: null }].concat(pieces);
       const sep = B.hasDots123(pieces[0].text[0]) ? "'" : '';
       return [{ text: hs + sep, id: null }].concat(pieces);
     };
@@ -1455,7 +1458,8 @@
     const bothRun = (k) => {
       if (!opts.measureRepeat) return 0;
       let n = 0;
-      while (k + n < N && sameAsPrev(rh, k + n) && sameAsPrev(lh, k + n) && (n === 0 || (!repeatTail(rh.measures[k + n - 1]) && !repeatTail(lh.measures[k + n - 1])))) n++;
+      const all = ol ? [rh, lh, ol] : [rh, lh];
+      while (k + n < N && all.every((p) => sameAsPrev(p, k + n)) && (n === 0 || all.every((p) => !repeatTail(p.measures[k + n - 1])))) n++;
       return n >= 3 ? n : 0;
     };
     const runPieces = (part, k, n) => [{ text: '7#' + B.upperNumber(n) + repeatTail(part.measures[k + n - 1]), id: null, ids: [].concat(...part.measures.slice(k, k + n).map(measureIds)) }];
@@ -1478,18 +1482,16 @@
         lines.push(l);
       }
       // 從被拆開小節的後半開始時，編號後接點 3（Par. 29.3）
-      const R = new Line(pad(numbers[mi]) + (rh.measures[mi].splitCont ? "'" : ' '));
-      R.label(numW - String(numbers[mi]).length, pad(numbers[mi]).length, numbers[mi]);
-      const L = new Line(indent);
-      const extraR = [];
-      const extraL = [];
+      const numLine = new Line(pad(numbers[mi]) + (rh.measures[mi].splitCont ? "'" : ' '));
+      numLine.label(numW - String(numbers[mi]).length, pad(numbers[mi]).length, numbers[mi]);
+      // 每一行：[行, run-over 續行, 聲部, 圓滑線]；有旋律提示時小節號在提示行
+      const rows = (ol ? [[numLine, [], ol, slO]] : []).concat([
+        [ol ? new Line(indent) : numLine, [], rh, slR],
+        [new Line(indent), [], lh, slL],
+      ]);
       // 第一小節
       const run0 = bothRun(mi);
-      const r0 = run0 ? { pieces: runPieces(rh, mi, run0) } : render(rh, slR, mi);
-      const l0 = run0 ? { pieces: runPieces(lh, mi, run0) } : render(lh, slL, mi);
-      const rp = handText(rh, r0.pieces, rh.measures[mi].segno);
-      const lp = handText(lh, l0.pieces, rh.measures[mi].segno);
-      const room0 = W - R.text.length;
+      const room0 = W - numLine.text.length;
       const fitOrRunover = (line, extra, part, sl, pieces) => {
         if (piecesText(pieces).length <= room0) {
           line.addPieces(pieces, mi);
@@ -1510,30 +1512,29 @@
           }
         });
       };
-      fitOrRunover(R, extraR, rh, slR, rp);
-      fitOrRunover(L, extraL, lh, slL, lp);
+      for (const [line, extra, part, sl] of rows) {
+        const r0 = run0 ? { pieces: runPieces(part, mi, run0) } : render(part, sl, mi);
+        fitOrRunover(line, extra, part, sl, handText(part, r0.pieces, rh.measures[mi].segno));
+      }
       mi += run0 || 1;
       // 後續小節（沒有 run-over 時才並排）
-      while (mi < N && !extraR.length && !extraL.length) {
+      while (mi < N && rows.every((row) => !row[1].length)) {
         const m = rh.measures[mi];
         if (m.key || m.meter || m.segno || m.codaStart) break;
         // 跟隨 ABC 換行：ABC 換行處結束這一組上下對齊的段落
         if (abcStarts && abcStarts.has(mi)) break;
         const run = bothRun(mi);
-        const r = run ? { pieces: runPieces(rh, mi, run) } : render(rh, slR, mi);
-        const l = run ? { pieces: runPieces(lh, mi, run) } : render(lh, slL, mi);
-        const rt = piecesText(r.pieces);
-        const lt = piecesText(l.pieces);
-        const col = Math.max(R.text.length, L.text.length) + 1;
-        if (col + Math.max(rt.length, lt.length) > W) break;
-        for (const [line, pieces] of [[R, r.pieces], [L, l.pieces]]) {
+        const rs = rows.map(([, , part, sl]) => (run ? { pieces: runPieces(part, mi, run) } : render(part, sl, mi)));
+        const col = Math.max(...rows.map((row) => row[0].text.length)) + 1;
+        if (col + Math.max(...rs.map((r) => piecesText(r.pieces).length)) > W) break;
+        rows.forEach(([line], k) => {
           const gap = col - line.text.length;
           line.add(gap >= 7 ? ' ' + "'".repeat(gap - 2) + ' ' : ' '.repeat(gap));
-          line.addPieces(pieces, mi);
-        }
+          line.addPieces(rs[k].pieces, mi);
+        });
         mi += run || 1;
       }
-      lines.push(R, ...extraR, L, ...extraL);
+      for (const [line, extra] of rows) lines.push(line, ...extra);
     }
   }
 
@@ -1746,6 +1747,90 @@
     return { brf: brf.replace(/\n+$/, '\n'), map, warnings };
   }
 
+  // ---------- 人聲與伴奏（Par. 29.8）----------
+  const VOCAL_NAME = /^(voice|vocals?|solo voice|singer|soprano|mezzo|contralto|人聲|歌聲|獨唱|主唱|女高音|女中音|女低音|男高音|男中音|男低音)/i;
+  /** 人聲聲部：有歌詞，或名稱是人聲（Bass、Alto 也可能是樂器，只認有歌詞的） */
+  function isVocal(p) {
+    if (VOCAL_NAME.test((p.name || '').trim())) return true;
+    return p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics && ev.lyrics.some(Boolean))));
+  }
+
+  /** 伴奏的旋律提示（Par. 29.8）：只留音符、休止、連結線與延長記號，不寫歌詞、表情、圓滑線 */
+  function outlinePart(p) {
+    const ev2 = (ev) => ({
+      id: ev.id,
+      kind: ev.kind,
+      value: ev.value,
+      dots: ev.dots,
+      tuplet: ev.tuplet,
+      measureRest: ev.measureRest,
+      notes: (ev.notes || []).map((n) => ({ step: n.step, octave: n.octave, accidental: n.accidental, alter: n.alter, tie: n.tie })),
+      articulations: (ev.articulations || []).filter((a) => a === 'fermata'),
+      src: ev.src,
+    });
+    const measures = p.measures.map((m) => Object.assign({}, m, { segno: false, codaStart: false, toCoda: false, fine: false, jump: null, voices: m.voices.map((v) => v.map(ev2)) }));
+    return Object.assign({}, p, { hand: 'O', dir: null, measures });
+  }
+
+  /**
+   * 總譜的點字（「內容」選總譜時）：有人聲又有伴奏時照 Par. 29.8 分開寫——人聲照歌曲格式（Sec. 35，含歌詞），
+   * 伴奏另外寫；鋼琴伴奏在右手上方加人聲的旋律提示。其他情形是器樂合奏總譜（Sec. 33）。
+   * map 只含轉點字的聲部（同 partsBraille）。
+   */
+  function scoreBraille(r, options) {
+    const vocal = r.ensemble.filter(isVocal);
+    const acc = r.ensemble.filter((p) => !vocal.includes(p));
+    if (!vocal.length || !acc.length) return toBraille(ensembleScore(r), options);
+    const o = Object.assign({}, options, { title: false });
+    const W = o.width || 40;
+    let brf = '';
+    const map = [];
+    const warnings = [];
+    const heading = (t, k) => MB.brailleHeading(t, W) || (k ? MB.brailleHeading(String(k), W) : null) || '';
+    if (r.score.title) {
+      const t = heading(r.score.title, 0);
+      if (t) brf += t + '\n\n';
+    }
+    if (vocal.length > 1) warnings.push({ msg: '合唱總譜（BANA Sec. 37）目前不支援，各人聲部依序寫出；伴奏的旋律提示用第一個人聲部' });
+    // 依 group 分段：同一個 group 相連的是鋼琴雙手
+    const blocks = (parts) => {
+      const out = [];
+      for (const p of parts) {
+        const last = out[out.length - 1];
+        if (last && p.group != null && last[0].group === p.group) last.push(p);
+        else out.push([p]);
+      }
+      return out;
+    };
+    const handed = (blk) => blk.map((p, i) => Object.assign({}, p, { hand: blk.length === 2 ? (i ? 'L' : 'R') : null }));
+    const accBlocks = blocks(acc);
+    const items = vocal.map((p) => ({ name: p.name, parts: [p], score: Object.assign({}, r.score, { keyboard: false, ensemble: false, parts: [p] }) }));
+    if (accBlocks.length === 1 && accBlocks[0].length === 2) {
+      // 鋼琴伴奏：右手上方加旋律提示
+      const blk = accBlocks[0];
+      items.push({ name: blk[0].name || '伴奏', parts: blk, score: Object.assign({}, r.score, { keyboard: true, ensemble: false, parts: handed(blk), outline: outlinePart(vocal[0]) }) });
+    } else if (acc.length === 1) items.push({ name: acc[0].name || '伴奏', parts: acc, score: Object.assign({}, r.score, { keyboard: false, ensemble: false, parts: acc }) });
+    else
+      // 樂器合奏的伴奏：照 Sec. 33 寫成總譜
+      items.push({ name: '伴奏', parts: acc, score: ensembleScore(Object.assign({}, r, { ensemble: acc })) });
+    items.forEach((it, k) => {
+      let res;
+      try {
+        res = toBraille(it.score, o);
+      } catch (e) {
+        console.error(e);
+        return;
+      }
+      brf += heading(it.name || String(k + 1), k + 1) + '\n';
+      // 選到的聲部就是這一段（同一個物件）時，游標對照對得到
+      if (r.score.parts.every((p) => it.parts.includes(p)))
+        for (const m of res.map) map.push(Object.assign({}, m, { start: m.start + brf.length, end: m.end + brf.length }));
+      for (const w of res.warnings) if (!warnings.some((x) => x.msg === w.msg)) warnings.push(w);
+      brf += res.brf.replace(/\n+$/, '') + '\n\n';
+    });
+    return { brf: brf.replace(/\n+$/, '\n'), map, warnings };
+  }
+
   /**
    * 合奏總譜（BANA Sec. 33）用的樂譜，交給 toBraille：ABC 裡所有聲部依原本順序；同一個 group 相連的兩個聲部是鋼琴的右手、左手。
    * 事件物件沿用（id 相同），點字區的游標仍對得到轉點字的聲部。
@@ -1763,6 +1848,8 @@
 
   MB.toBraille = toBraille;
   MB.partsBraille = partsBraille;
+  MB.scoreBraille = scoreBraille;
+  MB.isVocalPart = isVocal;
   MB.ensembleScore = ensembleScore;
   MB.instrumentAbbrs = instrumentAbbrs;
   /** 置中的文字標題（曲名、總譜裡的聲部名稱）；中文需要國語點字表，沒有時回傳 null。 */

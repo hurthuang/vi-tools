@@ -437,6 +437,10 @@ for (const s of MB.samples) {
     const eb = MB.toBraille(Object.assign({}, r.score, { keyboard: false, ensemble: true, parts: ps }), {});
     const ew = eb.warnings.filter((w) => !/^合奏總譜裡的和弦名稱與歌詞/.test(w.msg));
     check('範例「' + s.name + '」：合奏總譜無警告、每行不超過 40 方', ew.length === 0 && eb.brf.split('\n').every((l) => l.length <= 40), ew.map((w) => w.msg).join('\n') + '\n' + eb.brf);
+    // 「內容」選總譜：有人聲又有伴奏時分開寫（Par. 29.8）
+    const sb = MB.scoreBraille(r, {});
+    const sw = sb.warnings.filter((w) => !/^合奏總譜裡的和弦名稱與歌詞|^合唱總譜|國語點字表/.test(w.msg));
+    check('範例「' + s.name + '」：總譜無警告、每行不超過 40 方', sw.length === 0 && sb.brf.split('\n').every((l) => l.length <= 40), sw.map((w) => w.msg).join('\n') + '\n' + sb.brf);
   }
 }
 {
@@ -1034,6 +1038,15 @@ async function mxlTests() {
     check('合奏總譜：整組休止的樂器省略、每個樂器一行', music.map((l) => l.split(' ')[0]).join() === ">FL',>PR',>PL'", brf);
     check('合奏總譜：小節上下對齊、行首第一個音有音層記號', music.every((l) => l.indexOf(' ', 5) > 0) && music[0].startsWith(">FL' .") && music[1].startsWith(">PR' .N+"), brf);
     check('合奏總譜：縮寫自動取字母與編號', MB.instrumentAbbrs([{ name: 'Lead' }, { name: 'Bass' }, { name: 'Violin II' }, { name: '小提琴' }, { name: '小提琴' }]).join() === ">LE',>BA',>V2',>V1',>V2'");
+    check('總譜：純器樂照 Sec. 33', MB.scoreBraille(e, {}).brf === brf);
+  }
+  // 人聲與伴奏（Par. 29.8）：人聲照歌曲格式；鋼琴伴奏右手上方是旋律提示 ⠐⠜，只有音符與延長記號，小節號在提示行
+  {
+    const e = MB.parseAbc('X:1\nM:3/4\nL:1/4\n%%score Vo {RH | LH}\nV:Vo name="Voice"\nV:RH name="Piano"\nV:LH clef=bass\nK:G\nV:Vo\n!mf!G A B | d2 H.B |]\nw: Hap- _ py day\nV:RH\n[GB]3 | [Ad]3 |]\nV:LH\nG,3 | D,3 |]');
+    const ls = MB.scoreBraille(e, { lineMode: 'abc' }).brf.split('\n');
+    const o = ls.findIndex((l) => l.startsWith('A ">'));
+    check('人聲與伴奏：人聲有歌詞', ls.includes(',HAPPY DAY') && ls.some((l) => /^  >MF"\\C\[W/.test(l)), ls.join('\n'));
+    check('人聲與伴奏：旋律提示行', o > 0 && ls[o] === 'A ">"\\[W .OW<L<K' && ls[o + 1].startsWith('  .>') && ls[o + 2].startsWith('  _>'), ls.join('\n'));
   }
   // 只寫級數的和弦記號
   r = MB.parseAbc('X:1\nL:1/4\nK:C\n"1"C D E F|\n');

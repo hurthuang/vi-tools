@@ -1189,12 +1189,12 @@
           <li><strong>調號</strong>（33.4.1）：所有樂器調號相同時寫在樂曲標頭；不同時標頭不寫調號，改寫在每行的縮寫後面。</li>
           <li>鋼琴等多行譜表的樂器，每一手當作一個樂器、各寫一行（33.2.3）。所有聲部的音程與 in-accord 都由下往上讀（33.4.2）。</li>
         </ul>
-        <p>本工具的合奏總譜只能看、不能修改，也讀不回；和弦名稱與歌詞目前不寫進總譜。樂器表的中文名稱需要國語點字表。</p>`,
+        <p>Sec. 33 是<strong>器樂</strong>合奏；有人聲又有伴奏時，照下一節「人聲與伴奏」分開寫。本工具的總譜只能看、不能修改，也讀不回；和弦名稱目前不寫進總譜。樂器表的中文名稱需要國語點字表。</p>`,
       abc: `
         <ul>
           <li>聲部寫法和分譜相同：<code>V:</code> 定義每個樂器，<code>name="…"</code> 是樂器名稱，<code>%%score</code> 列出順序。</li>
           <li>每一行 ABC 是一個平行段，要在哪裡分段就在哪裡換行（各聲部要在同一個小節換行）。</li>
-          <li>轉換器的點字區上方「內容」選「合奏總譜（小節對齊，唯讀）」。</li>
+          <li>轉換器的點字區上方「內容」選「總譜（唯讀）」。</li>
         </ul>`,
       tables: [
         {
@@ -1228,25 +1228,63 @@
           brf: ",FLUTE  >FL'\n,CELLO  >VC'\n\n                  #D4\n>FL'% \"\\[T .(<K\n>VC'< _NP  Y<K",
           note: '兩個樂器的調號不同，樂曲標頭只寫拍號；長笛的一個升記號 ⠩、大提琴的一個降記號 ⠣ 寫在各自的縮寫後面。',
         },
+      ],
+    },
+    {
+      id: 'accompaniment',
+      title: '人聲與伴奏',
+      par: '29.8、35.1',
+      body: `
+        <ul>
+          <li>獨唱（或獨奏）加鋼琴伴奏的譜，<strong>人聲與伴奏分開寫</strong>，不寫成小節對齊的總譜（29.8）。人聲照歌曲格式（一行歌詞、一行音樂，35.1）；伴奏另外寫成鋼琴譜。</li>
+          <li>伴奏的右手上方加一行人聲的<strong>旋律提示</strong>，行首是提示記號 ⠐⠜（當作手號，寫在右手的手號正上方），方便彈奏者對照；小節號改寫在這一行，不寫在右手那一行。</li>
+          <li>旋律提示只寫音符、休止、連結線與延長記號等必要的記號，<strong>不寫歌詞、表情與圓滑線</strong>。提示行和右手之間不能插入其他文字。</li>
+          <li>伴奏幾乎都和人聲重疊時，可以省略旋律提示（本工具一律寫出）。</li>
+        </ul>
+        <p>幾個人聲部同時唱的合唱總譜（Sec. 37）本工具還沒有支援，目前各人聲部依序寫出，伴奏的旋律提示用第一個人聲部。</p>`,
+      abc: `
+        <ul>
+          <li>人聲聲部用 <code>name="Voice"</code>（或 Soprano、人聲、獨唱等名稱），或有 <code>w:</code> 歌詞；其他聲部當作伴奏。</li>
+          <li>鋼琴伴奏用 <code>%%score Vo {RH | LH}</code>，大括號裡是右手、左手。</li>
+          <li>轉換器的點字區上方「內容」選「總譜（唯讀）」。</li>
+        </ul>`,
+      tables: [
         {
-          title: '人聲與鋼琴',
+          caption: '伴奏用到的記號',
+          rows: [
+            ['旋律提示記號', '">', '當作手號，寫在右手手號 ⠨⠜ 的正上方'],
+            ['右手', '.>', '鋼琴譜的右手手號'],
+            ['左手', '_>', '鋼琴譜的左手手號'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '人聲與鋼琴伴奏',
           scope: 'score',
           abc: 'X:1\nM:4/4\nL:1/4\n%%score Vo {RH | LH}\nV:Vo clef=treble name="Voice"\nV:RH clef=treble name="Piano"\nV:LH clef=bass\nK:C\nV:Vo\nE F G2 | c4 |]\nV:RH\n[CE]2 [DF]2 | [EG]4 |]\nV:LH\nC,4 | C,4 |]',
-          brf: ",VOICE \"\"\"\"\"\"\"\"\"\"  >VO'\n,PIANO RIGHT HAND  >PR'\n,PIANO LEFT HAND   >PL'\n\n                  #D4\n>VO' \"$]R  .Y<K\n>PR' \"N+O+ &+<K\n>PL' _Y    7<K",
-          note: '鋼琴的右手、左手各當一個樂器，各有自己的縮寫與一行。和弦的音程在總譜中由下往上讀：右手寫最低音 C，再加三度。',
+          brf: '                 ,VOICE\n                  #D4\n#A "$]R .Y<K\n\n                 ,PIANO\n                  #D4\nA ">"$]R  .Y<K\n  .>"P+Q+ "(+<K\n  _>_Y    7<K\n',
+          note: '先寫人聲（單行格式），再寫鋼琴伴奏。伴奏每一組最上面是旋律提示 ⠐⠜，小節號 ⠁ 寫在這一行；右手、左手接在下面，小節上下對齊。',
+        },
+        {
+          title: '有歌詞的歌曲：提示行不寫歌詞與圓滑線',
+          scope: 'score',
+          abc: 'X:1\nM:3/4\nL:1/4\n%%score Vo {RH | LH}\nV:Vo clef=treble name="Voice"\nV:RH clef=treble name="Piano"\nV:LH clef=bass\nK:G\nV:Vo\nG A B | d2 H.B |]\nw: Hap- _ py day\nV:RH\n[GB]3 | [Ad]3 |]\nV:LH\nG,3 | D,3 |]',
+          brf: '                 ,VOICE\n                  %#C4\n,HAPPY DAY\n  "\\C[W O8W<L<K\n\n                 ,PIANO\n                  %#C4\nA ">"\\[W .OW<L<K\n  .>"T\'+ .O\'#<K\n  _>_R\'  _O\'<K\n',
+          note: '人聲照歌曲格式寫歌詞，一個音節（Hap）唱兩個音用音節圓滑線 ⠉；伴奏的旋律提示只有音符和延長記號，音節圓滑線、斷奏、歌詞都不寫。',
         },
       ],
     },
   ];
 
   /**
-   * 例子的點字：scope 'score' 是合奏總譜（Sec. 33），'parts' 是分譜依序（Sec. 24），都跟隨 ABC 換行（和轉換器的預設相同）；
+   * 例子的點字：scope 'score' 是總譜（器樂合奏 Sec. 33；人聲加伴奏 Par. 29.8），'parts' 是分譜依序（Sec. 24），都跟隨 ABC 換行（和轉換器的預設相同）；
    * 其他照一般寫法。ABC 改到只剩一個（或鋼琴雙手）聲部時沒有總譜，也照一般寫法。
    */
   MB.ruleExampleBraille = (abc, scope) => {
     const r = MB.parseAbc(abc);
     let b;
-    if (r.ensemble && scope === 'score') b = MB.toBraille(MB.ensembleScore(r), { lineMode: 'abc' });
+    if (r.ensemble && scope === 'score') b = MB.scoreBraille(r, { lineMode: 'abc' });
     else if (r.ensemble && scope === 'parts') b = MB.partsBraille(r, { lineMode: 'abc' });
     else b = MB.toBraille(r.score);
     return { r, b };

@@ -211,7 +211,7 @@
       r = MB.parseAbc(text, { unit: state.unit });
       b = MB.toBraille(r.score, writeOpts());
       if (r.ensemble && $('brl-scope').value === 'all') b = MB.partsBraille(r, writeOpts());
-      else if (r.ensemble && $('brl-scope').value === 'score') b = MB.toBraille(MB.ensembleScore(r), writeOpts());
+      else if (r.ensemble && $('brl-scope').value === 'score') b = MB.scoreBraille(r, writeOpts());
     } catch (e) {
       console.error(e);
       return showMessages([{ msg: '轉換時發生錯誤：' + e.message, where: 'abc' }]);
