@@ -1241,7 +1241,7 @@
           <li>旋律提示只寫音符、休止、連結線與延長記號等必要的記號，<strong>不寫歌詞、表情與圓滑線</strong>。提示行和右手之間不能插入其他文字。</li>
           <li>伴奏幾乎都和人聲重疊時，可以省略旋律提示（本工具一律寫出）。</li>
         </ul>
-        <p>幾個人聲部同時唱的合唱總譜（Sec. 37）本工具還沒有支援，目前各人聲部依序寫出，伴奏的旋律提示用第一個人聲部。</p>`,
+        <p>有兩個以上人聲部時，人聲照下一節「合唱總譜」寫，伴奏的旋律提示用第一個人聲部。</p>`,
       abc: `
         <ul>
           <li>人聲聲部用 <code>name="Voice"</code>（或 Soprano、人聲、獨唱等名稱），或有 <code>w:</code> 歌詞；其他聲部當作伴奏。</li>
@@ -1275,10 +1275,64 @@
         },
       ],
     },
+    {
+      id: 'choral',
+      title: '合唱總譜',
+      par: '37.1–37.3',
+      body: `
+        <ul>
+          <li>合唱的總譜用<strong>擴充的小節對齊</strong>格式：每個平行段先寫歌詞行，再寫各聲部的音樂行（37.1）。伴奏不放進合唱總譜，另外寫（見上一節）。</li>
+          <li>歌詞行從邊界開始，音樂行從第 3 方開始；平行段之間<strong>不空行</strong>，也不寫小節號。</li>
+          <li>各聲部歌詞相同時<strong>只寫一行歌詞</strong>，不加識別記號（37.2）。</li>
+          <li>歌詞不同時每個聲部一行，行首是聲部識別記號加一個空方，各行歌詞的開頭上下對齊；這時歌詞行不能 run-over（37.3）。</li>
+          <li>音樂行行首是 ⠜ 開頭、點 3 結尾的識別記號，例如女高音 ⠜⠎⠄；識別記號和音樂之間不空方（除非為了對齊）。識別記號只在第一個平行段，以及聲部組合改變時才寫（37.1(f)）。</li>
+          <li>整段都在休息的聲部，這一段省略不寫（37.1(c)）。音程與 in-accord：女高音、女低音由上往下讀，男高音、男低音由下往上讀（37.1(j)）。</li>
+        </ul>
+        <p>英文歌詞不用縮寫（37.1(g)）。本工具的合唱總譜只能看、不能修改；暫時分部（37.5）與兩種語言的歌詞（37.4）目前不支援。</p>`,
+      abc: `
+        <ul>
+          <li>每個聲部用 <code>V:</code> 定義，名稱用 Soprano、Alto、Tenor、Bass（或女高音、女低音、男高音、男低音）會用 S、A、T、B 當識別記號；其他名稱照樂器縮寫的取法。</li>
+          <li>有 <code>w:</code> 歌詞的聲部、或兩個以上 SATB 名稱的聲部都算人聲；ABC 的每一行是一個平行段，太長時自動分段。</li>
+          <li>轉換器的點字區上方「內容」選「總譜（唯讀）」。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '合唱總譜用到的記號',
+          rows: [
+            ['女高音（音樂行）', ">S'", '女低音 ⠜⠁⠄、男高音 ⠜⠞⠄、男低音 ⠜⠃⠄'],
+            ['女高音（歌詞行）', "S'", '歌詞行的識別記號不加 ⠜，後面空一方'],
+            ['第一女高音', ">S1'", '同一聲部分成幾部時加下位數字'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '歌詞相同：只寫一行歌詞',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score S A\nV:S name="Soprano"\nV:A name="Alto"\nK:D\nV:S\nF G A B | A A G F |]\nw: Ma-ry, Ma-ry, quite con-tra-ry\nV:A\nD E F G | F F E D |]\nw: Ma-ry, Ma-ry, quite con-tra-ry',
+          brf: '                 %%#D4\n,MARY1 ,MARY1 QUITE CONTRARY\n  >S\'"]\\[W [[\\]<K\n  >A\'":$]\\ ]]$:<K',
+          note: '兩個聲部的歌詞相同，只寫一行歌詞、不加識別記號；下面是女高音 ⠜⠎⠄、女低音 ⠜⠁⠄ 兩行音樂，第 2 小節上下對齊。',
+        },
+        {
+          title: '歌詞不同：每個聲部一行',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score S A\nV:S name="Soprano"\nV:A name="Alto"\nK:D\nV:S\nF G A B | A2 F2 |]\nw: How does your gar-den grow\nV:A\nD E F G | F E D2 |]\nw: Oh, Ma-ry, quite con-tra-ry',
+          brf: '                 %%#D4\nS\' ,HOW DOES YOUR GARDEN GROW\nA\' ,OH1 ,MARY1 QUITE CONTRARY\n  >S\'"]\\[W SQ<K\n  >A\'":$]\\ ]$O<K',
+          note: '歌詞不同，每個聲部一行，行首是 S、A 加點 3 和一個空方，兩行歌詞的開頭對齊。',
+        },
+        {
+          title: '休息的聲部省略、組合改變時重寫識別記號',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score S A\nV:S name="Soprano"\nV:A name="Alto"\nK:D\nV:S\nF G A B | A4 |\nw: Ma-ry, Ma-ry, quite\nB A G F | E4 |]\nw: how does your gar-den\nV:A\nD E F G | F4 |\nw: Ma-ry, Ma-ry, quite\nz4 | z4 |]',
+          brf: '                 %%#D4\n,MARY1 ,MARY1 QUITE\n  >S\'"]\\[W !\n  >A\'":$]\\ =\nHOW DOES YOUR GARDEN\n  >S\'"W[\\] &<K',
+          note: '第二個平行段女低音都在休息，所以只寫女高音；聲部組合改變了，女高音那一行重寫識別記號 ⠜⠎⠄。平行段之間不空行。',
+        },
+      ],
+    },
   ];
 
   /**
-   * 例子的點字：scope 'score' 是總譜（器樂合奏 Sec. 33；人聲加伴奏 Par. 29.8），'parts' 是分譜依序（Sec. 24），都跟隨 ABC 換行（和轉換器的預設相同）；
+   * 例子的點字：scope 'score' 是總譜（器樂合奏 Sec. 33；人聲加伴奏 Par. 29.8；合唱 Sec. 37），'parts' 是分譜依序（Sec. 24），都跟隨 ABC 換行（和轉換器的預設相同）；
    * 其他照一般寫法。ABC 改到只剩一個（或鋼琴雙手）聲部時沒有總譜，也照一般寫法。
    */
   MB.ruleExampleBraille = (abc, scope) => {

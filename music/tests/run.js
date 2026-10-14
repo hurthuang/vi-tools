@@ -1048,6 +1048,16 @@ async function mxlTests() {
     check('人聲與伴奏：人聲有歌詞', ls.includes(',HAPPY DAY') && ls.some((l) => /^  >MF"\\C\[W/.test(l)), ls.join('\n'));
     check('人聲與伴奏：旋律提示行', o > 0 && ls[o] === 'A ">"\\[W .OW<L<K' && ls[o + 1].startsWith('  .>') && ls[o + 2].startsWith('  _>'), ls.join('\n'));
   }
+  // 合唱總譜（Sec. 37）：SATB 名稱都算人聲、識別記號、男高音與男低音音程由下往上讀；TMD 那種只有一個 Bass 的不算合唱
+  {
+    const satb = 'X:1\nM:4/4\nL:1/4\n%%score S A T B\nV:S name="Soprano"\nV:A name="Alto"\nV:T clef=bass name="Tenor"\nV:B clef=bass name="Bass"\nK:C\nV:S\n[ce]4 |]\nV:A\nG4 |]\nV:T\nE,4 |]\nV:B\n[C,G,]4 |]';
+    const ls = MB.scoreBraille(MB.parseAbc(satb), {}).brf.split('\n');
+    check('合唱總譜：SATB 識別記號、沒有樂器表', ls.filter((l) => /^  >[SATB]'/.test(l)).length === 4 && !ls.some((l) => /RIGHT HAND|"{3}/.test(l)), ls.join('\n'));
+    // 女高音寫最高音 E 加往下三度 ⠬；男低音寫最低音 C 加往上五度 ⠒
+    check('合唱總譜：音程方向（S、A 向下，T、B 向上）', ls.some((l) => /^  >S'\.&\+/.test(l)) && ls.some((l) => /^  >B'_Y9/.test(l)), ls.join('\n'));
+    const tmd = MB.parseAbc('X:1\nM:4/4\nL:1/4\n%%score Ld Ba\nV:Ld name="Lead"\nV:Ba clef=bass name="Bass"\nK:C\nV:Ld\nC D E F |]\nw: a b c d\nV:Ba\nC,4 |]');
+    check('合唱總譜：只有一個 Bass 的是樂器', !MB.isVocalPart(tmd.ensemble[1], tmd.ensemble) && MB.isVocalPart(tmd.ensemble[0], tmd.ensemble));
+  }
   // 只寫級數的和弦記號
   r = MB.parseAbc('X:1\nL:1/4\nK:C\n"1"C D E F|\n');
   check('ABC 級數和弦記號：提示', r.warnings.length === 1 && /只寫了級數（"1"）/.test(r.warnings[0].msg), r.warnings.map((w) => w.msg).join('\n'));

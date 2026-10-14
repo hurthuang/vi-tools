@@ -848,7 +848,8 @@
       lines.push(l);
     }
 
-    if (score.ensemble) writeEnsemble(score, env, lines, abbrs, ownKeys);
+    if (score.choral) writeChoral(score, env, lines);
+    else if (score.ensemble) writeEnsemble(score, env, lines, abbrs, ownKeys);
     else if (score.keyboard) {
       if (score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics)))))
         warnings.push({ msg: '鋼琴譜中的歌詞目前不轉成點字（歌曲請用單一聲部）' });
@@ -1142,7 +1143,7 @@
    * 分段依原本 ABC 的分行；沒有分行資訊（例如 MusicXML）時每 4 小節一段。只轉換第一段歌詞。
    * 中文用國語點字（工具集的 zh-tw.ctb）；沒有載入時無法轉換，就不寫歌詞。沒有歌詞時回傳 null。
    */
-  function vocalLayout(part, env) {
+  function vocalLayout(part, env, startsArg) {
     const { opts } = env;
     if (opts.lyrics === false) return null;
     const lyr0 = (ev) => ev.lyrics && ev.lyrics[0];
@@ -1161,7 +1162,8 @@
     const N = part.measures.length;
     const starts = [];
     // 來自 ABC 的樂譜有分行資訊（第一小節一定標記）；整首只有一行時就是一個平行段
-    if (part.measures[0].lineStart) part.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
+    if (startsArg) starts.push(...startsArg);
+    else if (part.measures[0].lineStart) part.measures.forEach((m, i) => (i === 0 || m.lineStart) && starts.push(i));
     else for (let i = 0; i < N; i += 4) starts.push(i);
     const W = opts.width;
     const unknown = new Set();
@@ -1747,11 +1749,155 @@
     return { brf: brf.replace(/\n+$/, '\n'), map, warnings };
   }
 
+  // ---------- 合唱總譜（Sec. 37）----------
+  // 聲部識別記號（Table 31、32）：女高音 S、女低音 A、男高音 T、男低音 B，第一、第二部加下位數字
+  const VOICE_ID = [
+    [/^(soprano|sopran|女高音)/i, 'S'],
+    [/^(alto|contralto|mezzo|女低音|女中音)/i, 'A'],
+    [/^(tenor|男高音)/i, 'T'],
+    [/^(bass|basso|baritone|男低音|男中音)/i, 'B'],
+  ];
+  /** 每個人聲部的識別記號（不含 ⠜ 與點 3）與音程方向；不是 SATB 的名稱照樂器縮寫的取法 */
+  function voiceIds(parts) {
+    const fallback = instrumentAbbrs(parts.map((p) => Object.assign({}, p, { hand: null })));
+    const base = parts.map((p, k) => {
+      const name = (p.name || '').trim();
+      const hit = VOICE_ID.find(([re]) => re.test(name));
+      if (!hit) return { id: fallback[k].slice(1, -1), up: null };
+      const num = /(\d+|\bi{1,3})$/i.exec(name);
+      return { a: hit[1], n: num ? (/^\d+$/.test(num[1]) ? +num[1] : num[1].length) : null, up: hit[1] === 'T' || hit[1] === 'B' };
+    });
+    const count = {};
+    base.forEach((b) => b.a && b.n == null && (count[b.a] = (count[b.a] || 0) + 1));
+    const seen = {};
+    return base.map((b) => {
+      if (!b.a) return b;
+      const n = b.n == null && count[b.a] > 1 ? (seen[b.a] = (seen[b.a] || 0) + 1) : b.n;
+      return { id: b.a + (n != null ? B.lowerNumber(n) : ''), up: b.up };
+    });
+  }
+
+  /** 行首加上前綴（span、墨字標示跟著移動） */
+  function prefixLine(l, pre) {
+    if (!pre) return l;
+    const n = new Line(pre + l.text, l.kind);
+    n.content = l.content;
+    n.spans = l.spans.map((x) => Object.assign({}, x, { start: x.start + pre.length, end: x.end + pre.length }));
+    n.labels = l.labels.map((x) => Object.assign({}, x, { start: x.start + pre.length, end: x.end + pre.length }));
+    return n;
+  }
+
+  /**
+   * 合唱總譜（Sec. 37）：擴充的小節對齊格式。每個平行段先寫歌詞行（從邊界開始），再寫各聲部的音樂行（從第 3 方開始），
+   * 平行段之間不空行、不寫小節號。各聲部歌詞相同時只寫一行、不加識別記號（37.2）；不同時每個聲部一行，
+   * 行首是識別記號加空方，歌詞開頭上下對齊，不能 run-over（37.3）。音樂行行首是 ⠜ 識別記號，
+   * 只有第一個平行段與聲部組合改變時才寫（37.1(f)）。整段休止的聲部省略（37.1(c)）。
+   * 音程：女高音、女低音由上往下讀，男高音、男低音由下往上讀（37.1(j)）。
+   */
+  function writeChoral(score, env, lines) {
+    const { opts } = env;
+    const W = opts.width;
+    const ids = voiceIds(score.parts);
+    const parts = score.parts.map((p, k) => (ids[k].up == null ? p : Object.assign({}, p, { dir: ids[k].up ? 'up' : 'down' })));
+    const N = parts[0].measures.length;
+    const slurs = parts.map((p) => analyseSlurs(p, opts.slurStyle, true));
+    // 歌詞：先整首轉一次（國語點字表等警告只出現一次），各平行段再依範圍重轉
+    const hasWords = parts.map((p) => !!vocalLayout(p, env));
+    const quiet = { opts, warnings: [] };
+    const words = (k, a, b) => {
+      if (!hasWords[k]) return [];
+      const lay = vocalLayout(parts[k], quiet, b < N ? [a, b] : [a]);
+      return (lay && lay.linesAt.get(a)) || [];
+    };
+    const sameWords = (ws) => new Set(ws.filter((w) => w.length).map((w) => w.map((l) => l.text.trim()).join(' '))).size <= 1;
+    const brk = new Set();
+    parts[0].measures.forEach((m, i) => i > 0 && (m.lineStart || m.key || m.meter || m.segno || m.codaStart) && brk.add(i));
+    const hasNotes = (p, mi) => p.measures[mi].voices.some((v) => v.some((ev) => ev.kind === 'note'));
+    const render = (k, mi, prev, first) => {
+      env.slurs = slurs[k];
+      return renderMeasure(parts[k], mi, env, { prev, forceFirst: first, grouping: true });
+    };
+    const idW = Math.max(...ids.map((x) => x.id.length)) + 2; // ⠜ + 字母 + 點 3
+    let prevKey = parts[0].measures[0].key;
+    let prevMusic = null;
+    let prevWords = null;
+    let mi = 0;
+    while (mi < N) {
+      const m0 = parts[0].measures[mi];
+      if (mi > 0 && (m0.key || m0.meter)) {
+        const sig = signatureText(m0.key, prevKey, m0.meter);
+        if (sig) {
+          const l = new Line('', 'head');
+          l.add(center(sig, W));
+          lines.push(l);
+        }
+      }
+      if (m0.key) prevKey = m0.key;
+      // 1. 這個平行段有哪些小節：音樂行放得下，各聲部歌詞不同時每行歌詞也放得下
+      const col0 = 2 + idW;
+      const len = parts.map(() => col0);
+      const prevs = parts.map(() => null);
+      let end = mi;
+      while (end < N) {
+        if (end > mi && brk.has(end)) break;
+        const r = parts.map((p, k) => render(k, end, prevs[k], end === mi));
+        const col = end === mi ? col0 : Math.max(...len) + 1;
+        if (end > mi && col + Math.max(...r.map((x) => piecesText(x.pieces).length)) > W) break;
+        if (end > mi) {
+          const ws = parts.map((p, k) => words(k, mi, end + 1));
+          if (!sameWords(ws) && ws.some((w) => w.length > 1 || (w[0] && idW + w[0].text.length > W))) break;
+        }
+        r.forEach((x, k) => {
+          len[k] = col + piecesText(x.pieces).length;
+          prevs[k] = x.prev;
+        });
+        end++;
+      }
+      let active = parts.map((p, k) => k).filter((k) => parts[k].measures.slice(mi, end).some((m, j) => hasNotes(parts[k], mi + j)));
+      if (!active.length) active = [0];
+      // 2. 歌詞行
+      const ws = active.map((k) => ({ k, ls: words(k, mi, end) })).filter((w) => w.ls.length);
+      if (ws.length && sameWords(ws.map((w) => w.ls))) {
+        for (const l of ws[0].ls) lines.push(l);
+        prevWords = null;
+      } else if (ws.length) {
+        const assign = ws.map((w) => w.k).join();
+        const show = assign !== prevWords;
+        prevWords = assign;
+        const wW = Math.max(...ws.map((w) => ids[w.k].id.length + 1)) + 1;
+        for (const w of ws) w.ls.forEach((l, i) => lines.push(prefixLine(l, show && i === 0 ? (ids[w.k].id + "'").padEnd(wW) : '')));
+      }
+      // 3. 音樂行：小節上下對齊
+      const assign = active.join();
+      const showM = assign !== prevMusic;
+      prevMusic = assign;
+      const out = active.map((k) => ({ k, line: new Line('  ' + (showM ? ('>' + ids[k].id + "'").padEnd(idW) : '')), prev: null }));
+      for (let j = mi; j < end; j++) {
+        const rs = out.map((o) => render(o.k, j, o.prev, j === mi));
+        const col = Math.max(...out.map((o) => o.line.text.length)) + 1;
+        out.forEach((o, i) => {
+          o.prev = rs[i].prev;
+          if (j > mi) {
+            const gap = col - o.line.text.length;
+            o.line.add(gap >= 7 ? ' ' + "'".repeat(gap - 2) + ' ' : ' '.repeat(gap));
+          }
+          o.line.addPieces(rs[i].pieces, j);
+        });
+      }
+      for (const o of out) lines.push(o.line);
+      mi = end;
+    }
+  }
+
   // ---------- 人聲與伴奏（Par. 29.8）----------
   const VOCAL_NAME = /^(voice|vocals?|solo voice|singer|soprano|mezzo|contralto|人聲|歌聲|獨唱|主唱|女高音|女中音|女低音|男高音|男中音|男低音)/i;
-  /** 人聲聲部：有歌詞，或名稱是人聲（Bass、Alto 也可能是樂器，只認有歌詞的） */
-  function isVocal(p) {
-    if (VOCAL_NAME.test((p.name || '').trim())) return true;
+  // 名稱就是聲部名（可加編號）：Bass、Alto 也可能是樂器，要有兩個以上這樣的聲部才算合唱
+  const SATB_NAME = /^(soprano|alto|contralto|mezzo|tenor|bass|baritone|女高音|女中音|女低音|男高音|男中音|男低音)s*(d+|i{1,3})?$/i;
+  /** 人聲聲部：有歌詞、名稱是人聲，或總譜裡有兩個以上 SATB 名稱的聲部 */
+  function isVocal(p, all) {
+    const name = (p.name || '').trim();
+    if (VOCAL_NAME.test(name)) return true;
+    if (SATB_NAME.test(name) && all && all.filter((q) => SATB_NAME.test((q.name || '').trim())).length > 1) return true;
     return p.measures.some((m) => m.voices.some((v) => v.some((ev) => ev.lyrics && ev.lyrics.some(Boolean))));
   }
 
@@ -1778,8 +1924,10 @@
    * map 只含轉點字的聲部（同 partsBraille）。
    */
   function scoreBraille(r, options) {
-    const vocal = r.ensemble.filter(isVocal);
+    const vocal = r.ensemble.filter((p) => isVocal(p, r.ensemble));
     const acc = r.ensemble.filter((p) => !vocal.includes(p));
+    const choral = vocal.length > 1 ? Object.assign({}, r.score, { keyboard: false, ensemble: false, choral: true, parts: vocal }) : null;
+    if (choral && !acc.length) return toBraille(choral, options);
     if (!vocal.length || !acc.length) return toBraille(ensembleScore(r), options);
     const o = Object.assign({}, options, { title: false });
     const W = o.width || 40;
@@ -1791,7 +1939,6 @@
       const t = heading(r.score.title, 0);
       if (t) brf += t + '\n\n';
     }
-    if (vocal.length > 1) warnings.push({ msg: '合唱總譜（BANA Sec. 37）目前不支援，各人聲部依序寫出；伴奏的旋律提示用第一個人聲部' });
     // 依 group 分段：同一個 group 相連的是鋼琴雙手
     const blocks = (parts) => {
       const out = [];
@@ -1804,7 +1951,8 @@
     };
     const handed = (blk) => blk.map((p, i) => Object.assign({}, p, { hand: blk.length === 2 ? (i ? 'L' : 'R') : null }));
     const accBlocks = blocks(acc);
-    const items = vocal.map((p) => ({ name: p.name, parts: [p], score: Object.assign({}, r.score, { keyboard: false, ensemble: false, parts: [p] }) }));
+    // 人聲：一部照歌曲格式，兩部以上是合唱總譜；伴奏的旋律提示用第一個人聲部
+    const items = choral ? [{ name: 'Choir', parts: vocal, score: choral }] : [{ name: vocal[0].name, parts: vocal, score: Object.assign({}, r.score, { keyboard: false, ensemble: false, parts: vocal }) }];
     if (accBlocks.length === 1 && accBlocks[0].length === 2) {
       // 鋼琴伴奏：右手上方加旋律提示
       const blk = accBlocks[0];
