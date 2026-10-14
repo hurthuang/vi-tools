@@ -199,62 +199,6 @@
     brlEd.render();
   }
 
-  /**
-   * 全部聲部的點字（各聲部分譜依序寫出，BANA Sec. 24 單行格式；不是 Sec. 33 的小節對齊總譜；唯讀）：曲名，再依序寫出每個聲部（聲部名稱置中當標題，鋼琴雙手一起寫）。
-   * map 只含轉點字的聲部（位置加上前面的長度），游標對照只對得到它。
-   */
-  function fullBraille(r) {
-    const o = Object.assign(writeOpts(), { title: false });
-    const W = o.width || 40;
-    let brf = '';
-    const map = [];
-    let warnings = [];
-    // 中文標題需要國語點字表；沒有時改用聲部編號
-    const heading = (t, k) => MB.brailleHeading(t, W) || (k ? MB.brailleHeading(String(k), W) : null) || '';
-    const title = r.score.title ? heading(r.score.title, 0) : '';
-    if (title) brf += title + '\n\n';
-    // 依 group 分段：同一個 group 相連的是鋼琴雙手
-    const blocks = [];
-    for (const p of r.ensemble) {
-      const last = blocks[blocks.length - 1];
-      if (last && p.group != null && last[0].group === p.group) last.push(p);
-      else blocks.push([p]);
-    }
-    blocks.forEach((blk, k) => {
-      const isSel = blk.every((p) => r.score.parts.includes(p));
-      const sc = isSel ? r.score : Object.assign({}, r.score, { keyboard: blk.length === 2, parts: blk.map((p, i) => Object.assign({}, p, { hand: blk.length === 2 ? (i ? 'L' : 'R') : null })) });
-      let res;
-      try {
-        res = MB.toBraille(sc, o);
-      } catch (e) {
-        console.error(e);
-        return;
-      }
-      brf += heading(blk.map((p) => p.name).filter(Boolean).join(' ') || String(k + 1), k + 1) + '\n';
-      if (isSel) {
-        for (const m of res.map) map.push(Object.assign({}, m, { start: m.start + brf.length, end: m.end + brf.length }));
-        warnings = res.warnings;
-      }
-      brf += res.brf.replace(/\n+$/, '') + '\n\n';
-    });
-    return { brf: brf.replace(/\n+$/, '\n'), map, warnings };
-  }
-
-  /**
-   * 合奏總譜（BANA Sec. 33）用的樂譜：ABC 裡所有聲部依原本順序；同一個 group 相連的兩個聲部是鋼琴的右手、左手。
-   * 事件物件沿用（id 相同），點字區的游標仍對得到轉點字的聲部。
-   */
-  function ensembleBrailleScore(r) {
-    const a = r.ensemble;
-    const parts = a.map((p, i) => {
-      const g = p.group;
-      const left = g != null && a[i - 1] && a[i - 1].group === g;
-      const right = g != null && !left && a[i + 1] && a[i + 1].group === g;
-      return Object.assign({}, p, { hand: left ? 'L' : right ? 'R' : null });
-    });
-    return Object.assign({}, r.score, { keyboard: false, ensemble: true, parts });
-  }
-
   function convertFromAbc(extraWarnings) {
     const extra = Array.isArray(extraWarnings) ? extraWarnings : [];
     state.lastSource = 'abc';
@@ -266,8 +210,8 @@
     try {
       r = MB.parseAbc(text, { unit: state.unit });
       b = MB.toBraille(r.score, writeOpts());
-      if (r.ensemble && $('brl-scope').value === 'all') b = fullBraille(r);
-      else if (r.ensemble && $('brl-scope').value === 'score') b = MB.toBraille(ensembleBrailleScore(r), writeOpts());
+      if (r.ensemble && $('brl-scope').value === 'all') b = MB.partsBraille(r, writeOpts());
+      else if (r.ensemble && $('brl-scope').value === 'score') b = MB.toBraille(MB.ensembleScore(r), writeOpts());
     } catch (e) {
       console.error(e);
       return showMessages([{ msg: '轉換時發生錯誤：' + e.message, where: 'abc' }]);

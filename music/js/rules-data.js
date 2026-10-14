@@ -326,6 +326,52 @@
       ],
     },
     {
+      id: 'pickup',
+      title: '弱起拍（不完整的第一小節）',
+      par: '24.1.1、2.4.2、29.3',
+      body: `
+        <ul>
+          <li>樂曲從不完整的小節開始（弱起拍）時，這個小節<strong>編為第 0 小節</strong>。單行格式的段落開頭寫小節號，所以第一行行首是 ⠼⠚（24.1.1）；鋼琴譜的小節號不加數字記號，寫成 ⠚（29.3）。</li>
+          <li>弱起小節照實際的音寫，不補休止符；最後一小節通常也不完整（和弱起小節合起來是一整小節），同樣照實際的音寫。</li>
+          <li>不完整的小節裡，音符的時值可能看不出是大的還是小的（例如十六分音符和全音符是同一個符號）。這時若是<strong>較小的時值</strong>，前面加小時值記號 ⠠⠣⠂（2.4.2）。</li>
+        </ul>`,
+      abc: `
+        <ul>
+          <li>弱起的音直接寫在第一條小節線前面，例如 <code>G | c2 e | …</code>，不需要另外標記。</li>
+          <li><code>L:</code> 是預設的音符長度，弱起音的長短照一般寫法（例如 <code>L:1/16</code> 時 <code>c</code> 是十六分音符）。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '弱起拍用到的記號',
+          rows: [
+            ['第 0 小節（單行格式）', '#J', '數字記號加上位數字 0，寫在行首'],
+            ['第 0 小節（鋼琴譜）', 'J', '鋼琴譜的小節號不加數字記號'],
+            ['小時值記號', ',<1', '時值有疑義、屬於較小的時值時，寫在該音前面'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '一拍的弱起',
+          abc: 'X:1\nM:3/4\nL:1/4\nK:C\nG | c2 e | d2 c | B2 |]',
+          brf: "                  #C4\n#J \"\\ .N$ O? T<K",
+          note: '弱起的 G 是第 0 小節，行首寫 ⠼⠚。最後一小節只有兩拍，和弱起的一拍合起來是一整小節。',
+        },
+        {
+          title: '十六分音符的弱起要加小時值記號',
+          abc: 'X:1\nM:4/4\nL:1/16\nK:C\nc | B4 A4 G8 | c12 |]',
+          brf: "                  #D4\n#J ,<1.Y W[R .N'<K",
+          note: '弱起的 c 是十六分音符，和全音符的符號相同，又在不完整的小節裡，所以前面加小時值記號 ⠠⠣⠂。',
+        },
+        {
+          title: '鋼琴譜的弱起',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\n%%score {RH | LH}\nV:RH clef=treble\nV:LH clef=bass\nV:RH\nG | c4 | B2 c |]\nV:LH\nz | C,4 | G,,2 C, |]',
+          brf: "                  #D4\nJ .>\"\\ .Y \"T?<K\n  _>'V _Y ^R_?<K",
+          note: '鋼琴譜的小節號不加數字記號，第 0 小節寫 ⠚。左手的弱起拍是休止符，照實際時值寫。',
+        },
+      ],
+    },
+    {
       id: 'ties-slurs',
       title: '連結線與圓滑線',
       par: '10.1、10.2、13.2、13.3',
@@ -1021,7 +1067,190 @@
         },
       ],
     },
+    {
+      id: 'songs',
+      title: '歌曲：歌詞與音樂（一行歌詞、一行音樂）',
+      par: '35.1、35.2',
+      body: `
+        <ul>
+          <li><strong>一行歌詞、一行音樂</strong>（line-by-line format，35.1）：歌詞從行首寫起，對應的音樂寫在下一行、從第 3 方開始。這兩行是一個<strong>平行段</strong>，歌詞的音節和音符一定要一一對應。</li>
+          <li>歌詞或音樂一行寫不下時，續行從第 5 方開始；同一個平行段最好不要兩行都有續行（35.1）。</li>
+          <li>歌曲沒有段落小節號；每一個音樂行的第一個音都要寫音層記號（35.1.2）。</li>
+          <li>英文歌詞用不縮寫的英文點字；印刷譜分隔音節的連字號不寫，同一個字的音節連寫（35.1.1）。中文歌詞用國語點字，數字用下位數字。</li>
+          <li><strong>音節圓滑線</strong>（35.2）：一個音節唱兩個以上的音時，即使印刷譜沒有圓滑線，點字也要寫：四個音以內在音符後面寫 ⠉；超過四個音用加倍寫法，第一個音後面寫 ⠉⠉、倒數第二個音後面寫 ⠉。</li>
+          <li>歌曲中印刷譜的圓滑線表示樂句，一律用括號圓滑線 ⠰⠃…⠘⠆，即使只有兩三個音（35.2）。</li>
+        </ul>
+        <p>本工具只轉換第一段歌詞；點字讀回時讀不回歌詞（中文同音字無法還原），只讀入音樂。</p>`,
+      abc: `
+        <ul>
+          <li>歌詞寫在音樂行下一行的 <code>w:</code>，一個音一個音節，用空格分開：<code>w:一 閃 一 閃 亮 晶 晶</code>。</li>
+          <li>英文同一個字的音節用 <code>-</code> 連接（<code>Twin-kle</code>）；<code>_</code> 表示前一個音節延長到這個音（一字多音）；<code>*</code> 表示這個音沒有歌詞。休止符自動跳過。</li>
+          <li>每一行 ABC 是一個平行段：要在哪裡分段，就在哪裡換行，並在該行下面寫它的 <code>w:</code>。</li>
+          <li>中文歌詞要用國語點字表，放在視障輔助工具集裡才會載入。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '歌曲用到的圓滑線',
+          rows: [
+            ['音節圓滑線', 'C', '一個音節唱 2–4 個音：寫在音符後面'],
+            ['加倍音節圓滑線（開始）', 'CC', '超過四個音：寫在第一個音後面'],
+            ['加倍音節圓滑線（結束）', 'C', '寫在倒數第二個音後面'],
+            ['括號圓滑線（開始）', ';B', '印刷譜的圓滑線（樂句）：寫在第一個音前面'],
+            ['括號圓滑線（結束）', '^2', '寫在最後一個音前面'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '一行歌詞、一行音樂',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |]\nw:一 閃 一 閃 亮 晶 晶',
+          brf: "                  #D4\n*'IV@*'IV@C.\"KY'KY'\n  \"??\\\\ [[R<K",
+          note: '第一行是國語點字的歌詞，從行首寫起；第二行是音樂，從第 3 方開始，第一個音寫音層記號。',
+        },
+        {
+          title: '兩個平行段',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |\nw:一 閃 一 閃 亮 晶 晶\nF F E E | D D C2 |]\nw:滿 天 都 是 小 星 星',
+          brf: "                  #D4\n*'IV@*'IV@C.\"KY'KY'\n  \"??\\\\ [[R\nMV@FT'D('I:\"E[@EY'EY'\n  \"]]$$ ::N<K",
+          note: 'ABC 的兩行各成一個平行段：歌詞、音樂、歌詞、音樂。第二段的音樂行第一個音也要寫音層記號。',
+        },
+        {
+          title: '英文歌詞',
+          abc: 'X:1\nM:4/4\nL:1/4\nK:C\nC C G G | A A G2 |]\nw:Twin-kle twin-kle lit-tle star',
+          brf: "                  #D4\n,TWINKLE TWINKLE LITTLE STAR\n  \"??\\\\ [[R<K",
+          note: '英文歌詞不縮寫，分隔音節的連字號不寫，twin-kle 寫成 twinkle；開頭的 T 加大寫記號 ⠠。',
+        },
+        {
+          title: '一字多音：加倍的音節圓滑線',
+          abc: 'X:1\nM:4/4\nL:1/8\nK:C\nC2 E2 G2 c2 | B A G F E2 D2 | C8 |]\nw:哈 囉 你 好 啊 _ _ _ _ 呀 好',
+          brf: "                  #D4\nR>'C3'N*@R%@>')AR%@\n  \"?$\\.? JCCIHGC$: Y<K",
+          note: '「啊」唱 B A G F E 五個音，超過四個，所以 B 後面寫 ⠉⠉、倒數第二個音 F 後面寫 ⠉。印刷譜沒有圓滑線，點字仍要寫。',
+        },
+        {
+          title: '印刷譜的圓滑線改用括號',
+          abc: 'X:1\nM:3/4\nL:1/4\nK:C\nC D E | (F E) D | C3 |]\nw:小 鳥 在 唱 _ 歌 呀',
+          brf: "                  #C4\nE[@N[@HW\"BX\"K!')A\n  \"?:$ ;B]C$^2: N'<K",
+          note: '「唱」唱 F E 兩個音：F 後面寫音節圓滑線 ⠉。印刷譜的圓滑線是樂句記號，改用括號 ⠰⠃…⠘⠆，雖然只有兩個音。',
+        },
+      ],
+    },
+    {
+      id: 'parts',
+      title: '多聲部分譜（各聲部依序寫出）',
+      par: '24.1、24.5',
+      body: `
+        <ul>
+          <li>合奏中每位演奏者用的分譜，是只有一個聲部的<strong>單行格式</strong>（24.1）：每段開頭在行首寫小節號，續行從第 3 方開始。</li>
+          <li>給不同演奏者的聲部要分開寫，不要寫成音程（24.5）；只有兩個聲部大部分齊奏、少數地方不同時，才可以寫在一起，用 in-accord 標出不同的地方。</li>
+          <li>本工具的「分譜依序」把 ABC 裡的每個聲部依序寫出：先寫置中的曲名，每個聲部前面寫置中的聲部名稱，再寫該聲部的樂曲標頭和音樂。鋼琴雙手一起寫成鋼琴譜格式。</li>
+        </ul>`,
+      abc: `
+        <ul>
+          <li>每個聲部用 <code>V:</code> 定義，<code>name="…"</code> 是聲部名稱（寫成標題）：<code>V:Fl clef=treble name="Flute"</code>。</li>
+          <li><code>%%score Fl Vc</code> 列出聲部順序；鋼琴雙手用大括號 <code>{RH | LH}</code> 括起來。</li>
+          <li>轉換器的點字區上方「內容」選「全部聲部（分譜依序，唯讀）」；選「選到的聲部」則只轉換聲部選單選到的那一個。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '分譜的段落',
+          rows: [
+            ['小節號', '#A', '每段開頭寫在行首（這裡是第 1 小節），後面空一方再寫音樂'],
+            ['大寫記號', ',', '英文聲部名稱的大寫字母前面'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '長笛與大提琴',
+          scope: 'parts',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Fl Vc\nV:Fl clef=treble name="Flute"\nV:Vc clef=bass name="Cello"\nK:C\nV:Fl\nE F G2 | c4 |]\nV:Vc\nC,2 E,2 | C,4 |]',
+          brf: "                 ,FLUTE\n                  #D4\n#A \"$]R .Y<K\n\n                 ,CELLO\n                  #D4\n#A _NP Y<K\n",
+          note: '先寫 Flute 的標題、標頭與音樂，空一行，再寫 Cello。每個聲部都從第 1 小節的小節號 ⠼⠁ 開始。',
+        },
+        {
+          title: '人聲與鋼琴',
+          scope: 'parts',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Vo {RH | LH}\nV:Vo clef=treble name="Voice"\nV:RH clef=treble name="Piano"\nV:LH clef=bass\nK:C\nV:Vo\nE F G2 | c4 |]\nV:RH\n[CE]2 [DF]2 | [EG]4 |]\nV:LH\nC,4 | C,4 |]',
+          brf: "                 ,VOICE\n                  #D4\n#A \"$]R .Y<K\n\n                 ,PIANO\n                  #D4\nA .>\"P+Q+ \"(+<K\n  _>_Y    7<K\n",
+          note: 'Voice 是單行格式；Piano 的雙手照鋼琴譜格式寫（小節號不加數字記號，右手 ⠨⠜、左手 ⠸⠜）。',
+        },
+      ],
+    },
+    {
+      id: 'ensemble-score',
+      title: '合奏總譜（小節對齊）',
+      par: '33.1–33.4',
+      body: `
+        <ul>
+          <li>合奏總譜用<strong>小節對齊</strong>（bar-over-bar）格式：每個樂器一行，同一組（平行段）的小節上下對齊（33.1）。</li>
+          <li><strong>樂器表</strong>（33.2）：曲名之後先列出所有樂器。左欄是樂器名稱（不用縮寫字），右欄是書中使用的縮寫，從最長的名稱後空兩方開始；名稱比最長的短三方以上時，空一方後補點 5 的引導點 ⠐。</li>
+          <li><strong>樂器縮寫</strong>（33.2.1）：前面加 ⠜，後面以點 3 ⠄ 結尾，用兩三個字母，例如長笛 ⠜⠋⠇⠄。</li>
+          <li><strong>平行段</strong>（33.4）：每行行首是樂器縮寫，音樂從最長的縮寫後空一方開始；每行第一個音寫音層記號。小節之間的空隙超過六方時補引導點。</li>
+          <li>整個平行段都在休息的樂器，這一段<strong>省略不寫</strong>（33.1）。平行段之間空一行，下一行寫起始小節號（33.3、33.4.6）。</li>
+          <li><strong>調號</strong>（33.4.1）：所有樂器調號相同時寫在樂曲標頭；不同時標頭不寫調號，改寫在每行的縮寫後面。</li>
+          <li>鋼琴等多行譜表的樂器，每一手當作一個樂器、各寫一行（33.2.3）。所有聲部的音程與 in-accord 都由下往上讀（33.4.2）。</li>
+        </ul>
+        <p>本工具的合奏總譜只能看、不能修改，也讀不回；和弦名稱與歌詞目前不寫進總譜。樂器表的中文名稱需要國語點字表。</p>`,
+      abc: `
+        <ul>
+          <li>聲部寫法和分譜相同：<code>V:</code> 定義每個樂器，<code>name="…"</code> 是樂器名稱，<code>%%score</code> 列出順序。</li>
+          <li>每一行 ABC 是一個平行段，要在哪裡分段就在哪裡換行（各聲部要在同一個小節換行）。</li>
+          <li>轉換器的點字區上方「內容」選「合奏總譜（小節對齊，唯讀）」。</li>
+        </ul>`,
+      tables: [
+        {
+          caption: '總譜用到的記號',
+          rows: [
+            ['樂器縮寫：長笛', ">FL'", '⠜ 開頭、點 3 結尾'],
+            ['樂器縮寫：大提琴', ">VC'", '⠜ 開頭、點 3 結尾'],
+            ['引導點', '"', '樂器表名稱欄補齊、小節空隙超過六方時用'],
+          ],
+        },
+      ],
+      examples: [
+        {
+          title: '長笛與大提琴',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Fl Vc\nV:Fl clef=treble name="Flute"\nV:Vc clef=bass name="Cello"\nK:C\nV:Fl\nE F G2 | c4 |]\nV:Vc\nC,2 E,2 | C,4 |]',
+          brf: ",FLUTE  >FL'\n,CELLO  >VC'\n\n                  #D4\n>FL' \"$]R .Y<K\n>VC' _NP  Y<K",
+          note: '開頭是樂器表，空一行後是樂曲標頭，再來是平行段：⠜⠋⠇⠄ 長笛、⠜⠧⠉⠄ 大提琴各一行，第 2 小節上下對齊。',
+        },
+        {
+          title: '休息的樂器省略不寫',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Fl Vc\nV:Fl clef=treble name="Flute"\nV:Vc clef=bass name="Cello"\nK:C\nV:Fl\nE F G2 | c4 |\nz4 | z4 |]\nV:Vc\nC,2 E,2 | C,4 |\nG,,2 B,,2 | C,4 |]',
+          brf: ",FLUTE  >FL'\n,CELLO  >VC'\n\n                  #D4\n>FL' \"$]R .Y\n>VC' _NP  Y\n\n      #C\n>VC' ^RT Y<K",
+          note: '第二個平行段（第 3–4 小節）長笛都在休息，所以只寫大提琴。平行段之間空一行，下一行寫起始小節號 ⠼⠉。',
+        },
+        {
+          title: '各樂器調號不同',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Fl Vc\nV:Fl clef=treble name="Flute"\nV:Vc clef=bass name="Cello"\nK:C\nV:Fl\nK:G\nG A B2 | g4 |]\nV:Vc\nK:F\nC,2 E,2 | C,4 |]',
+          brf: ",FLUTE  >FL'\n,CELLO  >VC'\n\n                  #D4\n>FL'% \"\\[T .(<K\n>VC'< _NP  Y<K",
+          note: '兩個樂器的調號不同，樂曲標頭只寫拍號；長笛的一個升記號 ⠩、大提琴的一個降記號 ⠣ 寫在各自的縮寫後面。',
+        },
+        {
+          title: '人聲與鋼琴',
+          scope: 'score',
+          abc: 'X:1\nM:4/4\nL:1/4\n%%score Vo {RH | LH}\nV:Vo clef=treble name="Voice"\nV:RH clef=treble name="Piano"\nV:LH clef=bass\nK:C\nV:Vo\nE F G2 | c4 |]\nV:RH\n[CE]2 [DF]2 | [EG]4 |]\nV:LH\nC,4 | C,4 |]',
+          brf: ",VOICE \"\"\"\"\"\"\"\"\"\"  >VO'\n,PIANO RIGHT HAND  >PR'\n,PIANO LEFT HAND   >PL'\n\n                  #D4\n>VO' \"$]R  .Y<K\n>PR' \"N+O+ &+<K\n>PL' _Y    7<K",
+          note: '鋼琴的右手、左手各當一個樂器，各有自己的縮寫與一行。和弦的音程在總譜中由下往上讀：右手寫最低音 C，再加三度。',
+        },
+      ],
+    },
   ];
+
+  /**
+   * 例子的點字：scope 'score' 是合奏總譜（Sec. 33），'parts' 是分譜依序（Sec. 24），都跟隨 ABC 換行（和轉換器的預設相同）；
+   * 其他照一般寫法。ABC 改到只剩一個（或鋼琴雙手）聲部時沒有總譜，也照一般寫法。
+   */
+  MB.ruleExampleBraille = (abc, scope) => {
+    const r = MB.parseAbc(abc);
+    let b;
+    if (r.ensemble && scope === 'score') b = MB.toBraille(MB.ensembleScore(r), { lineMode: 'abc' });
+    else if (r.ensemble && scope === 'parts') b = MB.partsBraille(r, { lineMode: 'abc' });
+    else b = MB.toBraille(r.score);
+    return { r, b };
+  };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = MB;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

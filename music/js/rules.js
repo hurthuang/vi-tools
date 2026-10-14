@@ -160,11 +160,11 @@
       let speech = '';
       let warnings = [];
       try {
-        const r = MB.parseAbc(abc);
-        const b = MB.toBraille(r.score);
+        const { r, b } = MB.ruleExampleBraille(abc, ex.scope);
         brf = b.brf;
         // 報讀文字：和轉換器「全曲報讀」相同，開頭一行是調號拍號，之後每小節（鋼琴每手）一行
-        speech = MB.describe.describeScore(r.score, {});
+        // 合奏總譜、分譜依序的例子念出所有聲部
+        speech = MB.describe.describeScore(ex.scope && r.ensemble ? MB.ensembleScore(r) : r.score, {});
         warnings = r.warnings.concat(b.warnings);
       } catch (e) {
         warnings = [{ msg: '轉換時發生錯誤：' + e.message }];
@@ -202,6 +202,8 @@
       ta.focus();
     });
     update();
+    // 國語點字表載入後重新轉換有中文的例子
+    return () => /[㐀-鿿]/.test(ta.value) && update();
   }
 
   // ---------- 整頁 ----------
@@ -224,6 +226,14 @@
       </section>`
     )
     .join('');
-  MB.rules.forEach((sec) => sec.examples.forEach((ex, k) => bindExample(sec, ex, k)));
+  const updaters = [];
+  MB.rules.forEach((sec) => sec.examples.forEach((ex, k) => updaters.push(bindExample(sec, ex, k))));
+  // 國語點字表（中文歌詞、中文樂器名稱用）：放在視障輔助工具集裡才有；載入後重新轉換
+  if (MB.zhBraille)
+    MB.zhBraille.loadFromSite('../').then((ok) => {
+      if (!ok) return;
+      updaters.forEach((u) => u());
+      paintAll();
+    });
   paintAll();
 })();

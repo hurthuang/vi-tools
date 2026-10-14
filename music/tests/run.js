@@ -702,11 +702,20 @@ for (const s of MB.samples) {
 for (const sec of MB.rules) {
   for (const ex of sec.examples) {
     const name = '規則頁「' + sec.title + '：' + ex.title + '」';
-    const r = MB.parseAbc(ex.abc);
-    const b = MB.toBraille(r.score);
+    const lyrics = /\nw:/.test(ex.abc);
+    // 中文歌詞要國語點字表
+    if (lyrics && !zhTable && /[\u3400-\u9fff]/.test(ex.abc)) continue;
+    const { r, b } = MB.ruleExampleBraille(ex.abc, ex.scope);
     check(name + '：ABC → 點字和說明一致', b.brf === ex.brf, b.brf + '\n（說明頁寫的是）\n' + ex.brf);
     check(name + '：沒有警告', r.warnings.length === 0 && b.warnings.length === 0, r.warnings.concat(b.warnings).map((w) => w.msg).join('；'));
+    // 合奏總譜、分譜依序是唯讀，不讀回
+    if (ex.scope) continue;
     const back = MB.parseBraille(ex.brf);
+    if (lyrics) {
+      // 歌詞讀不回來：只比較音樂，警告只能是「歌詞行已略過」
+      check(name + '：點字讀回的音樂相同', summary(back.score) === summary(r.score) && back.warnings.every((w) => /^歌詞行（/.test(w.msg)), summary(back.score) + '\n' + back.warnings.map((w) => w.msg).join('；'));
+      continue;
+    }
     const again = MB.toBraille(back.score).brf;
     check(name + '：點字讀回再寫出不變', again === ex.brf && back.warnings.length === 0, again);
   }
