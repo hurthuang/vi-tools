@@ -436,7 +436,10 @@
   });
 
   // 六點輸入：F D S J K L 同時按下，全部放開時打出一方
-  const KEYS = { f: 1, d: 2, s: 3, j: 4, k: 5, l: 6 };
+  // 看實體按鍵位置（e.code），不看字母：點顯器經 NVDA 電腦點字表送進來的字母（⠙ → d）
+  // 沒有 code，要照常輸入，不能被當成六點鍵攔走。
+  const KEYS = { KeyF: 1, KeyD: 2, KeyS: 3, KeyJ: 4, KeyK: 5, KeyL: 6 };
+  let spaceHeld = false, semiHeld = false, playChord = false;
   let chord = 0;
   const down = new Set();
   function insert(text) {
@@ -489,23 +492,41 @@
     }
     if (!$('six-key').checked || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'Process') return say('六點輸入需要英文輸入法，請先切換輸入法');
-    if (e.key === ' ') {
-      e.preventDefault();
-      insert('⠀');
-      return;
-    }
-    if (KEYS[k]) {
+    // 空白＋點8（; 鍵）：同 Ctrl+Shift+Enter 從頭播放，兩鍵先按哪個都可以
+    // （點顯器在 NVDA 輸入手勢把空白＋點8 設成 Ctrl+Shift+Enter）
+    if (e.code === 'Space' || e.code === 'Semicolon') {
       e.preventDefault();
       if (e.repeat) return;
-      down.add(k);
-      chord |= 1 << (KEYS[k] - 1);
+      if (e.code === 'Space') spaceHeld = true;
+      else semiHeld = true;
+      if (spaceHeld && semiHeld) {
+        playChord = true;
+        startPlay(true);
+      }
+      return;
+    }
+    if (KEYS[e.code]) {
+      e.preventDefault();
+      if (e.repeat) return;
+      down.add(e.code);
+      chord |= 1 << (KEYS[e.code] - 1);
     }
   });
   ta.addEventListener('keyup', (e) => {
-    const k = (e.key || '').toLowerCase();
-    if (!$('six-key').checked || !KEYS[k]) return;
+    if (!$('six-key').checked) return;
+    if (e.code === 'Space' || e.code === 'Semicolon') {
+      if (!spaceHeld && !semiHeld) return;
+      e.preventDefault();
+      // 單獨放開才輸入：空白＝空方，; 照原本的字元輸入（會換成點字）；按過空白＋點8 就都不輸入
+      if (!playChord) insert(e.code === 'Space' ? '⠀' : ';');
+      if (e.code === 'Space') spaceHeld = false;
+      else semiHeld = false;
+      if (!spaceHeld && !semiHeld) playChord = false;
+      return;
+    }
+    if (!KEYS[e.code]) return;
     e.preventDefault();
-    down.delete(k);
+    down.delete(e.code);
     if (down.size === 0 && chord) {
       insert(String.fromCodePoint(0x2800 + chord));
       chord = 0;
@@ -514,6 +535,7 @@
   // 移動游標時，五線譜標示游標所在的音
   for (const ev of ['keyup', 'click', 'focus']) ta.addEventListener(ev, () => !play && markStaff());
   ta.addEventListener('blur', () => {
+    spaceHeld = semiHeld = playChord = false;
     down.clear();
     chord = 0;
   });
