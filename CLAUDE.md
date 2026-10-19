@@ -1097,3 +1097,11 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - 說明頁 `tactile-help.html`（操作說明＋會考圖的處理方式）：tactile.html 的「❓ 說明」用頁內 iframe 蓋著顯示，不用新視窗（桌面版的 NewWindowRequested 會把主畫面導走、丟掉正在做的圖）
 - 測試：`node tools/check-tactile.mjs`（核心）；`desktop/tests/cases/tactile.mjs`（app 斷線時的點字表、紙張、匯出）；點陣除錯 `tools/tactile-raster-harness.mjs`
 - 尚未驗證：實際用 Tiger 印表機印；Tiger Designer 開啟本工具產生的檔案
+
+## 非標準空白（2026-10-19）
+
+- 從 Word、PDF、網頁複製的文字常帶全形空白、各種寬度空格、零寬字元、軟連字號；原本 bt 會原樣留在輸出，存檔後一個字變 2–3 個位元組，點字印表機印成好幾方非預期的點字
+- `shared.js`：`WIDE_SPACE_RE`（Tab、U+3000、U+2000–200A、U+202F、U+205F、U+1680，當空格）、`ZERO_WIDTH_RE`（U+200B–200D、U+2060、U+FEFF、U+00AD、換行以外的控制字元，刪除）、`LINE_SEP_RE`（U+2028／2029，換行）、`normalizeSpaces()`（nc l2n、觸摸圖標籤用）
+- bt 在 `tokenizeWithCustom` 分詞時處理（不能先改字串，原文位置 srcStart 會對不上）：行首的全形空白是段落縮排，一個轉一方；句中的併成一個空方（同 Rule 7.1.2）；點字空方 U+2800 是刻意輸入的點字，有幾方留幾方、不和空格合併（原本會併成一方，段首空兩方只剩一方）；行首半形空格維持併成一方（數量不固定，常是對齊用）；`render()` 只把行分隔換成換行字元（一對一，位置不變）
+- bt 輸出區下方 `#output-warn`：輸出裡還有非點字字元時列出字碼（`_showOutputWarning`）
+- 縮點對照頁不套用：它要和 NVDA 一致（zh-tw.ctb 的全形空白是兩方）

@@ -2403,7 +2403,7 @@ function _attachSyncScrollListeners() {
 }
 
 function l2nConvert(){
-  var input=document.getElementById('l2n-in').value;
+  var input=normalizeSpaces(document.getElementById('l2n-in').value);   // 非標準空白（shared.js）
   var outEl=document.getElementById('l2n-out');
   var prevEl=document.getElementById('l2n-prev');
   var stEl=document.getElementById('l2n-st');

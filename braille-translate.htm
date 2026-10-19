@@ -62,6 +62,8 @@
         /* 點字字型樣式 */
         .font-ascii { font-family: 'SimBraille', sans-serif !important; letter-spacing: 0px; }
         .font-unicode { font-family: "Apple Braille", "Segoe UI Symbol", monospace; letter-spacing: 1px; }
+        .output-warn { color: #b71c1c; font-size: 0.85em; margin: 6px 0 0; }
+        html[data-theme="dark"] .output-warn { color: #ef9a9a; }
 
         /* ── 自定義規則區 ── */
         .custom-rules-panel {
@@ -683,6 +685,7 @@
         <div class="output-area">
             <label for="output-text">點字輸出：</label>
             <textarea id="output-text" readonly spellcheck="false" aria-label="點字輸出結果"></textarea>
+            <p id="output-warn" class="output-warn" role="status" hidden></p>
         </div>
     </div>
 
@@ -3055,7 +3058,8 @@ function _getLineTokens(line, modeKey) {
 // ── render ──────────────────────────────────────────────────
 function render() {
     if (!isLoaded) return;
-    let input     = document.getElementById('input-text').value;
+    // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）
+    let input     = document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n');
     const max     = parseInt(document.getElementById('cell-limit').value)||40;
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
@@ -3172,11 +3176,24 @@ function render() {
     }
 
     outArea.value = isAscii ? unicodeToAscii(resultUnicode) : resultUnicode;
+    _showOutputWarning(resultUnicode);
     clearTimeout(_parallelViewTimer);
     _parallelViewTimer = setTimeout(() => { if (!brailleInputMode) renderParallelView(renderTokens); }, 600);
     // 報讀區塊的「點字讀音」依這份 token（每段的點字、原文、中英數學類別）轉成讀音
     window._btRenderTokens = renderTokens;
     document.dispatchEvent(new Event('bt-output-changed'));
+}
+
+// 輸出裡還有不是點字的字元時提示：存檔列印會印成非預期的點字
+function _showOutputWarning(brl) {
+    const el = document.getElementById('output-warn');
+    if (!el) return;
+    const bad = [...new Set([...brl].filter(c => c !== '\n' && (c < '\u2800' || c > '\u28ff')))];
+    el.hidden = !bad.length;
+    el.textContent = bad.length
+        ? '有 ' + bad.length + ' 種字元無法轉成點字，列印時會出現非預期的點字：'
+          + bad.map(c => 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + (/\s/.test(c) ? '' : ' ' + c)).join('、')
+        : '';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3689,11 +3706,23 @@ function tokenizeWithCustom(text) {
         _srcStart = i;
         const ch = text[i];
 
-        // 空白
-        // UEB Rule 7.1.2：原文不管有幾個空格，點字一律只留一個空方
-        if (ch === ' ' || ch === '\u2800') {
+        // 非標準空白（見 shared.js）：看不見的字元刪除；行首的全形空白是段落縮排，一個轉一方
+        if (ZERO_WIDTH_RE.test(ch)) { i++; continue; }
+        if (ch === '\u3000' && /^\u3000*$/.test(text.slice(text.lastIndexOf('\n', i - 1) + 1, i))) {
             pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++;
-            while (i < text.length && (text[i] === ' ' || text[i] === '\u2800')) i++;
+            continue;
+        }
+        // 點字空方是使用者刻意輸入的點字（點字輸入、貼上排好的點字），有幾方就留幾方，不和旁邊的空格合併
+        if (ch === '\u2800') {
+            pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++;
+            continue;
+        }
+        // 空白（其他有寬度的空白也算）
+        // UEB Rule 7.1.2：原文不管有幾個空格，點字一律只留一個空方（點字空方另外算，見上）
+        const _isSp = c => c === ' ' || WIDE_SPACE_RE.test(c) || ZERO_WIDTH_RE.test(c);
+        if (ch === ' ' || WIDE_SPACE_RE.test(ch)) {
+            pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++;
+            while (i < text.length && _isSp(text[i])) i++;
             continue;
         }
         // 換行（重設引號計數，避免跨行污染）

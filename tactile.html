@@ -251,8 +251,9 @@
   // 補充規則開關與「文字轉點字」共用同一個設定
   const SUPP_KEY = 'vi-bt-zh-supplement-enabled';
   const suppOn = () => { try { return localStorage.getItem(SUPP_KEY) === '1'; } catch (e) { return false; } };
-  const titleBraille = t => toBraille(t, { supplement: suppOn() });
-  const labelBraille = t => toBraille(t, { lowerDigits: true, supplement: suppOn() }).braille;
+  // 非標準空白（shared.js）：全形空白等當空格，零寬字元刪除
+  const titleBraille = t => toBraille(normalizeSpaces(t), { supplement: suppOn() });
+  const labelBraille = t => toBraille(normalizeSpaces(t), { lowerDigits: true, supplement: suppOn() }).braille;
   const defaultOpts = () => ({ mode: 'auto', scale: 100, threshold: 180, thin: true, hideText: true, shade: true, dropSpecks: true, blankLabels: true, straighten: true });
 
   const $ = s => document.querySelector(s);
