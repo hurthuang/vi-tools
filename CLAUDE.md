@@ -1121,3 +1121,10 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - bt 在 `tokenizeWithCustom` 分詞時處理（不能先改字串，原文位置 srcStart 會對不上）：行首的全形空白是段落縮排，一個轉一方；句中的併成一個空方（同 Rule 7.1.2）；點字空方 U+2800 是刻意輸入的點字，有幾方留幾方、不和空格合併（原本會併成一方，段首空兩方只剩一方）；行首半形空格維持併成一方（數量不固定，常是對齊用）；`render()` 只把行分隔換成換行字元（一對一，位置不變）
 - bt 輸出區下方 `#output-warn`：輸出裡還有非點字字元時列出字碼（`_showOutputWarning`）
 - 縮點對照頁不套用：它要和 NVDA 一致（zh-tw.ctb 的全形空白是兩方）
+
+## 縮點對照頁（zh-tw-short.html，實驗，2026-10-19）
+
+- 獨立頁面，不在主導覽分頁；入口是首頁「實驗功能」。縮點＝注音點字的調號併入第 7、8 點，只適用八點點顯器。規則文件在另一個 repo zh-tw-short（rules.md），網頁放這裡共用核心
+- `zh-tw-short.js`（`window.ZhTwShort`，node 用 `require(...)(PrnCore)`）：國字用 `prn-core.js` 的 `zhChar`，英數與其他符號照 zh-tw.ctb 依序 include 的字元定義、以第一次為準（同 liblouis；例：● 由 en-us-comp8 先定義成 16）；`shortBraille()` 是 NVDA-brailleTableSwitcher `tools/build_short_ctb.py` 的移植，改規則兩邊一起改
+- `prn-core.js` 為此加了：`loadZh(..., { nvda: true })`（不套 PDF 規範覆蓋、保留標點後的空方，和 NVDA 一樣）、`word`／`begword` 規則（子曰的子念 ㄗˇ，觸摸圖也受益）、匯出 `zhChar`／`zhData`／`dotsToUnicode`
+- 驗證：1,694 句（含 book_txt、exam_txt）和 NVDA liblouis.dll 的 zh-tw、zh-tw-short 輸出逐句全部一致；`node tools/check-tactile.mjs` 全過
