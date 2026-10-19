@@ -90,21 +90,24 @@
   // 標籤裡的運算符號（Nemeth；等號前後空一方）
   const MATH_OP = { '+': '⠬', '-': '⠤', '−': '⠤', '×': '⠈⠡', '÷': '⠨⠌', '=': '⠀⠨⠅⠀', '(': '⠷', ')': '⠾', '>': '⠀⠨⠂⠀', '<': '⠀⠐⠅⠀', '°': '⠘⠨⠡', '%': '⠈⠴' };
 
-  // 國字資料：loadZh(zh-tw.ctb 的內容, bt-zh-supplement-rules.json 的內容) 載入；解析方式同「文字轉點字」的 parseCtb
-  //   字表（後面的蓋前面的）、前後文破音規則 context、異體字 correct（第一條符合的勝出）、補充規則（整詞）
-  const EMPTY_ZH = () => ({ chars: new Map(), ctx: new Map(), correct: {}, correctCtx: new Map(), supplement: [] });
+  // 國字資料：loadZh(zh-tw.ctb 的內容, bt-zh-supplement-rules.json 的內容, opts) 載入；解析方式同「文字轉點字」的 parseCtb
+  //   字表（後面的蓋前面的）、前後文破音規則 context、異體字 correct（第一條符合的勝出）、補充規則（整詞）、
+  //   整詞／詞首規則 word／begword（例：子 獨立或在詞首念 ㄗˇ）
+  //   opts.nvda 時照 zh-tw.ctb 原樣，和 NVDA 點顯器一樣：不套「文字轉點字」的 PDF 規範覆蓋，標點後的空方保留（縮點頁用）
+  const EMPTY_ZH = () => ({ chars: new Map(), letters: new Set(), word: new Map(), begword: new Map(),
+                            ctx: new Map(), correct: {}, correctCtx: new Map(), supplement: [] });
   let zh = EMPTY_ZH(), zhLoaded = false;
   const zhData = () => zh;
   const CHAR_OPS = new Set(['letter', 'lowercase', 'uppercase', 'punctuation', 'sign', 'math', 'digit', 'base', 'litdigit', 'display']);
   const decodeCtb = s => s.replace(/\\x([0-9a-fA-F]{1,6})/g, (_, h) => String.fromCodePoint(parseInt(h, 16)));
-  function dotsToUnicode(s) {
+  function dotsToUnicode(s, keepBlank = false) {
     if (/^[\u2800-\u28ff]+$/.test(s)) return s;
-    const c = s.replace(/(-0)+$/, '');
+    const c = keepBlank ? s : s.replace(/(-0)+$/, '');
     if (!c) return '\u2800';
     return c.split('-').map(cell => String.fromCharCode(0x2800 + [...(cell === '0' ? '' : cell)].reduce((a, d) => a | (1 << (+d - 1)), 0))).join('');
   }
-  function loadZh(ctbText, supplement = []) {
-    const d = EMPTY_ZH();
+  function loadZh(ctbText, supplement = [], opts = {}) {
+    const d = EMPTY_ZH(), keep = !!opts.nvda;
     const add = (m, r) => { if (!m.has(r[1])) m.set(r[1], []); m.get(r[1]).push(r); };
     for (const raw of ctbText.split('\n')) {
       const line = raw.replace(/#.*$/, '').trim();
@@ -127,9 +130,15 @@
       if (op === 'context') {
         if (rhs.includes('%') || rhs.includes('$')) continue;
         let m = rhs.match(/^_\d+"([^"]*)"\["([^"]*)"\](?:"([^"]*)")?\s+@([\d-]+)/);
-        if (m) { if (decodeCtb(m[2]).length === 1) add(d.ctx, [decodeCtb(m[1]), decodeCtb(m[2]), m[3] == null ? null : decodeCtb(m[3]), dotsToUnicode(m[4])]); continue; }
+        if (m) { if (decodeCtb(m[2]).length === 1) add(d.ctx, [decodeCtb(m[1]), decodeCtb(m[2]), m[3] == null ? null : decodeCtb(m[3]), dotsToUnicode(m[4], keep)]); continue; }
         m = rhs.match(/^\["([^"]*)"\](?:"([^"]*)")?\s+@([\d-]+)/);
-        if (m && decodeCtb(m[1]).length === 1) add(d.ctx, [null, decodeCtb(m[1]), m[2] == null ? null : decodeCtb(m[2]), dotsToUnicode(m[3])]);
+        if (m && decodeCtb(m[1]).length === 1) add(d.ctx, [null, decodeCtb(m[1]), m[2] == null ? null : decodeCtb(m[2]), dotsToUnicode(m[3], keep)]);
+        continue;
+      }
+      if ((op === 'word' || op === 'begword') && parts.length > di) {
+        const esc = parts[ci].match(/^\\x([0-9a-fA-F]{1,6})$/);
+        const ch = esc ? String.fromCodePoint(parseInt(esc[1], 16)) : [...parts[ci]].length === 1 ? parts[ci] : null;
+        if (ch) d[op].set(ch, dotsToUnicode(parts[di], keep));
         continue;
       }
       if (!CHAR_OPS.has(op) || parts.length <= di) continue;
@@ -138,10 +147,11 @@
       if (!ch) continue;
       const cp = ch.codePointAt(0);
       if (cp >= 0x20 && cp <= 0x7e) continue;
-      d.chars.set(ch, dotsToUnicode(parts[di]));
+      d.chars.set(ch, dotsToUnicode(parts[di], keep));
+      if (op === 'letter') d.letters.add(ch);
     }
     // 同文字轉點字的 PDF 規範覆蓋與補入
-    for (const [k, v] of [['\uFF0E', '\u2824'], ['\u00B7', '\u2824'], ['\u2027', '\u2824'], ['\uFF1F', '\u2815'],
+    if (!opts.nvda) for (const [k, v] of [['\uFF0E', '\u2824'], ['\u00B7', '\u2824'], ['\u2027', '\u2824'], ['\uFF1F', '\u2815'],
                           ['\uFF5E', '\u2820\u2824'], ['\u203B', '\u2808\u283C'], ['\u25CE', '\u282A\u2815']]) d.chars.set(k, v);
     d.supplement = (supplement || []).map(r => [r.text, r.braille]);
     zh = d; zhLoaded = true;
@@ -162,7 +172,10 @@
   function zhChar(text, i) {
     const d = zhData(), ch = text[i];
     const eff = ctxMatch(d.correctCtx.get(ch), text, i) || d.correct[ch] || ch;
-    return ctxMatch(d.ctx.get(eff), text, i) || d.chars.get(eff) || null;
+    const prevL = i > 0 && d.letters.has(text[i - 1]), nextL = i + 1 < text.length && d.letters.has(text[i + 1]);
+    return ctxMatch(d.ctx.get(eff), text, i)
+      || (!prevL && !nextL && d.word.get(eff)) || (!prevL && nextL && d.begword.get(eff))
+      || d.chars.get(eff) || null;
   }
 
   // 文字 → Unicode 點字
@@ -232,7 +245,7 @@
     });
   }
 
-  const api = { W, H, DPI, MAX_W, LINE, BRL, header, decode, encode, toBraille, brlWidth, BRL_HEIGHT, stampBraille, loadZh, zhReady: () => zhLoaded };
+  const api = { W, H, DPI, MAX_W, LINE, BRL, header, decode, encode, toBraille, brlWidth, BRL_HEIGHT, stampBraille, loadZh, zhChar, zhData, dotsToUnicode, zhReady: () => zhLoaded };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PrnCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
