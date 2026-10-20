@@ -69,6 +69,9 @@ thead th { background: var(--accent-soft); }
 .copy-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
 footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
+details.more { margin-top: 14px; }
+details.more summary { cursor: pointer; color: var(--muted); }
+details.more label { display: block; margin-top: 6px; font-weight: normal; }
 @media (max-width: 600px) {
   header h1 { font-size: 1.6rem; }
   section { padding: 14px; }
@@ -85,45 +88,28 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
   <h1>縮點</h1>
   <p class="sub">調號併入第七、八點的注音點字實驗</p>
   <div class="notice">
-    <p><strong>實驗性質，只適用八點點字顯示器。</strong>縮點把國語點字的調號那一方，併到前一方的第 7、8 點，讓每個國字少寫一方，目標是讓精熟點字的人讀寫得更快。多數點字印表機只能印六點，縮點不適合印在紙上。</p>
+    <p><strong>實驗性質，只適用八點點字顯示器。</strong>把國語點字的調號方併到第 7、8 點，每個字少寫一方，讓精熟點字的人讀得更快。</p>
   </div>
-  <nav aria-label="頁內導覽">
-    <ul>
-      <li><a href="#try">線上對照</a></li>
-      <li><a href="#rules">規則</a></li>
-      <li><a href="#examples">例句</a></li>
-      <li><a href="#use">在 NVDA 試用</a></li>
-      <li><a href="#history">緣起</a></li>
-    </ul>
-  </nav>
 </header>
 
 <main>
 <section id="try" aria-labelledby="try-h">
   <h2 id="try-h">線上對照</h2>
-  <p>輸入或貼上文字，下方會逐行列出國語點字（<code>zh-tw</code>）和縮點（<code>zh-tw-short</code>）。轉換結果和 NVDA 點字顯示器上看到的相同。</p>
-  <label for="input">輸入文字</label>
-  <textarea id="input" placeholder="例：我明天下午三點會到車站。"></textarea>
+  <label for="input">輸入文字（例句用到所有規則，可以直接修改）</label>
+  <textarea id="input"></textarea>
   <div class="controls">
-    <div>
-      <label for="sample">範例：</label>
-      <select id="sample">
-        <option value="">（選擇範例）</option>
-      </select>
-    </div>
     <fieldset>
       <legend>顯示</legend>
-      <label><input type="radio" name="view" value="brl" checked> Unicode 點字</label>
+      <label><input type="radio" name="view" value="brl" checked> 點字</label>
       <label><input type="radio" name="view" value="dots"> 點位數字</label>
     </fieldset>
-    <label><input type="checkbox" id="supplement"> 套用多音字補充規則（vi-tools 文字轉點字的詞庫，NVDA 沒有）</label>
+    <button type="button" class="ghost" id="reset">還原例句</button>
   </div>
   <p class="status" id="status">載入點字表…</p>
   <div id="result" hidden>
     <p class="summary" id="summary"></p>
     <div class="table-wrap">
       <table>
-        <caption class="status" style="text-align:left;caption-side:top;">逐行對照</caption>
         <thead>
           <tr><th scope="col">原文</th><th scope="col">國語點字</th><th scope="col">縮點</th><th scope="col">方數</th></tr>
         </thead>
@@ -137,55 +123,66 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
     </div>
     <p class="status" id="missing" hidden></p>
   </div>
+  <details class="more">
+    <summary>其他選項</summary>
+    <label><input type="checkbox" id="supplement" checked> 多音字修正（和縮點閱讀表相同；取消勾選就是 NVDA 內建注音點字的讀音）</label>
+  </details>
 </section>
 
 <section id="rules" aria-labelledby="rules-h">
-  <h2 id="rules-h">規則</h2>
-  <p>國語點字的聲母和韻母點型不重疊，看到韻母就知道一個字結束了。縮點利用這一點拿掉調號方，改用第 7、8 點表示聲調。<strong>聲母和韻母的點位一律不變</strong>，英文、數字、標點也不變。</p>
-  <p>閱讀和輸入的規則不完全相同：<strong>閱讀要精準，輸入要快速。</strong></p>
+  <h2 id="rules-h">閱讀規則</h2>
+  <p>聲母、韻母的點位不變，只把調號方改成第 7、8 點；英文、數字、標點也不變。縮點閱讀表另外內建 702 條多音字修正（例：記得、值得的「得」是輕聲），NVDA 內建的注音點字讀錯的地方會改正。</p>
   <div class="table-wrap">
     <table>
-      <caption class="status" style="text-align:left;caption-side:top;">聲調的寫法</caption>
-      <thead><tr><th scope="col">聲調</th><th scope="col">閱讀（點字顯示器）</th><th scope="col">輸入（點字鍵）</th></tr></thead>
+      <thead><tr><th scope="col">聲調</th><th scope="col">寫法</th><th scope="col">例</th></tr></thead>
       <tbody>
-        <tr><th scope="row">一聲</th><td>不標</td><td>最後一方加空白鍵</td></tr>
-        <tr><th scope="row">二聲</th><td>韻母加點 7</td><td>最後一方加點 7</td></tr>
-        <tr><th scope="row">三聲</th><td>韻母加點 7、8</td><td>最後一方加點 7、8</td></tr>
-        <tr><th scope="row">四聲</th><td>韻母加點 8</td><td>最後一方加點 8</td></tr>
-        <tr><th scope="row">輕聲</th><td>聲母加點 8</td><td>不加；只有一方的字加點 8 和空白鍵</td></tr>
-        <tr><th scope="row">沒有聲母的一聲、輕聲</th><td>不縮，保留調號方</td><td>一聲：韻母加空白鍵；輕聲：韻母加點 8 和空白鍵</td></tr>
-        <tr><th scope="row">省略韻母</th><td>不使用</td><td>可使用（玻、的、之等一方打完）</td></tr>
+        <tr><th scope="row">一聲</th><td>不標</td><td>天 <span class="brl">⠋⠞</span></td></tr>
+        <tr><th scope="row">二聲</th><td>韻母加點 7</td><td>明 <span class="brl">⠍⡽</span></td></tr>
+        <tr><th scope="row">三聲</th><td>韻母加點 7、8</td><td>好 <span class="brl">⠗⣩</span></td></tr>
+        <tr><th scope="row">四聲</th><td>韻母加點 8</td><td>下 <span class="brl">⠑⢾</span></td></tr>
+        <tr><th scope="row">輕聲</th><td>聲母加點 8</td><td>們 <span class="brl">⢍⠥</span></td></tr>
+        <tr><th scope="row">沒有聲母的一聲、輕聲</th><td>不縮</td><td>因 <span class="brl">⠹⠄</span>、呀 <span class="brl">⠾⠁</span></td></tr>
       </tbody>
     </table>
   </div>
-  <h3>例外</h3>
-  <ul>
-    <li>代名詞：他、她、你、妳原本在聲母上加點 7 或 8 區分，保留原記號再加聲調。牠、祂的記號在韻母上，會和聲調混淆，維持國語點字原寫法。</li>
-    <li>原表已經使用第 7、8 點的字（合文的計量單位字、少數罕用字）維持原寫法。</li>
-    <li>沒有聲母的一聲、輕聲字（例：因、一、呀）不縮，維持國語點字的兩方：只寫一個韻母方會和標點同形（因 ⠹ 和「？」⠹⠀、啊啊 和「》」⠜⠜），一聲和輕聲也分不出來。這類字約佔國字的 3%。</li>
-  </ul>
-  <p>完整規則見 <a href="https://github.com/hurthuang/zh-tw-short/blob/main/rules.md">zh-tw-short 的 rules.md</a>。</p>
+  <p>例字都在上面的例句裡。沒有聲母的一聲、輕聲字如果只寫一方，會和標點同形（因 ⠹ 和「？」⠹⠀），所以維持兩方；沒有聲母的二、三、四聲照樣縮成一方（無 <span class="brl">⡌</span>、雨 <span class="brl">⣳</span>）。代名詞他、她、你、妳原有的第 7、8 點記號照樣保留（他 <span class="brl">⡋⠜</span>）。</p>
 </section>
 
-<section id="examples" aria-labelledby="examples-h">
-  <h2 id="examples-h">例句</h2>
-  <p class="status" id="examples-status">載入點字表後產生。</p>
+<section id="typing" aria-labelledby="typing-h">
+  <h2 id="typing-h">打法（6d-IME 縮點模式）</h2>
   <div class="table-wrap">
-    <table id="examples-table" hidden>
-      <caption class="status" style="text-align:left;caption-side:top;">日常例句</caption>
-      <thead><tr><th scope="col">句子</th><th scope="col">國語點字</th><th scope="col">縮點</th><th scope="col">方數</th></tr></thead>
-      <tbody id="examples-rows"></tbody>
+    <table>
+      <thead><tr><th scope="col">聲調</th><th scope="col">打法</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">一聲</th><td>最後一方加空白鍵（同時按或緊接著按都可以）</td></tr>
+        <tr><th scope="row">二聲</th><td>最後一方加點 7</td></tr>
+        <tr><th scope="row">三聲</th><td>最後一方加點 7、8</td></tr>
+        <tr><th scope="row">四聲</th><td>最後一方加點 8</td></tr>
+        <tr><th scope="row">輕聲</th><td>不加；只有一方的字加點 8 和空白鍵</td></tr>
+      </tbody>
     </table>
   </div>
+  <h3>進階打法：一方打完</h3>
+  <p>下面 18 個音節可以省略韻母，只打聲母那一方，聲調照樣加在這一方（一聲加空白、二聲加點 7、三聲加點 7、8、四聲加點 8、輕聲加點 8 和空白）。一般打法仍然可以用。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">韻母</th><th scope="col">音節　點位（例字）</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">ㄛ</th><td>ㄅㄛ 135（玻）、ㄆㄛ 1234（坡）、ㄇㄛ 134（摸）、ㄈㄛ 12345（佛）</td></tr>
+        <tr><th scope="row">ㄜ</th><td>ㄉㄜ 145（的）、ㄊㄜ 124（特）、ㄋㄜ 1345（呢）、ㄌㄜ 14（了）、ㄍㄜ 13（哥）、ㄎㄜ 123（科）、ㄏㄜ 1235（喝）</td></tr>
+        <tr><th scope="row">空韻</th><td>ㄓ 1（之）、ㄔ 12（吃）、ㄕ 24（失）、ㄖ 1245（日）、ㄗ 125（資）、ㄘ 245（疵）、ㄙ 15（司）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>例：哥 13＋空白、各 138、個（輕聲）138＋空白、是 248、的（輕聲）1458＋空白。</p>
 </section>
 
 <section id="use" aria-labelledby="use-h">
-  <h2 id="use-h">在 NVDA 試用</h2>
+  <h2 id="use-h">在 NVDA 使用</h2>
   <ul>
-    <li><strong>閱讀</strong>：安裝 <a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher">NVDA-brailleTableSwitcher</a>，輸出點字表選「縮點閱讀」（<code>zh-tw-short.ctb</code>）。</li>
-    <li><strong>輸入</strong>：安裝 <a href="https://github.com/hurthuang/6d-IME">6d-IME</a>，用空白鍵＋點 4568 切換到縮點模式。縮點輸入最多要同時按 8 個鍵，鍵盤需要支援 NKRO（防鬼鍵）；用點字顯示器的點字鍵則沒有這個限制。</li>
-    <li><strong>不安裝也能讀</strong>：NVDA 輸出點字表用「中文（台灣，國語）」時，網頁上的 Unicode 點字會原樣送到點字顯示器。上方「線上對照」的縮點欄，在點顯器上摸到的就是縮點本身。</li>
-    <li>用縮點閱讀時，游標所在的國字會改用一般國語點字顯示（含調號方），逐字移動就能確認聲調，游標的第 7、8 點也不會和聲調混在一起；開關沿用 NVDA 點字設定的「游標所在字詞展開成電腦點字」。</li>
+    <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher">NVDA-brailleTableSwitcher</a> 的輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
+    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME">6d-IME</a> 用空白鍵＋點 4568 切到縮點模式。</li>
+    <li><strong>不安裝也能讀</strong>：NVDA 用中文（台灣，國語）點字表時，上方縮點欄的點字會原樣顯示在點顯器上。</li>
   </ul>
 </section>
 
@@ -193,8 +190,8 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
   <h2 id="history-h">緣起</h2>
   <ul>
     <li>2018：<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/197">注音點字改良思考</a>，提出把調號併入第 7、8 點的構想。</li>
-    <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497">縮點輸入法</a>。高點目前已停止維護。</li>
-    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。</li>
+    <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497">縮點輸入法</a>（已停止維護）。</li>
+    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。完整規則見 <a href="https://github.com/hurthuang/zh-tw-short/blob/main/rules.md">rules.md</a>。</li>
   </ul>
 </section>
 </main>
@@ -212,14 +209,8 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
   const TABLES = ['zh-tw.ctb', 'en-us-comp8.ctb', 'latinLetterDef8Dots.uti', 'loweredDigits6Dots.uti', 'spaces.uti'];
   const ZhCore = window.ZhTwShort;
   let ready = false;
-  const SAMPLES = [
-    '我是學生。',
-    '你明天幾點到？我大概下午三點左右會到車站。',
-    '他們去吃飯了嗎？',
-    '老師您好，我今天身體不舒服，想跟您請一天假。',
-    '請問這台筆電的電池可以用多久？',
-    '各位家長好，下週三舉辦校外教學，請同學早上七點半到學校集合。',
-  ];
+  // 用到所有規則：有聲母的一到四聲與輕聲、沒有聲母的一到四聲與輕聲、代名詞（他）
+  const SAMPLES = ['他們因為下雨，明天不去學校了，好無聊呀！'];
   const $ = id => document.getElementById(id);
   const BLANK = String.fromCodePoint(0x2800);
   let supplementRules = null, last = { normal: '', short: '' };
@@ -270,29 +261,12 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
     $('result').hidden = false;
   }
 
-  function renderExamples() {
-    const tbody = $('examples-rows');
-    tbody.replaceChildren();
-    let n = 0, m = 0;
-    for (const s of SAMPLES) {
-      const r = ZhCore.translate(s, opts());
-      n += cells(r.normal); m += cells(r.short);
-      tbody.append(row(s, r));
-    }
-    $('examples-status').textContent = `${SAMPLES.length} 句合計：國語點字 ${n} 方，縮點 ${m} 方，少 ${pct(n, m)}%。`;
-    $('examples-table').hidden = false;
-  }
-
   let timer = 0;
   $('input').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(update, 250); });
-  document.querySelectorAll('input[name=view]').forEach(r => r.addEventListener('change', () => { update(); renderExamples(); }));
-  $('supplement').addEventListener('change', () => { update(); renderExamples(); });
-  for (const s of SAMPLES) $('sample').append(new Option(s, s));
-  $('sample').addEventListener('change', e => {
-    if (!e.target.value) return;
-    $('input').value = e.target.value;
-    update();
-  });
+  document.querySelectorAll('input[name=view]').forEach(r => r.addEventListener('change', update));
+  $('supplement').addEventListener('change', update);
+  $('input').value = SAMPLES.join('\n');
+  $('reset').addEventListener('click', () => { $('input').value = SAMPLES.join('\n'); update(); });
   document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
     navigator.clipboard.writeText(last[b.dataset.copy]).then(() => {
       $('copy-status').textContent = b.dataset.copy === 'short' ? '已複製縮點' : '已複製國語點字';
@@ -314,7 +288,6 @@ footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
     .then(() => {
       $('status').textContent = '點字表已載入。';
       if (!supplementRules) $('supplement').disabled = true;
-      renderExamples();
       update();
     })
     .catch(err => {
