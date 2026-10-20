@@ -82,6 +82,11 @@
       if (j + 1 >= cells.length || !FINALS.has(cells[j]) || !(cells[j + 1] in TONES)) return null;
       let fin = cells[j];
       const tone = TONES[cells[j + 1]];
+      if (!ini && (tone === 1 || tone === 5)) {   // 沒有聲母的一聲、輕聲：不縮（只剩韻母會和標點同形）
+        out.push(fin, cells[j + 1]);
+        i = j + 2;
+        continue;
+      }
       if (tone === 5 && ini && !ini.includes('8')) ini += '8';
       else if (tone >= 2 && tone <= 4) fin += { 2: '7', 3: '78', 4: '8' }[tone];
       if (ini) out.push(ini);
