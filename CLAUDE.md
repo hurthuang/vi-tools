@@ -1112,3 +1112,4 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - `zh-tw-short.js`（`window.ZhTwShort`，node 用 `require(...)(PrnCore)`）：國字用 `prn-core.js` 的 `zhChar`，英數與其他符號照 zh-tw.ctb 依序 include 的字元定義、以第一次為準（同 liblouis；例：● 由 en-us-comp8 先定義成 16）；`shortBraille()` 是 NVDA-brailleTableSwitcher `tools/build_short_ctb.py` 的移植，改規則兩邊一起改
 - `prn-core.js` 為此加了：`loadZh(..., { nvda: true })`（不套 PDF 規範覆蓋、保留標點後的空方，和 NVDA 一樣）、`word`／`begword` 規則（子曰的子念 ㄗˇ，觸摸圖也受益）、匯出 `zhChar`／`zhData`／`dotsToUnicode`
 - 驗證：1,694 句（含 book_txt、exam_txt）和 NVDA liblouis.dll 的 zh-tw、zh-tw-short 輸出逐句全部一致；`node tools/check-tactile.mjs` 全過
+- 2026-10-20：縮點規則 v0.2（沒有聲母的一聲、輕聲不縮）；縮點閱讀表內建多音字修正（bt-zh-supplement-rules.json），所以頁面的「多音字修正」預設勾選，勾選時縮點欄和 zh-tw-short.ctb 1,694 句一致；改了 bt-zh-supplement-rules.json 要通知 NVDA-brailleTableSwitcher 重跑 build_short_ctb.py（它存了一份 tools/zh-polyphone-rules.json）
