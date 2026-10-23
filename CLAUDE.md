@@ -11,6 +11,7 @@ GitHub：https://github.com/hurthuang/vi-tools
 - `dict-correction/`：NVDA-DictSwitcher 破音字校對的語料（`工作檔/book_txt`、`exam_txt`、`wiki_txt`）、
   `做法B/` 萌典與審訂表查證表、會考語音詞庫檢查報告；是 `tools/` 的 check-speech-dict 等工具的輸入
 - `math-curriculum/`、`music/Score/`（點字樂譜測試用樂譜）、`tactile/`（觸摸圖試題樣本）
+- `abacus-literature/`：珠算教學法筆記引用文獻的全文 PDF（別人的論文，不放進 repo）
 
 新的大型參考資料放這裡，不要放進 `document/`。已被取代的舊資料放 `E:\Project\_archive\`（g2pW 模型在 `_archive\dict-correction-g2pw\`）。
 
@@ -118,7 +119,9 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 - 📄 🔍 為 emoji，字型渲染比 → ← π 略大，使用者確認「維持現狀」
 
 ### 導覽列順序（index.html）
-主頁 → →文字轉點字 → ←點字轉文字 → π數學點字 → 📄文件整理 → 🔍UEB查詢 → 📖說明
+主頁 → →文字轉點字 → ←點字轉文字 → π數學點字 → 📄文件整理 → ♪點字樂譜 → ✋觸摸圖 → 📖說明
+
+次要工具不佔導覽列，只在首頁內容區放卡片（2026-10-23 起）：🔍UEB 查詢（`frame-gq`，`#query`）、🧮珠算練習（`frame-abacus`，`#abacus`）。iframe 沒有對應的分頁，用 `aria-label` 命名；網址 hash 照常可直接開啟
 
 ### 說明頁（guide.html）
 - 新增 `guide.html`，以 iframe 嵌入 index.html 的「說明」tab（`frame-guide`，hash `guide`）
@@ -1097,6 +1100,16 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - 說明頁 `tactile-help.html`（操作說明＋會考圖的處理方式）：tactile.html 的「❓ 說明」用頁內 iframe 蓋著顯示，不用新視窗（桌面版的 NewWindowRequested 會把主畫面導走、丟掉正在做的圖）
 - 測試：`node tools/check-tactile.mjs`（核心）；`desktop/tests/cases/tactile.mjs`（app 斷線時的點字表、紙張、匯出）；點陣除錯 `tools/tactile-raster-harness.mjs`
 - 尚未驗證：實際用 Tiger 印表機印；Tiger Designer 開啟本工具產生的檔案
+
+## 珠算練習（abacus/，2026-10-23 併入）
+
+給國小低年級盲生用算盤代替直式的分級練習。原本在 `E:\Project\abacus` 獨立開發（舊檔移到 `E:\Project\_archive\abacus`）。
+
+- `abacus/index.html` 出題練習；`complement.html` 補數說明；`notes.html` 教學法筆記（分級依據與文獻清單）
+- 首頁只有卡片、沒有分頁（導覽列已滿）：`frame-abacus`，網址 `#abacus`
+- 共用：`music/js/theme.js`（主題）、`music/js/brf.js`（點字 ASCII 轉換、上位數字）。六點輸入自己做，因為要點 7／8（A、;）當倒退／送出，並保護作答區前面的題目；`shared.js` 的浮動面板不支援
+- 分級核心在 `<script id="core">`（addd／subd／trace／classify／classifyMul／buildBank），node 可以抽出來單獨測
+- .brl 匯出：題號 ⠼＋上位數字＋⠲，點字 ASCII 寫小寫（同 bt）
 
 ## 非標準空白（2026-10-19）
 

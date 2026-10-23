@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>珠算分級練習</title>
+<script src="../music/js/theme.js"></script>
+<script src="../music/js/brf.js"></script>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.6 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.25rem;margin:28px 0 8px}
+p.lead{color:var(--muted);margin:0 0 16px}
+fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:0 0 16px;padding:12px 16px}
+legend{font-weight:700;padding:0 6px}
+label{display:inline-flex;gap:8px;align-items:baseline;margin:4px 16px 4px 0;cursor:pointer}
+table.lv-table{margin:8px 0}
+.lv-table caption{text-align:left;font-weight:700;color:var(--muted);padding:4px 0}
+.lv-table th[scope=row]{font-weight:400;min-width:11em}
+.lv-table td{min-width:7em}
+.lv-table td label{margin:0}
+.lv-table select{font:inherit;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);max-width:100%}
+.lv-table .cnt{color:var(--muted);font-size:.9rem;white-space:nowrap}
+details.lv5{margin:8px 0;border-top:1px solid var(--line);padding-top:4px}
+details.lv5>summary{cursor:pointer;font-weight:700;padding:4px 0}
+#preview ol{background:var(--card);border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 8px 8px 3em}
+#preview li{margin:2px 0}
+input[type=text],input[type=number]{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;margin:4px 8px 4px 0}
+button.secondary{background:transparent;color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.problem{font-size:3.2rem;text-align:center;padding:24px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin:12px 0}
+.problem math{font-size:1em}
+.progress{color:var(--muted)}
+#answer{display:block;font-size:2rem;width:100%;max-width:24ch;margin:4px 0;text-align:left;font-family:"Segoe UI Symbol","Apple Braille",system-ui,sans-serif}
+#answer.six-on{border:2px solid var(--accent)}
+.feedback{min-height:2.2em;font-size:1.2rem;margin:12px 0;padding:8px 12px;border-radius:8px}
+.feedback.ok{color:var(--ok)}
+.feedback.bad{color:var(--bad)}
+.reveal{font-size:2rem;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;background:var(--card)}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+.hint{color:var(--muted);font-size:.95rem}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ===== 設定（老師用） ===== -->
+<section id="setup" aria-labelledby="setup-title">
+  <h1 id="setup-title">珠算分級練習</h1>
+  <p class="lead">老師先勾選級數、選好題型，再按「開始練習」。題目照「盲生珠算教學法筆記」的難度分級出題。</p>
+  <p><a href="notes.html">盲生珠算教學法筆記</a>　<a href="complement.html">補數概念與各級撥珠步驟</a></p>
+
+  <fieldset>
+    <legend>學生</legend>
+    <label>姓名（匯出紀錄用，可不填）<input type="text" id="student" autocomplete="off"></label>
+  </fieldset>
+
+  <fieldset id="levels">
+    <legend>級數與運算（可複選）</legend>
+    <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
+    <div id="level-list"></div>
+    <button type="button" class="secondary" id="all-on">全選</button>
+    <button type="button" class="secondary" id="all-off">全不選</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>題數與作答</legend>
+    <label>題數 <input type="number" id="count" min="1" max="100" value="10" style="width:6em"></label><br>
+    <label><input type="checkbox" id="need-sign" checked> 答案必須打數字記號（例如 #15）</label><br>
+    <label><input type="checkbox" id="six-default" checked> 答案欄一開始就使用六點輸入（F D S＝點 1 2 3，J K L＝點 4 5 6，A＝點 7 倒退刪除，;＝點 8 送出；作答時按 Ctrl+B 切換）</label><br>
+    <label><input type="checkbox" id="six-echo"> 六點輸入時念出每一格點字（例如「數字記號」「5」）。打開後，每念一次，點顯器會暫時顯示念的內容，題目會先被蓋掉</label><br>
+    <label><input type="checkbox" id="sound" checked> 音效（答對上升、答錯下降、全部做完有慶祝音效）</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>題目格式</legend>
+    <label><input type="radio" name="fmt" value="mathml" checked> MathML（NVDA＋MathCAT 會轉成 Nemeth）</label><br>
+    <label><input type="radio" name="fmt" value="text"> 純文字（例如 21-6=）</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>答案欄前面的題目</legend>
+    <label><input type="radio" name="pre" value="nemeth" checked> Nemeth 點字（例如 ⠼⠆⠂⠤⠖⠀⠨⠅⠀）</label><br>
+    <label><input type="radio" name="pre" value="text"> 一般文字（例如 21-6=）</label><br>
+    <label><input type="radio" name="pre" value="none"> 不顯示</label>
+  </fieldset>
+
+  <p id="setup-error" class="feedback bad" role="alert"></p>
+  <button type="button" class="secondary" id="preview-btn">先看題目</button>
+  <button type="button" id="start">開始練習</button>
+
+  <div id="preview" hidden>
+    <h2 id="preview-title" tabindex="-1">題目預覽</h2>
+    <p class="hint">按「開始練習」就會用這些題目。改了級數、題型或題數，預覽會清掉，要重新出題。</p>
+    <ol id="preview-list"></ol>
+    <button type="button" class="secondary" id="preview-again">重新出題</button>
+    <button type="button" id="preview-start">用這些題目開始練習</button>
+    <p>
+      <button type="button" class="secondary" id="export-txt">匯出題目（文字檔，附答案）</button>
+      <button type="button" class="secondary" id="export-brf">匯出點字題目（.brl，不附答案）</button>
+    </p>
+    <p class="hint">文字檔給老師列印或對答案；.brl 是 Nemeth 點字，可以送點字印表機，或讓學生在點顯器上讀。</p>
+  </div>
+</section>
+
+<!-- ===== 練習（學生用） ===== -->
+<section id="practice" hidden aria-label="練習">
+  <p class="progress" id="progress"></p>
+  <div id="problem" class="problem" tabindex="0"></div>
+  <p class="hint" id="howto">每一題開始時，游標會直接在答案欄。答案欄前面會有題目，打完答案按 Enter 送出。打的答案也會同時顯示在上面的題目裡。按 Shift+Tab 可以回到題目再讀一次，在題目按 Enter 回到答案欄。答案可以用點顯器的點字鍵輸入，也可以用鍵盤六點輸入。</p>
+  <form id="answer-form" autocomplete="off">
+    <label for="answer">答案</label>
+    <input type="text" id="answer" class="brl" inputmode="text" spellcheck="false">
+    <button type="submit">送出</button>
+    <p class="hint" id="six-state"></p>
+  </form>
+  <div id="feedback" class="feedback" aria-live="assertive"></div>
+  <div id="echo" class="sr-only" aria-live="polite"></div>
+  <div id="reveal" class="reveal" tabindex="0" hidden></div>
+  <button type="button" id="next" hidden>下一題</button>
+  <p><button type="button" class="secondary" id="quit">結束練習</button></p>
+</section>
+
+<!-- ===== 結果 ===== -->
+<section id="result" hidden aria-labelledby="result-title">
+  <h1 id="result-title" tabindex="-1">練習結果</h1>
+  <p id="summary"></p>
+  <h2>各級答對情形</h2>
+  <table id="by-level"></table>
+  <h2>每題紀錄</h2>
+  <table id="detail"></table>
+  <p>
+    <button type="button" id="retry-wrong">再練錯的題目</button>
+    <button type="button" class="secondary" id="download">下載紀錄（CSV）</button>
+    <button type="button" class="secondary" id="back">回到設定</button>
+  </p>
+</section>
+
+</main>
+
+<!-- ===== 出題核心：分級規則 ===== -->
+<script id="core">
+// 一個位數上撥珠的難度。a 是算盤上原本的數字，n 是要加（減）的數。
+const lo = a => a % 5;
+function addd(a, n) {
+  if (a + n <= 9) {
+    if (n >= 5) return '1';
+    return lo(a) + n <= 4 ? '1' : '2';      // 下珠不夠 → 小補數
+  }
+  const c = 10 - n;                          // 大補數
+  if (c >= 5) return '3b';                   // 修正會動上珠
+  return lo(a) >= c ? '3a' : '4';            // 下珠不夠扣 → 又要小補數
+}
+function subd(a, n) {
+  if (a >= n) {
+    if (n >= 5) return '1';
+    return lo(a) >= n ? '1' : '2';
+  }
+  const c = 10 - n;
+  if (c >= 5) return '3b';
+  return lo(a) + c <= 4 ? '3a' : '4';
+}
+
+// 從個位往左模擬撥珠，進位／借位馬上撥到左邊一位。
+function trace(x, y, op) {
+  const d = String(x).split('').reverse().map(Number);
+  while (d.length < 6) d.push(0);
+  const ys = String(y).split('').reverse().map(Number);
+  const steps = [];
+  function apply(k, v, carry) {
+    const a = d[k];
+    if (op === '+') {
+      steps.push({ k, L: addd(a, v), carry });
+      const s = a + v; d[k] = s % 10;
+      if (s >= 10) apply(k + 1, 1, true);
+    } else {
+      steps.push({ k, L: subd(a, v), carry });
+      const s = a - v; d[k] = (s + 10) % 10;
+      if (s < 0) apply(k + 1, 1, true);
+    }
+  }
+  ys.forEach((v, k) => { if (v) apply(k, v, false); });
+  return steps;
+}
+
+// 回傳級數代號；不屬於任何一級回傳 null。
+// 1～4 級只看撥珠時最難的動作，數字有幾位另外設定。
+// 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5c）、
+// 進位撞上這一檔自己要加的數（5d）。
+const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3, '4': 4 };
+function classify(x, y, op) {
+  if (y % 10 === 0) return null;            // 個位一定要撥
+  const st = trace(x, y, op);
+  const ones = st[0];
+  const carries = st.filter(s => s.carry);
+  const nC = carries.length;
+  const ys = String(y).split('').reverse().map(Number);
+  if (y < 10) {
+    if (nC === 0) return ones.L;                              // 1、2
+    if (nC === 1) {
+      if (carries[0].L === '1') return ones.L;                // 3a、3b、4
+      if (carries[0].L === '2') return '5a' + (ones.L === '4' ? '-2' : '-1');
+      return null;
+    }
+    if (carries.some(s => s.k >= 2 && s.L === '2')) return '5c-3';
+    if (carries.some(s => s.L === '2')) return null;          // 十位用小補數又連續進位：不歸類
+    return ones.L === '4' ? '5c-2' : '5c-1';
+  }
+  // 多位數：進位沒有撞上那一檔自己要加的數 → 跟一位數一樣，看最難的那一步
+  const collide = carries.some(s => ys[s.k]);
+  if (!collide) {
+    if (carries.some(s => s.L !== '1')) return null;
+    return st.filter(s => !s.carry).reduce((a, s) => RANK[s.L] > RANK[a] ? s.L : a, '1');
+  }
+  const has4 = st.some(s => s.L === '4');
+  if (nC >= 2) return has4 ? '5d-5' : '5d-4';
+  if (has4) return '5d-3b';
+  return st.slice(1).every(s => s.L === '1') ? '5d-2' : '5d-3';
+}
+
+// 乘法（兩位數 × 一位數）：照直式，先把個位的乘積撥上去，再把十位的乘積加在十位、百位。
+// 依「加十位乘積」那一步用到什麼來分級。
+function classifyMul(x, y) {
+  if (x < 10) return '6a';
+  const p0 = (x % 10) * y, p1 = Math.floor(x / 10) * y;
+  const st = trace(p0, p1 * 10, '+');
+  if (st.some(s => s.carry)) return '6d';
+  return st.every(s => s.L === '1') ? '6b' : '6c';
+}
+
+const LEVELS = [
+  { id: '1',    group: '基本', name: '不動補數', desc: '珠子夠，直接撥', add: '2+2、21+3、32+15', sub: '4−3、37−5、47−21' },
+  { id: '2',    group: '基本', name: '小補數（五）', desc: '下珠不夠，要動上珠', add: '3+4、23+4、12+33', sub: '8−4、16−3、56−21' },
+  { id: '3a',   group: '基本', name: '大補數，修正只動下珠', desc: '大補數是 1～4', add: '8+7、27+8、32+91', sub: '12−8、41−7、115−71' },
+  { id: '3b',   group: '基本', name: '大補數，修正會動上珠', desc: '大補數是 5～9', add: '6+5、16+4、61+52', sub: '11−5、32−3、113−51' },
+  { id: '4',    group: '基本', name: '大小補數同時（複合題）', desc: '動十位後，個位又要用小補數', add: '7+6、15+7、71+62', sub: '21−6、12−7、122−61' },
+  { id: '5a-1', group: '第 5 級：進位、借位延伸', name: '進位、借位時十位用小補數（個位 3 級）', desc: '加法十位是 4，進 1 要動上珠；減法十位是 5，借 1 要退上珠', add: '43+8、49+1', sub: '51−3、50−2' },
+  { id: '5a-2', group: '第 5 級：進位、借位延伸', name: '進位、借位時十位用小補數（個位 4 級）', desc: '同上，個位是複合題', add: '45+6', sub: '52−6' },
+  { id: '5c-1', group: '第 5 級：進位、借位延伸', name: '連續進位／退位（個位 3 級）', desc: '十位是 9（加）或 0（減），要動到百位', add: '98+3、99+1', sub: '100−1、103−4' },
+  { id: '5c-2', group: '第 5 級：進位、借位延伸', name: '連續進位／退位（個位 4 級）', desc: '同上，個位是複合題', add: '95+6', sub: '101−6' },
+  { id: '5c-3', group: '第 5 級：進位、借位延伸', name: '連續進退位，百位又用小補數', desc: '百位是 4（加）或 5（減）', add: '493+8', sub: '502−7' },
+  { id: '5d-2', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位', desc: '個位進位後，十位還要加（減）自己的數；十位簡單', add: '24+18', sub: '41−18' },
+  { id: '5d-3', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位且十位要用小補數', desc: '十位加進位或扣借位後遇到 5', add: '34+28', sub: '62−28' },
+  { id: '5d-3b', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位且含複合題', desc: '進退位的那一位是 4 級（個位或十位）', add: '17+16、36+27', sub: '42−17、33−16' },
+  { id: '5d-4', group: '第 5 級：多位數，進位撞上十位要加的數', name: '兩次進退位', desc: '個位、十位都進位（或都借位）', add: '88+27', sub: '121−58' },
+  { id: '5d-5', group: '第 5 級：多位數，進位撞上十位要加的數', name: '兩次進退位且含複合題', desc: '其中一位是 4 級', add: '57+68、75+48', sub: '132−47、143−67' },
+  { id: '6a', group: '第 6 級：乘法', name: '一位數 × 一位數', desc: '把九九乘法的答案撥上去，練習撥在哪兩檔', mul: '2×3、7×6' },
+  { id: '6b', group: '第 6 級：乘法', name: '兩位數 × 一位數，十位乘積直接撥', desc: '先撥個位的乘積，再加十位的乘積，不用補數', mul: '21×4、34×2、20×3' },
+  { id: '6c', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要用小補數', desc: '加十位乘積時下珠不夠，要動上珠', mul: '16×4、18×3' },
+  { id: '6d', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要進位', desc: '加十位乘積時要用大補數，進位到百位', mul: '29×4、75×4、58×9' },
+];
+
+// 1～4 級的題型（數字有幾位），每一級在設定頁分別選。
+const FORMS = [
+  { id: 'F1', name: '20 以內', ex: '3+4、12+5、12−8' },
+  { id: 'F2', name: '兩位數 ± 一位數', ex: '23+4、15+7、41−7' },
+  { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
+];
+// 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
+function formOf(x, y, op) {
+  const r = op === '+' ? x + y : x - y;
+  if (y >= 10) return x >= 10 && (op === '+' ? x <= 99 : r <= 99) ? 'F3' : null;
+  if (x <= 20 && r <= 20) return 'F1';
+  return x <= 99 ? 'F2' : null;
+}
+function inRange(lv, x, y, op) {
+  if (lv.startsWith('6')) return x >= 2 && x <= 99 && y >= 2 && y <= 9;
+  if (RANK[lv]) return !!formOf(x, y, op);
+  const one = y < 10;
+  if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
+  if (lv.startsWith('5c')) return one && x >= 10 && x <= 999;
+  // 5d
+  if (op === '+') return x >= 10 && x <= 99 && y >= 10 && y <= 99;
+  return x >= 10 && x <= 199 && y >= 10 && y <= 99;
+}
+
+// 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']。1～4 級以外題型是 null。
+function buildBank() {
+  const bank = { '+': {}, '-': {}, '×': {} };
+  for (const lv of LEVELS) { bank['+'][lv.id] = []; bank['-'][lv.id] = []; bank['×'][lv.id] = []; }
+  for (const op of ['+', '-']) {
+    for (let x = 1; x <= 999; x++) {
+      for (let y = 1; y <= 99; y++) {
+        if (op === '-' && y >= x) break;        // 不出答案是 0 的題目
+        if (y >= 10 && x > 199) break;
+        const lv = classify(x, y, op);
+        if (lv && inRange(lv, x, y, op)) bank[op][lv].push([x, y, RANK[lv] ? formOf(x, y, op) : null]);
+      }
+    }
+  }
+  for (let x = 2; x <= 99; x++) for (let y = 2; y <= 9; y++) {
+    const lv = classifyMul(x, y);
+    if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, null]);
+  }
+  return bank;
+}
+
+// 讀學生答案：接受 #15、＃１５、點字 ⠼⠂⠢。
+const NEMETH_DIGITS = '⠴⠂⠆⠒⠲⠢⠖⠶⠦⠔';
+function parseAnswer(raw) {
+  let s = raw.normalize('NFKC').replace(/[\s⠀]+/g, '');
+  s = s.replace(/⠼/g, '#').replace(/[⠴⠂⠆⠒⠲⠢⠖⠶⠦⠔]/g, ch => String(NEMETH_DIGITS.indexOf(ch)));
+  const m = s.match(/^(#?)(\d+)$/);
+  if (!m) return null;
+  return { hasSign: m[1] === '#', value: parseInt(m[2], 10) };
+}
+
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, classify, classifyMul, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
+</script>
+
+<!-- ===== 介面 ===== -->
+<script>
+const $ = id => document.getElementById(id);
+const MAX_TRIES = 3;                     // 第一次 + 重試兩次
+let bankCache = null;
+const getBank = () => bankCache || (bankCache = buildBank());
+
+// 1～4 級每一列的題型選單
+const FORM_CHOICES = [
+  ['F1', '20 以內'],
+  ['F2', '兩位數 ± 一位數'],
+  ['F3', '兩位數 ± 兩位數'],
+  ['F1 F2', '20 以內＋兩位數 ± 一位數'],
+  ['F1 F2 F3', '全部'],
+];
+const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
+// 第 5、6 級的題型是固定的，表格上直接寫出來
+function fixedForm(id) {
+  if (id === '5c-3') return '三位數 ± 一位數';
+  if (id.startsWith('5d')) return '兩位數 ± 兩位數';
+  if (id.startsWith('5')) return '兩位數 ± 一位數';
+  return id === '6a' ? '一位數 × 一位數' : '兩位數 × 一位數';
+}
+// 這一級選的題型；沒有選單（第 5、6 級）時回傳 null，表示不篩選
+function formsFor(lv) {
+  const sel = document.querySelector(`#level-list select[data-lv="${lv}"]`);
+  return sel ? sel.value.split(' ') : null;
+}
+const pool = (op, lv) => { const f = formsFor(lv); return getBank()[op][lv].filter(it => !f || f.includes(it[2])); };
+
+let session = null;
+
+// ---- 設定畫面 ----
+// 每一列是一個級別，欄是加法、減法（第 6 級是乘法）。勾選框的值是「級別|運算」，例如 2|+。
+const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul']];
+function renderLevels() {
+  const prev = new Set([...document.querySelectorAll('#level-list input:checked')].map(i => i.value));
+  const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
+  const first = !document.querySelector('#level-list input');
+  const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
+  // 第 5、6 級各收在一個可以展開的標題下，預設收合
+  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法' };
+  const groups = [];
+  for (const lv of LEVELS) {
+    const g = groups[groups.length - 1];
+    if (g && g.name === lv.group) g.levels.push(lv);
+    else groups.push({ name: lv.group, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
+  }
+  let html = '', fold = '';
+  for (const g of groups) {
+    if (g.fold !== fold) {
+      if (fold) html += '</details>';
+      if (g.fold) html += `<details class="lv5" data-lv="${g.fold}"${open.has(g.fold) ? ' open' : ''}><summary>${FOLD[g.fold]}（<span class="fold-count"></span>）</summary>`;
+      fold = g.fold;
+    }
+    const ops = OPS.filter(([, , key]) => g.levels.some(lv => lv[key]));
+    html += `<table class="lv-table"><caption>${g.name === '基本' ? '1～4 級' : g.name}</caption>
+      <tr><th scope="col">級別</th><th scope="col">題型</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
+    for (const lv of g.levels) {
+      html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
+      if (RANK[lv.id]) {
+        const cur = prevForm[lv.id] || 'F1';
+        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${FORM_CHOICES.map(([v, t]) =>
+          `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
+      } else html += `<td>${fixedForm(lv.id)}</td>`;
+      for (const [op, name, key] of ops) {
+        if (!lv[key]) { html += '<td>—</td>'; continue; }
+        const v = `${lv.id}|${op}`;
+        const checked = first ? (v === '1|+' || v === '2|+') : prev.has(v);
+        html += `<td><label><input type="checkbox" value="${v}"${checked ? ' checked' : ''}> <span class="ex" data-v="${v}">${lv[key]}</span>
+          <span class="cnt" data-v="${v}"></span></label></td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+  }
+  if (fold) html += '</details>';
+  $('level-list').innerHTML = html;
+  updateCounts();
+  countLv5();
+}
+// 每一格顯示目前題型下有幾題；1～4 級的例題也換成符合題型的
+function updateCounts() {
+  for (const s of document.querySelectorAll('#level-list .cnt')) {
+    const [lv, op] = s.dataset.v.split('|');
+    const list = pool(op, lv);
+    s.textContent = `（${list.length} 題）`;
+    const f = formsFor(lv);
+    if (!f) continue;
+    const key = op === '+' ? 'add' : 'sub';
+    const lvObj = LEVELS.find(l => l.id === lv);
+    // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
+    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−]/).map(Number); return formOf(x, y, op) === id; })
+      || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
+    document.querySelector(`#level-list .ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
+  }
+}
+// 收合時也看得出第 5、6 級各勾了幾項
+function countLv5() {
+  for (const d of document.querySelectorAll('#level-list details')) {
+    const all = [...d.querySelectorAll('input')];
+    d.querySelector('.fold-count').textContent = `已選 ${all.filter(i => i.checked).length} 項，共 ${all.length} 項`;
+  }
+}
+$('all-on').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
+$('all-off').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
+$('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateCounts(); countLv5(); });
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// picks：勾選的「級別|運算」，例如 ['2|+', '2|-', '6b|×']
+function makeProblems(picks, count) {
+  const pools = [];
+  for (const [lv, op] of picks.map(v => v.split('|'))) {
+    const list = pool(op, lv);
+    if (list.length) pools.push({ op, lv, items: shuffle(list.slice()), i: 0 });
+  }
+  if (!pools.length) return [];
+  const out = [];
+  let last = null;
+  for (let n = 0; n < count; n++) {
+    let p = pools[Math.floor(Math.random() * pools.length)];
+    if (pools.length > 1 && last === p && Math.random() < 0.5) p = pools[Math.floor(Math.random() * pools.length)];
+    if (p.i >= p.items.length) { shuffle(p.items); p.i = 0; }
+    const [x, y, form] = p.items[p.i++];
+    out.push({ x, y, op: p.op, lv: p.lv, form });
+    last = p;
+  }
+  return out;
+}
+
+const calc = p => p.op === '+' ? p.x + p.y : p.op === '-' ? p.x - p.y : p.x * p.y;
+
+function startSession(problems) {
+  session = {
+    student: $('student').value.trim(),
+    fmt: document.querySelector('input[name=fmt]:checked').value,
+    needSign: $('need-sign').checked,
+    six: $('six-default').checked,
+    sixEcho: $('six-echo').checked,
+    sound: $('sound').checked,
+    pre: document.querySelector('input[name=pre]:checked').value,
+    started: new Date(),
+    problems: problems.map(p => ({ ...p, answer: calc(p), tries: [], correct: false, done: false })),
+    idx: 0,
+  };
+  clearPreview();
+  $('setup').hidden = true; $('result').hidden = true; $('practice').hidden = false;
+  setSix(session.six, false);
+  if (session.sound) audio();          // 按「開始練習」時先建好，瀏覽器才允許出聲
+  showProblem();
+}
+
+// ---- 題目預覽 ----
+let previewProblems = null;
+function clearPreview() { previewProblems = null; $('preview').hidden = true; }
+function showPreview() {
+  const problems = newProblems();
+  if (!problems) return;
+  previewProblems = problems;
+  $('preview-list').innerHTML = problems.map(p =>
+    `<li>${p.x} ${sym(p.op)} ${p.y} = ${calc(p)}（${p.lv} 級）</li>`).join('');
+  $('preview').hidden = false;
+  $('preview-title').focus();
+}
+$('preview-btn').onclick = showPreview;
+$('preview-again').onclick = showPreview;
+$('preview-start').onclick = () => $('start').click();
+// 會影響出題的設定改了，預覽就作廢
+$('setup').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'count' || t.closest('#level-list')) clearPreview();
+});
+$('count').addEventListener('input', clearPreview);
+
+$('start').onclick = () => {
+  const problems = previewProblems || newProblems();
+  if (problems) startSession(problems);
+};
+
+function newProblems() {
+  const picks = [...document.querySelectorAll('#level-list input:checked')].map(i => i.value);
+  const count = Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10));
+  const problems = makeProblems(picks, count);
+  if (!problems.length) {
+    $('setup-error').textContent = picks.length ? '勾選的項目在目前的題型下沒有題目，請改題型或多勾幾項。' : '請至少勾選一項。';
+    return null;
+  }
+  $('setup-error').textContent = '';
+  return problems;
+}
+
+// ---- 練習畫面 ----
+const sym = op => ({ '+': '+', '-': '−', '×': '×' })[op];
+function exprMath(p, withAnswer) {
+  const ans = withAnswer ? `<mn>${p.answer}</mn>` : '';
+  return `<math display="block"><mn>${p.x}</mn><mo>${sym(p.op)}</mo><mn>${p.y}</mn><mo>=</mo>${ans}</math>`;
+}
+function exprText(p, withAnswer) {
+  return `${p.x}${p.op}${p.y}=${withAnswer ? p.answer : ''}`;
+}
+const expr = (p, w) => session.fmt === 'mathml' ? exprMath(p, w) : exprText(p, w);
+
+// 上面的題目跟著顯示學生正在打的答案：數字記號拿掉，點字數字換成一般數字，其他點字照原樣顯示。
+function typedShown(raw) {
+  return raw.normalize('NFKC').replace(/[\s⠀]+/g, '').replace(/[#⠼]/g, '')
+    .replace(/[⠴⠂⠆⠒⠲⠢⠖⠶⠦⠔]/g, ch => String(NEMETH_DIGITS.indexOf(ch)));
+}
+function renderProblem() {
+  const p = session.problems[session.idx];
+  const t = typedShown(answerPart());
+  if (session.fmt !== 'mathml') { $('problem').textContent = exprText(p, false) + t; return; }
+  const ans = !t ? '' : /^\d+$/.test(t) ? `<mn>${t}</mn>` : `<mtext>${escapeHtml(t)}</mtext>`;
+  $('problem').innerHTML = exprMath(p, false).replace('</math>', ans + '</math>');
+}
+
+// Nemeth：開頭要數字記號，運算符號後面的數字不用；等號前後空一格。21−6= → ⠼⠆⠂⠤⠖⠀⠨⠅
+const nemNum = n => [...String(n)].map(d => NEMETH_DIGITS[d]).join('');
+function exprNemeth(p) {
+  return '⠼' + nemNum(p.x) + ({ '+': '⠬', '-': '⠤', '×': '⠈⠡' })[p.op] + nemNum(p.y) + '⠀⠨⠅';
+}
+
+// 答案欄前面放題目（學生不能改），送出時只取後面的答案。
+let prefix = '', lastAns = '';
+function answerPrefix(p) {
+  if (session.pre === 'nemeth') return exprNemeth(p) + '⠀';
+  if (session.pre === 'text') return exprText(p, false) + ' ';
+  return '';
+}
+const answerPart = () => { const v = $('answer').value; return v.startsWith(prefix) ? v.slice(prefix.length) : lastAns; };
+function selectAnswer() { const el = $('answer'); el.focus(); el.setSelectionRange(prefix.length, el.value.length); }
+
+function showProblem() {
+  const p = session.problems[session.idx];
+  $('progress').textContent = `第 ${session.idx + 1} 題，共 ${session.problems.length} 題`;
+  prefix = answerPrefix(p); lastAns = '';
+  $('answer').value = prefix;
+  renderProblem();
+  $('answer').disabled = false;
+  $('answer-form').hidden = false;
+  $('feedback').textContent = ''; $('feedback').className = 'feedback';
+  $('reveal').hidden = true; $('next').hidden = true;
+  gotoAnswer();
+}
+
+function say(msg, kind) {
+  const f = $('feedback');
+  f.textContent = '';
+  f.className = 'feedback ' + (kind || '');
+  setTimeout(() => { f.textContent = msg; }, 50);   // 清空再填，讓報讀軟體一定會念
+}
+
+function finish(p, ok, msg) {
+  p.done = true; p.correct = ok;
+  $('answer').disabled = true;
+  $('answer-form').hidden = true;
+  const last = session.idx === session.problems.length - 1;
+  if (ok) {
+    $('next').textContent = last ? '答對了！看結果' : '答對了！下一題';
+    $('next').hidden = false;
+    say('答對了！', 'ok');
+    $('next').focus();
+  } else {
+    $('reveal').innerHTML = `<p>${msg}三次機會用完了。</p>正確答案：` + expr(p, true);
+    $('reveal').hidden = false;
+    $('next').textContent = last ? '看結果' : '下一題';
+    $('next').hidden = false;
+    say(msg + '三次機會用完了。', 'bad');
+    $('reveal').focus();
+  }
+}
+
+$('answer-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = session.problems[session.idx];
+  if (p.done) return;
+  const raw = answerPart();
+  if (!raw.replace(/[\s⠀]/g, '')) { say('還沒有打答案。', 'bad'); return; }
+  const a = parseAnswer(raw);
+  if (!a) { say('看不懂這個答案。請打數字記號（點 3456）和數字，例如 #15。', 'bad'); selectAnswer(); return; }
+  const signOk = a.hasSign || !session.needSign;
+  const valueOk = a.value === p.answer;
+  p.tries.push({ raw, value: a.value, hasSign: a.hasSign });
+  if (valueOk && signOk) { sound('up'); finish(p, true); return; }
+  sound('down');
+  const left = MAX_TRIES - p.tries.length;
+  let msg;
+  if (valueOk) msg = '數字對了，但是少打數字記號。';
+  else if (!signOk) msg = '答錯了，也少打數字記號。';
+  else msg = '答錯了。';
+  if (left <= 0) { finish(p, false, msg); return; }
+  say(`${msg}再試一次，還有 ${left} 次機會。`, 'bad');
+  selectAnswer();
+});
+
+$('next').onclick = () => {
+  if (session.idx < session.problems.length - 1) { session.idx++; showProblem(); }
+  else showResult();
+};
+$('quit').onclick = () => showResult();
+
+// ---- 音效（Web Audio 直接合成，不用外部音檔）----
+let actx = null;
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+// notes：[頻率 Hz, 開始秒, 長度秒]
+function tones(notes, type = 'sine', vol = 0.25) {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + 0.02;
+  for (const [f, at, len] of notes) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t0 + at);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+    o.connect(g).connect(ac.destination);
+    o.start(t0 + at); o.stop(t0 + at + len + 0.05);
+  }
+}
+const SOUNDS = {
+  up:   () => tones([[523, 0, 0.15], [659, 0.12, 0.15], [784, 0.24, 0.3]]),            // Do Mi Sol
+  down: () => tones([[392, 0, 0.18], [330, 0.15, 0.18], [262, 0.3, 0.35]], 'triangle'), // Sol Mi Do
+  done: () => tones([[523, 0, 0.12], [659, 0.1, 0.12], [784, 0.2, 0.12], [1047, 0.3, 0.25],
+                     [784, 0.55, 0.1], [1047, 0.65, 0.6], [1319, 0.65, 0.6], [1568, 0.65, 0.6]], 'triangle', 0.18),
+};
+function sound(name) { if (session && session.sound) SOUNDS[name](); }
+
+// ---- 結果 ----
+const OPNAME = { '+': ' 加', '-': ' 減', '×': ' 乘' };
+function showResult() {
+  if (session.problems.every(p => p.done)) sound('done');   // 全部做完才慶祝，中途結束不放
+  const done = session.problems.filter(p => p.done);
+  const right = done.filter(p => p.correct);
+  const firstTry = right.filter(p => p.tries.length === 1);
+  const missing = done.filter(p => p.tries.some(t => !t.hasSign)).length;
+  $('summary').textContent = `做了 ${done.length} 題，答對 ${right.length} 題，其中一次就對 ${firstTry.length} 題。` +
+    (missing ? `有 ${missing} 題曾經少打數字記號。` : '');
+
+  // 依級數、運算、題型分開統計，看得出是補數還是位值出錯
+  const label = (lv, op, form) => lv + OPNAME[op] + (form ? `（${formName(form)}）` : '');
+  const stat = {};
+  for (const p of done) {
+    const k = label(p.lv, p.op, p.form);
+    stat[k] = stat[k] || { n: 0, ok: 0, first: 0 };
+    stat[k].n++; if (p.correct) stat[k].ok++; if (p.correct && p.tries.length === 1) stat[k].first++;
+  }
+  let t = '<caption class="sr-only">各級答對情形</caption><tr><th scope="col">級數</th><th scope="col">題數</th><th scope="col">答對</th><th scope="col">一次就對</th></tr>';
+  for (const lv of LEVELS) for (const op of Object.keys(OPNAME)) for (const form of [null, ...FORMS.map(f => f.id)]) {
+    const k = label(lv.id, op, form), s = stat[k]; if (!s) continue;
+    t += `<tr><th scope="row">${k}</th><td>${s.n}</td><td>${s.ok}</td><td>${s.first}</td></tr>`;
+  }
+  $('by-level').innerHTML = t;
+
+  let d = '<caption class="sr-only">每題紀錄</caption><tr><th scope="col">題號</th><th scope="col">題目</th><th scope="col">級數</th><th scope="col">題型</th><th scope="col">學生作答</th><th scope="col">結果</th></tr>';
+  session.problems.forEach((p, i) => {
+    if (!p.done) return;
+    d += `<tr><td>${i + 1}</td><td>${exprText(p, true)}</td><td>${p.lv}</td><td>${formName(p.form) || fixedForm(p.lv)}</td><td>${p.tries.map(x => escapeHtml(showTry(x))).join('、')}</td><td>${p.correct ? (p.tries.length === 1 ? '對' : `第 ${p.tries.length} 次對`) : '錯'}</td></tr>`;
+  });
+  $('detail').innerHTML = d;
+  $('retry-wrong').hidden = !done.some(p => !p.correct || p.tries.length > 1);
+
+  $('practice').hidden = true; $('result').hidden = false;
+  $('result-title').focus();
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+$('retry-wrong').onclick = () => {
+  const again = session.problems.filter(p => p.done && (!p.correct || p.tries.length > 1)).map(({ x, y, op, lv, form }) => ({ x, y, op, lv, form }));
+  if (again.length) startSession(shuffle(again));
+};
+$('back').onclick = () => { $('result').hidden = true; $('setup').hidden = false; $('start').focus(); };
+
+const stampOf = dt => {
+  const pad = n => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}_${pad(dt.getHours())}${pad(dt.getMinutes())}`;
+};
+function saveFile(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---- 匯出題目（預覽的那一組）----
+$('export-txt').onclick = () => {
+  const ps = previewProblems; if (!ps) return;
+  const student = $('student').value.trim();
+  const lines = ['珠算練習題目' + (student ? `（${student}）` : ''), new Date().toLocaleString('zh-TW'), '', '題目'];
+  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} =`));
+  lines.push('', '答案');
+  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${calc(p)}（${p.lv} 級，${formName(p.form) || fixedForm(p.lv)}）`));
+  saveFile(`珠算題目_${student || '練習'}_${stampOf(new Date())}.txt`, '﻿' + lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8');
+};
+// .brl：每行一題。題號照慣用寫法用上位數字加點 256，例如 1. 是 ⠼⠁⠲。每頁 25 行，換頁用 form feed。
+// 點字 ASCII 用點字樂譜的 brf.js，寫成小寫（@ A-Z [ \ ] ^ 在點顯器上會多出第 7 點，換成 ` a-z { | } ~）。
+$('export-brf').onclick = () => {
+  const ps = previewProblems; if (!ps) return;
+  const toAscii = s => MB.brf.toLowerBrf(MB.brf.toBrf(s));
+  const itemNo = n => '⠼' + MB.brf.toUnicode(MB.brf.upperNumber(n)) + '⠲';
+  const lines = ps.map((p, i) => toAscii(itemNo(i + 1) + '⠀' + exprNemeth(p)));
+  const pages = [];
+  for (let i = 0; i < lines.length; i += 25) pages.push(lines.slice(i, i + 25).join('\r\n'));
+  saveFile(`珠算題目_${$('student').value.trim() || '練習'}_${stampOf(new Date())}.brl`, pages.join('\r\n\f') + '\r\n', 'text/plain;charset=us-ascii');
+};
+
+$('download').onclick = () => {
+  const dt = session.started;
+  const stamp = stampOf(dt);
+  const rows = [['學生', '日期', '題號', '題目', '正確答案', '級數', '題型', '第1次', '第2次', '第3次', '結果', '作答次數', '少打數字記號']];
+  session.problems.forEach((p, i) => {
+    if (!p.done) return;
+    const tr = [0, 1, 2].map(k => p.tries[k] ? showTry(p.tries[k]) : '');
+    rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), p.answer, p.lv, formName(p.form) || fixedForm(p.lv), ...tr,
+      p.correct ? '對' : '錯', p.tries.length, p.tries.filter(t => !t.hasSign).length]);
+  });
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  saveFile(`珠算練習_${session.student || '學生'}_${stamp}.csv`, csv, 'text/csv;charset=utf-8');
+};
+
+// ---- 六點輸入（按鍵和 vi-tools 相同：F D S＝點 1 2 3，J K L＝點 4 5 6，Ctrl+B 切換）----
+// 只攔實體鍵盤的 F D S J K L（看 e.code）。點顯器點字鍵經 NVDA 送進來的字元沒有這些 code，會照常輸入。
+// 點 7（A）單獨＝Backspace、點 8（;）單獨＝Enter，和 6d-IME 相同。
+const SIX_BITS = { KeyF: 0x01, KeyD: 0x02, KeyS: 0x04, KeyJ: 0x08, KeyK: 0x10, KeyL: 0x20, KeyA: 0x40, Semicolon: 0x80 };
+let sixOn = true, chord = 0;
+const held = new Set();
+
+function setSix(on, announce) {
+  sixOn = on;
+  $('answer').classList.toggle('six-on', on);
+  $('six-state').textContent = on ? '六點輸入：開（Ctrl+B 關閉）' : '六點輸入：關（Ctrl+B 開啟）';
+  held.clear(); chord = 0;
+  if (announce) echo(on ? '六點輸入開' : '六點輸入關');
+}
+
+function cellName(ch) {
+  if (ch === '⠼') return '數字記號';
+  const d = NEMETH_DIGITS.indexOf(ch);
+  if (d >= 0) return String(d);
+  const bits = ch.codePointAt(0) - 0x2800;
+  if (bits < 0 || bits > 0x3f) return ch;
+  if (bits === 0) return '空格';
+  return '點' + [1, 2, 3, 4, 5, 6].filter(n => bits & (1 << (n - 1))).join('');
+}
+function echo(msg) {
+  const el = $('echo');
+  el.textContent = '';
+  setTimeout(() => { el.textContent = msg; }, 30);
+}
+
+// 刪掉游標前一格（或選取的部分），但不會刪到前面的題目。
+function eraseCell() {
+  const el = $('answer'), P = prefix.length;
+  let s = el.selectionStart, e = el.selectionEnd;
+  if (s === e) s = e - 1;
+  s = Math.max(s, P);
+  if (e <= s) return;
+  el.value = el.value.slice(0, s) + el.value.slice(e);
+  el.setSelectionRange(s, s);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  if (session.sixEcho) echo('刪除');
+}
+const submitAnswer = () => $('answer-form').requestSubmit();
+// 一次按鍵（和弦）放開後：點 7 單獨刪除、點 8 單獨送出，其他只取點 1～6。
+function chordDone(bits) {
+  if (bits === 0x40) eraseCell();
+  else if (bits === 0x80) submitAnswer();
+  else if (bits & 0x3f) insertCell(bits & 0x3f);
+}
+
+function insertCell(bits) {
+  const el = $('answer');
+  const c = String.fromCodePoint(0x2800 + bits);
+  const P = prefix.length;
+  const s = Math.max(el.selectionStart, P), e = Math.max(el.selectionEnd, P);
+  el.value = el.value.slice(0, s) + c + el.value.slice(e);
+  el.selectionStart = el.selectionEnd = s + 1;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  if (session.sixEcho) echo(cellName(c));
+}
+
+// 題目上按 Enter（NVDA 瀏覽模式按 Enter 會變成點一下）→ 跳到答案欄，游標放在最後。
+function gotoAnswer() {
+  const el = $('answer');
+  if (el.disabled || $('answer-form').hidden) return;
+  el.focus();
+  el.setSelectionRange(el.value.length, el.value.length);
+}
+$('problem').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); gotoAnswer(); } });
+$('problem').addEventListener('click', gotoAnswer);
+$('answer').addEventListener('focus', () => {
+  const el = $('answer');
+  if (el.selectionStart < prefix.length) setTimeout(() => el.setSelectionRange(el.value.length, el.value.length), 0);
+});
+
+// 點顯器點字鍵經 NVDA 的點字輸入表會變成 ASCII（⠼⠂⠢ → #15），這裡用北美點字 ASCII 換回點字。
+// 數字 0～9 剛好對到 Nemeth 數字 ⠴⠂⠆⠒⠲⠢⠖⠶⠦⠔。全形字先轉半形。
+const toBraille = str => MB.brf.toUnicode(str.normalize('NFKC'), { blankCell: true });
+
+// 保護前面的題目：不能刪、不能在題目中間打字；打進來的 ASCII 換成點字。
+$('answer').addEventListener('beforeinput', e => {
+  const el = $('answer'), P = prefix.length;
+  const s = el.selectionStart, t = el.selectionEnd;
+  if (e.inputType.startsWith('delete')) {
+    if (!P) return;
+    if (t <= P || (s === t && s === P && e.inputType.includes('Backward'))) { e.preventDefault(); return; }
+    if (s < P) { e.preventDefault(); el.value = el.value.slice(0, P) + el.value.slice(t); el.setSelectionRange(P, P); el.dispatchEvent(new Event('input', { bubbles: true })); }
+    return;
+  }
+  if (e.inputType !== 'insertText' || e.data == null || (sixOn && held.size)) return;
+  // 點顯器若把點 7、點 8 單獨送成點字字元，也當作 Backspace、Enter。
+  if (e.data === '⡀') { e.preventDefault(); eraseCell(); return; }
+  if (e.data === '⢀') { e.preventDefault(); submitAnswer(); return; }
+  const d = toBraille(e.data);
+  if (d === e.data && s >= P) return;
+  e.preventDefault();
+  const a = Math.max(s, P), b = Math.max(t, P);
+  el.value = el.value.slice(0, a) + d + el.value.slice(b);
+  el.setSelectionRange(a + d.length, a + d.length);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+$('answer').addEventListener('input', () => {
+  const el = $('answer');
+  if (el.value.startsWith(prefix)) lastAns = el.value.slice(prefix.length);
+  else {
+    el.value = prefix + lastAns;               // 萬一題目被改掉，還原
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+  renderProblem();
+});
+
+$('answer').addEventListener('keydown', e => {
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === 'KeyB') { e.preventDefault(); setSix(!sixOn, true); return; }
+  if (!sixOn || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.code in SIX_BITS) {
+    e.preventDefault();
+    if (!e.repeat) { held.add(e.code); chord |= SIX_BITS[e.code]; }
+    return;
+  }
+  if (e.code === 'Space') { e.preventDefault(); insertCell(0); }
+});
+$('answer').addEventListener('keyup', e => {
+  if (!sixOn || !(e.code in SIX_BITS)) return;
+  e.preventDefault();
+  held.delete(e.code);
+  if (held.size === 0 && chord) { const b = chord; chord = 0; chordDone(b); }
+});
+// 中文輸入法開著時 keydown 擋不住字母，這裡再擋一次。
+$('answer').addEventListener('beforeinput', e => {
+  if (sixOn && held.size && e.inputType.startsWith('insert')) e.preventDefault();
+});
+$('answer').addEventListener('compositionstart', () => {
+  if (sixOn) echo('請把輸入法切到英文，六點輸入才能用');
+});
+$('answer').addEventListener('blur', () => { held.clear(); chord = 0; });
+
+// 紀錄裡顯示學生打的點字，後面加上讀成的數字，例如 ⠼⠂⠢（#15）
+function showTry(t) {
+  const plain = (t.hasSign ? '#' : '') + t.value;
+  return t.raw.trim() === plain ? plain : `${t.raw.trim()}（${plain}）`;
+}
+
+renderLevels();
+</script>
+</body>
+</html>

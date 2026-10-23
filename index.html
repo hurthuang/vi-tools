@@ -282,10 +282,6 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
     <span class="icon" aria-hidden="true">📄</span> 文件整理
   </div>
-  <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
-       tabindex="-1" aria-selected="false" aria-controls="frame-gq">
-    <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
-  </div>
   <div class="tab" role="tab" id="tab-music" data-target="frame-music"
        tabindex="-1" aria-selected="false" aria-controls="frame-music">
     <span class="icon" aria-hidden="true">♪</span> 點字樂譜
@@ -489,6 +485,31 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#e879f9" onclick="switchTo('frame-abacus')"
+             role="button" tabindex="0" aria-label="開啟珠算練習" aria-describedby="desc-abacus"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-abacus')}">
+          <div class="tool-icon" aria-hidden="true">🧮</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              珠算練習
+              <span class="tool-badge" style="background:#e879f9">Nemeth</span>
+            </div>
+            <div class="tool-desc" id="desc-abacus">
+              給盲生用算盤代替直式的分級練習：依撥珠時要用到的補數分級出題（加、減、兩位數乘一位數），
+              題目用點顯器摸讀，答案用點字鍵或六點鍵盤以 Nemeth 輸入，答錯可再試兩次；老師可先預覽、匯出 .brl 題目，練習結果存成 CSV。
+              附補數概念說明與教學法筆記。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">補數分級</span>
+              <span class="feat-tag">點顯器作答</span>
+              <span class="feat-tag">六點輸入</span>
+              <span class="feat-tag">匯出 .brl 題目</span>
+              <span class="feat-tag">練習紀錄 CSV</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
       </div>
 
       <div class="addon-section-title">NVDA 附加元件</div>
@@ -542,9 +563,10 @@
   <iframe id="frame-g2"    class="panel" src="braille-to-text.html"   role="tabpanel" aria-labelledby="tab-g2"    title="點字轉文字"></iframe>
   <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
   <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="文件整理"></iframe>
-  <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq"    title="UEB 查詢"></iframe>
+  <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-label="UEB 查詢"      title="UEB 查詢"></iframe>
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="點字樂譜"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸摸圖"></iframe>
+  <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-label="珠算練習" title="珠算練習"></iframe>
   <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
 
 </div>
@@ -597,7 +619,8 @@
   const HASH_MAP = {
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
-    'frame-music': 'music', 'frame-tactile': 'tactile', 'frame-guide': 'guide'
+    'frame-music': 'music', 'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
+    'frame-guide': 'guide'
   };
   const HASH_TO_TARGET = {};
   for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;

@@ -225,6 +225,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#query">🔍 UEB 查詢</a>
     <a href="#music">♪ 點字樂譜</a>
     <a href="#tactile">✋ 觸摸圖</a>
+    <a href="#abacus">🧮 珠算練習</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">桌面版</div>
@@ -780,6 +781,48 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>右邊的頁面清單可拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。</li>
     <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
     <li>「匯出 PRN」把所有頁面存成一個 .prn。這個工具還在測試中，<b>請先用 Tiger Designer 開啟檢查</b>再印。</li>
+  </ul>
+</section>
+
+
+<!-- ════════════ 珠算練習 ════════════ -->
+<section id="abacus">
+  <h2 class="section-title">珠算練習</h2>
+
+  <div class="tool-header" style="--tool-color:#e879f9">
+    <div class="tool-icon">🧮</div>
+    <div>
+      <div class="tool-hname">珠算練習 <span class="tool-hfile">abacus/index.html</span></div>
+      <div class="tool-hdesc">給國小低年級盲生用算盤代替直式的分級練習。題目顯示在點顯器上，學生撥完算盤，用 Nemeth 打答案。首頁沒有分頁，從首頁的卡片進入，或直接開 <code>#abacus</code>。</div>
+      <div class="tool-tags">
+        <span class="tag">補數分級</span>
+        <span class="tag">點顯器作答</span>
+        <span class="tag">六點輸入</span>
+        <span class="tag">匯出 .brl</span>
+        <span class="tag">練習紀錄 CSV</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>出題</h3>
+  <ul>
+    <li>級別依撥珠時要用的補數區分：1 級直接撥、2 級小補數（5）、3a／3b 級大補數（10）、4 級大小補數一起用、5 級連續進退位與十位相撞、6 級兩位數乘一位數。</li>
+    <li>每一級可再選題型：20 以內、兩位數加減一位數、兩位數加減兩位數。</li>
+    <li>「預覽題目」讓老師先看這一組題目，可匯出文字檔（含答案）或 .brl 點字檔（題號用上位數字，每頁 25 行）。</li>
+  </ul>
+
+  <h3>作答</h3>
+  <ul>
+    <li>進入題目時焦點直接在作答區，題目和學生打的答案顯示在同一行。</li>
+    <li>點顯器的點字鍵直接輸入；也可用六點鍵盤（F D S J K L，Ctrl+B 切換），A（點 7）倒退、;（點 8）送出。</li>
+    <li>答案要打數字記號，例如 ⠼⠂⠢；漏打會提醒。答錯可再試兩次。</li>
+    <li>結果頁可「再練錯的題目」，或下載 CSV 紀錄。</li>
+  </ul>
+
+  <h3>相關頁面</h3>
+  <ul>
+    <li><a href="abacus/complement.html">補數概念與各級撥珠步驟</a></li>
+    <li><a href="abacus/notes.html">盲生珠算教學法筆記</a>（分級依據、文獻）</li>
   </ul>
 </section>
 
