@@ -38,28 +38,39 @@
   }
 
 
-  // 文字 → { normal, short, missing }；opts.supplement 時先套多音字補充規則（整詞）
+  // 國語點字規範只有句號、問號、驚嘆號後面空一方；zh-tw.ctb 的逗號、頓號、分號後面多了空方。
+  // opts.supplement（修正）時拿掉，和 NVDA-brailleTableSwitcher 的 zh-tw-short.ctb、zh-tw-fix.ctb 相同
+  const NO_BLANK_AFTER = new Set(['，', '、', '；']);
+
+  // 文字 → { normal, short, segments, missing }；opts.supplement 時先套多音字補充規則（整詞）與標點修正
+  //   segments：[{ text, normal, short }]，一個字（或一個補充規則的詞）一段，顯示時同一段不換行
   function translate(text, opts = {}) {
     const chars = [...text], d = PrnCore.zhData(), missing = [];
     let normal = '', short = '';
-    const push = (b, zh) => { normal += b; short += zh ? (shortBraille(b) ?? b) : b; };
+    const segments = [];
+    const push = (b, zh, src) => {
+      const s = zh ? (shortBraille(b) ?? b) : b;
+      normal += b; short += s;
+      segments.push({ text: src, normal: b, short: s });
+    };
     for (let i = 0; i < chars.length; i++) {
       const c = chars[i];
-      if (c === '\n') { push('\n'); continue; }
+      if (c === '\n') { push('\n', false, c); continue; }
       if (opts.supplement && isZh(c)) {
         let best = null;
         for (const [w, b] of d.supplement)
           if ((!best || w.length > best[0].length) && chars.slice(i, i + [...w].length).join('') === w) best = [w, b];
-        if (best) { push(best[1], true); i += [...best[0]].length - 1; continue; }
+        if (best) { push(best[1], true, best[0]); i += [...best[0]].length - 1; continue; }
       }
-      if (c.codePointAt(0) >= 0x2800 && c.codePointAt(0) <= 0x28ff) { push(c); continue; }
+      if (c.codePointAt(0) >= 0x2800 && c.codePointAt(0) <= 0x28ff) { push(c, false, c); continue; }
       // 國字和有前後文規則的符號交給 zhChar，其他照第一次的字元定義
       const plain = !isZh(c) && !d.ctx.has(c) && !d.correctCtx.has(c) && !(c in d.correct);
-      const b = (plain && defs.get(c)) || PrnCore.zhChar(chars, i);
-      if (b) push(b, isZh(c));
+      let b = (plain && defs.get(c)) || PrnCore.zhChar(chars, i);
+      if (b && opts.supplement && NO_BLANK_AFTER.has(c)) b = b.replace(/\u2800+$/, '');
+      if (b) push(b, isZh(c), c);
       else if (c.trim()) missing.push(c);
     }
-    return { normal, short, missing };
+    return { normal, short, segments, missing };
   }
 
   // ── 縮點 ──

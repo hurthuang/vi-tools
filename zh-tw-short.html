@@ -63,7 +63,18 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 thead th { background: var(--accent-soft); }
-.brl { font-family: "Segoe UI Symbol", "Apple Braille", "Noto Sans Symbols 2", monospace; font-size: 1.35rem; letter-spacing: 1px; word-break: break-all; }
+thead th, tbody th { white-space: nowrap; }
+table.compare { table-layout: fixed; min-width: 560px; }
+table.compare tbody th { white-space: normal; }
+.seg { display: inline-block; white-space: nowrap; }
+.keys { white-space: nowrap; }
+.kbrl { font-size: 1.6rem; line-height: 1; vertical-align: middle; letter-spacing: 0; }
+.dn { display: block; font-family: Consolas, "Courier New", monospace; font-size: 0.8rem; letter-spacing: 0; color: var(--muted); white-space: nowrap; }
+.kspace { display: inline-block; border: 1px solid var(--muted); border-radius: 4px; padding: 0 0.35em; font-size: 0.85em; line-height: 1.4; }
+.brl .kspace { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; font-size: 0.8rem; letter-spacing: 0; vertical-align: middle; margin-left: 0.3em; }
+.brl.dots .seg { margin-right: 0.6em; }
+@font-face { font-family: "8-dot braille Unicode"; src: url("8DotBraille.ttf") format("truetype"); font-display: swap; }
+.brl { font-family: "8-dot braille Unicode", "Segoe UI Symbol", "Apple Braille", "Noto Sans Symbols 2", monospace; font-size: 1.9rem; line-height: 1.5; letter-spacing: 2px; word-break: break-all; }
 .brl.dots { font-family: Consolas, "Courier New", monospace; font-size: 0.95rem; letter-spacing: 0; }
 .num { white-space: nowrap; }
 .copy-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -76,7 +87,7 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   header h1 { font-size: 1.6rem; }
   section { padding: 14px; }
   th, td { padding: 5px 6px; }
-  .brl { font-size: 1.15rem; }
+  .brl { font-size: 1.5rem; }
 }
 </style>
 <script>try { const t = localStorage.getItem('site-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
@@ -86,7 +97,7 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
 <header>
   <p class="status" style="margin:0 0 8px;"><a href="index.html">← vi-tools 首頁</a></p>
   <h1>縮點</h1>
-  <p class="sub">調號併入第七、八點的注音點字實驗</p>
+  <p class="sub">調號併入第七、八點的注音點字實驗　・　規則 v0.3（2026-10）</p>
   <div class="notice">
     <p><strong>實驗性質，只適用八點點字顯示器。</strong>把國語點字的調號方併到第 7、8 點，每個字少寫一方，讓精熟點字的人讀得更快。</p>
   </div>
@@ -109,7 +120,8 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   <div id="result" hidden>
     <p class="summary" id="summary"></p>
     <div class="table-wrap">
-      <table>
+      <table class="compare">
+        <colgroup><col style="width:20%"><col style="width:35%"><col style="width:35%"><col style="width:10%"></colgroup>
         <thead>
           <tr><th scope="col">原文</th><th scope="col">國語點字</th><th scope="col">縮點</th><th scope="col">方數</th></tr>
         </thead>
@@ -125,13 +137,13 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   </div>
   <details class="more">
     <summary>其他選項</summary>
-    <label><input type="checkbox" id="supplement" checked> 多音字修正（和縮點閱讀表相同；取消勾選就是 NVDA 內建注音點字的讀音）</label>
+    <label><input type="checkbox" id="supplement" checked> 多音字與標點修正（和縮點閱讀表、「注音點字（多音字修正）」相同：逗號、頓號、分號後面不空方；取消勾選就是 NVDA 內建注音點字）</label>
   </details>
 </section>
 
 <section id="rules" aria-labelledby="rules-h">
-  <h2 id="rules-h">閱讀規則</h2>
-  <p>聲母、韻母的點位不變，只把調號方改成第 7、8 點；英文、數字、標點也不變。縮點閱讀表另外內建 702 條多音字修正（例：記得、值得的「得」是輕聲），NVDA 內建的注音點字讀錯的地方會改正。</p>
+  <h2 id="rules-h">讀寫規則</h2>
+  <p><strong>讀打一致</strong>：閱讀和打字用同一套規則，讀到什麼就打什麼（6d-IME 縮點模式）。聲母、韻母的點位不變，只把調號方改成第 7、8 點；英文、數字、標點也不變。縮點閱讀表另外內建 702 條多音字修正（例：記得、值得的「得」是輕聲），NVDA 內建的注音點字讀錯的地方會改正。</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th scope="col">聲調</th><th scope="col">寫法</th><th scope="col">例</th></tr></thead>
@@ -149,41 +161,86 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
 </section>
 
 <section id="typing" aria-labelledby="typing-h">
-  <h2 id="typing-h">打法（6d-IME 縮點模式）</h2>
+  <h2 id="typing-h">打字（6d-IME 縮點模式）</h2>
+  <p>6d-IME 1.7 起（即將推出）。照上面的讀寫規則打，一方一方按，聲調和那一方同時按；一般的字不用空白鍵。例：天 <span class="kbrl brl">⠋</span> 124、<span class="kbrl brl">⠞</span> 2345，們 <span class="kbrl brl">⢍</span> 1348、<span class="kbrl brl">⠥</span> 136，因 <span class="kbrl brl">⠹</span> 1456、<span class="kbrl brl">⠄</span> 3。問號「？」是 <span class="kbrl brl">⠹</span> 1456 再按空白，和國語點字相同。</p>
+  <h3>進階打法：一方打完（只用在打字）</h3>
+  <p>下面 18 個音節可以省略韻母，只打聲母那一方。一般打法仍然可以用；閱讀時這些字照常寫聲母和韻母。</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th scope="col">聲調</th><th scope="col">打法</th></tr></thead>
+      <thead><tr><th scope="col">韻母</th><th scope="col">音節　點型（例字）</th></tr></thead>
       <tbody>
-        <tr><th scope="row">一聲</th><td>最後一方加空白鍵（同時按或緊接著按都可以）</td></tr>
-        <tr><th scope="row">二聲</th><td>最後一方加點 7</td></tr>
-        <tr><th scope="row">三聲</th><td>最後一方加點 7、8</td></tr>
-        <tr><th scope="row">四聲</th><td>最後一方加點 8</td></tr>
-        <tr><th scope="row">輕聲</th><td>不加；只有一方的字加點 8 和空白鍵</td></tr>
+        <tr><th scope="row">ㄛ</th><td>ㄅㄛ <span class="kbrl brl">⠕</span> 135（玻）、ㄆㄛ <span class="kbrl brl">⠏</span> 1234（坡）、ㄇㄛ <span class="kbrl brl">⠍</span> 134（摸）、ㄈㄛ <span class="kbrl brl">⠟</span> 12345（佛）</td></tr>
+        <tr><th scope="row">ㄜ</th><td>ㄉㄜ <span class="kbrl brl">⠙</span> 145（的）、ㄊㄜ <span class="kbrl brl">⠋</span> 124（特）、ㄋㄜ <span class="kbrl brl">⠝</span> 1345（呢）、ㄌㄜ <span class="kbrl brl">⠉</span> 14（了）、ㄍㄜ <span class="kbrl brl">⠅</span> 13（哥）、ㄎㄜ <span class="kbrl brl">⠇</span> 123（科）、ㄏㄜ <span class="kbrl brl">⠗</span> 1235（喝）</td></tr>
+        <tr><th scope="row">空韻</th><td>ㄓ <span class="kbrl brl">⠁</span> 1（之）、ㄔ <span class="kbrl brl">⠃</span> 12（吃）、ㄕ <span class="kbrl brl">⠊</span> 24（失）、ㄖ <span class="kbrl brl">⠛</span> 1245（日）、ㄗ <span class="kbrl brl">⠓</span> 125（資）、ㄘ <span class="kbrl brl">⠚</span> 245（疵）、ㄙ <span class="kbrl brl">⠑</span> 15（司）</td></tr>
       </tbody>
     </table>
   </div>
-  <h3>進階打法：一方打完</h3>
-  <p>下面 18 個音節可以省略韻母，只打聲母那一方，聲調照樣加在這一方（一聲加空白、二聲加點 7、三聲加點 7、8、四聲加點 8、輕聲加點 8 和空白）。一般打法仍然可以用。</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th scope="col">韻母</th><th scope="col">音節　點位（例字）</th></tr></thead>
+      <thead><tr><th scope="col">聲調</th><th scope="col">進階打法</th><th scope="col">例</th></tr></thead>
       <tbody>
-        <tr><th scope="row">ㄛ</th><td>ㄅㄛ 135（玻）、ㄆㄛ 1234（坡）、ㄇㄛ 134（摸）、ㄈㄛ 12345（佛）</td></tr>
-        <tr><th scope="row">ㄜ</th><td>ㄉㄜ 145（的）、ㄊㄜ 124（特）、ㄋㄜ 1345（呢）、ㄌㄜ 14（了）、ㄍㄜ 13（哥）、ㄎㄜ 123（科）、ㄏㄜ 1235（喝）</td></tr>
-        <tr><th scope="row">空韻</th><td>ㄓ 1（之）、ㄔ 12（吃）、ㄕ 24（失）、ㄖ 1245（日）、ㄗ 125（資）、ㄘ 245（疵）、ㄙ 15（司）</td></tr>
+        <tr><th scope="row">一聲</th><td>聲母加空白鍵（同時按或按完再按都可以）</td><td class="keys">哥 <span class="kbrl brl">⠅</span> 13＋<span class="kspace">空白</span></td></tr>
+        <tr><th scope="row">二聲</th><td>聲母加點 7</td><td class="keys">時 <span class="kbrl brl">⡊</span> 247</td></tr>
+        <tr><th scope="row">三聲</th><td>聲母加點 7、8</td><td class="keys">史 <span class="kbrl brl">⣊</span> 2478</td></tr>
+        <tr><th scope="row">四聲</th><td>聲母加點 8</td><td class="keys">是 <span class="kbrl brl">⢊</span> 248；各 <span class="kbrl brl">⢅</span> 138</td></tr>
+        <tr><th scope="row">輕聲</th><td>聲母加點 8 和空白鍵</td><td class="keys">的 <span class="kbrl brl">⢙</span> 1458＋<span class="kspace">空白</span>；個 <span class="kbrl brl">⢅</span> 138＋<span class="kspace">空白</span></td></tr>
       </tbody>
     </table>
   </div>
-  <p>例：哥 13＋空白、各 138、個（輕聲）138＋空白、是 248、的（輕聲）1458＋空白。</p>
+  <h3>要注意的地方</h3>
+  <ul>
+    <li><strong>聲母加點 8 有兩種意思</strong>：進階打法的四聲（是 <span class="kbrl brl">⢊</span> 248），或輕聲字的聲母（們 <span class="kbrl brl">⢍</span> 1348，後面還有韻母）。6d-IME 看下一方決定。少數情況會被誤判，例如四 <span class="kbrl brl">⢑</span> 158 接一 <span class="kbrl brl">⠡</span> 16、<span class="kbrl brl">⠄</span> 3 會被讀成 ㄒㄧ˙（樂一、個阿也是，每十萬字約 2 次）；遇到時四聲字改用一般打法（四 <span class="kbrl brl">⠑</span> 15、<span class="kbrl brl">⢱</span> 1568）。</li>
+    <li>科 <span class="kbrl brl">⠇</span> 123、玻 <span class="kbrl brl">⠕</span> 135 的進階一聲要和空白鍵同時按；按完再按空白是標點「！」「）」。</li>
+    <li>代名詞照讀法打（他 <span class="kbrl brl">⡋</span> 1247、<span class="kbrl brl">⠜</span> 345）或不打記號（<span class="kbrl brl">⠋</span> 124、<span class="kbrl brl">⠜</span> 345）都可以，選到哪個字由微軟注音決定；牠、祂照 ㄊㄚ 打。</li>
+  </ul>
+</section>
+
+<section id="examples" aria-labelledby="examples-h">
+  <h2 id="examples-h">讀寫範例</h2>
+  <p>國語點字和縮點都是讀打一致（例：因的國語點字和縮點都打 1456、3）。進階打法是 18 個音節只打聲母那一方的捷徑；「＋空白」是和空白鍵同時按。</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">字</th><th scope="col">國語點字（讀＝打）</th><th scope="col">縮點（讀＝打）</th><th scope="col">縮點進階打法</th><th scope="col">說明</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">天</th><td class="brl">⠋⠞⠄<br><span class="dn">124-2345-3</span></td><td class="brl">⠋⠞<br><span class="dn">124-2345</span></td><td></td><td>一聲不標，打字也不用空白鍵</td></tr>
+        <tr><th scope="row">明</th><td class="brl">⠍⠽⠂<br><span class="dn">134-13456-2</span></td><td class="brl">⠍⡽<br><span class="dn">134-134567</span></td><td></td><td>二聲：韻母加點 7</td></tr>
+        <tr><th scope="row">好</th><td class="brl">⠗⠩⠈<br><span class="dn">1235-146-4</span></td><td class="brl">⠗⣩<br><span class="dn">1235-14678</span></td><td></td><td>三聲：韻母加點 7、8</td></tr>
+        <tr><th scope="row">下</th><td class="brl">⠑⠾⠐<br><span class="dn">15-23456-5</span></td><td class="brl">⠑⢾<br><span class="dn">15-234568</span></td><td></td><td>四聲：韻母加點 8</td></tr>
+        <tr><th scope="row">們（輕聲）</th><td class="brl">⠍⠥⠁<br><span class="dn">134-136-1</span></td><td class="brl">⢍⠥<br><span class="dn">1348-136</span></td><td></td><td>輕聲：聲母加點 8</td></tr>
+        <tr><th scope="row">因</th><td class="brl">⠹⠄<br><span class="dn">1456-3</span></td><td class="brl">⠹⠄<br><span class="dn">1456-3</span></td><td></td><td>沒有聲母的一聲不縮：只寫 ⠹ 會和「？」⠹⠀ 同形</td></tr>
+        <tr><th scope="row">呀（輕聲）</th><td class="brl">⠾⠁<br><span class="dn">23456-1</span></td><td class="brl">⠾⠁<br><span class="dn">23456-1</span></td><td></td><td>沒有聲母的輕聲不縮</td></tr>
+        <tr><th scope="row">無</th><td class="brl">⠌⠂<br><span class="dn">34-2</span></td><td class="brl">⡌<br><span class="dn">347</span></td><td></td><td>沒有聲母的二聲縮成一方</td></tr>
+        <tr><th scope="row">雨</th><td class="brl">⠳⠈<br><span class="dn">1256-4</span></td><td class="brl">⣳<br><span class="dn">125678</span></td><td></td><td>沒有聲母的三聲縮成一方</td></tr>
+        <tr><th scope="row">是</th><td class="brl">⠊⠱⠐<br><span class="dn">24-156-5</span></td><td class="brl">⠊⢱<br><span class="dn">24-1568</span></td><td class="brl">⢊<br><span class="dn">248</span></td><td>進階打法：空韻省略韻母，四聲加點 8</td></tr>
+        <tr><th scope="row">吃</th><td class="brl">⠃⠱⠄<br><span class="dn">12-156-3</span></td><td class="brl">⠃⠱<br><span class="dn">12-156</span></td><td class="brl">⠃<span class="kspace">空白</span><br><span class="dn">12＋空白</span></td><td>進階打法的一聲加空白</td></tr>
+        <tr><th scope="row">各</th><td class="brl">⠅⠮⠐<br><span class="dn">13-2346-5</span></td><td class="brl">⠅⢮<br><span class="dn">13-23468</span></td><td class="brl">⢅<br><span class="dn">138</span></td><td>進階打法：ㄜ 省略韻母</td></tr>
+        <tr><th scope="row">哥</th><td class="brl">⠅⠮⠄<br><span class="dn">13-2346-3</span></td><td class="brl">⠅⠮<br><span class="dn">13-2346</span></td><td class="brl">⠅<span class="kspace">空白</span><br><span class="dn">13＋空白</span></td><td>進階打法的一聲加空白</td></tr>
+        <tr><th scope="row">了（輕聲）</th><td class="brl">⠉⠮⠁<br><span class="dn">14-2346-1</span></td><td class="brl">⢉⠮<br><span class="dn">148-2346</span></td><td class="brl">⢉<span class="kspace">空白</span><br><span class="dn">148＋空白</span></td><td>進階打法的輕聲加點 8 和空白（148 不加空白是四聲）</td></tr>
+        <tr><th scope="row">的（輕聲）</th><td class="brl">⠙⠮⠁<br><span class="dn">145-2346-1</span></td><td class="brl">⢙⠮<br><span class="dn">1458-2346</span></td><td class="brl">⢙<span class="kspace">空白</span><br><span class="dn">1458＋空白</span></td><td>同上；和閱讀一樣是聲母加點 8</td></tr>
+        <tr><th scope="row">他</th><td class="brl">⡋⠜⠄<br><span class="dn">1247-345-3</span></td><td class="brl">⡋⠜<br><span class="dn">1247-345</span></td><td></td><td>代名詞：聲母上的第 7 點照樣保留</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section id="use" aria-labelledby="use-h">
   <h2 id="use-h">在 NVDA 使用</h2>
   <ul>
-    <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher">NVDA-brailleTableSwitcher</a> 的輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
-    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME">6d-IME</a> 用空白鍵＋點 4568 切到縮點模式。</li>
+    <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher">NVDA-brailleTableSwitcher</a> 1.3.0 起，輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
+    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME">6d-IME</a> 1.7 起（即將推出），用空白鍵＋點 4568 切到縮點模式。</li>
+    <li><strong>不用縮點也可以</strong>：brailleTableSwitcher 另有「注音點字（多音字修正）」，一般注音點字加上同一份多音字修正；也修正了 NVDA 在編輯區、游標停在國字上時多音字讀錯的問題。</li>
     <li><strong>不安裝也能讀</strong>：NVDA 用中文（台灣，國語）點字表時，上方縮點欄的點字會原樣顯示在點顯器上。</li>
   </ul>
+</section>
+
+<section id="faq" aria-labelledby="faq-h">
+  <h2 id="faq-h">常見問題</h2>
+  <h3>大寫英文字母 T 和「言」看起來一樣？</h3>
+  <p>NVDA 的英文用第 7 點表示大寫，剛好和沒有聲母的二聲字同形（T 和言、Y 和營、X 和昂）。英文不用第 8 點，大寫字母後面通常接小寫字母，縮點的國字則常帶第 8 點，多半從上下文就能分辨；不確定時把游標移過去，國字會展開成完整寫法（言 <span class="brl">⠞⠂</span>），英文字母維持一方。</p>
+  <h3>游標的第 7、8 點會不會和聲調混淆？</h3>
+  <p>不會。用縮點閱讀時，游標所在的字會改用完整的注音點字顯示（含調號方），逐字移動就能確認聲調。</p>
+  <h3>多音字讀錯怎麼辦？</h3>
+  <p>縮點閱讀表內建 702 條多音字修正，例如記得、值得的「得」是輕聲，長得的「長」是 ㄓㄤˇ。遇到還是讀錯的詞，歡迎到粉專回報。</p>
 </section>
 
 <section id="history" aria-labelledby="history-h">
@@ -191,13 +248,13 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   <ul>
     <li>2018：<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/197">注音點字改良思考</a>，提出把調號併入第 7、8 點的構想。</li>
     <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497">縮點輸入法</a>（已停止維護）。</li>
-    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。完整規則見 <a href="https://github.com/hurthuang/zh-tw-short/blob/main/rules.md">rules.md</a>。</li>
+    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。</li>
   </ul>
 </section>
 </main>
 
 <footer>
-  <p>縮點規則的文件與回饋：<a href="https://github.com/hurthuang/zh-tw-short">zh-tw-short</a>。轉譯核心同 <a href="index.html">vi-tools</a> 的文字轉點字；點字表取自 liblouis（LGPL 2.1 以上）。作者：hurt（<a href="https://class.kh.edu.tw/19061">視覺障礙輔助科技筆記本</a>）。</p>
+  <p>試用心得與回饋：<a href="https://www.facebook.com/vi.tech.tw/">Facebook 粉專</a>。轉譯核心同 <a href="index.html">vi-tools</a> 的文字轉點字；點字表取自 liblouis（LGPL 2.1 以上）。作者：hurt（<a href="https://class.kh.edu.tw/19061">視覺障礙輔助科技筆記本</a>）。點字字型由 hurt.tw 的 <a href="https://fontstruct.com/fontstructions/show/2057828/8dot-braille-1-1">8-dot braille</a> 產生（CC BY-NC-SA 3.0），空的點位畫成小點。</p>
 </footer>
 </div>
 
@@ -212,16 +269,10 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   // 用到所有規則：有聲母的一到四聲與輕聲、沒有聲母的一到四聲與輕聲、代名詞（他）
   const SAMPLES = ['他們因為下雨，明天不去學校了，好無聊呀！'];
   const $ = id => document.getElementById(id);
-  const BLANK = String.fromCodePoint(0x2800);
   let supplementRules = null, last = { normal: '', short: '' };
 
   const cells = s => [...s].filter(c => c !== '\n').length;
   const pct = (n, m) => n ? Math.round((n - m) / n * 100) : 0;
-  function view(brl) {
-    if (document.querySelector('input[name=view]:checked').value === 'brl') return brl;
-    // 點位數字：同一詞的方用「-」連接，空方當作詞與詞的間隔
-    return brl.split(BLANK).map(w => [...w].map(ZhCore.cellDots).join('-')).join('  ');
-  }
   function cell(tag, text, cls) {
     const el = document.createElement(tag);
     el.textContent = text;
@@ -229,10 +280,35 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
     if (tag === 'th') el.scope = 'row';
     return el;
   }
+  // 一個字一段（display:inline-block、不換行），同一個字的點字不會被拆到兩行
+  // 標點不在行首、開引號／開括號不在行尾：結尾類標點併進前一段，開頭類標點併進後一段
+  const CLOSING = /^[，。、；：？！」』）》〉】…—,.;:?!)\]]+$/;
+  const OPENING = /^[「『（《〈【(\[]+$/;
+  function segCell(segs, key, cls) {
+    const td = document.createElement('td');
+    td.className = cls;
+    const dots = document.querySelector('input[name=view]:checked').value === 'dots';
+    const groups = [];
+    let carry = '';
+    for (const s of segs) {
+      const text = dots ? [...s[key]].map(ZhCore.cellDots).join('-') : s[key];
+      if (CLOSING.test(s.text) && groups.length) { groups[groups.length - 1] += (dots ? ' ' : '') + text; continue; }
+      if (OPENING.test(s.text)) { carry += text + (dots ? ' ' : ''); continue; }
+      groups.push(carry + text); carry = '';
+    }
+    if (carry) groups.push(carry);
+    for (const g of groups) {
+      const span = document.createElement('span');
+      span.className = 'seg';
+      span.textContent = g;
+      td.append(span);
+    }
+    return td;
+  }
   function row(src, r) {
     const tr = document.createElement('tr');
     const cls = 'brl' + (document.querySelector('input[name=view]:checked').value === 'dots' ? ' dots' : '');
-    tr.append(cell('th', src), cell('td', view(r.normal), cls), cell('td', view(r.short), cls),
+    tr.append(cell('th', src), segCell(r.segments, 'normal', cls), segCell(r.segments, 'short', cls),
       cell('td', `${cells(r.normal)} → ${cells(r.short)}`, 'num'));
     return tr;
   }
