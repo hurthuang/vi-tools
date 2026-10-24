@@ -309,7 +309,7 @@
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
         if (op === '×' && (y > 99 || x > (y > 9 ? 99 : 999))) { err.textContent = '乘法目前做到三位數 × 一位數、兩位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
-        if (op === '÷' && y > 9) { err.textContent = '除法目前做到除數是一位數；二位數除數的撥法還沒整理'; return; }
+        if (op === '÷' && y > 9) { err.textContent = '除數是兩位數要先在心裡試乘估商，動畫只做除數是一位數的除法'; return; }
         if (op === '÷' && x < y) { err.textContent = '被除數不能比除數小'; return; }
         load(x, y, op, curDir());
       };

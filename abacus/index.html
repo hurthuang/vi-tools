@@ -280,6 +280,7 @@ function classifyMul(x, y) {
 // 第一位比除數小但商只有一位（28÷7、14÷3）是九九的範圍，不算 8d。
 function classifyDiv(x, y) {
   if (x < y) return null;
+  if (y >= 10) return classifyDiv2(x, y);
   const ds = String(x).split('').map(Number), qd = [];
   let r = 0, borrow = false;
   ds.forEach((v, i) => {
@@ -292,6 +293,24 @@ function classifyDiv(x, y) {
   if (qd.includes(0) || (qd.length > 1 && qd.length < ds.length)) return '8d';
   if (r) return '8c';
   return borrow ? '8b' : '8a';
+}
+
+// 第 9 級（除數兩位數）：商要先估，心裡試乘「除數 × 商」沒有超過才在算盤上一次扣掉。
+// 分級看最多要試乘幾次，從「去掉最後一位 ÷ 除數十位」估起（只會估太大或剛好，往下試）：
+// 9a 除數是整十（估商就是九九）、9b 每一位一次就對、9c 要試兩次、9d 要試三次以上。
+function classifyDiv2(x, y) {
+  if (y < 11 || y > 99) return null;
+  if (y % 10 === 0) return '9a';
+  const t = Math.floor(y / 10);
+  let r = 0, most = 1;
+  for (const v of String(x)) {
+    r = r * 10 + +v;
+    if (r < y) continue;
+    const q = Math.floor(r / y), first = Math.min(9, Math.floor(Math.floor(r / 10) / t));
+    most = Math.max(most, first - q + 1);
+    r -= q * y;
+  }
+  return most === 1 ? '9b' : most === 2 ? '9c' : '9d';
 }
 
 const LEVELS = [
@@ -322,6 +341,10 @@ const LEVELS = [
   { id: '8b', group: '第 8 級：除法（除數是一位數）', name: '要往下一位借來除', desc: '這一位扣完有剩，剩下的跟下一位合起來再除', div: '52÷4、96÷4、736÷4' },
   { id: '8c', group: '第 8 級：除法（除數是一位數）', name: '有餘數', desc: '除到個位還有剩，剩下的比除數小，就是餘數', div: '7÷2、14÷3、86÷4' },
   { id: '8d', group: '第 8 級：除法（除數是一位數）', name: '商有 0，或第一位比除數小', desc: '不夠除的那一位商要打 0；第一位不夠除時跟下一位合起來看', div: '80÷4、412÷4、240÷6、619÷3' },
+  { id: '9a', group: '第 9 級：除數是兩位數', name: '除數是整十', desc: '估商就是九九，例如 250÷70 看 25÷7', div: '60÷20、250÷70、840÷40' },
+  { id: '9b', group: '第 9 級：除數是兩位數', name: '試乘一次就對', desc: '先估商，心裡算除數 × 商，沒有超過才扣；每一位第一次估就對', div: '84÷21、96÷32、736÷23' },
+  { id: '9c', group: '第 9 級：除數是兩位數', name: '要試乘兩次', desc: '第一次估的商太大，試乘超過，商減 1 再試', div: '81÷27、156÷26、875÷25' },
+  { id: '9d', group: '第 9 級：除數是兩位數', name: '要試乘三次以上', desc: '大多是除數 11～19，估的商常常差兩、三', div: '96÷16、391÷17' },
 ];
 
 // 1～4 級的題型（數字有幾位），每一級在設定頁分別選。
@@ -331,8 +354,10 @@ const FORMS = [
   { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
   { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
   { id: 'D3', name: '三位數 ÷ 一位數', ex: '486÷2、736÷4' },
+  { id: 'E2', name: '兩位數 ÷ 兩位數', ex: '84÷21、81÷27' },
+  { id: 'E3', name: '三位數 ÷ 兩位數', ex: '736÷23、156÷26' },
 ];
-const divForm = x => x >= 100 ? 'D3' : 'D2';
+const divForm = (x, y) => y >= 10 ? (x >= 100 ? 'E3' : 'E2') : (x >= 100 ? 'D3' : 'D2');
 // 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
 function formOf(x, y, op) {
   const r = op === '+' ? x + y : x - y;
@@ -345,6 +370,7 @@ function inRange(lv, x, y, op, high) {
   // 第 7 級不出有 0 的數（× 10、× 20 其實是第 6 級的撥法）
   if (lv.startsWith('7')) return x >= 11 && x <= 99 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
   if (lv.startsWith('8')) return y >= 2 && y <= 9 && x >= y && x <= 999;
+  if (lv.startsWith('9')) return y >= 11 && y <= 99 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
   // 從最高位開始時，兩位數 ± 兩位數的進退位歸 5a、5c，範圍跟 5d 一樣
@@ -375,9 +401,9 @@ function buildBank(high) {
     const lv = classifyMul(x, y);
     if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, null]);
   }
-  for (let x = 2; x <= 999; x++) for (let y = 2; y <= 9; y++) {
+  for (let x = 2; x <= 999; x++) for (let y = 2; y <= 99 && y <= x; y++) {
     const lv = classifyDiv(x, y);
-    if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, divForm(x)]);
+    if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, divForm(x, y)]);
   }
   return bank;
 }
@@ -392,7 +418,7 @@ function parseAnswer(raw) {
   return { hasSign: m[1] === '#', value: parseInt(m[2], 10) };
 }
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyHigh, classifyMul, classifyDiv, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyHigh, classifyMul, classifyDiv, classifyDiv2, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
 </script>
 
 <!-- ===== 介面 ===== -->
@@ -417,7 +443,13 @@ const DIV_CHOICES = [
   ['D3', '三位數 ÷ 一位數'],
   ['D2 D3', '全部'],
 ];
-const hasForm = id => !!RANK[id] || id.startsWith('8');
+// 第 9 級（除數兩位數）的題型選單
+const DIV2_CHOICES = [
+  ['E2', '兩位數 ÷ 兩位數'],
+  ['E3', '三位數 ÷ 兩位數'],
+  ['E2 E3', '全部'],
+];
+const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9');
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
 // 第 5、6、7 級的題型是固定的，表格上直接寫出來
 function fixedForm(id) {
@@ -438,15 +470,15 @@ const pool = (op, lv) => { const f = formsFor(lv); return getBank()[op][lv].filt
 let session = null;
 
 // ---- 設定畫面 ----
-// 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8 級是除法）。勾選框的值是「級別|運算」，例如 2|+。
+// 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8、9 級是除法）。勾選框的值是「級別|運算」，例如 2|+。
 const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul'], ['÷', '除法', 'div']];
 function renderLevels() {
   const prev = new Set([...document.querySelectorAll('#level-list input:checked')].map(i => i.value));
   const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
   const first = !document.querySelector('#level-list input');
   const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
-  // 第 5～8 級各收在一個可以展開的標題下，預設收合
-  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數', '8': '第 8 級：除法（除數是一位數）' };
+  // 第 5～9 級各收在一個可以展開的標題下，預設收合
+  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數', '8': '第 8 級：除法（除數是一位數）', '9': '第 9 級：除數是兩位數' };
   const groups = [];
   for (const lv of LEVELS) {
     if (dirHigh() && lv.id.startsWith('5d')) continue;    // 從最高位開始沒有 5d
@@ -467,8 +499,8 @@ function renderLevels() {
     for (const lv of g.levels) {
       html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
       if (hasForm(lv.id)) {
-        const div = lv.id.startsWith('8'), cur = prevForm[lv.id] || (div ? 'D2' : 'F1');
-        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(div ? DIV_CHOICES : FORM_CHOICES).map(([v, t]) =>
+        const g8 = lv.id[0] === '8', g9 = lv.id[0] === '9', cur = prevForm[lv.id] || (g9 ? 'E2' : g8 ? 'D2' : 'F1');
+        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : FORM_CHOICES).map(([v, t]) =>
           `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
       } else html += `<td>${fixedForm(lv.id)}</td>`;
       for (const [op, name, key] of ops) {
@@ -498,12 +530,12 @@ function updateCounts() {
     const key = { '+': 'add', '-': 'sub', '÷': 'div' }[op];
     const lvObj = LEVELS.find(l => l.id === lv);
     // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
-    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x) : formOf(x, y, op)) === id; })
+    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x, y) : formOf(x, y, op)) === id; })
       || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
     document.querySelector(`#level-list .ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
   }
 }
-// 收合時也看得出第 5～8 級各勾了幾項
+// 收合時也看得出第 5～9 級各勾了幾項
 function countLv5() {
   for (const d of document.querySelectorAll('#level-list details')) {
     const all = [...d.querySelectorAll('input')];
