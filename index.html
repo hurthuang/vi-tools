@@ -510,6 +510,70 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#60a5fa" onclick="switchTo('frame-nbook')"
+             role="button" tabindex="0" aria-label="開啟數理點字教材" aria-describedby="desc-nbook"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-nbook')}">
+          <div class="tool-icon" aria-hidden="true">📘</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              數理點字教材
+              <span class="tool-badge" style="background:#60a5fa">Nemeth 2022</span>
+            </div>
+            <div class="tool-desc" id="desc-nbook">
+              依 108 課綱編寫的 Nemeth 數理點字教材：數字與符號、分數、幾何、指數根號，到高中的集合、三角函數、矩陣、積分，以及化學式與物理公式；例子的點字都由數學點字工具產生並與規則書核對。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">CH1～CH11</span>
+              <span class="feat-tag">算式與點字對照</span>
+              <span class="feat-tag">SimBraille 顯示</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#f87171" onclick="switchTo('frame-zbook')"
+             role="button" tabindex="0" aria-label="開啟台灣注音點字規則整理" aria-describedby="desc-zbook"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-zbook')}">
+          <div class="tool-icon" aria-hidden="true">📕</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              台灣注音點字規則整理
+              <span class="tool-badge" style="background:#f87171">國語點字</span>
+            </div>
+            <div class="tool-desc" id="desc-zbook">
+              國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及各種標點符號的點字與點寫規則；彙編沒有定義的符號另外提出建議。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">聲韻調</span>
+              <span class="feat-tag">標點符號</span>
+              <span class="feat-tag">點寫規則</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#34d399" onclick="switchTo('frame-ubook')"
+             role="button" tabindex="0" aria-label="開啟UEB 學習手冊" aria-describedby="desc-ubook"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-ubook')}">
+          <div class="tool-icon" aria-hidden="true">📗</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              UEB 學習手冊
+              <span class="tool-badge" style="background:#34d399">UEB</span>
+            </div>
+            <div class="tool-desc" id="desc-ubook">
+              給初學者的統一英文點字手冊：英文字母、數字、大寫、標點符號、簡寫字，各類縮寫，綜合練習與 UEB 相關輔助科技，最後附縮寫快速查詢表。黃偉豪、陳英廷著。
+            </div>
+            <div class="tool-features">
+              <span class="feat-tag">字母與數字</span>
+              <span class="feat-tag">縮寫</span>
+              <span class="feat-tag">練習單字</span>
+              <span class="feat-tag">縮寫快速查詢表</span>
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
       </div>
 
       <div class="addon-section-title">NVDA 附加元件</div>
@@ -567,6 +631,10 @@
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="點字樂譜"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸摸圖"></iframe>
   <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-label="珠算練習" title="珠算練習"></iframe>
+  <!-- 教材：第一次打開才載入（data-src），不拖慢首頁 -->
+  <iframe id="frame-nbook" class="panel" data-src="nemeth-book.html"          role="tabpanel" aria-label="數理點字教材" title="數理點字教材"></iframe>
+  <iframe id="frame-zbook" class="panel" data-src="zhuyin-braille-rules.html" role="tabpanel" aria-label="台灣注音點字規則整理" title="台灣注音點字規則整理"></iframe>
+  <iframe id="frame-ubook" class="panel" data-src="ueb-book.html"             role="tabpanel" aria-label="UEB 學習手冊" title="UEB 學習手冊"></iframe>
   <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
 
 </div>
@@ -620,6 +688,7 @@
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
     'frame-music': 'music', 'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
+    'frame-nbook': 'nemeth-book', 'frame-zbook': 'zhuyin-rules', 'frame-ubook': 'ueb-book',
     'frame-guide': 'guide'
   };
   const HASH_TO_TARGET = {};
@@ -636,6 +705,8 @@
       t.setAttribute('tabindex', isActive ? '0' : '-1');
     });
     panels.forEach(p => p.classList.toggle('active', p.id === targetId));
+    const p = document.getElementById(targetId);
+    if (p && p.dataset.src && !p.getAttribute('src')) p.src = p.dataset.src;
   }
 
   function switchTo(targetId) {

@@ -67,6 +67,9 @@ function build(book) {
   // 表格外面包一層可以左右捲動（手機窄螢幕）
   body = body.replace(/<table[^>]*>/g, '<div class="scroll"><table>').replace(/<colgroup>[\s\S]*?<\/colgroup>\n?/g, '')
     .replace(/<\/table>/g, '</table></div>');
+  // 文字裡的網址（Word 裡沒做成超連結的）改成連結；已經是連結的、標籤裡的不動
+  body = body.split(/(<a\b[\s\S]*?<\/a>|<[^>]+>)/).map((p, i) => i % 2 ? p
+    : p.replace(/https?:\/\/[^\s<>()（）、，。]+/g, u => `<a href="${u}">${u}</a>`)).join('');
   // 點字（Unicode U+2800～U+283F）包成 span，方便切換 SimBraille 顯示；只換標籤外面的文字
   body = body.replace(/(<[^>]*>)|([⠀-⠿]+)/g, (m, tag, brl) => tag || `<span class="brl">${brl}</span>`);
 
@@ -152,7 +155,8 @@ ${body}
 </body>
 </html>
 `;
-  return { page, chapters: toc.length };
+  // 外部連結開新視窗（教材在工具集的框架裡，學校網站等不能在框架裡開）
+  return { page: page.replace(/<a\s+href="(https?:[^"]*)"/g, '<a href="$1" target="_blank" rel="noopener"'), chapters: toc.length };
 }
 
 let bad = 0;

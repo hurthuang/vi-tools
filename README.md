@@ -19,6 +19,9 @@
 | 點字樂譜 | [music/](https://hurthuang.github.io/vi-tools/music/) | ABC 記譜／MusicXML 與點字樂譜（BANA Music Braille Code 2015）雙向轉換，支援單音、鋼琴雙手、和弦、歌詞（國語點字）與和弦名稱；五線譜預覽、點字對照學習單與 SVG／PNG／PDF 匯出；從游標處播放；逐音中文報讀；六點輸入；規則對照頁 |
 | 觸摸圖（測試版） | [tactile.html](https://hurthuang.github.io/vi-tools/tactile.html) | 從試題 PDF、Word（.docx，取出內嵌圖片）或截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn 觸摸圖：PDF 向量線條直接取用、點陣圖細化拉直並把網底轉成填色；A、B、C 等標籤自動轉點字（數學點字的下位數字與數字記號）並避開線條；每頁點字標題（國字依 zh-tw.ctb）；畫點、直線、箭頭、矩形、橢圓、選取搬移、灰／黑／點狀／斜線／格線填色、描圖模式；多種紙張尺寸；另有[說明頁](https://hurthuang.github.io/vi-tools/tactile-help.html)（含會考圖的處理方式）；可開啟既有 .prn 修改 |
 | 珠算練習 | [abacus/](https://hurthuang.github.io/vi-tools/abacus/) | 盲生用算盤代替直式的分級練習：依補數分級出題（加、減、兩位數乘一位數），點顯器摸讀題目、以 Nemeth 作答，六點輸入；老師預覽並匯出 .brl 題目；練習紀錄 CSV；附補數說明與教學法筆記 |
+| 數理點字教材 | [nemeth-book.html](https://hurthuang.github.io/vi-tools/nemeth-book.html) | 依 108 課綱編寫的 Nemeth 數理點字教材（CH1～CH11、附錄）：國小到高中數學、化學式、物理公式；例子點字由數學點字工具產生並與規則書核對；可切換 SimBraille 顯示 |
+| 台灣注音點字規則整理 | [zhuyin-braille-rules.html](https://hurthuang.github.io/vi-tools/zhuyin-braille-rules.html) | 國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號的點字與點寫規則 |
+| UEB 學習手冊 | [ueb-book.html](https://hurthuang.github.io/vi-tools/ueb-book.html) | 統一英文點字入門手冊：字母、數字、標點、簡寫字、各類縮寫、練習與縮寫快速查詢表（黃偉豪、陳英廷著，ISBN 978-626-01-4470-8） |
 
 ## 共同功能
 
@@ -55,3 +58,5 @@
 ## 授權
 
 點字轉換規則表版權歸屬原始 liblouis 專案（LGPL）。
+
+《UEB 學習手冊》（`ueb-book.html`、`document/教材/UEB 學習手冊.docx`）© 2025 黃偉豪、陳英廷，版權所有，未經著作權人書面授權不得重製、改作、公開發表或用於商業用途，不適用本 repo 其他檔案的授權。
