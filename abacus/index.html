@@ -321,6 +321,8 @@ const FORMS = [
   { id: 'F1', name: '20 以內', ex: '3+4、12+5、12−8' },
   { id: 'F2', name: '兩位數 ± 一位數', ex: '23+4、15+7、41−7' },
   { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
+  { id: 'G1', name: '加減一位數' },
+  { id: 'G2', name: '加減兩位數' },
   { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
   { id: 'D3', name: '三位數 ÷ 一位數', ex: '486÷2、736÷4' },
   { id: 'E2', name: '兩位數 ÷ 兩位數', ex: '84÷21、81÷27' },
@@ -354,7 +356,8 @@ function inRange(lv, x, y, op, high) {
 }
 
 // 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']，除法放在 bank['÷']。
-// 題型只有 1～4 級（F1～F3）和第 8 級（D2、D3）有，其他是 null。
+// 題型：1～4 級 F1～F3；5a、5b（5b-3 除外）看加數幾位 G1、G2（從最高位開始時兩種都有）；第 8、9 級 D、E；其他是 null。
+const lvForm = (lv, x, y, op) => RANK[lv] ? formOf(x, y, op) : /^5[ab]-[12]$/.test(lv) ? (y < 10 ? 'G1' : 'G2') : null;
 function buildBank(high) {
   const bank = { '+': {}, '-': {}, '×': {}, '÷': {} };
   for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
@@ -364,7 +367,7 @@ function buildBank(high) {
         if (op === '-' && y >= x) break;        // 不出答案是 0 的題目
         if (y >= 10 && x > 199) break;
         const lv = classify(x, y, op, high);
-        if (lv && inRange(lv, x, y, op, high)) bank[op][lv].push([x, y, RANK[lv] ? formOf(x, y, op) : null]);
+        if (lv && inRange(lv, x, y, op, high)) bank[op][lv].push([x, y, lvForm(lv, x, y, op)]);
       }
     }
   }
@@ -408,6 +411,12 @@ const FORM_CHOICES = [
   ['F3', '兩位數 ± 兩位數'],
   ['F1 F2 F3', '全部'],
 ];
+// 從最高位開始時 5a、5b 的題型選單：加數幾位（從個位開始時只有一位數加數，不用選）
+const LV5_CHOICES = [
+  ['G1', '加減一位數'],
+  ['G2', '加減兩位數'],
+  ['G1 G2', '全部'],
+];
 // 第 8 級（除法）的題型選單：被除數幾位
 const DIV_CHOICES = [
   ['D2', '兩位數以內 ÷ 一位數'],
@@ -422,7 +431,7 @@ const DIV2_CHOICES = [
   ['E4', '三位數 ÷ 兩位數，商兩位'],
   ['E2 E3 E4', '全部'],
 ];
-const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9');
+const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9') || (dirHigh() && /^5[ab]-[12]$/.test(id));
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
 // 第 5、6、7 級的題型是固定的，表格上直接寫出來
 function fixedForm(id) {
@@ -477,8 +486,8 @@ function renderLevels() {
     for (const lv of g.levels) {
       html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
       if (hasForm(lv.id)) {
-        const g8 = lv.id[0] === '8', g9 = lv.id[0] === '9', cur = prevForm[lv.id] || (g9 ? 'E2' : g8 ? 'D2' : 'F1');
-        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : FORM_CHOICES).map(([v, t]) =>
+        const g5 = lv.id[0] === '5', g8 = lv.id[0] === '8', g9 = lv.id[0] === '9', cur = prevForm[lv.id] || (g9 ? 'E2' : g8 ? 'D2' : g5 ? 'G1' : 'F1');
+        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? LV5_CHOICES : FORM_CHOICES).map(([v, t]) =>
           `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
       } else html += `<td>${fixedForm(lv.id)}</td>`;
       for (const [op, name, key] of ops) {
@@ -508,7 +517,7 @@ function updateCounts() {
     const key = { '+': 'add', '-': 'sub', '÷': 'div' }[op];
     const lvObj = LEVELS.find(l => l.id === lv);
     // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
-    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x, y) : formOf(x, y, op)) === id; })
+    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x, y) : lvForm(lv, x, y, op)) === id; })
       || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
     document.querySelector(`#level-list .ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
   }

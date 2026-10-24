@@ -5,13 +5,15 @@
  * 加減法照出題頁的 trace()：dir = 'high' 從最高位往右、'low' 從個位往左；進位、借位時先動左邊一檔，再回來用補數修正。
  * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列）；乘回來扣的時候照 dir，跟減法一樣。
  * 乘法只從個位開始。dir 沒給時用全站設定（abacus-dir.js），沒有全站設定時從最高位開始。
- * abacusSteps(x, y, op, dir) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
+ * 除數兩位數：商在心裡估好、試乘確認後，除數一位一位乘、一位一位扣（156 ÷ 26 商 6：先扣 2 × 6 = 12，再扣 6 × 6 = 36）。
+ * merge：小補數的上下珠一步撥完（第 5 級以後的預設）；沒給時分兩步（1～4 級學小補數時）。
+ * abacusSteps(x, y, op, dir, merge) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
 (function (g) {
   'use strict';
   const PLACE = ['個位', '十位', '百位', '千位', '萬位', '十萬位'];
 
-  function abacusSteps(x, y, op, dir) {
+  function abacusSteps(x, y, op, dir, merge) {
     const d = String(op === '×' ? 0 : x).split('').reverse().map(Number);
     while (d.length < 6) d.push(0);
     const steps = [{ d: d.slice(), moved: [], text: `算盤上撥好 ${x}。` }];
@@ -29,7 +31,9 @@
       } else if (low + v <= 4) {
         d[k] += v; push([k], `${R}撥上下珠 ${v} 顆。`);
       } else {
-        d[k] += 5; push([k], `${R}${low === 4 ? '下珠已經全部撥上去了' : `下珠只剩 ${4 - low} 顆空著`}，不夠加 ${v}，先撥下上珠（加 5）。`);
+        const why = `${R}${low === 4 ? '下珠已經全部撥上去了' : `下珠只剩 ${4 - low} 顆空著`}，不夠加 ${v}`;
+        if (merge) { d[k] += v; push([k], `${why}，用小補數：撥下上珠，同時拿掉下珠 ${5 - v} 顆（加 5、減 ${5 - v}）。`); return; }
+        d[k] += 5; push([k], `${why}，先撥下上珠（加 5）。`);
         d[k] -= 5 - v; push([k], `5 比 ${v} 多了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以拿掉下珠 ${5 - v} 顆。`);
       }
     }
@@ -41,7 +45,9 @@
       } else if (low >= v) {
         d[k] -= v; push([k], `${R}拿掉下珠 ${v} 顆。`);
       } else {
-        d[k] -= 5; push([k], `${R}${low ? `下珠只有 ${low} 顆` : '沒有撥上的下珠'}，不夠拿掉 ${v}，先拿掉上珠（減 5）。`);
+        const why = `${R}${low ? `下珠只有 ${low} 顆` : '沒有撥上的下珠'}，不夠拿掉 ${v}`;
+        if (merge) { d[k] -= v; push([k], `${why}，用小補數：拿掉上珠，同時撥上下珠 ${5 - v} 顆（減 5、加 ${5 - v}）。`); return; }
+        d[k] -= 5; push([k], `${why}，先拿掉上珠（減 5）。`);
         d[k] += 5 - v; push([k], `5 比 ${v} 多減了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以撥上下珠 ${5 - v} 顆。`);
       }
     }
@@ -140,9 +146,19 @@
             else { est += `${y} × ${c} = ${pc}，${r} − ${pc} = ${r - pc}，還夠再扣一個 ${y}，太少了，試 ${c + 1}。`; c++; }
           }
           push([], est + `${y} × ${q} = ${p}，沒有超過` + (up ? `，${r} − ${p} = ${r - p}，比 ${y} 小` : '') + `，商的${R}打 ${q}。`);
-          pending += `算盤上把 ${p} 一次扣掉：`;
-        } else pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
-        apply(p, k, sub, '減', true, dir === 'high');
+          // 確認後在算盤上一位一位扣：除數的十位 × 商從上一位扣起，再扣除數的個位 × 商
+          const t = Math.floor(y / 10), top = Math.floor(r / 10), pt = t * q, pu = (y % 10) * q;
+          pending += `算盤上扣：除數的十位 ${t} × ${q} = ${pt}，從${PLACE[k + 1]}起扣，${top} − ${pt} = ${top - pt}：`;
+          apply(pt, k + 1, sub, '減', true, dir === 'high');
+          if (pu) {
+            const now = (top - pt) * 10 + r % 10;
+            pending += `${top - pt ? `${top - pt} 跟${R}的 ${r % 10} 合起來是 ${now}` : `${R}是 ${now}`}，除數的個位 ${y % 10} × ${q} = ${pu}，扣掉：`;
+            apply(pu, k, sub, '減', true, dir === 'high');
+          }
+        } else {
+          pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
+          apply(p, k, sub, '減', true, dir === 'high');
+        }
         r -= p;
         steps[steps.length - 1].text += r ? `剩下 ${r}${k ? `，跟${PLACE[k - 1]}合起來看` : ''}。` : k ? '剛好扣完。' : '';
       });
@@ -193,6 +209,7 @@
 .abd-dir label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
 .abd-dir label:has(input:disabled){opacity:.5;cursor:default}
 .abd-dir-note{flex-basis:100%;color:var(--muted);font-size:.9rem}
+.abd-merge{display:inline-flex;gap:4px;align-items:center;font-size:.95rem;cursor:pointer}
 :root{--abd-wood:#4a2c12;--abd-bg:#fffdf7;--abd-rod:#5c4a36;--abd-bead:#c06a1c;--abd-edge:#3d2208;--abd-moved:#0047b3;--abd-moved-edge:#001f52;--abd-hl:#ffe9a3}
 :root[data-theme="dark"]{--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}}
@@ -216,6 +233,7 @@
           <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label>
           <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label>
           <span class="abd-dir-note"></span></span>
+        <label class="abd-merge"><input type="checkbox" name="abd-merge"> 小補數上下珠一起撥（第 5 級以後）</label>
         <span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
@@ -237,7 +255,7 @@
     function load(x, y, op, dir) {
       stop();
       cur = [x, y, op];
-      steps = abacusSteps(x, y, op, dir);
+      steps = abacusSteps(x, y, op, dir, curMerge());
       divisor = op === '÷' ? y : 0;
       quo.hidden = !divisor;
       const top = Math.max(x, op === '+' ? x + y : op === '×' ? x * y : x);
@@ -302,6 +320,10 @@
     const globalDir = () => (g.AbacusDir ? g.AbacusDir.get() : 'high');
     function setDir(v) { const r = form && form.querySelector(`input[name=abd-dir][value=${v}]`); if (r) r.checked = true; }
     function curDir() { const r = form && form.querySelector('input[name=abd-dir]:checked'); return r ? r.value : globalDir(); }
+    const mergeBox = form && form.querySelector('input[name=abd-merge]');
+    let mergeOpt = !!opts.merge;
+    function curMerge() { return mergeBox ? mergeBox.checked : mergeOpt; }
+    function setMerge(v) { mergeOpt = !!v; if (mergeBox) mergeBox.checked = !!v; }
     let fixDir = () => {};
     if (form) {
       const [ix, iy] = form.querySelectorAll('input[type=number]'), sel = form.querySelector('select'), err = form.querySelector('.abd-err');
@@ -315,7 +337,10 @@
         note.textContent = op === '×' ? '（乘法只從個位開始）' : op === '÷' ? '（除法從最高位開始除，扣的方向跟頁面上方的設定）' : '（只在動畫裡對照，不改頁面上方的設定）';
       };
       sel.addEventListener('change', fixDir);
+      // 自己出題換成乘、除時，小補數預設一起撥（乘除都在第 5 級以後）
+      sel.addEventListener('change', e => { if (e.isTrusted && (sel.value === '×' || sel.value === '÷')) setMerge(true); });
       dirRow.addEventListener('change', () => form.requestSubmit());
+      mergeBox.addEventListener('change', () => form.requestSubmit());
       form.onsubmit = e => {
         e.preventDefault();
         const x = +ix.value, y = +iy.value, op = sel.value;
@@ -329,14 +354,16 @@
       };
     }
     setDir(opts.dir || globalDir());
+    setMerge(opts.merge);
     fixDir();
     let cur = [opts.x, opts.y, opts.op];
     // 全站方向改了：動畫也換成新的方向（面板裡暫時的對照就不留了）
     g.addEventListener('abacusdirchange', () => { setDir(globalDir()); fixDir(); load(...cur, curDir()); });
     load(opts.x, opts.y, opts.op, curDir());
     return {
-      // 換一題（例題按鈕用），自己出題的欄位也一起改
-      show(x, y, op, dir) {
+      // 換一題（例題按鈕用），自己出題的欄位也一起改；merge 有給時一起設定小補數撥法
+      show(x, y, op, dir, merge) {
+        if (merge !== undefined) setMerge(merge);
         if (form) {
           const [ix, iy] = form.querySelectorAll('input[type=number]'); ix.value = x; iy.value = y;
           const sel = form.querySelector('select'); sel.value = op; sel.dispatchEvent(new Event('change'));

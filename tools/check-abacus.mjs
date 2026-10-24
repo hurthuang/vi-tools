@@ -3,7 +3,7 @@
 // 2. 各級撥珠教法（complement.html）的小標題「6a 級：名稱（例：…）」要跟 abacus-levels.js 的名稱一致，例題要在那一級的代表例題裡
 // 3. 1～4、6～9 級每一級在各級撥珠教法都有小標題
 // 4. 題庫：每一題分級後落在自己那一級；兩種撥珠方向的題庫跟快照（fixtures/abacus-bank.json）一樣
-// 5. 撥珠動畫：加減乘除、兩種方向，最後算盤上的數（除法是餘數）和點顯器上的商都對，每一步只動到說明裡的檔
+// 5. 撥珠動畫：加減乘除、兩種方向、小補數分兩步或一起撥，最後算盤上的數（除法是餘數）和點顯器上的商都對，每一步只動到說明裡的檔
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
@@ -92,9 +92,10 @@ else {
 // 5. 撥珠動畫
 const val = d => d.reduce((s, v, t) => s + v * 10 ** t, 0);
 let anim = 0;
-function animCheck(x, y, op, dir) {
+function animCheck(x, y, op, dir) { for (const merge of [false, true]) animCheck1(x, y, op, dir, merge); }
+function animCheck1(x, y, op, dir, merge) {
   anim++;
-  const st = abacusSteps(x, y, op, dir), last = st[st.length - 1];
+  const st = abacusSteps(x, y, op, dir, merge), last = st[st.length - 1];
   const want = op === '+' ? x + y : op === '-' ? x - y : op === '×' ? x * y : x % y;
   if (val(last.d) !== want) return fail(`動畫 ${x}${op}${y}（${dir}）最後算盤上是 ${val(last.d)}，應該是 ${want}`);
   if (op === '÷' && last.q !== String(Math.floor(x / y))) return fail(`動畫 ${x}÷${y}（${dir}）商是 ${last.q}`);
