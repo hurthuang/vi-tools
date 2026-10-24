@@ -68,6 +68,10 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   <fieldset id="levels">
     <legend>級數與運算（可複選）</legend>
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
+    <p role="radiogroup" aria-labelledby="dir-title"><span id="dir-title">加減法撥珠方向：</span>
+      <label><input type="radio" name="dir" value="low" checked> 從個位開始（摸讀題目）</label>
+      <label><input type="radio" name="dir" value="high"> 從最高位開始（聽題目）</label></p>
+    <p class="hint">只影響兩位數 ± 兩位數的分級。從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5d。乘法一律從個位開始，除法一律從最高位開始。</p>
     <div id="level-list"></div>
     <button type="button" class="secondary" id="all-on">全選</button>
     <button type="button" class="secondary" id="all-off">全不選</button>
@@ -173,8 +177,8 @@ function subd(a, n) {
   return lo(a) + c <= 4 ? '3a' : '4';
 }
 
-// 從個位往左模擬撥珠，進位／借位馬上撥到左邊一位。
-function trace(x, y, op) {
+// 模擬撥珠，進位／借位馬上撥到左邊一位。預設從個位往左；high 是從最高位往右。
+function trace(x, y, op, high) {
   const d = String(x).split('').reverse().map(Number);
   while (d.length < 6) d.push(0);
   const ys = String(y).split('').reverse().map(Number);
@@ -191,7 +195,9 @@ function trace(x, y, op) {
       if (s < 0) apply(k + 1, 1, true);
     }
   }
-  ys.forEach((v, k) => { if (v) apply(k, v, false); });
+  const order = ys.map((v, k) => [k, v]).filter(([, v]) => v);
+  if (high) order.reverse();
+  order.forEach(([k, v]) => apply(k, v, false));
   return steps;
 }
 
@@ -200,8 +206,9 @@ function trace(x, y, op) {
 // 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5c）、
 // 進位撞上這一檔自己要加的數（5d）。
 const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3, '4': 4 };
-function classify(x, y, op) {
+function classify(x, y, op, high) {
   if (y % 10 === 0) return null;            // 個位一定要撥
+  if (high && y >= 10) return classifyHigh(x, y, op);
   const st = trace(x, y, op);
   const ones = st[0];
   const carries = st.filter(s => s.carry);
@@ -228,6 +235,19 @@ function classify(x, y, op) {
   if (nC >= 2) return has4 ? '5d-5' : '5d-4';
   if (has4) return '5d-3b';
   return st.slice(1).every(s => s.L === '1') ? '5d-2' : '5d-3';
+}
+
+// 從最高位開始（聽題目的學生）：十位先撥完，個位那一步就是「兩位數 ± 一位數」，
+// 照 1～4、5a、5c 的分法；進位不會撞上還沒撥的十位，所以沒有 5d。
+// 十位那一步比個位那一步難時：1～4 級取比較難的；第 5 級不歸類。
+function classifyHigh(x, y, op) {
+  const tens = y - y % 10, x2 = op === '+' ? x + tens : x - tens;
+  const st = trace(x, tens, op);
+  if (st.some(s => s.carry && s.L !== '1')) return null;
+  const Lt = st[0].L, c = classify(x2, y % 10, op);
+  if (!c) return null;
+  if (RANK[c]) return RANK[Lt] > RANK[c] ? Lt : c;
+  return RANK[Lt] <= (/-2$/.test(c) || c === '5c-3' ? 4 : 3) ? c : null;
 }
 
 // 乘法：照直式，乘數從個位開始一位一位乘（76 × 58 先算 76 × 8，再算 76 × 5），
@@ -322,13 +342,15 @@ function formOf(x, y, op) {
   if (x <= 20 && r <= 20) return 'F1';
   return x <= 99 ? 'F2' : null;
 }
-function inRange(lv, x, y, op) {
+function inRange(lv, x, y, op, high) {
   if (lv.startsWith('6')) return x >= 2 && x <= 99 && y >= 2 && y <= 9;
   // 第 7 級不出有 0 的數（× 10、× 20 其實是第 6 級的撥法）
   if (lv.startsWith('7')) return x >= 11 && x <= 99 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
   if (lv.startsWith('8')) return y >= 2 && y <= 9 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
+  // 從最高位開始時，兩位數 ± 兩位數的進退位歸 5a、5c，範圍跟 5d 一樣
+  if (high && !one && /^5[ac]/.test(lv)) return x >= 10 && x <= (op === '+' ? 99 : 199) && y <= 99;
   if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
   if (lv.startsWith('5c')) return one && x >= 10 && x <= 999;
   // 5d
@@ -338,7 +360,7 @@ function inRange(lv, x, y, op) {
 
 // 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']，除法放在 bank['÷']。
 // 題型只有 1～4 級（F1～F3）和第 8 級（D2、D3）有，其他是 null。
-function buildBank() {
+function buildBank(high) {
   const bank = { '+': {}, '-': {}, '×': {}, '÷': {} };
   for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
   for (const op of ['+', '-']) {
@@ -346,8 +368,8 @@ function buildBank() {
       for (let y = 1; y <= 99; y++) {
         if (op === '-' && y >= x) break;        // 不出答案是 0 的題目
         if (y >= 10 && x > 199) break;
-        const lv = classify(x, y, op);
-        if (lv && inRange(lv, x, y, op)) bank[op][lv].push([x, y, RANK[lv] ? formOf(x, y, op) : null]);
+        const lv = classify(x, y, op, high);
+        if (lv && inRange(lv, x, y, op, high)) bank[op][lv].push([x, y, RANK[lv] ? formOf(x, y, op) : null]);
       }
     }
   }
@@ -372,15 +394,16 @@ function parseAnswer(raw) {
   return { hasSign: m[1] === '#', value: parseInt(m[2], 10) };
 }
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyMul, classifyDiv, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyHigh, classifyMul, classifyDiv, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
 </script>
 
 <!-- ===== 介面 ===== -->
 <script>
 const $ = id => document.getElementById(id);
 const MAX_TRIES = 3;                     // 第一次 + 重試兩次
-let bankCache = null;
-const getBank = () => bankCache || (bankCache = buildBank());
+const banks = {};
+const dirHigh = () => document.querySelector('input[name=dir]:checked').value === 'high';
+const getBank = () => { const k = dirHigh() ? 'high' : 'low'; return banks[k] || (banks[k] = buildBank(k === 'high')); };
 
 // 1～4 級每一列的題型選單
 const FORM_CHOICES = [
@@ -402,6 +425,7 @@ const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
 function fixedForm(id) {
   if (id === '5c-3') return '三位數 ± 一位數';
   if (id.startsWith('5d')) return '兩位數 ± 兩位數';
+  if (dirHigh() && id !== '5c-3') return '兩位數 ± 一位數、兩位數';
   if (id.startsWith('5')) return '兩位數 ± 一位數';
   if (id.startsWith('7')) return '兩位數 × 兩位數';
   return id === '6a' ? '一位數 × 一位數' : '兩位數 × 一位數';
@@ -427,6 +451,7 @@ function renderLevels() {
   const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數', '8': '第 8 級：除法（除數是一位數）' };
   const groups = [];
   for (const lv of LEVELS) {
+    if (dirHigh() && lv.id.startsWith('5d')) continue;    // 從最高位開始沒有 5d
     const g = groups[groups.length - 1];
     if (g && g.name === lv.group) g.levels.push(lv);
     else groups.push({ name: lv.group, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
@@ -490,6 +515,7 @@ function countLv5() {
 $('all-on').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
 $('all-off').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
 $('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateCounts(); countLv5(); });
+document.querySelectorAll('input[name=dir]').forEach(r => r.addEventListener('change', () => { renderLevels(); clearPreview(); }));
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -549,6 +575,7 @@ function startSession(problems) {
     sixEcho: $('six-echo').checked,
     sound: $('sound').checked,
     pre: document.querySelector('input[name=pre]:checked').value,
+    dir: dirHigh() ? '從最高位開始' : '從個位開始',
     started: new Date(),
     problems: problems.map(p => ({ ...p, answer: calc(p), rem: remOf(p), tries: [], correct: false, done: false })),
     idx: 0,
@@ -837,12 +864,12 @@ $('export-brf').onclick = () => {
 $('download').onclick = () => {
   const dt = session.started;
   const stamp = stampOf(dt);
-  const rows = [['學生', '日期', '題號', '題目', '正確答案', '級數', '題型', '第1次', '第2次', '第3次', '結果', '作答次數', '少打數字記號']];
+  const rows = [['學生', '日期', '題號', '題目', '正確答案', '級數', '題型', '第1次', '第2次', '第3次', '結果', '作答次數', '少打數字記號', '加減法撥珠方向']];
   session.problems.forEach((p, i) => {
     if (!p.done) return;
     const tr = [0, 1, 2].map(k => p.tries[k] ? showTry(p.tries[k]) : '');
     rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), ansText(p), p.lv, formName(p.form) || fixedForm(p.lv), ...tr,
-      p.correct ? '對' : '錯', p.tries.length, p.tries.filter(t => !t.hasSign).length]);
+      p.correct ? '對' : '錯', p.tries.length, p.tries.filter(t => !t.hasSign).length, session.dir]);
   });
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   saveFile(`珠算練習_${session.student || '學生'}_${stamp}.csv`, csv, 'text/csv;charset=utf-8');
