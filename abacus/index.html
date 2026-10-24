@@ -28,10 +28,15 @@ table.lv-table{margin:8px 0}
 .lv-table td label{margin:0}
 .lv-table select{font:inherit;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);max-width:100%}
 .lv-table .cnt{color:var(--muted);font-size:.9rem;white-space:nowrap}
-details.lv5{margin:8px 0;border-top:1px solid var(--line);padding-top:4px}
-details.lv5>summary{cursor:pointer;font-weight:700;padding:4px 0}
-.group-btns{margin:6px 0}
-.group-btns button{padding:4px 12px;font-size:.95rem}
+/* 每一組的標題列：組名（第 5～9 級是展開按鈕）後面接這一組的全選核取方塊，收合時也能勾 */
+.grp-head{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;margin:12px 0 0;border-top:1px solid var(--line);padding-top:6px}
+.grp-head .grp-title{font-weight:700}
+.grp-head button.fold{background:none;border:0;color:var(--fg);font-weight:700;padding:4px 0;margin:0;text-align:left}
+.grp-head button.fold::before{content:'▶ ';display:inline-block;width:1.4em;color:var(--muted)}
+.grp-head button.fold[aria-expanded=true]::before{content:'▼ '}
+.grp-head label{margin:4px 0}
+.grp-head .grp-count{color:var(--muted);font-size:.9rem}
+.cap-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #preview ol{background:var(--card);border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 8px 8px 3em}
 #preview li{margin:2px 0}
 input[type=text],input[type=number]{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
@@ -437,10 +442,10 @@ let session = null;
 // 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8、9 級是除法）。勾選框的值是「級別|運算」，例如 2|+。
 const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul'], ['÷', '除法', 'div']];
 function renderLevels() {
-  const prev = new Set([...document.querySelectorAll('#level-list input:checked')].map(i => i.value));
+  const prev = new Set([...document.querySelectorAll('#level-list .lv-table input:checked')].map(i => i.value));
   const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
-  const first = !document.querySelector('#level-list input');
-  const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
+  const first = !document.querySelector('#level-list .lv-table input');
+  const open = new Set([...document.querySelectorAll('#level-list button.fold[aria-expanded=true]')].map(b => b.dataset.group));
   // 第 5～9 級各收在一個可以展開的標題下，預設收合；組名和表格標題跟另外兩頁一樣（abacus-levels.js）
   const FOLD = Object.fromEntries(AbacusLevels.GROUPS.filter(gr => gr.key !== '1').map(gr => [gr.key, gr.title]));
   const groups = [];
@@ -451,23 +456,23 @@ function renderLevels() {
     if (g && g.name === cap) g.levels.push(lv);
     else groups.push({ name: cap, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
   }
-  let html = '', fold = '', gkey = '';
+  let html = '', gkey = '';
   for (const g of groups) {
-    if (g.fold !== fold) {
-      if (fold) html += '</details>';
-      if (g.fold) html += `<details class="lv5" data-lv="${g.fold}"${open.has(g.fold) ? ' open' : ''}><summary>${FOLD[g.fold]}（<span class="fold-count"></span>）</summary>`;
-      fold = g.fold;
-    }
-    // 每一組（第 1～4 級、第 5 級……）前面放這一組的全選、全不選
+    // 每一組（第 1～4 級、第 5 級……）一個標題列：組名後面是全選核取方塊（部分勾選時呈現半選）和已選幾項
     const key = AbacusLevels.groupOf(g.levels[0].id);
     if (key !== gkey) {
-      const t = AbacusLevels.groupTitle(key).split('：')[0];
-      html += `<div class="group-btns"><button type="button" class="secondary" data-group="${key}" data-on="1" aria-label="${t}全選">全選</button>
-        <button type="button" class="secondary" data-group="${key}" data-on="" aria-label="${t}全不選">全不選</button></div>`;
+      if (gkey) html += '</div>';
+      const title = AbacusLevels.groupTitle(key), t = title.split('：')[0], fold = !!FOLD[key];
+      html += `<div class="grp-head">` +
+        (fold ? `<button type="button" class="fold" data-group="${key}" aria-expanded="${open.has(key)}" aria-controls="grp-${key}">${title}</button>`
+              : `<span class="grp-title">${title}</span>`) +
+        `<label><input type="checkbox" class="grp-all" data-group="${key}" aria-label="${t}全選"> 全選</label>` +
+        `<span class="grp-count" data-group="${key}"></span></div>` +
+        `<div class="grp-body" id="grp-${key}"${fold && !open.has(key) ? ' hidden' : ''}>`;
       gkey = key;
     }
     const ops = OPS.filter(([, , key]) => g.levels.some(lv => lv[key]));
-    html += `<table class="lv-table"><caption>${g.name}</caption>
+    html += `<table class="lv-table"><caption${g.name === AbacusLevels.groupTitle(gkey) ? ' class="cap-hidden"' : ''}>${g.name}</caption>
       <tr><th scope="col">級別</th><th scope="col">題型</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
     for (const lv of g.levels) {
       html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
@@ -487,7 +492,7 @@ function renderLevels() {
     }
     html += '</table>';
   }
-  if (fold) html += '</details>';
+  if (gkey) html += '</div>';
   $('level-list').innerHTML = html;
   updateCounts();
   countLv5();
@@ -510,22 +515,30 @@ function updateCounts() {
 }
 // 收合時也看得出第 5～9 級各勾了幾項
 function countLv5() {
-  for (const d of document.querySelectorAll('#level-list details')) {
-    const all = [...d.querySelectorAll('input')];
-    d.querySelector('.fold-count').textContent = `已選 ${all.filter(i => i.checked).length} 項，共 ${all.length} 項`;
+  for (const box of document.querySelectorAll('#level-list .grp-all')) {
+    const all = [...document.querySelectorAll(`#grp-${box.dataset.group} input[type=checkbox]`)], n = all.filter(i => i.checked).length;
+    box.checked = n === all.length;
+    box.indeterminate = n > 0 && n < all.length;
+    document.querySelector(`#level-list .grp-count[data-group="${box.dataset.group}"]`).textContent = `已選 ${n} 項，共 ${all.length} 項`;
   }
 }
-$('all-on').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
-$('all-off').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
+$('all-on').onclick = () => { document.querySelectorAll('#level-list .lv-table input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
+$('all-off').onclick = () => { document.querySelectorAll('#level-list .lv-table input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
 $('level-list').addEventListener('click', e => {
-  const b = e.target.closest('button[data-group]');
+  const b = e.target.closest('button.fold');
   if (!b) return;
-  document.querySelectorAll('#level-list input[type=checkbox]').forEach(i => {
-    if (AbacusLevels.groupOf(i.value.split('|')[0]) === b.dataset.group) i.checked = !!b.dataset.on;
-  });
-  countLv5(); clearPreview();
+  const on = b.getAttribute('aria-expanded') !== 'true';
+  b.setAttribute('aria-expanded', on);
+  $('grp-' + b.dataset.group).hidden = !on;
 });
-$('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateCounts(); countLv5(); });
+$('level-list').addEventListener('change', e => {
+  if (e.target.classList.contains('grp-all')) {
+    document.querySelectorAll(`#grp-${e.target.dataset.group} input[type=checkbox]`).forEach(i => i.checked = e.target.checked);
+    clearPreview();
+  }
+  if (e.target.tagName === 'SELECT') updateCounts();
+  countLv5();
+});
 AbacusDir.mount($('dir-switch'));
 window.addEventListener('abacusdirchange', () => { renderLevels(); clearPreview(); });
 
@@ -644,7 +657,7 @@ $('start').onclick = () => {
 };
 
 function newProblems() {
-  const picks = [...document.querySelectorAll('#level-list input:checked')].map(i => i.value);
+  const picks = [...document.querySelectorAll('#level-list .lv-table input:checked')].map(i => i.value);
   const count = Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10));
   const problems = makeProblems(picks, count);
   if (!problems.length) {
