@@ -130,11 +130,16 @@
         const q = Math.floor(r / y), p = q * y;
         qs += q;
         if (y >= 10) {
-          const top = Math.floor(r / 10), t = Math.floor(y / 10);
-          const first = y % 10 ? Math.min(9, Math.floor(top / t)) : q;
-          let est = `${look}。心裡估商（算盤不動）：` + (y % 10 ? `${top} ÷ ${t}，先試 ${first}。` : `除數是整十，看 ${top} ÷ ${t}，試 ${q}。`);
-          for (let c = first; c > q; c--) est += `${y} × ${c} = ${y * c}，比 ${r} 大，太多了，試 ${c - 1}。`;
-          push([], est + `${y} × ${q} = ${p}，沒有超過，商的${R}打 ${q}。`);
+          // 除數看成最接近的整十：第二位 1～4 往下看（只會估太大），5～9 往上看（只會估太小）
+          const u = y % 10, up = u >= 5, near = (Math.floor(y / 10) + (up ? 1 : 0)) * 10;
+          let c = Math.max(1, Math.min(9, Math.floor(r / near)));
+          let est = `${look}。心裡估商（算盤不動）：` + (u ? `除數 ${y} 看成 ${near}，${Math.floor(r / 10)} ÷ ${near / 10}，先試 ${c}。` : `除數是整十，看 ${Math.floor(r / 10)} ÷ ${near / 10}，試 ${c}。`);
+          while (c !== q) {
+            const pc = y * c;
+            if (c > q) { est += `${y} × ${c} = ${pc}，比 ${r} 大，太多了，試 ${c - 1}。`; c--; }
+            else { est += `${y} × ${c} = ${pc}，${r} − ${pc} = ${r - pc}，還夠再扣一個 ${y}，太少了，試 ${c + 1}。`; c++; }
+          }
+          push([], est + `${y} × ${q} = ${p}，沒有超過` + (up ? `，${r} − ${p} = ${r - p}，比 ${y} 小` : '') + `，商的${R}打 ${q}。`);
           pending += `算盤上把 ${p} 一次扣掉：`;
         } else pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
         apply(p, k, sub, '減', true, dir === 'high');

@@ -296,22 +296,14 @@ function classifyDiv(x, y) {
   return borrow ? '8b' : '8a';
 }
 
-// 第 9 級（除數兩位數）：商要先估，心裡試乘「除數 × 商」沒有超過才在算盤上一次扣掉。
-// 分級看最多要試乘幾次，從「去掉最後一位 ÷ 除數十位」估起（只會估太大或剛好，往下試）：
-// 9a 除數是整十（估商就是九九）、9b 每一位一次就對、9c 要試兩次、9d 要試三次以上。
+// 第 9 級（除數兩位數）：商要先估，除數看成最接近的整十，心裡試乘「除數 × 商」確認了才在算盤上一次扣掉。
+// 分級看除數的第二位（之後除數三位數也看第二位）：第二位乘以商會進位到前一位，離整十越遠越容易估錯。
+// 9a 整十；9b 第二位 1～3（看成小一號的整十，只會估太大）；9c 第二位 7～9（看成大一號的整十，只會估太小）；
+// 9d 第二位 4～6（4 往下、5、6 往上，離整十最遠）。
 function classifyDiv2(x, y) {
   if (y < 11 || y > 99) return null;
-  if (y % 10 === 0) return '9a';
-  const t = Math.floor(y / 10);
-  let r = 0, most = 1;
-  for (const v of String(x)) {
-    r = r * 10 + +v;
-    if (r < y) continue;
-    const q = Math.floor(r / y), first = Math.min(9, Math.floor(Math.floor(r / 10) / t));
-    most = Math.max(most, first - q + 1);
-    r -= q * y;
-  }
-  return most === 1 ? '9b' : most === 2 ? '9c' : '9d';
+  const u = y % 10;
+  return !u ? '9a' : u <= 3 ? '9b' : u >= 7 ? '9c' : '9d';
 }
 
 // 分級的名稱、說明、例題放在 abacus-levels.js，三個珠算頁面共用
