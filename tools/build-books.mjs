@@ -124,6 +124,7 @@ code{font-family:Consolas,monospace}
 <body>
 <main>
 <div class="bar">
+  <a href="books.html">📚 所有教材</a>
   <a href="${book.tool[0]}">${book.tool[1]}</a>
   <label><input type="checkbox" id="simbrl"> 點字用 SimBraille 字型顯示（ASCII 點字）</label>
 </div>
@@ -156,12 +157,39 @@ ${body}
 </html>
 `;
   // 外部連結開新視窗（教材在工具集的框架裡，學校網站等不能在框架裡開）
-  return { page: page.replace(/<a\s+href="(https?:[^"]*)"/g, '<a href="$1" target="_blank" rel="noopener"'), chapters: toc.length };
+  return { title, page: page.replace(/<a\s+href="(https?:[^"]*)"/g, '<a href="$1" target="_blank" rel="noopener"'), chapters: toc.length };
+}
+
+// 教材列表 books.html（首頁「點字教材」卡片打開的頁面）：書名、說明照 BOOKS，樣式沿用教材頁
+function listPage(pages) {
+  const css = pages[0].page.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const items = BOOKS.map((b, i) => `<h2><a href="${b.out}">${pages[i].title}</a></h2>\n<p>${b.lead}</p>`).join('\n');
+  return `<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 這個檔案由 tools/build-books.mjs 產生，不要直接改 -->
+<title>點字教材</title>
+<script src="music/js/theme.js"></script>
+<style>${css}</style>
+</head>
+<body>
+<main>
+<h1>點字教材</h1>
+<p class="lead">每本教材的章、節都是標題，NVDA 可以用標題鍵跳讀；點字可以用點顯器摸讀，頁首也可以切換成 SimBraille 字型顯示。</p>
+${items}
+</main>
+</body>
+</html>
+`.replace(/<a\s+href="(https?:[^"]*)"/g, '<a href="$1" target="_blank" rel="noopener"');
 }
 
 let bad = 0;
-for (const book of BOOKS) {
-  const { page, chapters } = build(book), out = new URL(book.out, root);
+const built = BOOKS.map(b => ({ out: b.out, ...build(b) }));
+built.push({ out: 'books.html', page: listPage(built), chapters: BOOKS.length });
+for (const { out: name, page, chapters } of built) {
+  const book = { out: name }, out = new URL(name, root);
   if (process.argv.includes('--check')) {
     let old = '';
     try { old = readFileSync(out, 'utf8').replace(/\r\n/g, '\n'); } catch {}

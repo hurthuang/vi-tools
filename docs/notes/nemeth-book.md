@@ -25,7 +25,7 @@
 
 ## 整合進工具集（2026-10-25）
 
-- 首頁三張卡片（跟 UEB 查詢、珠算一樣沒有頁籤）：`#nemeth-book`、`#zhuyin-rules`、`#ueb-book`。iframe 用 `data-src`，第一次打開才載入（`applyTab` 設 src），不拖慢首頁。
+- 首頁一張「點字教材」卡片（使用者：卡片太多，2026-10-25），打開 `books.html` 教材列表（build-books 依 `BOOKS` 產生），再選一本；教材頁首有「所有教材」連回列表。`#books` 是列表；`#nemeth-book`、`#zhuyin-rules`、`#ueb-book` 直接在同一個框架開那一本（`BOOK_PAGES`、`fromHash()`），從卡片打開一律回到列表。iframe 用 `data-src`，第一次打開才載入，不拖慢首頁。
 - 工具頁互連：數學點字 → 數理點字教材；文字轉點字 → 注音點字規則、UEB 學習手冊；UEB 查詢 → UEB 學習手冊。教材頁首連回工具。
 - 教材裡的外部連結開新視窗（框架裡開不了學校網站）；文字裡沒做成超連結的網址（Word 常見）自動變連結。
 - guide.html「點字教材」一節、README 工具表與授權（UEB 學習手冊版權所有，不適用 repo 其他檔案的授權）。
