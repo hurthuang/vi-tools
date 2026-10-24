@@ -30,6 +30,8 @@ table.lv-table{margin:8px 0}
 .lv-table .cnt{color:var(--muted);font-size:.9rem;white-space:nowrap}
 details.lv5{margin:8px 0;border-top:1px solid var(--line);padding-top:4px}
 details.lv5>summary{cursor:pointer;font-weight:700;padding:4px 0}
+.group-btns{margin:6px 0}
+.group-btns button{padding:4px 12px;font-size:.95rem}
 #preview ol{background:var(--card);border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 8px 8px 3em}
 #preview li{margin:2px 0}
 input[type=text],input[type=number]{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
@@ -72,8 +74,8 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
     <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5c。乘法一律從個位開始，除法一律從最高位開始。</p>
     <div id="level-list"></div>
-    <button type="button" class="secondary" id="all-on">全選</button>
-    <button type="button" class="secondary" id="all-off">全不選</button>
+    <button type="button" class="secondary" id="all-on">所有級數全選</button>
+    <button type="button" class="secondary" id="all-off">所有級數全不選</button>
   </fieldset>
 
   <fieldset>
@@ -449,12 +451,20 @@ function renderLevels() {
     if (g && g.name === cap) g.levels.push(lv);
     else groups.push({ name: cap, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
   }
-  let html = '', fold = '';
+  let html = '', fold = '', gkey = '';
   for (const g of groups) {
     if (g.fold !== fold) {
       if (fold) html += '</details>';
       if (g.fold) html += `<details class="lv5" data-lv="${g.fold}"${open.has(g.fold) ? ' open' : ''}><summary>${FOLD[g.fold]}（<span class="fold-count"></span>）</summary>`;
       fold = g.fold;
+    }
+    // 每一組（第 1～4 級、第 5 級……）前面放這一組的全選、全不選
+    const key = AbacusLevels.groupOf(g.levels[0].id);
+    if (key !== gkey) {
+      const t = AbacusLevels.groupTitle(key).split('：')[0];
+      html += `<div class="group-btns"><button type="button" class="secondary" data-group="${key}" data-on="1" aria-label="${t}全選">全選</button>
+        <button type="button" class="secondary" data-group="${key}" data-on="" aria-label="${t}全不選">全不選</button></div>`;
+      gkey = key;
     }
     const ops = OPS.filter(([, , key]) => g.levels.some(lv => lv[key]));
     html += `<table class="lv-table"><caption>${g.name}</caption>
@@ -507,6 +517,14 @@ function countLv5() {
 }
 $('all-on').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
 $('all-off').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
+$('level-list').addEventListener('click', e => {
+  const b = e.target.closest('button[data-group]');
+  if (!b) return;
+  document.querySelectorAll('#level-list input[type=checkbox]').forEach(i => {
+    if (AbacusLevels.groupOf(i.value.split('|')[0]) === b.dataset.group) i.checked = !!b.dataset.on;
+  });
+  countLv5(); clearPreview();
+});
 $('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateCounts(); countLv5(); });
 AbacusDir.mount($('dir-switch'));
 window.addEventListener('abacusdirchange', () => { renderLevels(); clearPreview(); });
