@@ -325,9 +325,11 @@ const FORMS = [
   { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
   { id: 'D3', name: '三位數 ÷ 一位數', ex: '486÷2、736÷4' },
   { id: 'E2', name: '兩位數 ÷ 兩位數', ex: '84÷21、81÷27' },
-  { id: 'E3', name: '三位數 ÷ 兩位數', ex: '736÷23、156÷26' },
+  { id: 'E3', name: '三位數 ÷ 兩位數，商一位', ex: '156÷26、250÷70' },
+  { id: 'E4', name: '三位數 ÷ 兩位數，商兩位', ex: '736÷23、875÷25' },
 ];
-const divForm = (x, y) => y >= 10 ? (x >= 100 ? 'E3' : 'E2') : (x >= 100 ? 'D3' : 'D2');
+// 三位數 ÷ 兩位數再看商有幾位：百位、十位連同比除數小就是商一位
+const divForm = (x, y) => y >= 10 ? (x < 100 ? 'E2' : x < y * 10 ? 'E3' : 'E4') : (x >= 100 ? 'D3' : 'D2');
 // 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
 function formOf(x, y, op) {
   const r = op === '+' ? x + y : x - y;
@@ -413,11 +415,13 @@ const DIV_CHOICES = [
   ['D3', '三位數 ÷ 一位數'],
   ['D2 D3', '全部'],
 ];
-// 第 9 級（除數兩位數）的題型選單
+// 第 9 級（除數兩位數）的題型選單，照難度排
 const DIV2_CHOICES = [
   ['E2', '兩位數 ÷ 兩位數'],
-  ['E3', '三位數 ÷ 兩位數'],
-  ['E2 E3', '全部'],
+  ['E3', '三位數 ÷ 兩位數，商一位'],
+  ['E2 E3', '兩位數 ÷ 兩位數＋三位數 ÷ 兩位數，商一位'],
+  ['E4', '三位數 ÷ 兩位數，商兩位'],
+  ['E2 E3 E4', '全部'],
 ];
 const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9');
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
@@ -516,13 +520,30 @@ AbacusDir.mount($('dir-switch'));
 window.addEventListener('abacusdirchange', () => { renderLevels(); clearPreview(); });
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 第 9 級的商自然分布偏小（兩位數 ÷ 兩位數大多商 1），照商分堆輪流取，商一位看商、商兩位看商的十位
+function quotOrder(items) {
+  const heaps = new Map();
+  for (const it of shuffle(items.slice())) {
+    const q = Math.floor(it[0] / it[1]), k = q < 10 ? 'q' + q : 't' + Math.floor(q / 10);
+    if (!heaps.has(k)) heaps.set(k, []);
+    heaps.get(k).push(it);
+  }
+  const out = [];
+  while (heaps.size) for (const k of shuffle([...heaps.keys()])) {
+    const h = heaps.get(k);
+    out.push(h.pop());
+    if (!h.length) heaps.delete(k);
+  }
+  return out;
+}
+const order = (lv, items) => lv[0] === '9' ? quotOrder(items) : shuffle(items);
 
 // picks：勾選的「級別|運算」，例如 ['2|+', '2|-', '6b|×', '8a|÷']
 function makeProblems(picks, count) {
   const pools = [];
   for (const [lv, op] of picks.map(v => v.split('|'))) {
     const list = pool(op, lv);
-    if (list.length) pools.push({ op, lv, items: shuffle(list.slice()), i: 0 });
+    if (list.length) pools.push({ op, lv, items: order(lv, list.slice()), i: 0 });
   }
   if (!pools.length) return [];
   // 題數平均分給各級，同一級再平均分給加、減；除不盡的餘數隨機給
@@ -545,7 +566,7 @@ function makeProblems(picks, count) {
     p.left--; seq.push(p);
   }
   return seq.map(p => {
-    if (p.i >= p.items.length) { shuffle(p.items); p.i = 0; }
+    if (p.i >= p.items.length) { p.items = order(p.lv, p.items); p.i = 0; }
     const [x, y, form] = p.items[p.i++];
     return { x, y, op: p.op, lv: p.lv, form };
   });

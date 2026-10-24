@@ -76,6 +76,11 @@ for (const high of [false, true]) {
     snap[`${dir} ${op} ${lv}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
+// 第 9 級每一級三種題型都有題目
+for (const lv of ['9a', '9b', '9c', '9d']) for (const f of ['E2', 'E3', 'E4']) {
+  const n = C.buildBank(true)['÷'][lv].filter(it => it[2] === f).length;
+  if (!n) fail(`第 ${lv} 級沒有 ${f} 題型的題目`);
+}
 if (update) { writeFileSync(snapUrl, JSON.stringify(snap, null, 1) + '\n'); console.log('已更新題庫快照 tools/fixtures/abacus-bank.json'); }
 else {
   let old = {};
