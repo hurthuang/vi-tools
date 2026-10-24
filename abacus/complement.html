@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>補數概念說明</title>
 <script src="../music/js/theme.js"></script>
+<script src="abacus-anim.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;}}
@@ -174,6 +175,9 @@ nav ul{columns:2;column-gap:24px}
   <li>第二步（小補數）：個位 7 是上珠＋下珠 2 顆，下珠只有 2 顆，不夠拿掉 4。這其實就是一題「7 − 4」：先拿掉上珠 5，多拿了 1，再撥上下珠 1 顆。</li>
   <li>個位剩下珠 3 顆，十位 1，答案 13。</li>
 </ol>
+<h4 id="demo-title">撥珠動畫</h4>
+<p class="muted">按「下一步」一步一步看珠子怎麼動，這一步動到的珠子會變色。下面也可以自己出題。</p>
+<div id="demo-lv4" role="group" aria-labelledby="demo-title"></div>
 <h3>例：21 − 6 = 15</h3>
 <ol>
   <li>個位是 1，不夠減 6。</li>
@@ -287,5 +291,6 @@ nav ul{columns:2;column-gap:24px}
 
 <p><a href="index.html">回到出題練習</a></p>
 </main>
+<script>AbacusDemo.mount(document.getElementById('demo-lv4'), { x: 7, y: 6, op: '+', custom: true });</script>
 </body>
 </html>
