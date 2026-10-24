@@ -109,7 +109,7 @@
     } else if (op === '÷') {
       // 除法（除數一位數）：算盤只放被除數，除數和商記在點顯器上。從最高位開始，
       // 這一位（連同上一位剩下的）裡有幾個除數，商就打幾；乘回來從算盤扣掉，扣的時候跟減法一樣從低位撥。
-      // 每一步多記 q（點顯器上已經打的商）和 mark（點顯器標記的那一位）。
+      // 每一步多記 q（點顯器上已經打的商）和 mark（正在除的那一位）。
       const ds = String(x).split('').map(Number), n = ds.length;
       steps[0].text = `算盤上撥好 ${x}。除數 ${y} 記在點顯器上，從最高位開始除，商一位一位打在點顯器上。`;
       steps[0].q = ''; steps[0].mark = n - 1;
@@ -252,7 +252,7 @@
         lab.classList.toggle('on', mv); lab.querySelector('b').textContent = v;
         lab.classList.toggle('cur', !!divisor && s.mark === k);
       }
-      // 除法：模擬點顯器，除數和已經打的商；算盤上正在除的那一位加底線（點顯器上的第 7、8 點標記）
+      // 除法：模擬點顯器，除數和已經打的商；正在除的那一位加底線，方便老師看
       if (divisor) quo.innerHTML = `點顯器：除數 <b>${divisor}</b>　商 <b>${s.q || '&nbsp;'}</b>`;
       text.textContent = s.text;
       count.textContent = `第 ${i + 1} 步，共 ${steps.length} 步`;

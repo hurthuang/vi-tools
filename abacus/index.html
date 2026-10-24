@@ -529,6 +529,14 @@ function makeProblems(picks, count) {
 
 // 除法的 calc 是商，餘數另外算
 const calc = p => p.op === '+' ? p.x + p.y : p.op === '-' ? p.x - p.y : p.op === '×' ? p.x * p.y : Math.floor(p.x / p.y);
+// 商只少了 0（206 打成 26、20 打成 2）：打的數字依序都在答案裡，少掉的全是 0
+function missingZero(typed, ans) {
+  const t = String(typed), s = String(ans);
+  if (t.length >= s.length) return false;
+  let j = 0;
+  for (const ch of s) { if (ch === t[j]) j++; else if (ch !== '0') return false; }
+  return j === t.length;
+}
 const remOf = p => p.op === '÷' ? p.x % p.y : 0;
 const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 
@@ -700,7 +708,8 @@ $('answer-form').addEventListener('submit', e => {
   if (valueOk && signOk) { sound('up'); finish(p, true); return; }
   sound('down');
   const left = MAX_TRIES - p.tries.length;
-  const wrong = !div ? '答錯了' : !qOk && !rOk ? '商和餘數都不對' : !qOk ? '商不對' : '商對了，餘數不對';
+  const wrong = !div ? '答錯了' : !qOk && missingZero(a.value, p.answer) ? '商少打了 0：不夠除的那一位，商也要打 0' + (rOk ? '' : '，餘數也不對')
+    : !qOk && !rOk ? '商和餘數都不對' : !qOk ? '商不對' : '商對了，餘數不對';
   let msg;
   if (valueOk) msg = '數字對了，但是少打數字記號。';
   else if (!signOk) msg = `${wrong}，也少打數字記號。`;
