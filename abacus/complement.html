@@ -26,6 +26,25 @@ ol li{margin:2px 0}
 .muted{color:var(--muted)}
 nav ul{columns:2;column-gap:24px}
 @media (max-width:560px){nav ul{columns:1}}
+.demo-btn{font:inherit;font-size:.8rem;font-weight:400;margin-left:8px;padding:1px 10px;border-radius:14px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:middle}
+.demo-btn:hover{background:var(--accent);color:var(--bg)}
+#demo-fab{position:fixed;right:16px;bottom:16px;z-index:20;font:inherit;font-size:1rem;padding:10px 18px;border-radius:24px;border:none;background:var(--accent);color:var(--bg);box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer}
+#demo-panel{position:fixed;z-index:30;background:var(--bg);border:0 solid var(--line);overflow:auto;padding:8px 14px 16px;box-shadow:0 0 16px rgba(0,0,0,.25)}
+#demo-panel[hidden]{display:none}
+#demo-panel header{display:flex;align-items:center;justify-content:space-between;position:sticky;top:-8px;background:var(--bg);padding:6px 0;z-index:1}
+#demo-panel h2{margin:0;padding:0;border:0;font-size:1.15rem}
+#demo-close{font:inherit;font-size:1.1rem;width:2.2em;height:2.2em;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+#demo-panel .abd{margin:4px 0 0}
+/* 寬螢幕：右側面板，文章往左讓位；窄螢幕：下方升起 */
+@media (min-width:1000px){
+  #demo-panel{top:0;right:0;bottom:0;width:400px;border-left-width:1px}
+  html.demo-open main{margin-right:400px}
+  @media (min-width:1640px){html.demo-open main{margin-right:auto}}
+}
+@media (max-width:999px){
+  #demo-panel{left:0;right:0;bottom:0;height:72vh;border-top-width:1px;border-radius:12px 12px 0 0}
+  html.demo-open body{padding-bottom:72vh}
+}
 </style>
 </head>
 <body>
@@ -33,6 +52,7 @@ nav ul{columns:2;column-gap:24px}
 <p><a href="index.html">回到出題練習</a>　<a href="notes.html">教學法筆記</a></p>
 <h1>補數概念說明</h1>
 <p>這一頁用「理解」的方式說明撥珠，不背口訣。核心只有一句話：<strong>珠子不夠，就先動 5 或 10；動太多了，再用補數修正。</strong></p>
+<p>每個例題旁邊都有「看動畫」，可以一步一步看珠子怎麼動；右下角的「撥珠動畫」按鈕隨時都能打開，也可以自己出題。</p>
 
 <nav aria-label="本頁目錄">
 <ul>
@@ -40,7 +60,6 @@ nav ul{columns:2;column-gap:24px}
   <li><a href="#small">小補數：合起來是 5</a></li>
   <li><a href="#big">大補數：合起來是 10</a></li>
   <li><a href="#rules">四個基本規則</a></li>
-  <li><a href="#demo">撥珠動畫</a></li>
   <li><a href="#lv1">1 級：不動補數</a></li>
   <li><a href="#lv2">2 級：小補數</a></li>
   <li><a href="#lv3a">3a 級：大補數，只動下珠</a></li>
@@ -98,11 +117,6 @@ nav ul{columns:2;column-gap:24px}
   <p><strong>減法，大補數：</strong>這一檔不夠減 → 左邊一檔減 1（就是減 10）→ 減太多了 → 這一檔加回大補數。</p>
 </div>
 <p>記法：<strong>加法是「先多加，再拿掉」；減法是「先多減，再加回」。</strong></p>
-
-<h2 id="demo">撥珠動畫</h2>
-<p>輸入一題加法、減法或乘法，按「下一步」一步一步看珠子怎麼動，這一步動到的珠子會變成藍色。下面各級的例題都可以放進來看，例如 3 + 4（2 級）、7 + 6（4 級）、29 × 4（6d）。</p>
-<p class="muted">撥法跟這一頁說明的一樣：從個位開始往左；不夠加或不夠減，先動左邊一檔（10），再用補數修正。乘法是一位數到三位數乘一位數。</p>
-<div id="demo-box" role="group" aria-labelledby="demo"></div>
 
 <h2 id="lv1">1 級：不動補數</h2>
 <p>珠子夠，直接撥。</p>
@@ -294,6 +308,48 @@ nav ul{columns:2;column-gap:24px}
 
 <p><a href="index.html">回到出題練習</a></p>
 </main>
-<script>AbacusDemo.mount(document.getElementById('demo-box'), { x: 7, y: 6, op: '+', custom: true });</script>
+<button type="button" id="demo-fab" aria-controls="demo-panel" aria-expanded="false">🧮 撥珠動畫</button>
+<aside id="demo-panel" role="dialog" aria-modal="false" aria-labelledby="demo-panel-title" hidden>
+  <header><h2 id="demo-panel-title">撥珠動畫</h2><button type="button" id="demo-close" aria-label="關閉撥珠動畫">✕</button></header>
+  <div id="demo-box"></div>
+</aside>
+<script>
+// 撥珠動畫面板：右下角按鈕隨時打開；每個例題標題旁的「看動畫」直接載入那一題。
+(function () {
+  const panel = document.getElementById('demo-panel'), fab = document.getElementById('demo-fab');
+  const demo = AbacusDemo.mount(document.getElementById('demo-box'), { x: 7, y: 6, op: '+', custom: true });
+  let opener = null;
+  function open(from) {
+    opener = from;
+    panel.hidden = false; fab.hidden = true; fab.setAttribute('aria-expanded', 'true');
+    document.documentElement.classList.add('demo-open');
+    panel.scrollTop = 0;
+    demo.focus();
+  }
+  function close() {
+    demo.stop();
+    panel.hidden = true; fab.hidden = false; fab.setAttribute('aria-expanded', 'false');
+    document.documentElement.classList.remove('demo-open');
+    (opener && document.body.contains(opener) ? opener : fab).focus();
+  }
+  fab.onclick = () => open(fab);
+  document.getElementById('demo-close').onclick = close;
+  panel.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(); } });
+
+  // 例題：標題裡的「例：7 + 6 = 13」「7 × 6 = 42」，一個算式一個按鈕
+  const OP = { '+': '+', '−': '-', '×': '×' };
+  document.querySelectorAll('main h3').forEach(h => {
+    if (!h.textContent.includes('例')) return;
+    for (const m of h.textContent.matchAll(/(\d+) ([+−×]) (\d+) = \d+/g)) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'demo-btn'; b.textContent = '▶ 看動畫';
+      b.setAttribute('aria-label', `看 ${m[1]} ${m[2]} ${m[3]} 的撥珠動畫`);
+      b.setAttribute('aria-controls', 'demo-panel');
+      b.onclick = () => { demo.show(+m[1], +m[3], OP[m[2]]); open(b); };
+      h.appendChild(b);
+    }
+  });
+})();
+</script>
 </body>
 </html>

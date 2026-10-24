@@ -225,6 +225,15 @@
       };
     }
     load(opts.x, opts.y, opts.op);
+    return {
+      // 換一題（例題按鈕用），自己出題的欄位也一起改
+      show(x, y, op) {
+        if (form) { const [ix, iy] = form.querySelectorAll('input'); ix.value = x; iy.value = y; form.querySelector('select').value = op; }
+        load(x, y, op);
+      },
+      focus() { (btn('next').disabled ? btn('reset') : btn('next')).focus({ preventScroll: true }); },
+      stop,
+    };
   }
 
   g.abacusSteps = abacusSteps;
