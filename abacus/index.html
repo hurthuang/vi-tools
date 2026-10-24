@@ -6,6 +6,7 @@
 <title>珠算分級練習</title>
 <script src="../music/js/theme.js"></script>
 <script src="../music/js/brf.js"></script>
+<script src="abacus-dir.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}}
@@ -56,9 +57,9 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 
 <!-- ===== 設定（老師用） ===== -->
 <section id="setup" aria-labelledby="setup-title">
+  <nav class="abacus-top" aria-label="珠算頁面"><a href="complement.html">補數說明</a><a href="notes.html">教學法筆記</a><span id="dir-switch"></span></nav>
   <h1 id="setup-title">珠算分級練習</h1>
   <p class="lead">老師先勾選級數、選好題型，再按「開始練習」。題目照「盲生珠算教學法筆記」的難度分級出題。</p>
-  <p><a href="notes.html">盲生珠算教學法筆記</a>　<a href="complement.html">補數概念與各級撥珠步驟</a></p>
 
   <fieldset>
     <legend>學生</legend>
@@ -68,10 +69,7 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   <fieldset id="levels">
     <legend>級數與運算（可複選）</legend>
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
-    <p role="radiogroup" aria-labelledby="dir-title"><span id="dir-title">加減法撥珠方向：</span>
-      <label><input type="radio" name="dir" value="low" checked> 從個位開始（摸讀題目）</label>
-      <label><input type="radio" name="dir" value="high"> 從最高位開始（聽題目）</label></p>
-    <p class="hint">只影響兩位數 ± 兩位數的分級。從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5d。乘法一律從個位開始，除法一律從最高位開始。</p>
+    <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5d。乘法一律從個位開始，除法一律從最高位開始。</p>
     <div id="level-list"></div>
     <button type="button" class="secondary" id="all-on">全選</button>
     <button type="button" class="secondary" id="all-off">全不選</button>
@@ -402,7 +400,7 @@ if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrac
 const $ = id => document.getElementById(id);
 const MAX_TRIES = 3;                     // 第一次 + 重試兩次
 const banks = {};
-const dirHigh = () => document.querySelector('input[name=dir]:checked').value === 'high';
+const dirHigh = () => AbacusDir.get() === 'high';
 const getBank = () => { const k = dirHigh() ? 'high' : 'low'; return banks[k] || (banks[k] = buildBank(k === 'high')); };
 
 // 1～4 級每一列的題型選單
@@ -515,7 +513,8 @@ function countLv5() {
 $('all-on').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = true); countLv5(); clearPreview(); };
 $('all-off').onclick = () => { document.querySelectorAll('#level-list input').forEach(i => i.checked = false); countLv5(); clearPreview(); };
 $('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELECT') updateCounts(); countLv5(); });
-document.querySelectorAll('input[name=dir]').forEach(r => r.addEventListener('change', () => { renderLevels(); clearPreview(); }));
+AbacusDir.mount($('dir-switch'));
+window.addEventListener('abacusdirchange', () => { renderLevels(); clearPreview(); });
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 

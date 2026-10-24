@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>補數概念說明</title>
 <script src="../music/js/theme.js"></script>
+<script src="abacus-dir.js"></script>
 <script src="abacus-anim.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;}
@@ -49,10 +50,11 @@ nav ul{columns:2;column-gap:24px}
 </head>
 <body>
 <main>
-<p><a href="index.html">回到出題練習</a>　<a href="notes.html">教學法筆記</a></p>
+<nav class="abacus-top" aria-label="珠算頁面"><a href="index.html">出題練習</a><a href="notes.html">教學法筆記</a><span id="dir-switch"></span></nav>
 <h1>補數概念說明</h1>
 <p>這一頁用「理解」的方式說明撥珠，不背口訣。核心只有一句話：<strong>珠子不夠，就先動 5 或 10；動太多了，再用補數修正。</strong></p>
 <p>每個例題旁邊都有「看動畫」，可以一步一步看珠子怎麼動；右下角的「撥珠動畫」按鈕隨時都能打開，也可以自己出題。</p>
+<p>加減法的撥珠方向可以在頁面最上面切換（從最高位開始或從個位開始），這一頁的兩位數例子和動畫會跟著換，出題練習和教學法筆記也一起換。兩種方向的差別見<a href="#order">撥珠方向</a>。</p>
 
 <nav aria-label="本頁目錄">
 <ul>
@@ -70,7 +72,7 @@ nav ul{columns:2;column-gap:24px}
   <li><a href="#lv6">6 級：乘法</a></li>
   <li><a href="#lv7">7 級：兩位數 × 兩位數</a></li>
   <li><a href="#lv8">8 級：除法</a></li>
-  <li><a href="#order">撥珠順序</a></li>
+  <li><a href="#order">撥珠方向</a></li>
 </ul>
 </nav>
 
@@ -222,15 +224,30 @@ nav ul{columns:2;column-gap:24px}
   <li>答案 35。跟 7 + 8 的撥法一樣，只是十位本來就有珠子。</li>
 </ol>
 <h3>例：32 + 91 = 123（3a 級）</h3>
-<ol>
+<ol data-show="high">
+  <li>先撥十位：十位 3 加 9，這一檔不夠加：百位加 1，十位拿掉 9 的大補數 1，十位剩 2。</li>
+  <li>再撥個位：個位 2 加 1，直接撥，個位變 3。</li>
+  <li>答案 123。這一題的大補數出現在十位，撥法和 3 + 9 一樣。</li>
+</ol>
+<ol data-show="low">
   <li>個位 2 加 1，直接撥，個位變 3。</li>
   <li>十位 3 加 9，這一檔不夠加：百位加 1，十位拿掉 9 的大補數 1，十位剩 2。</li>
   <li>答案 123。這一題的大補數出現在十位，撥法和 3 + 9 一樣。</li>
 </ol>
+<div data-show="high">
+<h3>例：27 + 18 = 45（3a 級）</h3>
+<ol>
+  <li>先撥十位：十位 2 加 1，直接撥，十位變 3。算盤上是 37。</li>
+  <li>再撥個位：這時就是一題 37 + 8。個位 7 加 8 不夠加：十位加 1（3 變 4），個位拿掉 8 的大補數 2，剩 5。</li>
+  <li>答案 45。</li>
+</ol>
+<p>十位撥完以後，個位那一步就跟「兩位數 ± 一位數」一樣，所以兩位數 ± 兩位數也照 1～4 級分。要注意：個位進位時還會動到十位，<strong>個位做完，再摸一次十位</strong>。</p>
+</div>
 <p class="muted">減法借位時，被減數會多一個 1：一位數的題目像 12 − 8，兩位數的題目像 115 − 71。答案仍然是原來的位數。</p>
 
 <h2 id="lv5">5 級：進位、借位延伸</h2>
-<p>這一級是一位數碰不到的情況：「左邊一檔加 1 或減 1」這一步本身又要用補數、會一路影響到更左邊，或是進位撞上左邊一檔自己要加的數。</p>
+<p data-show="low">這一級是一位數碰不到的情況：「左邊一檔加 1 或減 1」這一步本身又要用補數、會一路影響到更左邊，或是進位撞上左邊一檔自己要加的數。</p>
+<p data-show="high">這一級是一位數碰不到的情況：「左邊一檔加 1 或減 1」這一步本身又要用補數，或是會一路影響到更左邊。兩位數 ± 兩位數的十位先撥完，個位那一步遇到這些情況，也歸這一級。</p>
 
 <h3>5a（加法）：進位時十位用小補數（例：43 + 8 = 51）</h3>
 <ol>
@@ -262,6 +279,17 @@ nav ul{columns:2;column-gap:24px}
   <li>答案 99。</li>
 </ol>
 
+<div data-show="high">
+<p data-demo>例：45 + 56 = 101（兩位數 + 兩位數，5c）</p>
+<ol>
+  <li>先撥十位：十位 4 加 5，撥下上珠，十位變 9。算盤上是 95。</li>
+  <li>再撥個位：這時就是一題 95 + 6。個位 5 加 6 不夠加，十位要加 1；十位是 9，也不夠加：百位加 1，十位拿掉 9，十位變 0。</li>
+  <li>回到個位，拿掉 6 的大補數 4：個位只有上珠，拿掉上珠 5、撥上下珠 1 顆，個位剩 1。答案 101。</li>
+</ol>
+<p class="muted">從最高位開始撥時沒有 5d：十位先撥完，進位不會撞上十位還沒撥的數。切換到「從個位開始」可以看 5d 的說明。</p>
+</div>
+
+<div data-show="low">
 <h3>5d：多位數，進位撞上十位要加的數</h3>
 <p>從個位開始，一位一位做；每一位都是前面學過的題型之一。進位或借位馬上撥到左邊一檔，再做那一檔自己的數。</p>
 <p>難的地方是<strong>十位會被動兩次</strong>：先因為進位加 1，再加上十位自己的數。第二次撥的時候，十位的珠子已經變了，要重新看清楚現在是多少。</p>
@@ -272,10 +300,12 @@ nav ul{columns:2;column-gap:24px}
   <li>答案 125。</li>
 </ol>
 <p class="muted">練習頁 5d 的各等級，是依照「有幾次進退位」和「有沒有複合題」來分的，詳見出題頁的級數說明。沒有進退位撞在一起的兩位數題目（例如 32 + 15、32 + 91）屬於 1～4 級。</p>
+</div>
 
 <h2 id="lv6">6 級：乘法</h2>
 <p>跟直式一樣<strong>從個位開始</strong>：先算個位的乘積撥上去，再把十位的乘積加在十位、百位。乘積要用九九乘法算，算盤只用來撥答案。</p>
 <p>分級是看「加十位乘積」那一步要用到什麼，跟 1～4 級的規則一樣。</p>
+<p data-show="high"><strong>注意方向：</strong>加減法是從最高位開始，乘法例外，從個位開始。乘積要先放對位置；從高位開始還要預留檔位、對位，比較容易放錯。</p>
 
 <h3>6a：一位數 × 一位數（例：7 × 6 = 42）</h3>
 <ol>
@@ -328,11 +358,11 @@ nav ul{columns:2;column-gap:24px}
 
 <h2 id="lv8">8 級：除法（除數是一位數）</h2>
 <p>跟紙筆的長除法一樣<strong>從最高位開始</strong>：這一位裡有幾個除數，商就打幾，再把「商 × 除數」從算盤上扣掉。<strong>算盤上只放被除數</strong>，除數和商記在點顯器上；商由左往右打，跟寫直式一樣，也不用判斷商要撥在算盤哪一檔。</p>
-<p>扣的時候跟減法一樣從低位撥，例如扣 32 先在十位減 2，再在百位減 3。除數是一位數時，用九九就估得出商，不會估太大。</p>
+<p><span data-show="high">扣的時候跟減法一樣從高位撥，例如扣 32 先在百位減 3，再在十位減 2。</span><span data-show="low">扣的時候跟減法一樣從個位撥，例如扣 32 先在十位減 2，再在百位減 3。加減乘都從個位開始，除法例外，因為商要從高位一位一位估。</span>除數是一位數時，用九九就估得出商，不會估太大。</p>
 <p data-demo>例：736 ÷ 4 = 184</p>
 <ol>
   <li>百位 7 裡有 1 個 4，商打 1；百位扣 4，剩 3。</li>
-  <li>3 跟十位合起來是 33，33 裡有 8 個 4，商打 8；扣 32（十位減 2、百位減 3），剩 1。</li>
+  <li>3 跟十位合起來是 33，33 裡有 8 個 4，商打 8；扣 32（<span data-show="high">百位減 3、十位減 2</span><span data-show="low">十位減 2、百位減 3</span>），剩 1。</li>
   <li>1 跟個位合起來是 16，16 裡有 4 個 4，商打 4；扣 16，算盤清空。</li>
   <li>點顯器上的商是 184，沒有餘數。</li>
 </ol>
@@ -345,14 +375,19 @@ nav ul{columns:2;column-gap:24px}
 <ol>
   <li>百位 6 裡有 2 個 3，商打 2；百位扣 6，剛好扣完。</li>
   <li>十位是 1，比 3 小，不夠除，商打 0；1 留著。</li>
-  <li>1 跟個位合起來是 19，19 裡有 6 個 3，商打 6；扣 18（個位減 8、十位減 1），剩 1。</li>
+  <li>1 跟個位合起來是 19，19 裡有 6 個 3，商打 6；扣 18（<span data-show="high">十位減 1、個位減 8</span><span data-show="low">個位減 8、十位減 1</span>），剩 1。</li>
   <li>1 比 3 小，就是餘數。答案 206 餘 1。</li>
 </ol>
 <p class="muted">練習頁 8a～8d 依題型分級：每一位都除得盡、要往下一位借來除、有餘數、商有 0 或第一位比除數小。28 ÷ 7 這種第一位不夠除、但商只有一位的題目是九九的範圍，放在 8a。練習時商打在答案欄，按 Enter 跳到餘數欄。學除法前，學生要先熟九九和 1～4 級的減法。</p>
 
-<h2 id="order">撥珠順序</h2>
-<p>這裡的做法跟直式一樣，<strong>從個位開始往左做</strong>。好處是可以和紙筆直式的進位、借位概念連起來。傳統珠算教材多半是從最高位開始撥，兩種都算得出正確答案，只是想法不同。</p>
-<p>除法例外：跟長除法一樣從最高位開始，因為商要從高位一位一位估；每一次扣的時候仍然從低位撥。</p>
+<h2 id="order">撥珠方向</h2>
+<p>加減法有兩種撥法，頁面最上面可以切換，三個珠算頁面一起換。加數只有一位時兩種一樣，只有兩位數 ± 兩位數不同。一個學生固定用一種，不要混著練。</p>
+<ul>
+  <li><strong>從最高位開始</strong><span data-show="high">（目前的設定）</span>：跟唸數字的順序一樣。摸讀點字時心裡也會唸出數字，先唸到的是高位，摸到就撥。十位撥完後，個位那一步就是兩位數 ± 一位數，所以沒有 5d。要注意個位進位時還會動到十位，個位做完再摸一次十位。</li>
+  <li><strong>從個位開始</strong><span data-show="low">（目前的設定）</span>：撥過的檔不會再動，手一路往左，撥完的部分可以摸著檢查。個位進位時十位還沒撥自己的數，所以多了 5d「進位撞上十位要加的數」。</li>
+</ul>
+<p>乘法只從個位開始：乘積要先放對位置，從高位開始還要預留檔位、對位。除法只從最高位開始：商要從高位一位一位估；每一次扣的時候照加減法的方向。</p>
+<p>傳統珠算教材（日本、中文）多半從最高位開始；巴西教育部的盲生 soroban 手冊兩種都收。</p>
 
 <p><a href="index.html">回到出題練習</a></p>
 </main>
@@ -365,6 +400,7 @@ nav ul{columns:2;column-gap:24px}
 // 撥珠動畫面板：右下角按鈕隨時打開；每個例題標題旁的「看動畫」直接載入那一題。
 (function () {
   const panel = document.getElementById('demo-panel'), fab = document.getElementById('demo-fab');
+  AbacusDir.mount(document.getElementById('dir-switch'));
   const demo = AbacusDemo.mount(document.getElementById('demo-box'), { x: 7, y: 6, op: '+', custom: true });
   let opener = null;
   function open(from) {
@@ -393,7 +429,7 @@ nav ul{columns:2;column-gap:24px}
     b.type = 'button'; b.className = 'demo-btn'; b.textContent = label;
     b.setAttribute('aria-label', `看 ${m[1]} ${m[2]} ${m[3]} 的撥珠動畫`);
     b.setAttribute('aria-controls', 'demo-panel');
-    b.onclick = () => { demo.show(+m[1], +m[3], OP[m[2]]); open(b); };
+    b.onclick = () => { demo.show(+m[1], +m[3], OP[m[2]], AbacusDir.get()); open(b); };
     el.appendChild(b);
   }
   document.querySelectorAll('main h3').forEach(h => {

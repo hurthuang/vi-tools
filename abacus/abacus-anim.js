@@ -2,9 +2,9 @@
  * 撥珠動畫：把一題加、減、乘、除法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
  * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位；
  * 兩位數乘數一行一行做（76 × 58 先算 76 × 8，再算 76 × 5），跟出題頁 mulTrace 同順序。
- * 順序照出題頁的 trace()：從個位往左，進位、借位時先動左邊一檔，再回來用補數修正。
- * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列），乘回來扣的時候從低位撥。
- * 加減法可以選 dir = 'high'，從最高位開始撥（聽題目的學生）；乘法只從個位開始，除法只從最高位開始。
+ * 加減法照出題頁的 trace()：dir = 'high' 從最高位往右、'low' 從個位往左；進位、借位時先動左邊一檔，再回來用補數修正。
+ * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列）；乘回來扣的時候照 dir，跟減法一樣。
+ * 乘法只從個位開始。dir 沒給時用全站設定（abacus-dir.js），沒有全站設定時從最高位開始。
  * abacusSteps(x, y, op, dir) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
 (function (g) {
@@ -128,7 +128,7 @@
         const q = Math.floor(r / y), p = q * y;
         qs += q;
         pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
-        apply(p, k, sub, '減');
+        apply(p, k, sub, '減', true, dir === 'high');
         r -= p;
         steps[steps.length - 1].text += r ? `剩下 ${r}${k ? `，跟${PLACE[k - 1]}合起來看` : ''}。` : k ? '剛好扣完。' : '';
       });
@@ -197,9 +197,9 @@
         <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option><option value="÷">÷</option></select>
         <input type="number" min="1" max="9999" aria-label="第二個數" required>
         <button type="submit">看步驟</button></span>
-        <span class="abd-dir" role="radiogroup" aria-label="加減法撥珠方向">加減法：
-          <label><input type="radio" name="abd-dir" value="low" checked> 從個位開始</label>
-          <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label></span>
+        <span class="abd-dir" role="radiogroup" aria-label="撥珠方向，只在動畫裡對照，不改全站設定">撥珠方向（只在這裡對照）：
+          <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label>
+          <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label></span>
         <span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
@@ -220,6 +220,7 @@
 
     function load(x, y, op, dir) {
       stop();
+      cur = [x, y, op];
       steps = abacusSteps(x, y, op, dir);
       divisor = op === '÷' ? y : 0;
       quo.hidden = !divisor;
@@ -285,9 +286,9 @@
     if (form) {
       const [ix, iy] = form.querySelectorAll('input[type=number]'), sel = form.querySelector('select'), err = form.querySelector('.abd-err');
       ix.value = opts.x; iy.value = opts.y; sel.value = opts.op;
-      // 方向改了就用目前的題目重畫；乘除法沒有方向可選
+      // 方向改了就用目前的題目重畫；乘法沒有方向可選（除法的「扣」照方向）
       const dirRow = form.querySelector('.abd-dir');
-      const showDir = () => { dirRow.hidden = sel.value === '×' || sel.value === '÷'; };
+      const showDir = () => { dirRow.hidden = sel.value === '×'; };
       sel.addEventListener('change', showDir); showDir();
       dirRow.addEventListener('change', () => form.requestSubmit());
       form.onsubmit = e => {
@@ -302,7 +303,13 @@
         load(x, y, op, curDir());
       };
     }
-    function curDir() { const r = form && form.querySelector('input[name=abd-dir]:checked'); return r ? r.value : 'low'; }
+    const globalDir = () => (g.AbacusDir ? g.AbacusDir.get() : 'high');
+    function setDir(v) { const r = form && form.querySelector(`input[name=abd-dir][value=${v}]`); if (r) r.checked = true; }
+    function curDir() { const r = form && form.querySelector('input[name=abd-dir]:checked'); return r ? r.value : globalDir(); }
+    setDir(opts.dir || globalDir());
+    let cur = [opts.x, opts.y, opts.op];
+    // 全站方向改了：動畫也換成新的方向（面板裡暫時的對照就不留了）
+    g.addEventListener('abacusdirchange', () => { setDir(globalDir()); load(...cur, curDir()); });
     load(opts.x, opts.y, opts.op, curDir());
     return {
       // 換一題（例題按鈕用），自己出題的欄位也一起改
@@ -310,7 +317,7 @@
         if (form) {
           const [ix, iy] = form.querySelectorAll('input[type=number]'); ix.value = x; iy.value = y;
           const sel = form.querySelector('select'); sel.value = op; sel.dispatchEvent(new Event('change'));
-          if (dir) form.querySelector(`input[name=abd-dir][value=${dir}]`).checked = true;
+          if (dir) setDir(dir);
         }
         load(x, y, op, dir || curDir());
       },
