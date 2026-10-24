@@ -1105,13 +1105,13 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 
 給國小低年級盲生用算盤代替直式的分級練習。原本在 `E:\Project\abacus` 獨立開發（舊檔移到 `E:\Project\_archive\abacus`）。
 
-- `abacus/index.html` 出題練習；`complement.html` 補數說明；`notes.html` 教學法筆記（分級依據與文獻清單）
+- `abacus/index.html` 出題練習；`complement.html` 各級撥珠教法（給其他老師看怎麼教）；`notes.html` 教學法筆記（設計理由、分級依據、文獻）
 - 首頁只有卡片、沒有分頁（導覽列已滿）：`frame-abacus`，網址 `#abacus`
 - 共用：`music/js/theme.js`（主題）、`music/js/brf.js`（點字 ASCII 轉換、上位數字）。六點輸入自己做，因為要點 7／8（A、;）當倒退／送出，並保護作答區前面的題目；`shared.js` 的浮動面板不支援
 - 分級核心在 `<script id="core">`（addd／subd／trace／mulTrace／classify／classifyMul／classifyDiv／buildBank），node 可以抽出來單獨測
 - 乘法順序（使用者 2026-10-24 定案）：照直式一行一行做（76 × 58 先 76 × 8 再 76 × 5），每行從個位開始；九九乘積撥在位數相加那一位起，照唸法先撥高位。第 7 級（兩位數 × 兩位數）分 7a 直接撥、7b 小補數、7c 進位一次、7d 進位兩次以上，不出含 0 的數
 - `abacus-dir.js`：三頁共用的加減法撥珠方向（預設從最高位開始）
-- `abacus-anim.js`：撥珠動畫（`abacusSteps` 與出題核心同順序），補數說明頁用浮動面板，例題標題或 `data-demo` 段落自動加「看動畫」
+- `abacus-anim.js`：撥珠動畫（`abacusSteps` 與出題核心同順序），各級撥珠教法頁用浮動面板，例題標題或 `data-demo` 段落自動加「看動畫」
 - .brl 匯出：題號 ⠼＋上位數字＋⠲，點字 ASCII 寫小寫（同 bt）
 - 加減法撥珠方向（從個位／從最高位）與除法（第 8 級）的做法、分級：見 `docs/notes/abacus.md`
 
