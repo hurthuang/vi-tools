@@ -177,7 +177,8 @@
 .abd-err{color:#c0392b}
 .abd-dir{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:.95rem}
 .abd-dir label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
-.abd-dir[hidden]{display:none}
+.abd-dir label:has(input:disabled){opacity:.5;cursor:default}
+.abd-dir-note{color:var(--muted);font-size:.9rem}
 :root{--abd-wood:#4a2c12;--abd-bg:#fffdf7;--abd-rod:#5c4a36;--abd-bead:#c06a1c;--abd-edge:#3d2208;--abd-moved:#0047b3;--abd-moved-edge:#001f52;--abd-hl:#ffe9a3}
 :root[data-theme="dark"]{--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}}
@@ -197,9 +198,10 @@
         <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option><option value="÷">÷</option></select>
         <input type="number" min="1" max="9999" aria-label="第二個數" required>
         <button type="submit">看步驟</button></span>
-        <span class="abd-dir" role="radiogroup" aria-label="撥珠方向，只在動畫裡對照，不改全站設定">撥珠方向（只在這裡對照）：
+        <span class="abd-dir" role="radiogroup" aria-label="撥珠方向">撥珠方向：
           <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label>
-          <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label></span>
+          <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label>
+          <span class="abd-dir-note"></span></span>
         <span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
@@ -283,13 +285,22 @@
     list.onclick = e => { const li = e.target.closest('li'); if (li) { stop(); go([...list.children].indexOf(li)); } };
 
     const form = box.querySelector('.abd-own');
+    const globalDir = () => (g.AbacusDir ? g.AbacusDir.get() : 'high');
+    function setDir(v) { const r = form && form.querySelector(`input[name=abd-dir][value=${v}]`); if (r) r.checked = true; }
+    function curDir() { const r = form && form.querySelector('input[name=abd-dir]:checked'); return r ? r.value : globalDir(); }
+    let fixDir = () => {};
     if (form) {
       const [ix, iy] = form.querySelectorAll('input[type=number]'), sel = form.querySelector('select'), err = form.querySelector('.abd-err');
       ix.value = opts.x; iy.value = opts.y; sel.value = opts.op;
-      // 方向改了就用目前的題目重畫；乘法沒有方向可選（除法的「扣」照方向）
-      const dirRow = form.querySelector('.abd-dir');
-      const showDir = () => { dirRow.hidden = sel.value === '×'; };
-      sel.addEventListener('change', showDir); showDir();
+      // 加減法可以暫時切換方向對照（不改全站設定）；乘法固定從個位開始，除法照全站方向（扣的方向），都不能選
+      const dirRow = form.querySelector('.abd-dir'), note = dirRow.querySelector('.abd-dir-note');
+      fixDir = () => {
+        const op = sel.value, fixed = op === '×' ? 'low' : op === '÷' ? globalDir() : null;
+        dirRow.querySelectorAll('input').forEach(r => { r.disabled = !!fixed; });
+        if (fixed) setDir(fixed);
+        note.textContent = op === '×' ? '（乘法只從個位開始）' : op === '÷' ? '（除法從最高位開始除，扣的方向跟頁面上方的設定）' : '（只在動畫裡對照，不改頁面上方的設定）';
+      };
+      sel.addEventListener('change', fixDir);
       dirRow.addEventListener('change', () => form.requestSubmit());
       form.onsubmit = e => {
         e.preventDefault();
@@ -303,13 +314,11 @@
         load(x, y, op, curDir());
       };
     }
-    const globalDir = () => (g.AbacusDir ? g.AbacusDir.get() : 'high');
-    function setDir(v) { const r = form && form.querySelector(`input[name=abd-dir][value=${v}]`); if (r) r.checked = true; }
-    function curDir() { const r = form && form.querySelector('input[name=abd-dir]:checked'); return r ? r.value : globalDir(); }
     setDir(opts.dir || globalDir());
+    fixDir();
     let cur = [opts.x, opts.y, opts.op];
     // 全站方向改了：動畫也換成新的方向（面板裡暫時的對照就不留了）
-    g.addEventListener('abacusdirchange', () => { setDir(globalDir()); load(...cur, curDir()); });
+    g.addEventListener('abacusdirchange', () => { setDir(globalDir()); fixDir(); load(...cur, curDir()); });
     load(opts.x, opts.y, opts.op, curDir());
     return {
       // 換一題（例題按鈕用），自己出題的欄位也一起改
@@ -317,7 +326,7 @@
         if (form) {
           const [ix, iy] = form.querySelectorAll('input[type=number]'); ix.value = x; iy.value = y;
           const sel = form.querySelector('select'); sel.value = op; sel.dispatchEvent(new Event('change'));
-          if (dir) setDir(dir);
+          if (dir && (op === '+' || op === '-')) setDir(dir);
         }
         load(x, y, op, dir || curDir());
       },

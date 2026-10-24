@@ -26,6 +26,8 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-ali
 .box p{margin:4px 0}
 li{margin:2px 0}
 .muted{color:var(--muted)}
+/* 分級表的等級欄不換行（5a-1、1（26 種）不會被拆成兩行） */
+table.lv td:first-child{white-space:nowrap}
 nav ul{columns:2;column-gap:24px}
 @media (max-width:560px){nav ul{columns:1}}
 </style>
@@ -149,7 +151,7 @@ nav ul{columns:2;column-gap:24px}
 </div>
 
 <h3>1～4 級</h3>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>1～4 級（例題依題型：20 以內／兩位數 ± 一位數／兩位數 ± 兩位數）</caption>
   <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">怎麼判斷</th><th scope="col">加法例題</th><th scope="col">減法例題</th></tr>
   <tr><td>1</td><td>不動補數</td><td>珠子夠，直接撥</td><td>2+2／21+3／32+15</td><td>4−3／37−5／47−21</td></tr>
@@ -167,7 +169,7 @@ nav ul{columns:2;column-gap:24px}
 </ul>
 
 <h3>第 5 級：只有多位數才會遇到</h3>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>第 5 級</caption>
   <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">怎麼判斷</th><th scope="col">加法例題</th><th scope="col">減法例題</th></tr>
   <tr><td>5a-1</td><td>進位、借位時十位用小補數（個位 3 級）</td><td>加法十位是 4，進 1 要動上珠；減法十位是 5，借 1 要退上珠</td><td>43+8、47+5、49+1</td><td>51−3、53−4、50−2</td></tr>
@@ -190,7 +192,7 @@ nav ul{columns:2;column-gap:24px}
 
 <h3>第 6 級：乘法</h3>
 <p>從個位開始：先算個位的乘積撥上去，再把十位的乘積加在十位、百位。分級看「加十位乘積」那一步用到什麼，和 1～4 級的規則一樣。</p>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>第 6 級</caption>
   <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">例題</th></tr>
   <tr><td>6a</td><td>一位數 × 一位數：把九九乘法的答案撥上去，練習撥在哪兩檔</td><td>2×3、7×6</td></tr>
@@ -202,7 +204,7 @@ nav ul{columns:2;column-gap:24px}
 
 <h3>第 7 級：兩位數 × 兩位數</h3>
 <p>跟直式一樣一行一行做：76 × 58 先算 76 × 8，再算 76 × 5，每一行從個位開始；九九的乘積撥在「兩個數字的位數相加」那一位起，照唸法先撥高位。算盤邊乘邊加，做完第一行時算盤上就是直式第一行的答案。分級看撥珠時最難的那一步。不出有 0 的數。</p>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>第 7 級</caption>
   <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">例題</th></tr>
   <tr><td>7a</td><td>直接撥，不用補數</td><td>21×13、12×54</td></tr>
@@ -213,7 +215,7 @@ nav ul{columns:2;column-gap:24px}
 
 <h3>第 8 級：除法（除數是一位數）</h3>
 <p>從最高位開始，這一位（連同上一位剩下的）裡有幾個除數，商就打幾，再把「商 × 除數」從算盤上扣掉；扣的時候照加減法的撥珠方向。商打在點顯器上（見<a href="#muldiv">乘法與除法</a>）。每一步的「扣」就是減法，撥珠難度 1～5 級已經練過，所以第 8 級<strong>看題型</strong>分級，順序參考文部科學省〈珠算編〉第 4 章。被除數可以選兩位數以內或三位數，除數 2～9。</p>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>第 8 級</caption>
   <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">例題</th></tr>
   <tr><td>8a</td><td>每一位都除得盡</td><td>6÷2、28÷7、68÷2、486÷2</td></tr>
@@ -233,7 +235,7 @@ nav ul{columns:2;column-gap:24px}
 
 <h3>全部個位組合</h3>
 <p>一位數的加法、減法各 81 種（不含答案是 0 的題目）。可直接拿來出題；減法 3～4 級前面有十位 1，實際出題時十位可以換成其他數，但避開 5 和 0；加法若在前面加上十位，則避開 4 和 9，以免變成第 5 級。</p>
-<div class="scroll"><table>
+<div class="scroll"><table class="lv">
   <caption>全部個位組合</caption>
   <tr><th scope="col">等級</th><th scope="col">加法</th><th scope="col">減法</th></tr>
   <tr><td>1（26 種）</td><td>1+1、1+2、1+3、1+5、1+6、1+7、1+8、2+1、2+2、2+5、2+6、2+7、3+1、3+5、3+6、4+5、5+1、5+2、5+3、5+4、6+1、6+2、6+3、7+1、7+2、8+1</td><td>2−1、3−1、3−2、4−1、4−2、4−3、6−1、6−5、7−1、7−2、7−5、7−6、8−1、8−2、8−3、8−5、8−6、8−7、9−1～9−8</td></tr>
@@ -273,7 +275,7 @@ nav ul{columns:2;column-gap:24px}
 <h2 id="page">練習頁怎麼設定</h2>
 <ul>
   <li><strong>級數表格</strong>：每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8 級是除法）。同一級加法、減法都勾就是加減混合。勾了好幾級時，題數平均分給各級（同一級再平均分給加、減），大多換一種，偶爾連著出同一種。第 5～8 級預設收合。</li>
-  <li><strong>題型選單</strong>：1～4 級每一列可以選「20 以內」「兩位數 ± 一位數」「兩位數 ± 兩位數」「20 以內＋兩位數 ± 一位數」「全部」；第 8 級可以選「兩位數以內 ÷ 一位數」「三位數 ÷ 一位數」「全部」。格子裡的題數和例題會跟著變。</li>
+  <li><strong>題型選單</strong>：1～4 級每一列可以選「20 以內」「兩位數 ± 一位數」「20 以內＋兩位數 ± 一位數」「兩位數 ± 兩位數」「全部」（照難度排）；第 8 級可以選「兩位數以內 ÷ 一位數」「三位數 ÷ 一位數」「全部」。格子裡的題數和例題會跟著變。</li>
   <li><strong>除法作答</strong>：答案欄打商，按 Enter 跳到餘數欄，再按 Enter 送出；沒有餘數時餘數欄可以不打。商和餘數分開判斷，答錯時會說是哪一個不對；餘數打得比除數大，會提醒「餘數要比除數小」。</li>
   <li><strong>建議順序</strong>：每一級先用「20 以內」練熟，再換成「兩位數 ± 一位數」，最後「兩位數 ± 兩位數」，然後才往下一級。</li>
   <li><strong>加減法撥珠方向</strong>：在頁面最上面切換，三個珠算頁面共用，記在這台電腦的瀏覽器裡；網址加 <code>?dir=high</code> 或 <code>?dir=low</code> 可以指定（分享連結時用）。只影響兩位數 ± 兩位數的分級；從最高位開始時 5d 那一組會隱藏。紀錄 CSV 會寫上用哪一種方向。</li>
