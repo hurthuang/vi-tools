@@ -1,0 +1,2478 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 這個檔案由 tools/build-nemeth-book.mjs 從 document/教材/Nemeth-數學點字教材-CH1-9.md 產生，不要直接改 -->
+<title>Nemeth 數理點字教材</title>
+<script src="music/js/theme.js"></script>
+<script>
+// 跟數學點字工具一樣的 MathJax 設定（\ratio、\proportion 是比例的 ∶、∷）
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']],
+    macros: { ratio: ['\\mathrel{\\unicode{x2236}}', 0], proportion: ['\\mathrel{\\unicode{x2237}}', 0] } },
+  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+<style>
+@font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--brl:#7a3e00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.7 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.6rem;margin:8px 0 4px}
+h2{font-size:1.35rem;margin:40px 0 8px;padding-top:12px;border-top:2px solid var(--line)}
+h3{font-size:1.15rem;margin:28px 0 6px}
+h4{font-size:1rem;margin:20px 0 4px}
+.lead{color:var(--muted);margin:0 0 12px}
+.bar{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin:0 0 8px;font-size:.95rem}
+.bar label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.scroll{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;background:var(--card)}
+th,td{border:1px solid var(--line);padding:4px 10px;text-align:left;vertical-align:top}
+.brl{color:var(--brl);font-size:1.15em;letter-spacing:.05em;word-break:break-all}
+html.simbrl .brl{font-family:'SimBraille';font-size:1.4em;letter-spacing:0}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;margin:12px 0}
+nav.toc>ul{margin:0;padding-left:1.2em}
+nav.toc ul ul{font-size:.92rem;columns:2 14em;margin:2px 0 8px}
+hr{display:none}
+code{font-family:Consolas,monospace}
+</style>
+</head>
+<body>
+<main>
+<div class="bar">
+  <a href="nemeth_converter.html">數學點字工具</a>
+  <label><input type="checkbox" id="simbrl"> 點字用 SimBraille 字型顯示（ASCII 點字）</label>
+</div>
+<h1>Nemeth 數理點字教材</h1>
+<p class="lead">依 108 課綱與 Nemeth 2022 規則編寫，國小到高中的數學，加上化學、物理公式。例子的點字都由數學點字工具產生，再跟規則書的範例核對。這份教材也分章發布在<a href="https://class.kh.edu.tw/19061/page/view/17#Nemeth">視覺障礙輔助科技筆記本</a>。</p>
+<nav class="toc" aria-label="目錄">
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#ch1-數字字母與基本符號">CH1 數字、字母與基本符號</a><ul><li><a href="#數字記號與數字">數字記號與數字</a></li><li><a href="#英文字母">英文字母</a></li><li><a href="#希臘字母">希臘字母</a></li><li><a href="#基本符號">基本符號</a></li></ul></li>
+<li><a href="#ch2-小數分數與括號">CH2 小數、分數與括號</a><ul><li><a href="#小數">小數</a></li><li><a href="#分數">分數</a></li><li><a href="#括號">括號</a></li></ul></li>
+<li><a href="#ch3-幾何關係符號">CH3 幾何、關係符號</a><ul><li><a href="#線段">線段</a></li><li><a href="#幾何圖形記號">幾何圖形記號</a></li><li><a href="#度">度</a></li><li><a href="#圓週率">圓週率</a></li><li><a href="#關係符號">關係符號</a></li></ul></li>
+<li><a href="#ch4-指數底數與根號">CH4 指數、底數與根號</a><ul><li><a href="#上標">上標</a></li><li><a href="#下標">下標</a></li><li><a href="#根號">根號</a></li></ul></li>
+<li><a href="#ch5-集合與邏輯">CH5 集合與邏輯</a><ul><li><a href="#數系與循環小數">數系與循環小數</a></li><li><a href="#屬於關係">屬於關係</a></li><li><a href="#集合的包含關係">集合的包含關係</a></li><li><a href="#集合運算">集合運算</a></li><li><a href="#邏輯量詞">邏輯量詞</a></li><li><a href="#邏輯運算">邏輯運算</a></li></ul></li>
+<li><a href="#ch6-總和階乘與排列組合">CH6 總和、階乘與排列組合</a><ul><li><a href="#總和σ">總和（Σ）</a></li><li><a href="#階乘">階乘</a></li><li><a href="#排列">排列</a></li><li><a href="#組合二項係數">組合（二項係數）</a></li><li><a href="#條件機率">條件機率</a></li></ul></li>
+<li><a href="#ch7-三角函數與向量">CH7 三角函數與向量</a><ul><li><a href="#三角函數">三角函數</a></li><li><a href="#向量">向量</a></li></ul></li>
+<li><a href="#ch8-對數與矩陣">CH8 對數與矩陣</a><ul><li><a href="#對數">對數</a></li><li><a href="#矩陣與行列式">矩陣與行列式</a></li></ul></li>
+<li><a href="#ch9-連乘極限與積分">CH9 連乘、極限與積分</a><ul><li><a href="#連乘π">連乘（Π）</a></li><li><a href="#極限">極限</a></li><li><a href="#積分">積分</a></li></ul></li>
+<li><a href="#ch10-化學式與化學反應式">CH10 化學式與化學反應式</a><ul><li><a href="#化學式記號慣例">化學式記號慣例</a></li><li><a href="#物質溶在水中解離">1. 物質溶在水中解離</a></li><li><a href="#酸鹼中和">2. 酸鹼中和</a></li><li><a href="#加酸反應">3. 加酸反應</a></li><li><a href="#加水反應">4. 加水反應</a></li><li><a href="#燃燒反應">5. 燃燒反應</a></li><li><a href="#催化與發酵反應">6. 催化與發酵反應</a></li><li><a href="#沉澱反應">7. 沉澱反應</a></li><li><a href="#加熱分解反應">8. 加熱分解反應</a></li><li><a href="#氧化還原反應">9. 氧化還原反應</a></li><li><a href="#其他反應電解">10. 其他反應（電解）</a></li></ul></li>
+<li><a href="#ch11-物理定律與公式">CH11 物理定律與公式</a><ul><li><a href="#力與運動">1. 力與運動</a></li><li><a href="#波動">2. 波動</a></li><li><a href="#萬有引力">3. 萬有引力</a></li><li><a href="#電學">4. 電學</a></li><li><a href="#功與能量">5. 功與能量</a></li></ul></li>
+<li><a href="#附錄常用單位符號與換算範例">附錄：常用單位符號與換算範例</a><ul><li><a href="#長度面積體積">長度、面積、體積</a></li><li><a href="#密度速度">密度、速度</a></li><li><a href="#溫度換算範例">溫度換算範例</a></li></ul></li>
+<li><a href="#附錄長算式的換行規則">附錄：長算式的換行規則</a><ul><li><a href="#斷行地點的優先順序">斷行地點的優先順序</a></li><li><a href="#不能拆開的構造">不能拆開的構造</a></li><li><a href="#接續行開頭不用加空格">接續行開頭不用加空格</a></li><li><a href="#換行要縮排">換行要縮排</a></li></ul></li>
+<li><a href="#參考資料">參考資料</a><ul><li><a href="#延伸工具">延伸工具</a></li></ul></li>
+</ul>
+</nav>
+<h2 id="前言">前言</h2>
+<p>四分之三加一，這個「加一」該加在分子，還是整個分數要加一？根號二減一，這個「減一」是放在根號裡面，還是根號外面？一長串夾雜小、中、大括號的四則運算，又該先算哪一部分？在視障學生的學習過程中，報讀或語音固然有其便利性，但對於數理科而言，點字仍有報讀、語音難以取代的重要性——不只是把印刷體算式逐字轉換成點字符號，更在於能完整呈現一道算式本身的結構：括號、分數線、指數、根號等構造之間的巢狀關係，讓學習者可以像明眼人讀算式版面一樣前後探索、確認每一層運算的範圍，並依這個結構分層運算。</p>
+<p>本教材的編寫起點，是坊間現有的點字數學符號對照資料多半編纂於較早年代，內容範圍與現行
+108 課綱、以及 2022 年版 Nemeth
+規則書已有落差，因此依課綱需求逐章重新編寫，並逐一以最新規則版本驗算校訂。</p>
+<p>本教材依 Nemeth 記法家族分章，對應 108
+課綱國小～高中數學內容。CH1～CH4 涵蓋國小（含六年級）與國中，CH5～CH9
+涵蓋高中，CH10 為化學、CH11
+為物理公式範例彙編，附錄為常用單位與換行規則。</p>
+<hr />
+<h2 id="ch1-數字字母與基本符號">CH1 數字、字母與基本符號</h2>
+<h3 id="數字記號與數字">數字記號與數字</h3>
+<p>點字由六個點組成，每個點凸起或不凸起共有 64
+種組合。使用數字點字時，前方加上數字記號 <span class="brl">⠼</span>（點 3 4 5 6）。</p>
+<h4 id="下位數字10">下位數字（1–0）</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>數字</th>
+<th>點字</th>
+<th>點位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><span class="brl">⠼⠂</span></td>
+<td>點 2</td>
+</tr>
+<tr>
+<td>2</td>
+<td><span class="brl">⠼⠆</span></td>
+<td>點 2 3</td>
+</tr>
+<tr>
+<td>3</td>
+<td><span class="brl">⠼⠒</span></td>
+<td>點 2 5</td>
+</tr>
+<tr>
+<td>4</td>
+<td><span class="brl">⠼⠲</span></td>
+<td>點 2 5 6</td>
+</tr>
+<tr>
+<td>5</td>
+<td><span class="brl">⠼⠢</span></td>
+<td>點 2 6</td>
+</tr>
+<tr>
+<td>6</td>
+<td><span class="brl">⠼⠖</span></td>
+<td>點 2 3 5</td>
+</tr>
+<tr>
+<td>7</td>
+<td><span class="brl">⠼⠶</span></td>
+<td>點 2 3 5 6</td>
+</tr>
+<tr>
+<td>8</td>
+<td><span class="brl">⠼⠦</span></td>
+<td>點 2 3 6</td>
+</tr>
+<tr>
+<td>9</td>
+<td><span class="brl">⠼⠔</span></td>
+<td>點 3 5</td>
+</tr>
+<tr>
+<td>0</td>
+<td><span class="brl">⠼⠴</span></td>
+<td>點 3 5 6</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="連續數字規則">連續數字規則</h4>
+<p>連續數字只在開頭加數字記號，結束時空一方即可接其他點字。</p>
+<p>範例：</p>
+<ul>
+<li><span class="math inline">\(365\)</span> → <span class="brl">⠼⠒⠖⠢</span></li>
+<li><span class="math inline">\(2025\)</span> → <span class="brl">⠼⠆⠴⠆⠢</span></li>
+<li><span class="math inline">\(600\)</span> 人 → <span class="brl">⠼⠖⠴⠴⠀⠛⠥⠂</span></li>
+<li><span class="math inline">\(17\)</span> 公斤 → <span class="brl">⠼⠂⠶⠀⠅⠯⠄⠅⠹⠄</span></li>
+</ul>
+<h4 id="冒號與數位時間">冒號與數位時間</h4>
+<p>冒號跟數字「3」共用同一個點位，前面加標點指示符 <span class="brl">⠸</span> 區分（合起來
+<span class="brl">⠸⠒</span>）。單純在敘述句裡提到幾點幾分，屬於一般文字標點，不算 Nemeth
+管的範圍；但時間如果拿來參與計算，就要用 Nemeth
+點字呈現。跟上面「連續數字規則」不同的地方：冒號會中斷數字記號的效力，冒號後面的數字要重新加一次數字記號，不能省略。</p>
+<ul>
+<li><span class="math inline">\(3:15\)</span> → <span class="brl">⠼⠒⠸⠒⠼⠂⠢</span></li>
+<li><span class="math inline">\(8:05\)</span> → <span class="brl">⠼⠦⠸⠒⠼⠴⠢</span></li>
+</ul>
+<h4 id="上位數字10">上位數字（1–0）</h4>
+<p>部份編號（頁碼、題號等）使用上位數字，點位往上提升，使用 1 2 4 5
+點。</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>數字</th>
+<th>點字</th>
+<th>點位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><span class="brl">⠼⠁</span></td>
+<td>點 1</td>
+</tr>
+<tr>
+<td>2</td>
+<td><span class="brl">⠼⠃</span></td>
+<td>點 1 2</td>
+</tr>
+<tr>
+<td>3</td>
+<td><span class="brl">⠼⠉</span></td>
+<td>點 1 4</td>
+</tr>
+<tr>
+<td>4</td>
+<td><span class="brl">⠼⠙</span></td>
+<td>點 1 4 5</td>
+</tr>
+<tr>
+<td>5</td>
+<td><span class="brl">⠼⠑</span></td>
+<td>點 1 5</td>
+</tr>
+<tr>
+<td>6</td>
+<td><span class="brl">⠼⠋</span></td>
+<td>點 1 2 4</td>
+</tr>
+<tr>
+<td>7</td>
+<td><span class="brl">⠼⠛</span></td>
+<td>點 1 2 4 5</td>
+</tr>
+<tr>
+<td>8</td>
+<td><span class="brl">⠼⠓</span></td>
+<td>點 1 2 5</td>
+</tr>
+<tr>
+<td>9</td>
+<td><span class="brl">⠼⠊</span></td>
+<td>點 2 4</td>
+</tr>
+<tr>
+<td>0</td>
+<td><span class="brl">⠼⠚</span></td>
+<td>點 2 4 5</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="英文字母">英文字母</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>a</th>
+<th>b</th>
+<th>c</th>
+<th>d</th>
+<th>e</th>
+<th>f</th>
+<th>g</th>
+<th>h</th>
+<th>i</th>
+<th>j</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="brl">⠁</span></td>
+<td><span class="brl">⠃</span></td>
+<td><span class="brl">⠉</span></td>
+<td><span class="brl">⠙</span></td>
+<td><span class="brl">⠑</span></td>
+<td><span class="brl">⠋</span></td>
+<td><span class="brl">⠛</span></td>
+<td><span class="brl">⠓</span></td>
+<td><span class="brl">⠊</span></td>
+<td><span class="brl">⠚</span></td>
+</tr>
+</tbody>
+</table></div>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>k</th>
+<th>l</th>
+<th>m</th>
+<th>n</th>
+<th>o</th>
+<th>p</th>
+<th>q</th>
+<th>r</th>
+<th>s</th>
+<th>t</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="brl">⠅</span></td>
+<td><span class="brl">⠇</span></td>
+<td><span class="brl">⠍</span></td>
+<td><span class="brl">⠝</span></td>
+<td><span class="brl">⠕</span></td>
+<td><span class="brl">⠏</span></td>
+<td><span class="brl">⠟</span></td>
+<td><span class="brl">⠗</span></td>
+<td><span class="brl">⠎</span></td>
+<td><span class="brl">⠞</span></td>
+</tr>
+</tbody>
+</table></div>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>u</th>
+<th>v</th>
+<th>w</th>
+<th>x</th>
+<th>y</th>
+<th>z</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="brl">⠥</span></td>
+<td><span class="brl">⠧</span></td>
+<td><span class="brl">⠺</span></td>
+<td><span class="brl">⠭</span></td>
+<td><span class="brl">⠽</span></td>
+<td><span class="brl">⠵</span></td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="數字與英文字母之間不空方">數字與英文字母之間不空方</h4>
+<p>範例：</p>
+<ul>
+<li><span class="math inline">\(3a\)</span> → <span class="brl">⠼⠒⠁</span></li>
+<li><span class="math inline">\(5x\)</span> → <span class="brl">⠼⠢⠭</span></li>
+</ul>
+<h4 id="大寫記號">大寫記號</h4>
+<p><span class="brl">⠠</span>（點
+6）。連續兩個大寫記號代表接下來的英文字母都是大寫。不同端點或不同元素需分開使用大寫記號。</p>
+<p>範例：</p>
+<ul>
+<li><span class="math inline">\(A\)</span> → <span class="brl">⠠⠁</span></li>
+<li>直線 <span class="math inline">\(L\)</span> → <span class="brl">⠠⠇</span></li>
+<li><span
+class="math inline">\(\text{USA}\)</span>（一般英文單字/縮寫，整詞只用一次雙重大寫記號；跟下面數學端點標籤用法不同）→
+<span class="brl">⠠⠠⠥⠎⠁</span></li>
+<li>五邊形 <span class="math inline">\(ABCDE\)</span> → <span class="brl">⠠⠁⠠⠃⠠⠉⠠⠙⠠⠑</span></li>
+<li><span class="math inline">\(HCl\)</span> → <span class="brl">⠠⠓⠠⠉⠇</span></li>
+</ul>
+<h4 id="羅馬數字">羅馬數字</h4>
+<p>羅馬數字在數學裡直接當作英文字母處理，用的是跟上面完全同一套大寫規則：整個羅馬數字當作一個詞，只在最前面用一次雙重大寫記號（跟上面
+USA 的用法一樣），不是每個字母分開大寫；如果剛好只有一個字母（如 <span
+class="math inline">\(V\)</span>、<span
+class="math inline">\(X\)</span>），就只用單個大寫記號。</p>
+<ul>
+<li><span class="math inline">\(V\)</span> → <span class="brl">⠠⠧</span></li>
+<li><span class="math inline">\(\text{VII}+V=\text{XII}\)</span> →
+<span class="brl">⠠⠠⠧⠊⠊⠬⠠⠧⠀⠨⠅⠀⠠⠠⠭⠊⠊</span></li>
+</ul>
+<h4 id="質數記號撇號">質數記號（撇號）</h4>
+<p>撇號 <span class="brl">⠄</span>（點
+3）在數學中稱為質數記號，緊接在字母或數字後面，不空方；連續兩個、三個撇號分別代表二次、三次質數，撇號之間也不空方。</p>
+<ul>
+<li><span class="math inline">\(A&#39;\)</span> → <span class="brl">⠠⠁⠄</span></li>
+<li><span class="math inline">\(A&#39;&#39;\)</span> → <span class="brl">⠠⠁⠄⠄</span></li>
+</ul>
+<h3 id="希臘字母">希臘字母</h3>
+<p>希臘字母指示符 <span class="brl">⠨</span>（點 4 6）＋字母。大寫時再疊加英文大寫記號 <span class="brl">⠠</span>（點
+6），跟前面英文字母的大寫記號是同一個構造，只是前面多加一個希臘字母指示符。</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>讀音</th>
+<th>小寫字母</th>
+<th>小寫點字</th>
+<th>大寫字母</th>
+<th>大寫點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>alpha</td>
+<td><span class="math inline">\(\alpha\)</span></td>
+<td><span class="brl">⠨⠁</span></td>
+<td><span class="math inline">\(A\)</span></td>
+<td><span class="brl">⠨⠠⠁</span></td>
+</tr>
+<tr>
+<td>beta</td>
+<td><span class="math inline">\(\beta\)</span></td>
+<td><span class="brl">⠨⠃</span></td>
+<td><span class="math inline">\(B\)</span></td>
+<td><span class="brl">⠨⠠⠃</span></td>
+</tr>
+<tr>
+<td>gamma</td>
+<td><span class="math inline">\(\gamma\)</span></td>
+<td><span class="brl">⠨⠛</span></td>
+<td><span class="math inline">\(\Gamma\)</span></td>
+<td><span class="brl">⠨⠠⠛</span></td>
+</tr>
+<tr>
+<td>delta</td>
+<td><span class="math inline">\(\delta\)</span></td>
+<td><span class="brl">⠨⠙</span></td>
+<td><span class="math inline">\(\Delta\)</span></td>
+<td><span class="brl">⠨⠠⠙</span></td>
+</tr>
+<tr>
+<td>epsilon</td>
+<td><span class="math inline">\(\epsilon\)</span></td>
+<td><span class="brl">⠨⠑</span></td>
+<td><span class="math inline">\(E\)</span></td>
+<td><span class="brl">⠨⠠⠑</span></td>
+</tr>
+<tr>
+<td>zeta</td>
+<td><span class="math inline">\(\zeta\)</span></td>
+<td><span class="brl">⠨⠵</span></td>
+<td><span class="math inline">\(Z\)</span></td>
+<td><span class="brl">⠨⠠⠵</span></td>
+</tr>
+<tr>
+<td>eta</td>
+<td><span class="math inline">\(\eta\)</span></td>
+<td><span class="brl">⠨⠱</span></td>
+<td><span class="math inline">\(H\)</span></td>
+<td><span class="brl">⠨⠠⠱</span></td>
+</tr>
+<tr>
+<td>theta</td>
+<td><span class="math inline">\(\theta\)</span></td>
+<td><span class="brl">⠨⠹</span></td>
+<td><span class="math inline">\(\Theta\)</span></td>
+<td><span class="brl">⠨⠠⠹</span></td>
+</tr>
+<tr>
+<td>iota</td>
+<td><span class="math inline">\(\iota\)</span></td>
+<td><span class="brl">⠨⠊</span></td>
+<td><span class="math inline">\(I\)</span></td>
+<td><span class="brl">⠨⠠⠊</span></td>
+</tr>
+<tr>
+<td>kappa</td>
+<td><span class="math inline">\(\kappa\)</span></td>
+<td><span class="brl">⠨⠅</span></td>
+<td><span class="math inline">\(K\)</span></td>
+<td><span class="brl">⠨⠠⠅</span></td>
+</tr>
+<tr>
+<td>lambda</td>
+<td><span class="math inline">\(\lambda\)</span></td>
+<td><span class="brl">⠨⠇</span></td>
+<td><span class="math inline">\(\Lambda\)</span></td>
+<td><span class="brl">⠨⠠⠇</span></td>
+</tr>
+<tr>
+<td>mu</td>
+<td><span class="math inline">\(\mu\)</span></td>
+<td><span class="brl">⠨⠍</span></td>
+<td><span class="math inline">\(M\)</span></td>
+<td><span class="brl">⠨⠠⠍</span></td>
+</tr>
+<tr>
+<td>nu</td>
+<td><span class="math inline">\(\nu\)</span></td>
+<td><span class="brl">⠨⠝</span></td>
+<td><span class="math inline">\(N\)</span></td>
+<td><span class="brl">⠨⠠⠝</span></td>
+</tr>
+<tr>
+<td>xi</td>
+<td><span class="math inline">\(\xi\)</span></td>
+<td><span class="brl">⠨⠭</span></td>
+<td><span class="math inline">\(\Xi\)</span></td>
+<td><span class="brl">⠨⠠⠭</span></td>
+</tr>
+<tr>
+<td>omicron</td>
+<td><span class="math inline">\(o\)</span></td>
+<td><span class="brl">⠨⠕</span></td>
+<td><span class="math inline">\(O\)</span></td>
+<td><span class="brl">⠨⠠⠕</span></td>
+</tr>
+<tr>
+<td>pi</td>
+<td><span class="math inline">\(\pi\)</span></td>
+<td><span class="brl">⠨⠏</span></td>
+<td><span class="math inline">\(\Pi\)</span></td>
+<td><span class="brl">⠨⠠⠏</span></td>
+</tr>
+<tr>
+<td>rho</td>
+<td><span class="math inline">\(\rho\)</span></td>
+<td><span class="brl">⠨⠗</span></td>
+<td><span class="math inline">\(P\)</span></td>
+<td><span class="brl">⠨⠠⠗</span></td>
+</tr>
+<tr>
+<td>sigma</td>
+<td><span class="math inline">\(\sigma\)</span></td>
+<td><span class="brl">⠨⠎</span></td>
+<td><span class="math inline">\(\Sigma\)</span></td>
+<td><span class="brl">⠨⠠⠎</span></td>
+</tr>
+<tr>
+<td>tau</td>
+<td><span class="math inline">\(\tau\)</span></td>
+<td><span class="brl">⠨⠞</span></td>
+<td><span class="math inline">\(T\)</span></td>
+<td><span class="brl">⠨⠠⠞</span></td>
+</tr>
+<tr>
+<td>upsilon</td>
+<td><span class="math inline">\(\upsilon\)</span></td>
+<td><span class="brl">⠨⠥</span></td>
+<td><span class="math inline">\(\Upsilon\)</span></td>
+<td><span class="brl">⠨⠠⠥</span></td>
+</tr>
+<tr>
+<td>phi</td>
+<td><span class="math inline">\(\phi\)</span></td>
+<td><span class="brl">⠨⠋</span></td>
+<td><span class="math inline">\(\Phi\)</span></td>
+<td><span class="brl">⠨⠠⠋</span></td>
+</tr>
+<tr>
+<td>chi</td>
+<td><span class="math inline">\(\chi\)</span></td>
+<td><span class="brl">⠨⠯</span></td>
+<td><span class="math inline">\(X\)</span></td>
+<td><span class="brl">⠨⠠⠯</span></td>
+</tr>
+<tr>
+<td>psi</td>
+<td><span class="math inline">\(\psi\)</span></td>
+<td><span class="brl">⠨⠽</span></td>
+<td><span class="math inline">\(\Psi\)</span></td>
+<td><span class="brl">⠨⠠⠽</span></td>
+</tr>
+<tr>
+<td>omega</td>
+<td><span class="math inline">\(\omega\)</span></td>
+<td><span class="brl">⠨⠺</span></td>
+<td><span class="math inline">\(\Omega\)</span></td>
+<td><span class="brl">⠨⠠⠺</span></td>
+</tr>
+</tbody>
+</table></div>
+<p>epsilon、phi 另外有
+<code>\varepsilon</code>（ε）、<code>\varphi</code>（φ）這種變體字形的
+LaTeX
+寫法，點字跟上表的標準寫法完全相同（同一個希臘字母、只是印刷體字形不同，點字不分辨這種差異）。</p>
+<h3 id="基本符號">基本符號</h3>
+<h4 id="等號">等號</h4>
+<p><span class="math inline">\(=\)</span> <span class="brl">⠨⠅</span>（點 4 6 點 1
+3）。等號前後各空一方。</p>
+<p>範例：</p>
+<ul>
+<li><span class="math inline">\(a=b\)</span> → <span class="brl">⠁⠀⠨⠅⠀⠃</span></li>
+<li><span class="math inline">\(x=7\)</span> → <span class="brl">⠭⠀⠨⠅⠀⠼⠶</span></li>
+</ul>
+<h4 id="運算符號">運算符號</h4>
+<p>運算符號與前後數字不空方。</p>
+<p><strong>加號</strong> <span class="math inline">\(+\)</span> <span class="brl">⠬</span>（點 3
+4 6）</p>
+<ul>
+<li><span class="math inline">\(2+3=5\)</span> → <span class="brl">⠼⠆⠬⠒⠀⠨⠅⠀⠼⠢</span></li>
+<li><span class="math inline">\(17+21=38\)</span> → <span class="brl">⠼⠂⠶⠬⠆⠂⠀⠨⠅⠀⠼⠒⠦</span></li>
+<li><span class="math inline">\(3x+2y=25\)</span> → <span class="brl">⠼⠒⠭⠬⠆⠽⠀⠨⠅⠀⠼⠆⠢</span></li>
+<li><span
+class="math inline">\(3:15+1:30=4:45\)</span>（時間加法，見前面「冒號與數位時間」）→
+<span class="brl">⠼⠒⠸⠒⠼⠂⠢⠬⠼⠂⠸⠒⠼⠒⠴⠀⠨⠅⠀⠼⠲⠸⠒⠼⠲⠢</span></li>
+</ul>
+<p><strong>減號</strong> <span class="math inline">\(-\)</span> <span class="brl">⠤</span>（點 3
+6）</p>
+<ul>
+<li><span class="math inline">\(8-6=2\)</span> → <span class="brl">⠼⠦⠤⠖⠀⠨⠅⠀⠼⠆</span></li>
+<li><span class="math inline">\(33-22=11\)</span> → <span class="brl">⠼⠒⠒⠤⠆⠆⠀⠨⠅⠀⠼⠂⠂</span></li>
+<li><span class="math inline">\(9x-4y=2\)</span> → <span class="brl">⠼⠔⠭⠤⠲⠽⠀⠨⠅⠀⠼⠆</span></li>
+</ul>
+<p><strong>乘號</strong> <span class="math inline">\(\times\)</span>
+<span class="brl">⠈⠡</span>（點 4 點 1 6）</p>
+<ul>
+<li><span class="math inline">\(6\times5=30\)</span> → <span class="brl">⠼⠖⠈⠡⠢⠀⠨⠅⠀⠼⠒⠴</span></li>
+<li><span class="math inline">\(12\times12=144\)</span> →
+<span class="brl">⠼⠂⠆⠈⠡⠂⠆⠀⠨⠅⠀⠼⠂⠲⠲</span></li>
+<li><span class="math inline">\(2\times3x=6x\)</span> →
+<span class="brl">⠼⠆⠈⠡⠒⠭⠀⠨⠅⠀⠼⠖⠭</span></li>
+</ul>
+<p><strong>乘點</strong> <span class="math inline">\(\cdot\)</span>
+<span class="brl">⠡</span>（點 1 6）</p>
+<ul>
+<li><span class="math inline">\(3\cdot5=15\)</span> → <span class="brl">⠼⠒⠡⠢⠀⠨⠅⠀⠼⠂⠢</span></li>
+<li><span class="math inline">\(8\cdot x=8x\)</span> → <span class="brl">⠼⠦⠡⠭⠀⠨⠅⠀⠼⠦⠭</span></li>
+<li><span class="math inline">\(a\cdot b=ab\)</span> → <span class="brl">⠁⠡⠃⠀⠨⠅⠀⠁⠃</span></li>
+</ul>
+<p><strong>除號</strong> <span class="math inline">\(\div\)</span>
+<span class="brl">⠨⠌</span>（點 4 6 點 3 4）</p>
+<ul>
+<li><span class="math inline">\(6\div3=2\)</span> → <span class="brl">⠼⠖⠨⠌⠒⠀⠨⠅⠀⠼⠆</span></li>
+<li><span class="math inline">\(42\div7=6\)</span> → <span class="brl">⠼⠲⠆⠨⠌⠶⠀⠨⠅⠀⠼⠖</span></li>
+<li><span class="math inline">\(18x\div2=9x\)</span> →
+<span class="brl">⠼⠂⠦⠭⠨⠌⠆⠀⠨⠅⠀⠼⠔⠭</span></li>
+</ul>
+<p><strong>餘數</strong> <span class="math inline">\(\cdots\)</span>
+<span class="brl">⠄⠄⠄⠄⠄⠄</span>（6 個點 3）</p>
+<ul>
+<li><span class="math inline">\(13\div5=2\cdots3\)</span> →
+<span class="brl">⠼⠂⠒⠨⠌⠢⠀⠨⠅⠀⠼⠆⠄⠄⠄⠄⠄⠄⠒</span></li>
+<li><span class="math inline">\(226\div15=15\cdots1\)</span> →
+<span class="brl">⠼⠆⠆⠖⠨⠌⠂⠢⠀⠨⠅⠀⠼⠂⠢⠄⠄⠄⠄⠄⠄⠂</span></li>
+</ul>
+<h4 id="省略記號填空題">省略記號（填空題）</h4>
+<p>印刷體用問號表示待填的答案時，點字統一用「一般省略記號」<span class="brl">⠿</span>（六點全滿，點
+1 2 3 4 5
+6）表示，不加數字記號（省略記號本身不算數字，即使它代表的是一個數）。印刷體改用底線／橫線表示待填的答案時，改用「長橫線」——連續四格減號
+<span class="brl">⠤</span>（點 3 6），前後空方方式跟它取代的內容原本要求的空方方式一樣。</p>
+<ul>
+<li><span class="math inline">\(5+3=?\)</span> → <span class="brl">⠼⠢⠬⠒⠀⠨⠅⠀⠿</span></li>
+<li><span class="math inline">\(18-6=\_\_\_\)</span> →
+<span class="brl">⠼⠂⠦⠤⠖⠀⠨⠅⠀⠤⠤⠤⠤</span></li>
+</ul>
+<h4 id="逗號">逗號</h4>
+<p><span class="math inline">\(,\)</span> <span class="brl">⠠</span>（點
+6）。逗號與前面不空方，後面空一方。</p>
+<ul>
+<li><span class="math inline">\(1, 2, 3, 4\)</span> →
+<span class="brl">⠼⠂⠠⠀⠼⠆⠠⠀⠼⠒⠠⠀⠼⠲</span></li>
+</ul>
+<h4 id="百分比">百分比</h4>
+<p><span class="math inline">\(\%\)</span> <span class="brl">⠈⠴</span>（點 4 點 3 5
+6）。百分比符號與前面數字不空方。</p>
+<ul>
+<li><span class="math inline">\(99\%\)</span> → <span class="brl">⠼⠔⠔⠈⠴</span></li>
+<li><span class="math inline">\(25\%\)</span> → <span class="brl">⠼⠆⠢⠈⠴</span></li>
+</ul>
+<h4 id="性質符號">性質符號</h4>
+<p><strong>正號</strong> <span class="math inline">\(+\)</span> <span class="brl">⠬</span>（點 3
+4 6）。正號在算式啟始處時，後方直接加數字，中間不用加數字記號。</p>
+<ul>
+<li><span class="math inline">\(+3+2\)</span> → <span class="brl">⠬⠒⠬⠆</span></li>
+</ul>
+<p><strong>負號</strong>。負號在算式啟始處時，後方加數字記號再接數字。</p>
+<ul>
+<li><span class="math inline">\(-2+3\)</span> → <span class="brl">⠤⠼⠆⠬⠒</span></li>
+<li><span class="math inline">\(-2\times5\)</span> → <span class="brl">⠤⠼⠆⠈⠡⠢</span></li>
+</ul>
+<p><strong>正負號（加減號）</strong>。在算式啟始處時，後方直接加數字，中間不用加數字記號。</p>
+<ul>
+<li><span class="math inline">\(\pm7\)</span> → <span class="brl">⠬⠤⠶</span></li>
+</ul>
+<hr />
+<h2 id="ch2-小數分數與括號">CH2 小數、分數與括號</h2>
+<h3 id="小數">小數</h3>
+<p>小數點 <span class="math inline">\(.\)</span> <span class="brl">⠨</span>（點 4
+6）。小數點前後不須空方。</p>
+<p>範例：</p>
+<ul>
+<li><span class="math inline">\(7.42\)</span> → <span class="brl">⠼⠶⠨⠲⠆</span></li>
+<li><span class="math inline">\(3.1415\)</span> → <span class="brl">⠼⠒⠨⠂⠲⠂⠢</span></li>
+<li><span class="math inline">\(0.35+0.28=0.63\)</span> →
+<span class="brl">⠼⠴⠨⠒⠢⠬⠴⠨⠆⠦⠀⠨⠅⠀⠼⠴⠨⠖⠒</span></li>
+</ul>
+<h3 id="分數">分數</h3>
+<h4 id="簡易分數">簡易分數</h4>
+<p>格式：分子 <span class="brl">⠸⠌</span> 分母（除線前多一個點 4 5 6，跟後面「分數」章節的除線 <span class="brl">⠌</span>
+不同）。常用於寫單位。</p>
+<ul>
+<li><span class="math inline">\(30km/hr\)</span> → <span class="brl">⠼⠒⠴⠅⠍⠸⠌⠓⠗</span></li>
+<li><span class="math inline">\(60cm/min\)</span> → <span class="brl">⠼⠖⠴⠉⠍⠸⠌⠍⠊⠝</span></li>
+</ul>
+<h4 id="分數-1">分數</h4>
+<p>格式：<span class="brl">⠹</span> 分子 <span class="brl">⠌</span> 分母 <span class="brl">⠼</span>（分數開始 <span class="brl">⠹</span> 點 1 4 5 6、除線 <span class="brl">⠌</span> 點 3 4、分數結束
+<span class="brl">⠼</span> 點 3 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(\frac{1}{2}\)</span> → <span class="brl">⠹⠂⠌⠆⠼</span></li>
+<li><span
+class="math inline">\(\frac{1}{2}+\frac{1}{3}=\frac{5}{6}\)</span> →
+<span class="brl">⠹⠂⠌⠆⠼⠬⠹⠂⠌⠒⠼⠀⠨⠅⠀⠹⠢⠌⠖⠼</span></li>
+<li><span class="math inline">\(\frac{1+3}{4}+\frac{4}{1+3}=2\)</span> →
+<span class="brl">⠹⠂⠬⠒⠌⠲⠼⠬⠹⠲⠌⠂⠬⠒⠼⠀⠨⠅⠀⠼⠆</span></li>
+</ul>
+<h4 id="帶分數">帶分數</h4>
+<p>格式：整數 <span class="brl">⠸⠹</span> 分子 <span class="brl">⠌</span> 分母 <span class="brl">⠸⠼</span>（帶分數開始 <span class="brl">⠸⠹</span>、結束 <span class="brl">⠸⠼</span>）</p>
+<ul>
+<li><span class="math inline">\(2\frac{3}{4}\)</span> → <span class="brl">⠼⠆⠸⠹⠒⠌⠲⠸⠼</span></li>
+<li><span class="math inline">\(\frac{25}{7}=3\frac{4}{7}\)</span> →
+<span class="brl">⠹⠆⠢⠌⠶⠼⠀⠨⠅⠀⠼⠒⠸⠹⠲⠌⠶⠸⠼</span></li>
+<li><span
+class="math inline">\(1\frac{1}{2}+2\frac{1}{3}=3\frac{5}{6}\)</span> →
+<span class="brl">⠼⠂⠸⠹⠂⠌⠆⠸⠼⠬⠆⠸⠹⠂⠌⠒⠸⠼⠀⠨⠅⠀⠼⠒⠸⠹⠢⠌⠖⠸⠼</span></li>
+</ul>
+<h4 id="繁分數">繁分數</h4>
+<p>在整個分數的開始、除線、結束記號前加上 <span class="brl">⠠</span>（點
+6）；巢狀繁分數則最外層加 <span class="brl">⠠⠠</span>（兩個點 6），以此類推。</p>
+<ul>
+<li><span class="math inline">\(\frac{\frac{2}{3}}{5}\)</span> →
+<span class="brl">⠠⠹⠹⠆⠌⠒⠼⠠⠌⠢⠠⠼</span></li>
+<li><span class="math inline">\(\frac{\frac{1}{2}}{\frac{1}{3}}\)</span>
+→ <span class="brl">⠠⠹⠹⠂⠌⠆⠼⠠⠌⠹⠂⠌⠒⠼⠠⠼</span></li>
+<li><span
+class="math inline">\(\frac{\frac{\frac{1}{2}}{\frac{1}{3}}}{4}\)</span>
+→ <span class="brl">⠠⠠⠹⠠⠹⠹⠂⠌⠆⠼⠠⠌⠹⠂⠌⠒⠼⠠⠼⠠⠠⠌⠲⠠⠠⠼</span></li>
+</ul>
+<h4 id="綜合應用">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(\frac{x}{a}+\frac{y}{b}=1\)</span>（直線截距式）→
+<span class="brl">⠹⠭⠌⠁⠼⠬⠹⠽⠌⠃⠼⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<h3 id="括號">括號</h3>
+<p>括號與前後內容間不需空方，括號內的數字不需加數字記號。</p>
+<h4 id="小括號">小括號</h4>
+<p><span class="math inline">\((\)</span> <span class="brl">⠷</span>（點 1 2 3 5 6）、<span
+class="math inline">\()\)</span> <span class="brl">⠾</span>（點 2 3 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(36\div(3+1)=9\)</span> →
+<span class="brl">⠼⠒⠖⠨⠌⠷⠒⠬⠂⠾⠀⠨⠅⠀⠼⠔</span></li>
+<li><span class="math inline">\((2+3)\times9=45\)</span> →
+<span class="brl">⠷⠆⠬⠒⠾⠈⠡⠔⠀⠨⠅⠀⠼⠲⠢</span></li>
+<li><span class="math inline">\(\frac{(7+11)\times3}{9}=6\)</span> →
+<span class="brl">⠹⠷⠶⠬⠂⠂⠾⠈⠡⠒⠌⠔⠼⠀⠨⠅⠀⠼⠖</span></li>
+</ul>
+<h4 id="坐標">坐標</h4>
+<p>坐標用小括號包住，中間用逗號分隔，逗號後留一格再接下一個數。</p>
+<ul>
+<li><span class="math inline">\((5,8)\)</span> → <span class="brl">⠷⠢⠠⠀⠦⠾</span></li>
+<li><span class="math inline">\((2,-3)\)</span> → <span class="brl">⠷⠆⠠⠀⠤⠒⠾</span></li>
+</ul>
+<h4 id="中括號">中括號</h4>
+<p>中括號 = 小括號前加 <span class="brl">⠈</span>（點 4）。<span class="math inline">\([\)</span>
+<span class="brl">⠈⠷</span>、<span class="math inline">\(]\)</span> <span class="brl">⠈⠾</span></p>
+<ul>
+<li><span class="math inline">\(3\times[(9+6)\div5]-1=8\)</span> →
+<span class="brl">⠼⠒⠈⠡⠈⠷⠷⠔⠬⠖⠾⠨⠌⠢⠈⠾⠤⠂⠀⠨⠅⠀⠼⠦</span></li>
+<li><span
+class="math inline">\(\frac{18-[45-(4+5)\times4]}{9}=1\)</span> →
+<span class="brl">⠹⠂⠦⠤⠈⠷⠲⠢⠤⠷⠲⠬⠢⠾⠈⠡⠲⠈⠾⠌⠔⠼⠀⠨⠅⠀⠼⠂</span></li>
+<li><span class="math inline">\([36,48]\)</span> → <span class="brl">⠈⠷⠒⠖⠠⠀⠲⠦⠈⠾</span></li>
+</ul>
+<h4 id="大括號">大括號</h4>
+<p>大括號 = 小括號前加 <span class="brl">⠨</span>（點 4 6）。<span
+class="math inline">\(\{\)</span> <span class="brl">⠨⠷</span>、<span
+class="math inline">\(\}\)</span> <span class="brl">⠨⠾</span></p>
+<ul>
+<li><span
+class="math inline">\(\{4\times[(1+2)\div3]\}+2\times5=14\)</span> →
+<span class="brl">⠨⠷⠲⠈⠡⠈⠷⠷⠂⠬⠆⠾⠨⠌⠒⠈⠾⠨⠾⠬⠆⠈⠡⠢⠀⠨⠅⠀⠼⠂⠲</span></li>
+<li><span
+class="math inline">\(\{[(15+8)\times3]-12\}\div7=8\frac{1}{7}\)</span>
+→ <span class="brl">⠨⠷⠈⠷⠷⠂⠢⠬⠦⠾⠈⠡⠒⠈⠾⠤⠂⠆⠨⠾⠨⠌⠶⠀⠨⠅⠀⠼⠦⠸⠹⠂⠌⠶⠸⠼</span></li>
+<li><span
+class="math inline">\(\{[48\div(4+2)]\times3\}+\{[(9-5)\times6]-18\}=30\)</span>
+→ <span class="brl">⠨⠷⠈⠷⠲⠦⠨⠌⠷⠲⠬⠆⠾⠈⠾⠈⠡⠒⠨⠾⠬⠨⠷⠈⠷⠷⠔⠤⠢⠾⠈⠡⠖⠈⠾⠤⠂⠦⠨⠾⠀⠨⠅⠀⠼⠒⠴</span></li>
+</ul>
+<h4 id="絕對值">絕對值</h4>
+<p><span class="math inline">\(|\)</span> <span class="brl">⠳</span>（點 1 2 5 6）</p>
+<ul>
+<li><span class="math inline">\(|-5|=5\)</span> → <span class="brl">⠳⠤⠢⠳⠀⠨⠅⠀⠼⠢</span></li>
+<li><span class="math inline">\(|2|+|-2|=4\)</span> →
+<span class="brl">⠳⠆⠳⠬⠳⠤⠆⠳⠀⠨⠅⠀⠼⠲</span></li>
+<li><span class="math inline">\([|-7|+(-5)-9]\times2=-14\)</span> →
+<span class="brl">⠈⠷⠳⠤⠶⠳⠬⠷⠤⠢⠾⠤⠔⠈⠾⠈⠡⠆⠀⠨⠅⠀⠤⠼⠂⠲</span></li>
+</ul>
+<h4 id="聯立方程式">聯立方程式</h4>
+<p>聯立方程式是「空間排列」（spatial
+arrangement），每個方程式各佔一行；如果印刷上有放大的左大括號（花括號）表示「一起解」，點字裡也在每一行前面加上放大左花括號
+<span class="brl">⠨⠠⠷</span>（點 4 6 點 6 點 1 2 3 5
+6）。放大左花括號跟矩陣用的放大小括號是不同符號（矩陣見
+CH8「矩陣與行列式」）。</p>
+<p><span
+class="math inline">\(\begin{cases}x+y=6\\x-y=1\end{cases}\)</span>：</p>
+<ul>
+<li>第一式 → <span class="brl">⠨⠠⠷⠭⠬⠽⠀⠨⠅⠀⠼⠖</span></li>
+<li>第二式 → <span class="brl">⠨⠠⠷⠭⠤⠽⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<p><span
+class="math inline">\(\begin{cases}2x+3y=7\\x-y=1\end{cases}\)</span>：</p>
+<ul>
+<li>第一式 → <span class="brl">⠨⠠⠷⠆⠭⠬⠒⠽⠀⠨⠅⠀⠼⠶</span></li>
+<li>第二式 → <span class="brl">⠨⠠⠷⠭⠤⠽⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<hr />
+<h2 id="ch3-幾何關係符號">CH3 幾何、關係符號</h2>
+<h3 id="線段">線段</h3>
+<p>點字裡「把一個符號放在另一個符號正上方或正下方」統稱修飾符構造，固定用五個部分組成：
+<span class="brl">⠐</span>（多用途指示符，點 5）+ 被修飾的內容 + <span class="brl">⠣</span>（正上方修飾符起始，點 1 2 6）+
+修飾符本身 + <span class="brl">⠻</span>（結束，點 1 2 4 5
+6）。修飾符可以是橫線、箭頭、弧形等各種不同符號，不是只有幾何圖形才用得到這套構造。</p>
+<p>線段記法用的修飾符是橫線 <span class="brl">⠱</span>（點 1 5 6），加在兩個端點字母正上方：</p>
+<ul>
+<li><span class="math inline">\(\overline{AB}\)</span> → <span class="brl">⠐⠠⠁⠠⠃⠣⠱⠻</span></li>
+<li><span class="math inline">\(\overline{EF}\)</span> → <span class="brl">⠐⠠⠑⠠⠋⠣⠱⠻</span></li>
+<li><span
+class="math inline">\(\overline{AB}+\overline{CD}=\overline{EF}\)</span>
+→ <span class="brl">⠐⠠⠁⠠⠃⠣⠱⠻⠬⠐⠠⠉⠠⠙⠣⠱⠻⠀⠨⠅⠀⠐⠠⠑⠠⠋⠣⠱⠻</span></li>
+</ul>
+<p>下面「直線／射線／弧」用的是同樣的構造，只是把橫線 <span class="brl">⠱</span>
+換成箭頭或弧形的修飾符——這些修飾符本身多了一個圖形指示符 <span class="brl">⠫</span>（點 1 2 4
+6）。</p>
+<h4 id="直線">直線</h4>
+<p><span class="brl">⠐</span>（點 5）+ 端點 + <span class="brl">⠣⠫⠪⠒⠒⠕⠻</span>（點 1 2 6 點 1 2 4 6 點 2 4 6 點 2 5 點 2 5
+點 1 3 5 點 1 2 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(\overleftrightarrow{AB}\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠫⠪⠒⠒⠕⠻</span></li>
+<li><span class="math inline">\(\overleftrightarrow{PQ}\)</span> →
+<span class="brl">⠐⠠⠏⠠⠟⠣⠫⠪⠒⠒⠕⠻</span></li>
+</ul>
+<h4 id="射線">射線</h4>
+<p><span class="brl">⠐</span>（點 5）+ 端點 + <span class="brl">⠣⠫⠕⠻</span>（點 1 2 6 點 1 2 4 6 點 1 3 5 點 1 2 4 5
+6）</p>
+<ul>
+<li><span class="math inline">\(\overrightarrow{AB}\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠫⠕⠻</span></li>
+<li><span class="math inline">\(\overrightarrow{ST}\)</span> →
+<span class="brl">⠐⠠⠎⠠⠞⠣⠫⠕⠻</span></li>
+</ul>
+<p>上面用的是箭頭的「縮寫形式」（<span class="brl">⠫⠕</span>）：只要箭頭本身是「完整箭鏃、單一一般長度箭桿、正常字體、單獨出現」（不是被修飾過或更複雜構造的一部分），一律用這個縮寫形式，射線跟
+CH7
+的向量都是這種情況。如果箭頭本身不符合這些條件（例如字體特殊、箭頭又被加了其他修飾），要改用「完整形式」（<span class="brl">⠫⠒⠒⠕</span>，多了箭桿記號），這個完整形式在本教材裡實際只出現在
+CH5「邏輯運算」的蘊含符號「⟹」——因為蘊含符號如果沿用射線的縮寫形式，會跟一般函式箭頭
+→ 沒有區別，所以才需要改用完整形式。</p>
+<h4 id="弧">弧</h4>
+<p><span class="brl">⠐</span>（點 5）+ 端點 + <span class="brl">⠣⠫⠁⠻</span>（點 1 2 6 點 1 2 4 6 點 1 點 1 2 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(\overset{\frown}{AB}\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠫⠁⠻</span></li>
+<li><span class="math inline">\(\overset{\frown}{DEF}\)</span> →
+<span class="brl">⠐⠠⠙⠠⠑⠠⠋⠣⠫⠁⠻</span></li>
+</ul>
+<h4 id="綜合應用-1">綜合應用</h4>
+<p>設線段 <span class="math inline">\(\overline{AB}\)</span> 兩端點
+<span class="math inline">\(A(a,b)\)</span>、<span
+class="math inline">\(B(c,d)\)</span>，中點 <span
+class="math inline">\(M\)</span> 到兩端點的距離相等（<span
+class="math inline">\(MA=MB\)</span>），坐標公式：</p>
+<ul>
+<li><span class="math inline">\(M=(\frac{a+c}{2},\frac{b+d}{2})\)</span>
+→ <span class="brl">⠠⠍⠀⠨⠅⠀⠷⠹⠁⠬⠉⠌⠆⠼⠠⠀⠹⠃⠬⠙⠌⠆⠼⠾</span></li>
+</ul>
+<h3 id="幾何圖形記號">幾何圖形記號</h3>
+<p>角、三角形、平行四邊形用的是另一套機制：圖形指示符 <span class="brl">⠫</span>（點 1 2 4 6）+
+形狀本身的字母記號 + 空一方 + 代號。</p>
+<h4 id="角">角</h4>
+<p>用圖形記號 <span class="brl">⠫</span>（點 1 2 4 6）加上 <span class="brl">⠪</span>（點 2 4
+6，形狀像角）後面空一方後接代號。</p>
+<ul>
+<li><span class="math inline">\(\angle A\)</span> → <span class="brl">⠫⠪⠀⠠⠁</span></li>
+<li><span class="math inline">\(\angle ABC\)</span> → <span class="brl">⠫⠪⠀⠠⠁⠠⠃⠠⠉</span></li>
+<li><span class="math inline">\(\angle1\)</span> → <span class="brl">⠫⠪⠀⠼⠂</span></li>
+<li><span class="math inline">\(\angle1+\angle2=\angle3\)</span> →
+<span class="brl">⠫⠪⠀⠼⠂⠬⠫⠪⠀⠼⠆⠀⠨⠅⠀⠫⠪⠀⠼⠒</span></li>
+</ul>
+<h4 id="三角形">三角形</h4>
+<p>用圖形記號 <span class="brl">⠫</span>（點 1 2 4 6）加上 <span class="brl">⠞</span>（點 2 3 4 5，三角形 triangle 的
+t）後面空一方後接代號。</p>
+<ul>
+<li><span class="math inline">\(\triangle ABC\)</span> → <span class="brl">⠫⠞⠀⠠⠁⠠⠃⠠⠉</span></li>
+<li><span class="math inline">\(\triangle DEF\)</span> → <span class="brl">⠫⠞⠀⠠⠙⠠⠑⠠⠋</span></li>
+</ul>
+<h4 id="平行四邊形">平行四邊形</h4>
+<p>用圖形記號 <span class="brl">⠫</span>（點 1 2 4 6）加上 <span class="brl">⠛</span>（點 1 2 4 5，平行四邊形
+parallelogram 的 g）後面空一方後接代號。</p>
+<ul>
+<li>平行四邊形 <span class="math inline">\(ABCD\)</span> →
+<span class="brl">⠫⠛⠀⠠⠁⠠⠃⠠⠉⠠⠙</span></li>
+<li>平行四邊形 <span class="math inline">\(PQRS\)</span> →
+<span class="brl">⠫⠛⠀⠠⠏⠠⠟⠠⠗⠠⠎</span></li>
+</ul>
+<h4 id="撇號標記對應點">撇號標記對應點</h4>
+<p>幾何裡常用質數記號（撇號 <span class="brl">⠄</span>，見 CH1
+英文字母）標記一個點經過變換（平移、旋轉、鏡射）後的對應點，跟原來的點做區別。</p>
+<ul>
+<li>三角形 <span class="math inline">\(ABC\)</span> 平移後對應到三角形
+<span class="math inline">\(A&#39;B&#39;C&#39;\)</span>：<span
+class="math inline">\(\triangle ABC\to\triangle
+A&#39;B&#39;C&#39;\)</span> → <span class="brl">⠫⠞⠀⠠⠁⠠⠃⠠⠉⠀⠫⠕⠀⠫⠞⠀⠠⠁⠄⠠⠃⠄⠠⠉⠄</span></li>
+</ul>
+<h3 id="度">度</h3>
+<p><span class="math inline">\(^\circ\)</span> <span class="brl">⠘⠨⠡</span>（點 4 5 點 4 6 點 1
+6）</p>
+<ul>
+<li><span class="math inline">\(45^\circ\)</span> → <span class="brl">⠼⠲⠢⠘⠨⠡</span></li>
+<li><span class="math inline">\(\angle A=90^\circ\)</span> →
+<span class="brl">⠫⠪⠀⠠⠁⠀⠨⠅⠀⠼⠔⠴⠘⠨⠡</span></li>
+</ul>
+<h3 id="圓週率">圓週率</h3>
+<p><span class="math inline">\(\pi\)</span> <span class="brl">⠨⠏</span>（點 4 6 點 1 2 3 4）</p>
+<ul>
+<li><span class="math inline">\(\overset{\frown}{AB}=6\pi\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠫⠁⠻⠀⠨⠅⠀⠼⠖⠨⠏</span></li>
+<li><span class="math inline">\(2\times2\times\pi=4\pi\)</span> →
+<span class="brl">⠼⠆⠈⠡⠆⠈⠡⠨⠏⠀⠨⠅⠀⠼⠲⠨⠏</span></li>
+<li><span class="math inline">\(3\pi+2\pi=5\pi\)</span> →
+<span class="brl">⠼⠒⠨⠏⠬⠆⠨⠏⠀⠨⠅⠀⠼⠢⠨⠏</span></li>
+<li>圓周長 <span class="math inline">\(=2\pi r\)</span> → <span class="brl">⠨⠅⠀⠼⠆⠨⠏⠗</span></li>
+</ul>
+<h4 id="綜合應用-2">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(60^\circ=\frac{\pi}{3}\)</span>（角度換算弧度）→
+<span class="brl">⠼⠖⠴⠘⠨⠡⠀⠨⠅⠀⠹⠨⠏⠌⠒⠼</span></li>
+<li><span class="math inline">\(s=r\theta\)</span>（弧長公式，圓心角 θ
+的希臘字母寫法見 CH1 希臘字母表）→ <span class="brl">⠎⠀⠨⠅⠀⠗⠨⠹</span></li>
+<li><span
+class="math inline">\(s=6\times\frac{\pi}{3}=2\pi\)</span>（弧長公式代入，半徑
+6、圓心角 <span class="math inline">\(\frac{\pi}{3}\)</span>）→
+<span class="brl">⠎⠀⠨⠅⠀⠼⠖⠈⠡⠹⠨⠏⠌⠒⠼⠀⠨⠅⠀⠼⠆⠨⠏</span></li>
+</ul>
+<p>扇形面積公式用到平方（見 CH4「上標」綜合應用）。</p>
+<h3 id="關係符號">關係符號</h3>
+<p>以下這些關係符號（大於、小於、不等於……）跟「等於」一樣，前後都要空一方，不能緊貼著兩邊的算式。</p>
+<p><strong>等於</strong> <span class="math inline">\(=\)</span> <span class="brl">⠨⠅</span>（點 4
+6 點 1 3）</p>
+<ul>
+<li><span class="math inline">\(\angle A=\angle B\)</span> →
+<span class="brl">⠫⠪⠀⠠⠁⠀⠨⠅⠀⠫⠪⠀⠠⠃</span></li>
+</ul>
+<p><strong>大於</strong> <span class="math inline">\(&gt;\)</span>
+<span class="brl">⠨⠂</span>（點 4 6 點 2）</p>
+<ul>
+<li><span class="math inline">\(a&gt;b&gt;c\)</span> → <span class="brl">⠁⠀⠨⠂⠀⠃⠀⠨⠂⠀⠉</span></li>
+</ul>
+<p><strong>小於</strong> <span class="math inline">\(&lt;\)</span>
+<span class="brl">⠐⠅</span>（點 5 點 1 3）</p>
+<ul>
+<li><span class="math inline">\(p&lt;q+1\)</span> → <span class="brl">⠏⠀⠐⠅⠀⠟⠬⠂</span></li>
+</ul>
+<p><strong>不等於</strong> <span class="math inline">\(\ne\)</span>
+<span class="brl">⠌⠨⠅</span>（點 3 4 點 4 6 點 1 3）</p>
+<ul>
+<li><span class="math inline">\(a\ne0\)</span> → <span class="brl">⠁⠀⠌⠨⠅⠀⠼⠴</span></li>
+</ul>
+<p><strong>大於等於</strong> <span class="math inline">\(\ge\)</span>
+<span class="brl">⠨⠂⠱</span>（點 4 6 點 2 點 1 5 6）</p>
+<ul>
+<li><span class="math inline">\(a\ge b\)</span> → <span class="brl">⠁⠀⠨⠂⠱⠀⠃</span></li>
+</ul>
+<p><strong>小於等於</strong> <span class="math inline">\(\le\)</span>
+<span class="brl">⠐⠅⠱</span>（點 5 點 1 3 點 1 5 6）</p>
+<ul>
+<li><span class="math inline">\(5\le x&lt;12\)</span> →
+<span class="brl">⠼⠢⠀⠐⠅⠱⠀⠭⠀⠐⠅⠀⠼⠂⠆</span></li>
+</ul>
+<p><strong>近似於</strong> <span class="math inline">\(\approx\)</span>
+<span class="brl">⠈⠱⠈⠱</span>（點 4 點 1 5 6 點 4 點 1 5 6）</p>
+<ul>
+<li><span class="math inline">\(\pi\approx3.14\)</span> →
+<span class="brl">⠨⠏⠀⠈⠱⠈⠱⠀⠼⠒⠨⠂⠲</span></li>
+</ul>
+<p><strong>約等於</strong> <span
+class="math inline">\(\fallingdotseq\)</span> <span class="brl">⠐⠨⠅⠩⠡⠣⠡⠻</span>（點 5 點 4 6 點 1
+3 點 1 4 6 點 1 6 點 1 2 6 點 1 6 點 1 2 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(\frac{1}{3}\fallingdotseq0.33\)</span> →
+<span class="brl">⠹⠂⠌⠒⠼⠀⠐⠨⠅⠩⠡⠣⠡⠻⠀⠼⠴⠨⠒⠒</span></li>
+</ul>
+<p><strong>全等</strong> <span class="math inline">\(\cong\)</span>
+<span class="brl">⠈⠱⠨⠅</span>（點 4 點 1 5 6 點 4 6 點 1 3）</p>
+<ul>
+<li><span class="math inline">\(\triangle ABC\cong\triangle DEF\)</span>
+→ <span class="brl">⠫⠞⠀⠠⠁⠠⠃⠠⠉⠀⠈⠱⠨⠅⠀⠫⠞⠀⠠⠙⠠⠑⠠⠋</span></li>
+</ul>
+<p><strong>相似</strong> <span class="math inline">\(\sim\)</span>
+<span class="brl">⠈⠱</span>（點 4 點 1 5 6）</p>
+<ul>
+<li><span class="math inline">\(\triangle PQR\sim\triangle STU\)</span>
+→ <span class="brl">⠫⠞⠀⠠⠏⠠⠟⠠⠗⠀⠈⠱⠀⠫⠞⠀⠠⠎⠠⠞⠠⠥</span></li>
+</ul>
+<p><strong>平行</strong> <span class="math inline">\(\parallel\)</span>
+<span class="brl">⠫⠇</span>（點 1 2 4 6 點 1 2 3）</p>
+<ul>
+<li><span
+class="math inline">\(\overline{AB}\parallel\overline{CD}\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠱⠻⠀⠫⠇⠀⠐⠠⠉⠠⠙⠣⠱⠻</span></li>
+</ul>
+<p><strong>垂直</strong> <span class="math inline">\(\perp\)</span>
+<span class="brl">⠫⠏</span>（點 1 2 4 6 點 1 2 3 4）</p>
+<ul>
+<li><span class="math inline">\(\overline{EF}\perp\overline{GH}\)</span>
+→ <span class="brl">⠐⠠⠑⠠⠋⠣⠱⠻⠀⠫⠏⠀⠐⠠⠛⠠⠓⠣⠱⠻</span></li>
+</ul>
+<p><strong>比例</strong> <span class="math inline">\(:\)</span> <span class="brl">⠐⠂</span>（點 5
+點 2）</p>
+<ul>
+<li><span class="math inline">\(x:y=2:1\)</span> →
+<span class="brl">⠭⠀⠐⠂⠀⠽⠀⠨⠅⠀⠼⠆⠀⠐⠂⠀⠼⠂</span></li>
+</ul>
+<p><strong>正比</strong> <span class="math inline">\(\propto\)</span>
+<span class="brl">⠸⠿</span>（點 4 5 6 點 1 2 3 4 5 6）</p>
+<ul>
+<li><span class="math inline">\(a\propto b\)</span> → <span class="brl">⠁⠀⠸⠿⠀⠃</span></li>
+</ul>
+<h4 id="綜合應用-3">綜合應用</h4>
+<p>連鎖不等式裡的兩個比較符號一樣各自前後空方（絕對值符號見
+CH2「絕對值」）：</p>
+<ul>
+<li><span class="math inline">\(|x-a|&lt;3\)</span> → <span class="brl">⠳⠭⠤⠁⠳⠀⠐⠅⠀⠼⠒</span></li>
+<li><span
+class="math inline">\(a-3&lt;x&lt;a+3\)</span>（上式展開後的等價寫法）→
+<span class="brl">⠁⠤⠒⠀⠐⠅⠀⠭⠀⠐⠅⠀⠁⠬⠒</span></li>
+<li><span class="math inline">\(|x-2|&lt;3\)</span>（代入 <span
+class="math inline">\(a=2\)</span> 的具體範例）→ <span class="brl">⠳⠭⠤⠆⠳⠀⠐⠅⠀⠼⠒</span></li>
+<li>展開後即 <span class="math inline">\(-1&lt;x&lt;5\)</span> →
+<span class="brl">⠤⠼⠂⠀⠐⠅⠀⠭⠀⠐⠅⠀⠼⠢</span></li>
+</ul>
+<hr />
+<h2 id="ch4-指數底數與根號">CH4 指數、底數與根號</h2>
+<h3 id="上標">上標</h3>
+<p>上標記號 <span class="brl">⠘</span>（點 4 5）；還原記號 <span class="brl">⠐</span>（點
+5）。上標結束後若接空方或後方無接續算式，不需加上還原記號；後方若接算式，需要還原記號。指數是上標最常見的數學用途，但上標不是只有指數會用到，CH3「度」跟後面的化學式範例都是同一套構造。</p>
+<h4 id="度數符號後接算式">度數符號後接算式</h4>
+<p>CH3「度」介紹過的度數符號 <span class="brl">⠘⠨⠡</span>
+本身也是一種上標構造；如果度數符號後面還有更多內容（不是這個式子的最後一項），一樣要照上面的規則加還原記號
+<span class="brl">⠐</span> 才能接續：</p>
+<ul>
+<li>等邊三角形內角和：<span
+class="math inline">\(60^\circ+60^\circ+60^\circ=180^\circ\)</span> →
+<span class="brl">⠼⠖⠴⠘⠨⠡⠐⠬⠖⠴⠘⠨⠡⠐⠬⠖⠴⠘⠨⠡⠀⠨⠅⠀⠼⠂⠦⠴⠘⠨⠡</span></li>
+</ul>
+<h4 id="平方">平方</h4>
+<ul>
+<li><span class="math inline">\(2^2\)</span> → <span class="brl">⠼⠆⠘⠆</span></li>
+<li><span class="math inline">\(x^2=4\)</span> → <span class="brl">⠭⠘⠆⠀⠨⠅⠀⠼⠲</span></li>
+<li><span class="math inline">\(-2^2\ne(-2)^2\)</span> →
+<span class="brl">⠤⠼⠆⠘⠆⠀⠌⠨⠅⠀⠷⠤⠆⠾⠘⠆</span></li>
+<li><span class="math inline">\(2^2+3^2=13\)</span> →
+<span class="brl">⠼⠆⠘⠆⠐⠬⠒⠘⠆⠀⠨⠅⠀⠼⠂⠒</span></li>
+<li>圓面積 <span class="math inline">\(=\pi r^2\)</span> → <span class="brl">⠨⠅⠀⠨⠏⠗⠘⠆</span></li>
+<li><span class="math inline">\(10cm^2\)</span> → <span class="brl">⠼⠂⠴⠉⠍⠘⠆</span></li>
+<li><span class="math inline">\(0.5m/s^2\)</span> → <span class="brl">⠼⠴⠨⠢⠍⠸⠌⠎⠘⠆</span></li>
+<li><span
+class="math inline">\((a+b)^2=a^2+2ab+b^2\)</span>（和的平方公式） →
+<span class="brl">⠷⠁⠬⠃⠾⠘⠆⠀⠨⠅⠀⠁⠘⠆⠐⠬⠆⠁⠃⠬⠃⠘⠆</span></li>
+<li><span class="math inline">\((x+3)^2=x^2+6x+9\)</span> →
+<span class="brl">⠷⠭⠬⠒⠾⠘⠆⠀⠨⠅⠀⠭⠘⠆⠐⠬⠖⠭⠬⠔</span></li>
+<li><span
+class="math inline">\((a-b)^2=a^2-2ab+b^2\)</span>（差的平方公式） →
+<span class="brl">⠷⠁⠤⠃⠾⠘⠆⠀⠨⠅⠀⠁⠘⠆⠐⠤⠆⠁⠃⠬⠃⠘⠆</span></li>
+<li><span class="math inline">\((x-5)^2=x^2-10x+25\)</span> →
+<span class="brl">⠷⠭⠤⠢⠾⠘⠆⠀⠨⠅⠀⠭⠘⠆⠐⠤⠂⠴⠭⠬⠆⠢</span></li>
+<li><span
+class="math inline">\(a^2-b^2=(a+b)(a-b)\)</span>（平方差公式） →
+<span class="brl">⠁⠘⠆⠐⠤⠃⠘⠆⠀⠨⠅⠀⠷⠁⠬⠃⠾⠷⠁⠤⠃⠾</span></li>
+<li><span class="math inline">\(x^2-16=(x+4)(x-4)\)</span> →
+<span class="brl">⠭⠘⠆⠐⠤⠂⠖⠀⠨⠅⠀⠷⠭⠬⠲⠾⠷⠭⠤⠲⠾</span></li>
+</ul>
+<h4 id="立方">立方</h4>
+<ul>
+<li><span class="math inline">\(y^3\)</span> → <span class="brl">⠽⠘⠒</span></li>
+<li><span class="math inline">\(3^3=27\)</span> → <span class="brl">⠼⠒⠘⠒⠀⠨⠅⠀⠼⠆⠶</span></li>
+<li><span class="math inline">\(1000cm^3\)</span> → <span class="brl">⠼⠂⠴⠴⠴⠉⠍⠘⠒</span></li>
+<li><span
+class="math inline">\((a+b)^3=a^3+3a^2b+3ab^2+b^3\)</span>（和的立方公式）
+→ <span class="brl">⠷⠁⠬⠃⠾⠘⠒⠀⠨⠅⠀⠁⠘⠒⠐⠬⠒⠁⠘⠆⠐⠃⠬⠒⠁⠃⠘⠆⠐⠬⠃⠘⠒</span></li>
+<li><span class="math inline">\((x+1)^3=x^3+3x^2+3x+1\)</span> →
+<span class="brl">⠷⠭⠬⠂⠾⠘⠒⠀⠨⠅⠀⠭⠘⠒⠐⠬⠒⠭⠘⠆⠐⠬⠒⠭⠬⠂</span></li>
+<li><span
+class="math inline">\((a-b)^3=a^3-3a^2b+3ab^2-b^3\)</span>（差的立方公式）
+→ <span class="brl">⠷⠁⠤⠃⠾⠘⠒⠀⠨⠅⠀⠁⠘⠒⠐⠤⠒⠁⠘⠆⠐⠃⠬⠒⠁⠃⠘⠆⠐⠤⠃⠘⠒</span></li>
+<li><span class="math inline">\((x-2)^3=x^3-6x^2+12x-8\)</span> →
+<span class="brl">⠷⠭⠤⠆⠾⠘⠒⠀⠨⠅⠀⠭⠘⠒⠐⠤⠖⠭⠘⠆⠐⠬⠂⠆⠭⠤⠦</span></li>
+<li><span
+class="math inline">\(a^3+b^3=(a+b)(a^2-ab+b^2)\)</span>（立方和公式） →
+<span class="brl">⠁⠘⠒⠐⠬⠃⠘⠒⠀⠨⠅⠀⠷⠁⠬⠃⠾⠷⠁⠘⠆⠐⠤⠁⠃⠬⠃⠘⠆⠐⠾</span></li>
+<li><span class="math inline">\(x^3+8=(x+2)(x^2-2x+4)\)</span> →
+<span class="brl">⠭⠘⠒⠐⠬⠦⠀⠨⠅⠀⠷⠭⠬⠆⠾⠷⠭⠘⠆⠐⠤⠆⠭⠬⠲⠾</span></li>
+<li><span
+class="math inline">\(a^3-b^3=(a-b)(a^2+ab+b^2)\)</span>（立方差公式） →
+<span class="brl">⠁⠘⠒⠐⠤⠃⠘⠒⠀⠨⠅⠀⠷⠁⠤⠃⠾⠷⠁⠘⠆⠐⠬⠁⠃⠬⠃⠘⠆⠐⠾</span></li>
+<li><span class="math inline">\(x^3-27=(x-3)(x^2+3x+9)\)</span> →
+<span class="brl">⠭⠘⠒⠐⠤⠆⠶⠀⠨⠅⠀⠷⠭⠤⠒⠾⠷⠭⠘⠆⠐⠬⠒⠭⠬⠔⠾</span></li>
+</ul>
+<h4 id="指數的運算">指數的運算</h4>
+<p>上標的上標用兩個上標記號 <span class="brl">⠘⠘</span> 表示。</p>
+<ul>
+<li><span class="math inline">\(3^2\times3^3=3^{2+3}\)</span> →
+<span class="brl">⠼⠒⠘⠆⠐⠈⠡⠒⠘⠒⠀⠨⠅⠀⠼⠒⠘⠆⠬⠒</span></li>
+<li><span class="math inline">\(\frac{5^7}{5^3}=5^{7-3}\)</span> →
+<span class="brl">⠹⠢⠘⠶⠐⠌⠢⠘⠒⠐⠼⠀⠨⠅⠀⠼⠢⠘⠶⠤⠒</span></li>
+<li><span class="math inline">\((2^3)^5=2^{3\times5}=2^{15}\)</span> →
+<span class="brl">⠷⠆⠘⠒⠐⠾⠘⠢⠀⠨⠅⠀⠼⠆⠘⠒⠈⠡⠢⠀⠨⠅⠀⠼⠆⠘⠂⠢</span></li>
+<li><span class="math inline">\(2^{3^5}=2^{243}\)</span> →
+<span class="brl">⠼⠆⠘⠒⠘⠘⠢⠀⠨⠅⠀⠼⠆⠘⠆⠲⠒</span></li>
+</ul>
+<h5 id="綜合應用負指數">綜合應用：負指數</h5>
+<p>上標裡的負號跟一般負號同一個符號，不需要另外的記號：</p>
+<ul>
+<li><span class="math inline">\(a^{-n}=\frac{1}{a^n}\)</span> →
+<span class="brl">⠁⠘⠤⠝⠀⠨⠅⠀⠹⠂⠌⠁⠘⠝⠐⠼</span></li>
+<li><span class="math inline">\(2^{-3}=\frac{1}{8}\)</span> →
+<span class="brl">⠼⠆⠘⠤⠒⠀⠨⠅⠀⠹⠂⠌⠦⠼</span></li>
+</ul>
+<h5 id="綜合應用因式定理與餘式定理">綜合應用：因式定理與餘式定理</h5>
+<ul>
+<li><span
+class="math inline">\(f(x)=(x-c)Q(x)+r\)</span>（除法算式：<span
+class="math inline">\(f(x)\)</span> 除以 <span
+class="math inline">\(x-c\)</span>，商式 <span
+class="math inline">\(Q(x)\)</span>、餘式 <span
+class="math inline">\(r\)</span>；餘式定理指出 <span
+class="math inline">\(r=f(c)\)</span>）→ <span class="brl">⠋⠷⠭⠾⠀⠨⠅⠀⠷⠭⠤⠉⠾⠠⠟⠷⠭⠾⠬⠗</span></li>
+<li><span class="math inline">\(f(c)=0\)</span>（因式定理：<span
+class="math inline">\(x-c\)</span> 是 <span
+class="math inline">\(f(x)\)</span> 的因式，若且唯若餘式為 0）→
+<span class="brl">⠋⠷⠉⠾⠀⠨⠅⠀⠼⠴</span></li>
+<li><span
+class="math inline">\(f(x)=x^3-2x^2-5x+6\)</span>（範例多項式）→
+<span class="brl">⠋⠷⠭⠾⠀⠨⠅⠀⠭⠘⠒⠐⠤⠆⠭⠘⠆⠐⠤⠢⠭⠬⠖</span></li>
+<li><span class="math inline">\(f(1)=0\)</span>（代入驗證 <span
+class="math inline">\(x-1\)</span> 是因式）→ <span class="brl">⠋⠷⠂⠾⠀⠨⠅⠀⠼⠴</span></li>
+</ul>
+<h4 id="綜合應用-4">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(a^2+b^2=c^2\)</span>（畢氏定理：直角三角形兩股平方和等於斜邊平方）→
+<span class="brl">⠁⠘⠆⠐⠬⠃⠘⠆⠀⠨⠅⠀⠉⠘⠆</span></li>
+<li><span
+class="math inline">\(A=\frac{1}{2}r^2\theta\)</span>（扇形面積公式，π/弧度制見
+CH3「圓週率」）→ <span class="brl">⠠⠁⠀⠨⠅⠀⠹⠂⠌⠆⠼⠗⠘⠆⠐⠨⠹</span></li>
+<li><span
+class="math inline">\(A=\frac{1}{2}\times6^2\times\frac{\pi}{3}=6\pi\)</span>（扇形面積公式代入）→
+<span class="brl">⠠⠁⠀⠨⠅⠀⠹⠂⠌⠆⠼⠈⠡⠖⠘⠆⠐⠈⠡⠹⠨⠏⠌⠒⠼⠀⠨⠅⠀⠼⠖⠨⠏</span></li>
+</ul>
+<h3 id="下標">下標</h3>
+<p>下標記號 <span class="brl">⠰</span>（點 4 6）；還原記號
+<span class="brl">⠐</span>。下標結束後有接續算式，需加還原記號；變數、函數、化學式後面接下標數字時，因數字本身為下位數字，不需加上下標記號。</p>
+<ul>
+<li><span class="math inline">\(a_n+5=22\)</span> → <span class="brl">⠁⠰⠝⠐⠬⠢⠀⠨⠅⠀⠼⠆⠆</span></li>
+<li><span class="math inline">\(a_n=17\)</span> → <span class="brl">⠁⠰⠝⠀⠨⠅⠀⠼⠂⠶</span></li>
+<li><span class="math inline">\(a_n=a_{n-1}+3\)</span> →
+<span class="brl">⠁⠰⠝⠀⠨⠅⠀⠁⠰⠝⠤⠂⠐⠬⠒</span></li>
+<li><span class="math inline">\(a_1+a_2+a_3=100\)</span> →
+<span class="brl">⠁⠂⠬⠁⠆⠬⠁⠒⠀⠨⠅⠀⠼⠂⠴⠴</span></li>
+<li><span class="math inline">\(H_2O\)</span> → <span class="brl">⠠⠓⠆⠠⠕</span></li>
+<li><span class="math inline">\(C_6H_{12}O_6\)</span> → <span class="brl">⠠⠉⠖⠠⠓⠂⠆⠠⠕⠖</span></li>
+<li><span
+class="math inline">\(\log_{2}8=3\)</span>（下標省略規則對函式名稱一樣適用；log
+完整規則見 CH8「對數」）→ <span class="brl">⠇⠕⠛⠆⠀⠼⠦⠀⠨⠅⠀⠼⠒</span></li>
+<li><span class="math inline">\(\log_2a_n\)</span> → <span class="brl">⠇⠕⠛⠆⠀⠁⠰⠝</span></li>
+</ul>
+<p>如果下標數字出現在括號外，仍需加上下標符號：</p>
+<ul>
+<li><span class="math inline">\(Ca(OH)_2\)</span> → <span class="brl">⠠⠉⠁⠷⠠⠕⠠⠓⠾⠰⠆</span></li>
+<li><span class="math inline">\((NH_4)_2SO_4\)</span> →
+<span class="brl">⠷⠠⠝⠠⠓⠲⠾⠰⠆⠐⠠⠎⠠⠕⠲</span></li>
+</ul>
+<h4 id="綜合應用-5">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(a_n=a_1+(n-1)d\)</span>（等差數列通項公式） →
+<span class="brl">⠁⠰⠝⠀⠨⠅⠀⠁⠂⠬⠷⠝⠤⠂⠾⠙</span></li>
+<li><span
+class="math inline">\(S_n=\frac{n(a_1+a_n)}{2}\)</span>（等差級數求和公式，首項加末項）
+→ <span class="brl">⠠⠎⠰⠝⠀⠨⠅⠀⠹⠝⠷⠁⠂⠬⠁⠰⠝⠐⠾⠌⠆⠼</span></li>
+<li><span
+class="math inline">\(S_n=\frac{n[2a_1+(n-1)d]}{2}\)</span>（等差級數求和公式，首項加公差）
+→ <span class="brl">⠠⠎⠰⠝⠀⠨⠅⠀⠹⠝⠈⠷⠆⠁⠂⠬⠷⠝⠤⠂⠾⠙⠈⠾⠌⠆⠼</span></li>
+<li><span
+class="math inline">\(a_n=a_1r^{n-1}\)</span>（等比數列通項公式）→
+<span class="brl">⠁⠰⠝⠀⠨⠅⠀⠁⠂⠗⠘⠝⠤⠂</span></li>
+<li><span
+class="math inline">\(S_n=\frac{a_1(1-r^n)}{1-r}\)</span>（等比級數求和公式，公比
+<span class="math inline">\(r\ne1\)</span>）→
+<span class="brl">⠠⠎⠰⠝⠀⠨⠅⠀⠹⠁⠂⠷⠂⠤⠗⠘⠝⠐⠾⠌⠂⠤⠗⠼</span></li>
+<li><span
+class="math inline">\(m=\frac{y_2-y_1}{x_2-x_1}\)</span>（直線斜率公式）→
+<span class="brl">⠍⠀⠨⠅⠀⠹⠽⠆⠤⠽⠂⠌⠭⠆⠤⠭⠂⠼</span></li>
+<li><span class="math inline">\(y-y_0=m(x-x_0)\)</span>（直線點斜式）→
+<span class="brl">⠽⠤⠽⠴⠀⠨⠅⠀⠍⠷⠭⠤⠭⠴⠾</span></li>
+</ul>
+<h3 id="根號">根號</h3>
+<p>根號開始 <span class="brl">⠜</span>（點 3 4 5）；根號結束 <span class="brl">⠻</span>（點 1 2 4 5 6）；n 次方根 <span class="brl">⠣</span>（點 1
+2 6）；多重根號 <span class="brl">⠨</span>（點 4 6）。</p>
+<h4 id="平方根">平方根</h4>
+<ul>
+<li><span class="math inline">\(\sqrt2\)</span> → <span class="brl">⠜⠆⠻</span></li>
+<li><span class="math inline">\(\sqrt{2+3}=\sqrt5\)</span> →
+<span class="brl">⠜⠆⠬⠒⠻⠀⠨⠅⠀⠜⠢⠻</span></li>
+<li><span class="math inline">\(2\sqrt2+3\sqrt2=5\sqrt2\)</span> →
+<span class="brl">⠼⠆⠜⠆⠻⠬⠒⠜⠆⠻⠀⠨⠅⠀⠼⠢⠜⠆⠻</span></li>
+<li><span class="math inline">\(\frac{\sqrt2+1}{2}\)</span> →
+<span class="brl">⠹⠜⠆⠻⠬⠂⠌⠆⠼</span></li>
+<li><span
+class="math inline">\(x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}\)</span>（一元二次方程式公式解）
+→ <span class="brl">⠭⠀⠨⠅⠀⠹⠤⠃⠬⠤⠜⠃⠘⠆⠐⠤⠲⠁⠉⠻⠌⠆⠁⠼</span></li>
+<li><span class="math inline">\(2^{\frac{1}{2}}=\sqrt2\)</span> →
+<span class="brl">⠼⠆⠘⠹⠂⠌⠆⠼⠀⠨⠅⠀⠜⠆⠻</span></li>
+</ul>
+<h4 id="立方根">立方根</h4>
+<ul>
+<li><span class="math inline">\(\sqrt[3]2\)</span> → <span class="brl">⠣⠒⠜⠆⠻</span></li>
+<li><span
+class="math inline">\(\sqrt[3]{2^2}=(2^2)^{\frac{1}{3}}=2^{2\times\frac{1}{3}}=2^{\frac{2}{3}}\)</span>
+→ <span class="brl">⠣⠒⠜⠆⠘⠆⠐⠻⠀⠨⠅⠀⠷⠆⠘⠆⠐⠾⠘⠹⠂⠌⠒⠼⠀⠨⠅⠀⠼⠆⠘⠆⠈⠡⠹⠂⠌⠒⠼⠀⠨⠅⠀⠼⠆⠘⠹⠆⠌⠒⠼</span></li>
+</ul>
+<h4 id="n-次方根">n 次方根</h4>
+<ul>
+<li><span class="math inline">\(\sqrt[5]{x^{10}}=x^2\)</span> →
+<span class="brl">⠣⠢⠜⠭⠘⠂⠴⠐⠻⠀⠨⠅⠀⠭⠘⠆</span></li>
+</ul>
+<h4 id="多重根號">多重根號</h4>
+<p>根號裡面還有根號（巢狀根號）時，內層根號的開始跟結束記號前都要加多重根號指示符
+<span class="brl">⠨</span> （點 4 6），加的次數等於巢狀深度：內層根號在外層根號裡算深度
+1，如果內層根號裡又有根號，那層算深度
+2，以此類推；最外層根號本身不用加。</p>
+<ul>
+<li><span class="math inline">\(\sqrt{3+\sqrt5}\)</span> →
+<span class="brl">⠜⠒⠬⠨⠜⠢⠨⠻⠻</span></li>
+<li><span class="math inline">\(\sqrt{x+\sqrt{x+y}+z}\)</span> →
+<span class="brl">⠜⠭⠬⠨⠜⠭⠬⠽⠨⠻⠬⠵⠻</span></li>
+</ul>
+<h4 id="綜合應用-6">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(\frac{a+b}{2}\ge\sqrt{ab}\)</span>（算術幾何平均不等式，<span
+class="math inline">\(a,b&gt;0\)</span>）→ <span class="brl">⠹⠁⠬⠃⠌⠆⠼⠀⠨⠂⠱⠀⠜⠁⠃⠻</span></li>
+<li><span
+class="math inline">\(a=\sqrt{b^2+c^2}\)</span>（畢氏定理解斜邊，畢氏定理本身見
+CH4「上標」綜合應用）→ <span class="brl">⠁⠀⠨⠅⠀⠜⠃⠘⠆⠐⠬⠉⠘⠆⠐⠻</span></li>
+<li><span
+class="math inline">\((x-h)^2+(y-k)^2=r^2\)</span>（圓方程式，圓心 <span
+class="math inline">\((h,k)\)</span>、半徑 <span
+class="math inline">\(r\)</span>）→ <span class="brl">⠷⠭⠤⠓⠾⠘⠆⠐⠬⠷⠽⠤⠅⠾⠘⠆⠀⠨⠅⠀⠗⠘⠆</span></li>
+<li><span class="math inline">\(d=\frac{|a\cdot x_0+b\cdot
+y_0+c|}{\sqrt{a^2+b^2}}\)</span>（點 <span
+class="math inline">\((x_0,y_0)\)</span> 到直線 <span
+class="math inline">\(ax+by+c=0\)</span> 的距離公式）→
+<span class="brl">⠙⠀⠨⠅⠀⠹⠳⠁⠡⠭⠴⠬⠃⠡⠽⠴⠬⠉⠳⠌⠜⠁⠘⠆⠐⠬⠃⠘⠆⠐⠻⠼</span></li>
+<li><span
+class="math inline">\(y^2=4px\)</span>（拋物線標準式，焦點到準線的距離定義）→
+<span class="brl">⠽⠘⠆⠀⠨⠅⠀⠼⠲⠏⠭</span></li>
+<li><span
+class="math inline">\(\frac{x^2}{a^2}+\frac{y^2}{b^2}=1\)</span>（橢圓標準式）→
+<span class="brl">⠹⠭⠘⠆⠐⠌⠁⠘⠆⠐⠼⠬⠹⠽⠘⠆⠐⠌⠃⠘⠆⠐⠼⠀⠨⠅⠀⠼⠂</span></li>
+<li><span
+class="math inline">\(\frac{x^2}{a^2}-\frac{y^2}{b^2}=1\)</span>（雙曲線標準式）→
+<span class="brl">⠹⠭⠘⠆⠐⠌⠁⠘⠆⠐⠼⠤⠹⠽⠘⠆⠐⠌⠃⠘⠆⠐⠼⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<hr />
+<h2 id="ch5-集合與邏輯">CH5 集合與邏輯</h2>
+<h3 id="數系與循環小數">數系與循環小數</h3>
+<p>雙線字指示符是兩格 <span class="brl">⠠⠸</span>（點 6、點 4 5
+6，合起來是一個完整的指示符，不能拆成「大寫記號」加「一般字體指示符」兩個東西）；後面接字母指示符
+<span class="brl">⠰</span>（點 5 6）；字母本身是大寫時，字母指示符後、字母前還要再加一次大寫記號
+<span class="brl">⠠</span>。完整順序：雙線字指示符 <span class="brl">⠠⠸</span> ＋ 字母指示符 <span class="brl">⠰</span> ＋大寫記號 <span class="brl">⠠</span> ＋
+字母。這幾個數系符號固定都是大寫字母，所以才會在字母指示符後面再看到一次大寫記號。</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>範例</th>
+<th>點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正整數</td>
+<td><span class="math inline">\(\mathbb{N}\)</span></td>
+<td><span class="brl">⠠⠸⠰⠠⠝</span></td>
+</tr>
+<tr>
+<td>整數</td>
+<td><span class="math inline">\(\mathbb{Z}\)</span></td>
+<td><span class="brl">⠠⠸⠰⠠⠵</span></td>
+</tr>
+<tr>
+<td>有理數</td>
+<td><span class="math inline">\(\mathbb{Q}\)</span></td>
+<td><span class="brl">⠠⠸⠰⠠⠟</span></td>
+</tr>
+<tr>
+<td>實數</td>
+<td><span class="math inline">\(\mathbb{R}\)</span></td>
+<td><span class="brl">⠠⠸⠰⠠⠗</span></td>
+</tr>
+<tr>
+<td>複數</td>
+<td><span class="math inline">\(\mathbb{C}\)</span></td>
+<td><span class="brl">⠠⠸⠰⠠⠉</span></td>
+</tr>
+</tbody>
+</table></div>
+<p>CH3「線段」提過的橫線修飾符 <span class="brl">⠱</span>（點 1 5
+6）在這裡有兩個應用：統計平均數，跟循環小數（用橫線標示哪些數字在循環）。內容只有單一字元時用簡式，直接在字元後面加
+<span class="brl">⠱</span>；內容有兩個以上字元時改用五步驟的包裹式：<span class="brl">⠐</span>（多用途指示符）+ 內容 +
+<span class="brl">⠣</span>（正上方修飾符起始）+ <span class="brl">⠱</span> + <span class="brl">⠻</span>（結束）。</p>
+<p><strong>統計平均數</strong>（單一字母，簡式）：</p>
+<ul>
+<li><span class="math inline">\(\bar{x}\)</span> → <span class="brl">⠭⠱</span></li>
+<li><span class="math inline">\(\bar{y}\)</span> → <span class="brl">⠽⠱</span></li>
+<li><span
+class="math inline">\(\bar{x}=\frac{a+b+c}{3}\)</span>（平均數公式，分子是三個資料值相加）→
+<span class="brl">⠭⠱⠀⠨⠅⠀⠹⠁⠬⠃⠬⠉⠌⠒⠼</span></li>
+</ul>
+<p><strong>循環小數</strong>（橫線標示循環的數字；一位數字循環用簡式，兩位以上循環用包裹式）：</p>
+<ul>
+<li>循環小數（單一數字循環，簡式）<span
+class="math inline">\(0.8\overline{3}\)</span> → <span class="brl">⠼⠴⠨⠦⠒⠱</span></li>
+<li>循環小數（多個數字循環，包裹式：多用途指示符
+<span class="brl">⠐</span>、循環的數字、正上方修飾符 <span class="brl">⠣</span>、橫線 <span class="brl">⠱</span>、結束 <span class="brl">⠻</span> 依序排列）<span
+class="math inline">\(0.1\overline{23}\)</span> → <span class="brl">⠼⠴⠨⠂⠐⠆⠒⠣⠱⠻</span></li>
+<li><span
+class="math inline">\(\frac{1}{3}=0.\overline{3}\)</span>（單一數字循環）→
+<span class="brl">⠹⠂⠌⠒⠼⠀⠨⠅⠀⠼⠴⠨⠒⠱</span></li>
+<li><span
+class="math inline">\(\frac{1}{7}=0.\overline{142857}\)</span>（六位數字循環，完整形式：多用途指示符只出現一次，結束記號
+<span class="brl">⠻</span> 標出循環範圍的終點）→ <span class="brl">⠹⠂⠌⠶⠼⠀⠨⠅⠀⠼⠴⠨⠐⠂⠲⠆⠦⠢⠶⠣⠱⠻</span></li>
+<li>無限 <span class="math inline">\(\pm\infty\)</span> → <span class="brl">⠬⠤⠠⠿</span></li>
+</ul>
+<h3 id="屬於關係">屬於關係</h3>
+<p>屬於 <span class="math inline">\(\in\)</span> <span class="brl">⠈⠑</span>（點 4 點 1
+5）；不屬於 <span class="math inline">\(\notin\)</span> <span class="brl">⠌⠈⠑</span>（負號 +
+屬於）。</p>
+<ul>
+<li><span class="math inline">\(A\in B\)</span> → <span class="brl">⠠⠁⠀⠈⠑⠀⠠⠃</span></li>
+<li><span class="math inline">\(A\notin B\)</span> → <span class="brl">⠠⠁⠀⠌⠈⠑⠀⠠⠃</span></li>
+<li><span class="math inline">\(5\notin
+A\)</span>（元素是數字時，數字記號照樣要加，跟屬於符號之間仍要空一格）→
+<span class="brl">⠼⠢⠀⠌⠈⠑⠀⠠⠁</span></li>
+<li><span
+class="math inline">\(a\in\mathbb{N}\)</span>（數系的黑板體字母見上一節「數系與循環小數」）→
+<span class="brl">⠁⠀⠈⠑⠀⠠⠸⠰⠠⠝</span></li>
+</ul>
+<h3 id="集合的包含關係">集合的包含關係</h3>
+<p>包含於 <span class="math inline">\(\subset\)</span> <span class="brl">⠸⠐⠅</span>（點 4 5 6 點
+5 點 1 3）；包含 <span class="math inline">\(\supset\)</span> <span class="brl">⠸⠨⠂</span>（點 4
+5 6 點 4 6 點 2）。</p>
+<ul>
+<li><span class="math inline">\(A\subset B\)</span> → <span class="brl">⠠⠁⠀⠸⠐⠅⠀⠠⠃</span></li>
+<li><span class="math inline">\(A\supset B\)</span> → <span class="brl">⠠⠁⠀⠸⠨⠂⠀⠠⠃</span></li>
+<li><span class="math inline">\(\emptyset\subset A\)</span> →
+<span class="brl">⠸⠴⠀⠸⠐⠅⠀⠠⠁</span></li>
+<li><span class="math inline">\(A\subset B\subset
+C\)</span>（連續包含關係，符號前後都要空格）→ <span class="brl">⠠⠁⠀⠸⠐⠅⠀⠠⠃⠀⠸⠐⠅⠀⠠⠉</span></li>
+</ul>
+<h3 id="集合運算">集合運算</h3>
+<p>聯集 <span class="math inline">\(\cup\)</span> <span class="brl">⠨⠬</span>（點 4 6 點 3 4
+6）；交集 <span class="math inline">\(\cap\)</span> <span class="brl">⠨⠩</span>（點 4 6 點 1 4
+6）；空集合 <span class="math inline">\(\emptyset\)</span> <span class="brl">⠸⠴</span>（點 4 5 6
+點 3 5 6；LaTeX 打 <code>\emptyset</code> 或 <code>\varnothing</code>
+都是同一個符號、點字寫法相同）。聯集、交集符號跟前後的集合名稱之間不空格（跟四則運算的加號、乘號一樣，是直接相連的運算符號）。</p>
+<ul>
+<li><span class="math inline">\(A\cup B\)</span> → <span class="brl">⠠⠁⠨⠬⠠⠃</span></li>
+<li><span class="math inline">\(A\cap B\)</span> → <span class="brl">⠠⠁⠨⠩⠠⠃</span></li>
+<li><span class="math inline">\(A\cap B=\emptyset\)</span> →
+<span class="brl">⠠⠁⠨⠩⠠⠃⠀⠨⠅⠀⠸⠴</span></li>
+<li><span class="math inline">\(A\cap(B\cup C)=(A\cap B)\cup(A\cap
+C)\)</span>（分配律） → <span class="brl">⠠⠁⠨⠩⠷⠠⠃⠨⠬⠠⠉⠾⠀⠨⠅⠀⠷⠠⠁⠨⠩⠠⠃⠾⠨⠬⠷⠠⠁⠨⠩⠠⠉⠾</span></li>
+<li><span class="math inline">\((A\cup B)^{c}=A^{c}\cap
+B^{c}\)</span>（迪摩根定律） → <span class="brl">⠷⠠⠁⠨⠬⠠⠃⠾⠘⠉⠀⠨⠅⠀⠠⠁⠘⠉⠐⠨⠩⠠⠃⠘⠉</span></li>
+</ul>
+<h4 id="封閉清單enclosed-list">封閉清單（Enclosed List）</h4>
+<p>當一串以逗號分隔的項目<strong>整個</strong>被同一組括號夾住（左右括號可以不同種類），且項目間只用逗號分隔、不含任何其他標點或文字（缺項可用刪節號或長橫線表示），這種結構稱為「封閉清單」——即使項目是單純的數字或字母，清單裡的每一項都<strong>不加數字記號、不加英文字母指示符</strong>，因為框住整串的括號本身已經足以標示這是一組並列的清單項目。這條規則常用在集合的列舉表示法：</p>
+<ul>
+<li><span
+class="math inline">\(\{2,4,6,8\}\)</span>（集合的元素是數字，但因為整體被大括號框住，數字前面不加數字記號）→
+<span class="brl">⠨⠷⠆⠠⠀⠲⠠⠀⠖⠠⠀⠦⠨⠾</span></li>
+<li><span
+class="math inline">\(\{-3,-2,-1,0,1,2,3\}\)</span>（負數也不例外，一樣不加數字記號）→
+<span class="brl">⠨⠷⠤⠒⠠⠀⠤⠆⠠⠀⠤⠂⠠⠀⠴⠠⠀⠂⠠⠀⠆⠠⠀⠒⠨⠾</span></li>
+<li>數對 <span
+class="math inline">\((x,y)\)</span>（座標或有序對，字母同樣不加英文字母指示符）→
+<span class="brl">⠷⠭⠠⠀⠽⠾</span></li>
+</ul>
+<p>要注意：如果清單裡出現逗號以外的標點、或是完整的英文單字（縮寫、序數字尾等除外），就不算封閉清單，數字記號與英文字母指示符要照一般規則加回去。</p>
+<h3 id="邏輯量詞">邏輯量詞</h3>
+<p>對所有 <span class="math inline">\(\forall\)</span> <span class="brl">⠈⠯</span>（點 4 點 1 2 3
+4 6）；存在 <span class="math inline">\(\exists\)</span> <span class="brl">⠈⠿</span>（點 4 點 1 2
+3 4 5 6）。</p>
+<ul>
+<li><span class="math inline">\(\forall x\)</span> → <span class="brl">⠈⠯⠭</span></li>
+<li><span class="math inline">\(\exists x\)</span> → <span class="brl">⠈⠿⠭</span></li>
+<li><span class="math inline">\(\forall x\exists
+y(x+y=0)\)</span>（兩個量詞連用時彼此之間、跟後面的變數之間都不空格）→
+<span class="brl">⠈⠯⠭⠈⠿⠽⠷⠭⠬⠽⠀⠨⠅⠀⠼⠴⠾</span></li>
+</ul>
+<h3 id="邏輯運算">邏輯運算</h3>
+<p>非 <span class="math inline">\(\neg\)</span> <span class="brl">⠌</span>（點 3
+4，直接接在被否定的符號前面，不空方）；充要條件（蘊含）<span
+class="math inline">\(\implies\)</span> <span class="brl">⠫⠒⠒⠕</span> （點 1 2 4 6 點 2 5 點 2 5
+點 1 3 5）；邏輯等價 <span class="math inline">\(\iff\)</span> <span class="brl">⠫⠪⠒⠒⠕</span>（點
+1 2 4 6 點 2 4 6 點 2 5 點 2 5 點 1 3 5）；因為 <span
+class="math inline">\(\because\)</span> <span class="brl">⠈⠌</span>（點 4 點 3 4）；所以 <span
+class="math inline">\(\therefore\)</span> <span class="brl">⠠⠡</span>（點 6 點 1
+6，跟關係符號一樣前後都要空方）。</p>
+<ul>
+<li><span class="math inline">\(\neg R\)</span> → <span class="brl">⠌⠠⠗</span></li>
+<li><span class="math inline">\(\neg\forall
+x(P(x))\)</span>（否定號緊貼在量詞前面，不空方；見前面「邏輯量詞」）→
+<span class="brl">⠌⠈⠯⠭⠷⠠⠏⠷⠭⠾⠾</span></li>
+<li><span class="math inline">\(A\implies B\)</span> → <span class="brl">⠠⠁⠀⠫⠒⠒⠕⠀⠠⠃</span></li>
+<li><span class="math inline">\(A\iff B\)</span> → <span class="brl">⠠⠁⠀⠫⠪⠒⠒⠕⠀⠠⠃</span></li>
+<li><span class="math inline">\(\because a=b\therefore b=a\)</span> →
+<span class="brl">⠈⠌⠀⠁⠀⠨⠅⠀⠃⠀⠠⠡⠀⠃⠀⠨⠅⠀⠁</span></li>
+</ul>
+<hr />
+<h2 id="ch6-總和階乘與排列組合">CH6 總和、階乘與排列組合</h2>
+<h3 id="總和σ">總和（Σ）</h3>
+<p><span class="math inline">\(\Sigma\)</span> <span class="brl">⠨⠠⠎</span>（點 4 6 點 6 點 2 3
+4）；正下方修飾符起始 <span class="brl">⠩</span>（點 1 4 6）；正上方修飾符起始 <span class="brl">⠣</span>（點 1 2
+6）；修飾結束 <span class="brl">⠻</span>（點 1 2 4 5 6）。Σ 帶上下限時，上下限疊在 Σ
+正上方/正下方（跟印刷排版一致），要先寫下限（正下方）再寫上限（正上方）。</p>
+<ul>
+<li><span class="math inline">\(\sum_{i=1}^{n}X_n\)</span> →
+<span class="brl">⠐⠨⠠⠎⠩⠊⠀⠨⠅⠀⠼⠂⠣⠝⠻⠠⠭⠰⠝</span></li>
+<li><span
+class="math inline">\(\sum_{n=1}^{\infty}\frac{1}{2^n}=1\)</span> →
+<span class="brl">⠐⠨⠠⠎⠩⠝⠀⠨⠅⠀⠼⠂⠣⠠⠿⠻⠹⠂⠌⠆⠘⠝⠐⠼⠀⠨⠅⠀⠼⠂</span></li>
+<li><span
+class="math inline">\(\sum_{k=1}^{5}k^2\)</span>（上下限都是純數字時一樣先寫下限再寫上限）→
+<span class="brl">⠐⠨⠠⠎⠩⠅⠀⠨⠅⠀⠼⠂⠣⠼⠢⠻⠅⠘⠆</span></li>
+<li><span class="math inline">\(\sum_{i=1}^{n}(2i-1)=n^2\)</span>（Σ
+底下的算式如果不只一項，仍整個放進正下方修飾框內）→
+<span class="brl">⠐⠨⠠⠎⠩⠊⠀⠨⠅⠀⠼⠂⠣⠝⠻⠷⠆⠊⠤⠂⠾⠀⠨⠅⠀⠝⠘⠆</span></li>
+</ul>
+<h4 id="綜合應用-7">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(\sum_{k=1}^{n}k=\frac{n(n+1)}{2}\)</span>（一次方和公式）→
+<span class="brl">⠐⠨⠠⠎⠩⠅⠀⠨⠅⠀⠼⠂⠣⠝⠻⠅⠀⠨⠅⠀⠹⠝⠷⠝⠬⠂⠾⠌⠆⠼</span></li>
+<li><span
+class="math inline">\(\sum_{k=1}^{n}k^2=\frac{n(n+1)(2n+1)}{6}\)</span>（平方和公式）→
+<span class="brl">⠐⠨⠠⠎⠩⠅⠀⠨⠅⠀⠼⠂⠣⠝⠻⠅⠘⠆⠀⠨⠅⠀⠹⠝⠷⠝⠬⠂⠾⠷⠆⠝⠬⠂⠾⠌⠖⠼</span></li>
+<li><span
+class="math inline">\(\sigma^2=\frac{1}{n}\sum_{i=1}^{n}(x_i-\bar{x})^2\)</span>（變異數公式，<span
+class="math inline">\(\bar{x}\)</span> 平均數記法見 CH5）→
+<span class="brl">⠨⠎⠘⠆⠀⠨⠅⠀⠹⠂⠌⠝⠼⠐⠨⠠⠎⠩⠊⠀⠨⠅⠀⠼⠂⠣⠝⠻⠷⠭⠰⠊⠐⠤⠭⠱⠾⠘⠆</span></li>
+<li><span
+class="math inline">\(r=\frac{S_{xy}}{\sqrt{S_{xx}S_{yy}}}\)</span>（相關係數公式）→
+<span class="brl">⠗⠀⠨⠅⠀⠹⠠⠎⠰⠭⠽⠐⠌⠜⠠⠎⠰⠭⠭⠐⠠⠎⠰⠽⠽⠐⠻⠼</span></li>
+</ul>
+<h3 id="階乘">階乘</h3>
+<p>階乘 <span class="math inline">\(!\)</span> <span class="brl">⠯</span>（點 1 2 3 4
+6）。階乘符號跟前面的數字或算式之間不空方。</p>
+<ul>
+<li><span class="math inline">\(n!\)</span> → <span class="brl">⠝⠯</span></li>
+<li><span class="math inline">\(5!\)</span> → <span class="brl">⠼⠢⠯</span></li>
+<li><span class="math inline">\((n-k)!\)</span> → <span class="brl">⠷⠝⠤⠅⠾⠯</span></li>
+<li><span class="math inline">\(0!=1\)</span>（規定 0 階乘為 1）→
+<span class="brl">⠼⠴⠯⠀⠨⠅⠀⠼⠂</span></li>
+<li><span
+class="math inline">\(\frac{7!}{5!}\)</span>（階乘出現在分數裡，跟一般分數處理方式相同）→
+<span class="brl">⠹⠶⠯⠌⠢⠯⠼</span></li>
+</ul>
+<h3 id="排列">排列</h3>
+<p>同時上下標時，下標先寫、上標後寫（跟「先上標後下標」的一般習慣印刷順序不同）。</p>
+<ul>
+<li><span class="math inline">\(P^m_n\)</span> → <span class="brl">⠠⠏⠰⠝⠘⠍</span></li>
+<li><span
+class="math inline">\(P^2_5=20\)</span>（下標是純數字、底是字母，可省略下標指示符）
+→ <span class="brl">⠠⠏⠢⠘⠆⠀⠨⠅⠀⠼⠆⠴</span></li>
+<li><span
+class="math inline">\(P^3_7\)</span>（上下標都是純數字時，同樣先寫下標再寫上標，且都省略下標指示符）→
+<span class="brl">⠠⠏⠶⠘⠒</span></li>
+<li><span
+class="math inline">\(P^0_n=1\)</span>（下標是字母、上標是數字：下標的字母需要下標指示符，上標數字接在後面）→
+<span class="brl">⠠⠏⠰⠝⠘⠴⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<h4 id="綜合應用-8">綜合應用</h4>
+<ul>
+<li><span class="math inline">\(P^r_n=\frac{n!}{(n-r)!}\)</span> →
+<span class="brl">⠠⠏⠰⠝⠘⠗⠀⠨⠅⠀⠹⠝⠯⠌⠷⠝⠤⠗⠾⠯⠼</span></li>
+</ul>
+<h3 id="組合二項係數">組合（二項係數）</h3>
+<p>二項係數用小括號包住，中間用「正下方」修飾符 <span class="brl">⠩</span> 分隔上下兩個算式。</p>
+<ul>
+<li><span class="math inline">\(\binom{n}{k}\)</span> → <span class="brl">⠷⠝⠩⠅⠾</span></li>
+<li><span class="math inline">\(\binom{5}{2}=10\)</span> →
+<span class="brl">⠷⠼⠢⠩⠼⠆⠾⠀⠨⠅⠀⠼⠂⠴</span></li>
+<li><span class="math inline">\(\binom{7}{3}=35\)</span> →
+<span class="brl">⠷⠼⠶⠩⠼⠒⠾⠀⠨⠅⠀⠼⠒⠢</span></li>
+<li><span
+class="math inline">\(\binom{n}{0}=\binom{n}{n}=1\)</span>（組合恆等式，不論分子分母都是字母或數字，構造方式相同）→
+<span class="brl">⠷⠝⠩⠼⠴⠾⠀⠨⠅⠀⠷⠝⠩⠝⠾⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<p>二項式定理（Σ 與二項係數合併使用，屬於通用公式，只是把 <span
+class="math inline">\(\binom{n}{k}\)</span> 疊進 Σ
+的正下方修飾框內）：</p>
+<ul>
+<li><span
+class="math inline">\((x+y)^n=\sum_{k=0}^{n}\binom{n}{k}x^{n-k}y^k\)</span>
+→ <span class="brl">⠷⠭⠬⠽⠾⠘⠝⠀⠨⠅⠀⠐⠨⠠⠎⠩⠅⠀⠨⠅⠀⠼⠴⠣⠝⠻⠷⠝⠩⠅⠾⠭⠘⠝⠤⠅⠐⠽⠘⠅</span></li>
+</ul>
+<h4 id="綜合應用-9">綜合應用</h4>
+<ul>
+<li><span class="math inline">\(C^r_n=\frac{n!}{r!(n-r)!}\)</span> →
+<span class="brl">⠠⠉⠰⠝⠘⠗⠀⠨⠅⠀⠹⠝⠯⠌⠗⠯⠷⠝⠤⠗⠾⠯⠼</span></li>
+</ul>
+<h3 id="條件機率">條件機率</h3>
+<p>直線 <span class="math inline">\(\mid\)</span> <span class="brl">⠳</span>（點 1 2 5
+6，給定、條件），跟絕對值使用同一個符號、不同語境。</p>
+<ul>
+<li><span class="math inline">\(P(B\mid A)\)</span> → <span class="brl">⠠⠏⠷⠠⠃⠳⠠⠁⠾</span></li>
+</ul>
+<h4 id="綜合應用-10">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(P(A)=\frac{n(A)}{n(S)}\)</span>（機率的定義，<span
+class="math inline">\(n(A)\)</span> 表示事件 <span
+class="math inline">\(A\)</span> 的元素個數）→
+<span class="brl">⠠⠏⠷⠠⠁⠾⠀⠨⠅⠀⠹⠝⠷⠠⠁⠾⠌⠝⠷⠠⠎⠾⠼</span></li>
+<li><span class="math inline">\(P(A\cap B)=P(A)\times
+P(B)\)</span>（獨立事件公式，交集符號見 CH5）→
+<span class="brl">⠠⠏⠷⠠⠁⠨⠩⠠⠃⠾⠀⠨⠅⠀⠠⠏⠷⠠⠁⠾⠈⠡⠠⠏⠷⠠⠃⠾</span></li>
+<li><span class="math inline">\(P(A\mid B)=\dfrac{P(A\cap
+B)}{P(B)}\)</span>（條件機率公式，分數裡的 P
+跟集合運算符號都照各自的規則處理）→
+<span class="brl">⠠⠏⠷⠠⠁⠳⠠⠃⠾⠀⠨⠅⠀⠹⠠⠏⠷⠠⠁⠨⠩⠠⠃⠾⠌⠠⠏⠷⠠⠃⠾⠼</span></li>
+</ul>
+<hr />
+<h2 id="ch7-三角函數與向量">CH7 三角函數與向量</h2>
+<h3 id="三角函數">三角函數</h3>
+<p>六個函數名稱都是「拼出英文縮寫＋空格」，不是特殊符號，後面留一格再接引數（跟
+log 同一套規則）。</p>
+<ul>
+<li><span class="math inline">\(\sin\theta\)</span> → <span class="brl">⠎⠊⠝⠀⠨⠹</span></li>
+<li><span class="math inline">\(\cos\theta\)</span> → <span class="brl">⠉⠕⠎⠀⠨⠹</span></li>
+<li><span class="math inline">\(\tan\theta\)</span> → <span class="brl">⠞⠁⠝⠀⠨⠹</span></li>
+<li><span class="math inline">\(\cot\theta\)</span> → <span class="brl">⠉⠕⠞⠀⠨⠹</span></li>
+<li><span class="math inline">\(\sec\theta\)</span> → <span class="brl">⠎⠑⠉⠀⠨⠹</span></li>
+<li><span class="math inline">\(\csc\theta\)</span> → <span class="brl">⠉⠎⠉⠀⠨⠹</span></li>
+<li><span class="math inline">\(\sin30^\circ=\frac{1}{2}\)</span> →
+<span class="brl">⠎⠊⠝⠀⠼⠒⠴⠘⠨⠡⠀⠨⠅⠀⠹⠂⠌⠆⠼</span></li>
+</ul>
+<p>畢氏恆等式（用到「函式名＋上標」的空格規則：上標緊貼在函式名後面，強制留白的一格則延後到上標結束之後才出現，不是提前出現在上標前面）：</p>
+<ul>
+<li><span class="math inline">\(\sin^2\theta+\cos^2\theta=1\)</span> →
+<span class="brl">⠎⠊⠝⠘⠆⠀⠨⠹⠬⠉⠕⠎⠘⠆⠀⠨⠹⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<p>反三角函數（上標為 <span class="math inline">\(-1\)</span>
+時，即使緊接在負號後面，也因為位於上標位置而不加數字記號——這是「上下標內一律不用數字記號」規則的例外情形，比一般「負號後面的數字仍要加數字記號」更優先）：</p>
+<ul>
+<li><span class="math inline">\(\sin^{-1}(x)\)</span> → <span class="brl">⠎⠊⠝⠘⠤⠂⠀⠷⠭⠾</span></li>
+<li><span class="math inline">\(\tan^{-1}(1)=\dfrac{\pi}{4}\)</span> →
+<span class="brl">⠞⠁⠝⠘⠤⠂⠀⠷⠂⠾⠀⠨⠅⠀⠹⠨⠏⠌⠲⠼</span></li>
+</ul>
+<p>和角公式：</p>
+<ul>
+<li><span
+class="math inline">\(\sin(\alpha+\beta)=\sin\alpha\cos\beta+\cos\alpha\sin\beta\)</span>
+→ <span class="brl">⠎⠊⠝⠀⠷⠨⠁⠬⠨⠃⠾⠀⠨⠅⠀⠎⠊⠝⠀⠨⠁⠉⠕⠎⠀⠨⠃⠬⠉⠕⠎⠀⠨⠁⠎⠊⠝⠀⠨⠃</span></li>
+</ul>
+<p>倍角公式：</p>
+<ul>
+<li><span
+class="math inline">\(\cos2\theta=\cos^2\theta-\sin^2\theta\)</span> →
+<span class="brl">⠉⠕⠎⠀⠼⠆⠨⠹⠀⠨⠅⠀⠉⠕⠎⠘⠆⠀⠨⠹⠤⠎⠊⠝⠘⠆⠀⠨⠹</span></li>
+</ul>
+<h4 id="綜合應用-11">綜合應用</h4>
+<p>三角形 <span class="math inline">\(ABC\)</span> 三邊 <span
+class="math inline">\(a,b,c\)</span> 分別對應三個內角 <span
+class="math inline">\(A,B,C\)</span>（邊 <span
+class="math inline">\(a\)</span> 對角 <span
+class="math inline">\(A\)</span>，以此類推）：</p>
+<ul>
+<li><span class="math inline">\(\frac{a}{\sin A}=\frac{b}{\sin
+B}=\frac{c}{\sin C}\)</span>（正弦定理）→
+<span class="brl">⠹⠁⠌⠎⠊⠝⠀⠠⠁⠼⠀⠨⠅⠀⠹⠃⠌⠎⠊⠝⠀⠠⠃⠼⠀⠨⠅⠀⠹⠉⠌⠎⠊⠝⠀⠠⠉⠼</span></li>
+<li><span class="math inline">\(a^2=b^2+c^2-2bc\cos
+A\)</span>（餘弦定理）→ <span class="brl">⠁⠘⠆⠀⠨⠅⠀⠃⠘⠆⠐⠬⠉⠘⠆⠐⠤⠆⠃⠉⠉⠕⠎⠀⠠⠁</span></li>
+</ul>
+<h3 id="向量">向量</h3>
+<p>正上方修飾符起始 <span class="brl">⠣</span>（跟射線共用）；向量箭頭（縮寫形式）<span class="brl">⠫⠕</span>（點 1 2 4 6
+點 1 3 5）；修飾結束
+<span class="brl">⠻</span>。向量用「字母＋正上方箭頭」表示。印刷體上若向量字母是<strong>粗體</strong>（無論有沒有再疊印箭頭），箭頭在點字裡通常省略、只保留粗體記號；若向量字母是<strong>一般字體＋正上方箭頭</strong>（本教材
+LaTeX 一律採用這種寫法），箭頭必須保留，且用一般（縮寫）右箭頭
+<span class="brl">⠫⠕</span>，跟射線用的箭頭是同一個符號——不會因為「這是向量」而換一種專屬箭頭。</p>
+<ul>
+<li><span class="math inline">\(\vec{AB}\)</span> → <span class="brl">⠐⠠⠁⠠⠃⠣⠫⠕⠻</span></li>
+<li><span class="math inline">\(\vec{v}\)</span> → <span class="brl">⠐⠧⠣⠫⠕⠻</span></li>
+<li><span class="math inline">\(\vec{AB}+\vec{CD}\)</span> →
+<span class="brl">⠐⠠⠁⠠⠃⠣⠫⠕⠻⠬⠐⠠⠉⠠⠙⠣⠫⠕⠻</span></li>
+<li><span class="math inline">\(\vec{u}+\vec{v}=\vec{w}\)</span> →
+<span class="brl">⠐⠥⠣⠫⠕⠻⠬⠐⠧⠣⠫⠕⠻⠀⠨⠅⠀⠐⠺⠣⠫⠕⠻</span></li>
+<li><span
+class="math inline">\(|\vec{v}|=5\)</span>（向量長度用絕對值符號夾住，箭頭修飾構造整個放進絕對值符號裡面）→
+<span class="brl">⠳⠐⠧⠣⠫⠕⠻⠳⠀⠨⠅⠀⠼⠢</span></li>
+<li><span
+class="math inline">\(\vec{AB}=\vec{OB}-\vec{OA}\)</span>（三角形法則）
+→ <span class="brl">⠐⠠⠁⠠⠃⠣⠫⠕⠻⠀⠨⠅⠀⠐⠠⠕⠠⠃⠣⠫⠕⠻⠤⠐⠠⠕⠠⠁⠣⠫⠕⠻</span></li>
+<li>向量的係數（純量倍數）<span
+class="math inline">\(2\vec{a}-3\vec{b}\)</span> → <span class="brl">⠼⠆⠐⠁⠣⠫⠕⠻⠤⠒⠐⠃⠣⠫⠕⠻</span></li>
+</ul>
+<h4 id="綜合應用-12">綜合應用</h4>
+<ul>
+<li><span
+class="math inline">\(\vec{OP}=\frac{n\vec{OA}+m\vec{OB}}{m+n}\)</span>（分點公式：<span
+class="math inline">\(P\)</span> 在 <span
+class="math inline">\(\overline{AB}\)</span> 上，<span
+class="math inline">\(AP\)</span> 與 <span
+class="math inline">\(PB\)</span> 的比是 <span
+class="math inline">\(m:n\)</span>）→
+<span class="brl">⠐⠠⠕⠠⠏⠣⠫⠕⠻⠀⠨⠅⠀⠹⠝⠐⠠⠕⠠⠁⠣⠫⠕⠻⠬⠍⠐⠠⠕⠠⠃⠣⠫⠕⠻⠌⠍⠬⠝⠼</span></li>
+<li><span
+class="math inline">\((x_1^2+y_1^2)(x_2^2+y_2^2)\ge(x_1x_2+y_1y_2)^2\)</span>（柯西不等式，坐標形式）→
+<span class="brl">⠷⠭⠂⠘⠆⠐⠬⠽⠂⠘⠆⠐⠾⠷⠭⠆⠘⠆⠐⠬⠽⠆⠘⠆⠐⠾⠀⠨⠂⠱⠀⠷⠭⠂⠭⠆⠬⠽⠂⠽⠆⠾⠘⠆</span></li>
+<li><span class="math inline">\(\vec{n}=(a,b)\)</span>（直線 <span
+class="math inline">\(ax+by+c=0\)</span> 的法向量）→
+<span class="brl">⠐⠝⠣⠫⠕⠻⠀⠨⠅⠀⠷⠁⠠⠀⠃⠾</span></li>
+</ul>
+<hr />
+<h2 id="ch8-對數與矩陣">CH8 對數與矩陣</h2>
+<h3 id="對數">對數</h3>
+<p>log/ln 都是拼出英文字母；下標指示符 <span class="brl">⠰</span>（點 5
+6），只有底數是字母/變數時才需要。底數是數字時（例如 <span
+class="math inline">\(\log_2\)</span>），跟函式名稱直接相連、不加下標指示符；底數是字母/變數時，log
+跟下標指示符直接相連、不空方。不論哪種情況，底數處理完後、真數（引數）前面都要留一格。</p>
+<ul>
+<li><p><span class="math inline">\(\ln x\)</span> → <span class="brl">⠇⠝⠀⠭</span></p></li>
+<li><p><span class="math inline">\(\log x\)</span> → <span class="brl">⠇⠕⠛⠀⠭</span></p></li>
+<li><p><span class="math inline">\(\log_{2}8=3\)</span> →
+<span class="brl">⠇⠕⠛⠆⠀⠼⠦⠀⠨⠅⠀⠼⠒</span></p></li>
+<li><p><span class="math inline">\(\log_e x\)</span> → <span class="brl">⠇⠕⠛⠰⠑⠀⠭</span></p></li>
+<li><p><span class="math inline">\(\log_b x\)</span> → <span class="brl">⠇⠕⠛⠰⠃⠀⠭</span></p></li>
+<li><p><span class="math inline">\(\log1000=3\)</span> →
+<span class="brl">⠇⠕⠛⠀⠼⠂⠴⠴⠴⠀⠨⠅⠀⠼⠒</span></p></li>
+<li><p><span class="math inline">\(\log_{3}9=2\)</span> →
+<span class="brl">⠇⠕⠛⠒⠀⠼⠔⠀⠨⠅⠀⠼⠆</span></p></li>
+<li><p><span class="math inline">\(\log_{5}125=3\)</span> →
+<span class="brl">⠇⠕⠛⠢⠀⠼⠂⠆⠢⠀⠨⠅⠀⠼⠒</span></p></li>
+<li><p><span class="math inline">\(\ln e=1\)</span> →
+<span class="brl">⠇⠝⠀⠑⠀⠨⠅⠀⠼⠂</span></p></li>
+<li><p><span class="math inline">\(\log(ab)=\log a+\log
+b\)</span>（乘積化和）→ <span class="brl">⠇⠕⠛⠀⠷⠁⠃⠾⠀⠨⠅⠀⠇⠕⠛⠀⠁⠬⠇⠕⠛⠀⠃</span></p></li>
+</ul>
+<h4 id="綜合應用-13">綜合應用</h4>
+<ul>
+<li><span class="math inline">\(\log\frac{a}{b}=\log a-\log
+b\)</span>（商化差）→ <span class="brl">⠇⠕⠛⠀⠹⠁⠌⠃⠼⠀⠨⠅⠀⠇⠕⠛⠀⠁⠤⠇⠕⠛⠀⠃</span></li>
+<li><span class="math inline">\(\log x^n=n\log x\)</span>（次方提出）→
+<span class="brl">⠇⠕⠛⠀⠭⠘⠝⠀⠨⠅⠀⠝⠇⠕⠛⠀⠭</span></li>
+<li><span class="math inline">\(\log_a b=\frac{\log_x b}{\log_x
+a}\)</span>（換底公式）→ <span class="brl">⠇⠕⠛⠰⠁⠀⠃⠀⠨⠅⠀⠹⠇⠕⠛⠰⠭⠀⠃⠌⠇⠕⠛⠰⠭⠀⠁⠼</span></li>
+</ul>
+<h3 id="矩陣與行列式">矩陣與行列式</h3>
+<p>放大括號（用於矩陣）：點 4 加點 6 加小括號，例如開括號 <span class="brl">⠈⠠⠷</span>（點 4 點 6
+點 1 2 3 5 6）、閉括號 <span class="brl">⠈⠠⠾</span>（點 4 點 6 點 2 3 4 5
+6）。矩陣每一列都各自完整加上開括號（列首）跟閉括號（列尾），每一列的括號寫法完全一樣。同一列裡的元素之間用空格分隔（不用逗號）。</p>
+<p>單位矩陣 <span
+class="math inline">\(\begin{bmatrix}1&amp;0\\0&amp;1\end{bmatrix}\)</span>：</p>
+<ul>
+<li>第一列 → <span class="brl">⠈⠠⠷⠼⠂⠀⠼⠴⠈⠠⠾</span></li>
+<li>第二列 → <span class="brl">⠈⠠⠷⠼⠴⠀⠼⠂⠈⠠⠾</span></li>
+</ul>
+<p><span class="math inline">\(2\times3\)</span> 矩陣 <span
+class="math inline">\(\begin{bmatrix}a&amp;b&amp;c\\d&amp;e&amp;f\end{bmatrix}\)</span>：</p>
+<ul>
+<li>第一列 → <span class="brl">⠈⠠⠷⠁⠀⠃⠀⠉⠈⠠⠾</span></li>
+<li>第二列 → <span class="brl">⠈⠠⠷⠙⠀⠑⠀⠋⠈⠠⠾</span></li>
+</ul>
+<p>矩陣乘以純量時，係數直接寫在放大括號前面、不空格（跟一般乘法係數的排版習慣一致）：</p>
+<p><span
+class="math inline">\(3\begin{bmatrix}1&amp;2\\3&amp;4\end{bmatrix}\)</span>：</p>
+<ul>
+<li>第一列 → <span class="brl">⠼⠒⠈⠠⠷⠼⠂⠀⠼⠆⠈⠠⠾</span></li>
+<li>第二列 → <span class="brl">⠈⠠⠷⠼⠒⠀⠼⠲⠈⠠⠾</span></li>
+</ul>
+<p>行列式用放大直線 <span class="brl">⠠⠳</span>（點 6 點 1 2 5
+6，絕對值符號的放大版）夾住，跟矩陣的放大括號是不同符號、不同記法。
+<span class="math inline">\(2\times2\)</span> 行列式 <span
+class="math inline">\(\begin{vmatrix}a&amp;b\\c&amp;d\end{vmatrix}=ad-bc\)</span>：</p>
+<ul>
+<li>第一列 → <span class="brl">⠠⠳⠁⠀⠃⠠⠳</span></li>
+<li>第二列 → <span class="brl">⠠⠳⠉⠀⠙⠠⠳⠀⠨⠅⠀⠁⠙⠤⠃⠉</span></li>
+</ul>
+<h4 id="綜合應用-14">綜合應用</h4>
+<p><span
+class="math inline">\(A^{-1}=\frac{1}{ad-bc}\begin{bmatrix}d&amp;-b\\-c&amp;a\end{bmatrix}\)</span>（逆矩陣公式，純量係數
+<span class="math inline">\(\frac{1}{ad-bc}\)</span>
+寫法跟前面「矩陣乘以純量」小節相同）：</p>
+<ul>
+<li><p>前導純量 → <span class="brl">⠠⠁⠘⠤⠂⠐⠀⠨⠅⠀⠹⠂⠌⠁⠙⠤⠃⠉⠼</span></p></li>
+<li><p>第一列 → <span class="brl">⠈⠠⠷⠙⠀⠤⠃⠈⠠⠾</span></p></li>
+<li><p>第二列 → <span class="brl">⠈⠠⠷⠤⠉⠀⠁⠈⠠⠾</span></p></li>
+<li><p><span class="math inline">\(ax+by+cz+d=0\)</span>（3D
+空間平面方程式）→ <span class="brl">⠁⠭⠬⠃⠽⠬⠉⠵⠬⠙⠀⠨⠅⠀⠼⠴</span></p></li>
+<li><p><span
+class="math inline">\(|\vec{a}\times\vec{b}|=|\vec{a}||\vec{b}|\sin\theta\)</span>（3D
+向量外積的大小公式，絕對值/向量箭頭/sin 都是前面已教過的構造）→
+<span class="brl">⠳⠐⠁⠣⠫⠕⠻⠈⠡⠐⠃⠣⠫⠕⠻⠳⠀⠨⠅⠀⠳⠐⠁⠣⠫⠕⠻⠳⠐⠳⠐⠃⠣⠫⠕⠻⠳⠎⠊⠝⠀⠨⠹</span></p></li>
+</ul>
+<p><span
+class="math inline">\(\begin{bmatrix}\cos\theta&amp;-\sin\theta\\\sin\theta&amp;\cos\theta\end{bmatrix}\)</span>（旋轉矩陣，逆時針旋轉
+<span class="math inline">\(\theta\)</span> 角）：</p>
+<ul>
+<li>第一列 → <span class="brl">⠈⠠⠷⠉⠕⠎⠀⠨⠹⠀⠤⠎⠊⠝⠀⠨⠹⠈⠠⠾</span></li>
+<li>第二列 → <span class="brl">⠈⠠⠷⠎⠊⠝⠀⠨⠹⠀⠉⠕⠎⠀⠨⠹⠈⠠⠾</span></li>
+</ul>
+<hr />
+<h2 id="ch9-連乘極限與積分">CH9 連乘、極限與積分</h2>
+<h3 id="連乘π">連乘（Π）</h3>
+<p><span class="math inline">\(\Pi\)</span> <span class="brl">⠨⠠⠏</span>（點 4 6 點 6 點 1 2 3
+4）跟 <span class="math inline">\(\Sigma\)</span>
+用同一套「正上方/正下方」修飾構造（見 CH6「總和」）。</p>
+<ul>
+<li><span class="math inline">\(\prod_{i=1}^{n}x_i\)</span> →
+<span class="brl">⠐⠨⠠⠏⠩⠊⠀⠨⠅⠀⠼⠂⠣⠝⠻⠭⠰⠊</span></li>
+<li><span
+class="math inline">\(\prod_{k=1}^{4}k=24\)</span>（上下限都是純數字時仍先寫下限再寫上限）→
+<span class="brl">⠐⠨⠠⠏⠩⠅⠀⠨⠅⠀⠼⠂⠣⠼⠲⠻⠅⠀⠨⠅⠀⠼⠆⠲</span></li>
+<li><span class="math inline">\(\prod_{i=1}^{n}\dfrac{1}{i}\)</span> →
+<span class="brl">⠐⠨⠠⠏⠩⠊⠀⠨⠅⠀⠼⠂⠣⠝⠻⠹⠂⠌⠊⠼</span></li>
+</ul>
+<h3 id="極限">極限</h3>
+<p>lim 拼出英文字母，跟 log/sin 同一套函式名稱規則；正下方修飾符起始
+<span class="brl">⠩</span>、修飾結束 <span class="brl">⠻</span>（跟 Σ／Π
+共用構造，但極限只有「正下方」，沒有「正上方」）。</p>
+<ul>
+<li><span class="math inline">\(\lim_{x\to0}f(x)\)</span> →
+<span class="brl">⠐⠇⠊⠍⠩⠭⠀⠫⠕⠀⠼⠴⠻⠀⠋⠷⠭⠾</span></li>
+<li><span class="math inline">\(\lim_{n\to\infty}a_n\)</span> →
+<span class="brl">⠐⠇⠊⠍⠩⠝⠀⠫⠕⠀⠠⠿⠻⠀⠁⠰⠝</span></li>
+<li><span class="math inline">\(\lim_{x\to\infty}\dfrac{1}{x}=0\)</span>
+→ <span class="brl">⠐⠇⠊⠍⠩⠭⠀⠫⠕⠀⠠⠿⠻⠀⠹⠂⠌⠭⠼⠀⠨⠅⠀⠼⠴</span></li>
+<li>右極限 <span
+class="math inline">\(\lim_{x\to2^{+}}f(x)\)</span>（單邊極限的正負號疊在箭頭指向的數字上標位置）→
+<span class="brl">⠐⠇⠊⠍⠩⠭⠀⠫⠕⠀⠼⠆⠘⠬⠻⠀⠋⠷⠭⠾</span></li>
+<li>重要極限 <span class="math inline">\(\lim_{x\to0}\dfrac{\sin
+x}{x}=1\)</span>（正下方修飾框裡可以放函式名稱＋引數這種完整算式）→
+<span class="brl">⠐⠇⠊⠍⠩⠭⠀⠫⠕⠀⠼⠴⠻⠀⠹⠎⠊⠝⠀⠭⠌⠭⠼⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<h3 id="積分">積分</h3>
+<p>積分符號 <span class="math inline">\(\int\)</span> <span class="brl">⠮</span>（點 2 3 4
+6）；雙重積分 <span class="math inline">\(\iint\)</span>
+<span class="brl">⠮⠮</span>。積分的上下限用一般角標（上標/下標）表示。</p>
+<ul>
+<li><span class="math inline">\(\int_a^bf(x)dx\)</span> →
+<span class="brl">⠮⠰⠁⠘⠃⠐⠋⠷⠭⠾⠙⠭</span></li>
+<li><span class="math inline">\(\iint_D^Wdx\,dy\)</span> →
+<span class="brl">⠐⠮⠮⠩⠠⠗⠻⠋⠷⠭⠠⠀⠽⠾⠙⠠⠁</span></li>
+<li>定積分 <span
+class="math inline">\(\int_{0}^{1}x^2dx=\dfrac{1}{3}\)</span> →
+<span class="brl">⠮⠰⠴⠘⠂⠐⠭⠘⠆⠐⠙⠭⠀⠨⠅⠀⠹⠂⠌⠒⠼</span></li>
+<li>不定積分（含積分常數 C）<span class="math inline">\(\int
+x^2dx=\dfrac{x^3}{3}+C\)</span> → <span class="brl">⠮⠭⠘⠆⠐⠙⠭⠀⠨⠅⠀⠹⠭⠘⠒⠐⠌⠒⠼⠬⠠⠉</span></li>
+<li><span
+class="math inline">\(\int_{1}^{e}\dfrac{1}{x}dx=1\)</span>（下限的數字
+1
+在下標位置，跟上下標一律不加數字記號的規則一樣；句尾另一個「=1」在一般基線位置，才要加數字記號——對照這兩個「1」能看出差別）→
+<span class="brl">⠮⠰⠂⠘⠑⠐⠹⠂⠌⠭⠼⠙⠭⠀⠨⠅⠀⠼⠂</span></li>
+</ul>
+<hr />
+<h2 id="ch10-化學式與化學反應式">CH10 化學式與化學反應式</h2>
+<p>本章是 Nemeth 點字在數學以外的延伸應用，記法依據 <em>Chemical
+Notation Using the Nemeth Braille
+Code</em>（BANA，2023）。這裡收錄的都是國高中理化課綱常見的反應式通例。</p>
+<h3 id="化學式記號慣例">化學式記號慣例</h3>
+<p>化學式使用的記號，有些是全新的，有些沿用前面已經教過的數學構造：</p>
+<ul>
+<li><strong>元素符號</strong>：每個元素符號自己獨立看待，不套用「多字母序列合併」的判斷，每個大寫字母都各自加上大寫指示符
+<span class="brl">⠠</span>，不需要英文字母指示符（跟一般英文單字不同）。例如 <span
+class="math inline">\(CaCl_2\)</span> 裡的 <span
+class="math inline">\(Ca\)</span>、<span
+class="math inline">\(Cl\)</span> 各自獨立標大寫。</li>
+<li><strong>原子質量數與原子序</strong>：印刷體把質量數寫在元素符號左上、原子序寫在元素符號左下（同時出現在符號左邊，不是一般化學式常見的右下標）。點字裡下標（原子序）先寫、上標（質量數）後寫，順序跟一般數學「同時上下標」的規則（CH4「下標」，下標永遠先寫）完全一樣，只是這裡整組都出現在字母前面：
+<ul>
+<li>碳-14：<span class="math inline">\({}^{14}_{6}C\)</span> →
+<span class="brl">⠰⠖⠘⠂⠲⠐⠠⠉</span></li>
+<li>鈾-238 α 衰變：<span
+class="math inline">\({}^{238}_{92}U\rightarrow{}^{234}_{90}Th+{}^{4}_{2}He\)</span>
+→ <span class="brl">⠰⠔⠆⠘⠆⠒⠦⠐⠠⠥⠀⠫⠕⠀⠰⠔⠴⠘⠆⠒⠲⠐⠠⠞⠓⠬⠰⠆⠘⠲⠐⠠⠓⠑</span></li>
+</ul></li>
+<li><strong>反應箭頭</strong> →：跟射線、函式箭頭用同一個符號 <span class="brl">⠫⠕</span>（點 1 2
+4 6 點 1 3 5 點 1 2 4 5 6）。</li>
+<li><strong>可逆反應箭頭</strong> ⇌：<span class="brl">⠫⠒⠕⠫⠪⠒</span>（點 1 2 4 6 點 2 5 點 1 3 5
+點 1 2 4 6 點 2 4 6 點 2
+5）。兩個反向箭桿各自用單一格表示，印刷體在上面的箭頭先寫。</li>
+<li><strong>離子電荷</strong>：寫在上標位置，跟一般數學上標是同一套構造（CH4「上標」）。</li>
+<li><strong>氣體／沉澱符號</strong> ↑／↓：<span class="brl">⠫⠣</span>／<span class="brl">⠫⠩</span>（點 1 2 4 6 點 1 2
+6／點 1 2 4 6 點 1 4
+6）。這兩個符號緊接在對應的化學式後面、不空方；如果符號後面式子還沒結束（後面還有＋號接續），才在符號後面空一方。</li>
+<li><strong>物質狀態</strong>（氣態 g／液態 l／固態 s／水溶液
+aq）：就算印刷體把狀態寫在下標位置，點字裡一律當成基線文字處理，不套用下標指示符——跟前面數字下標的省略規則是兩回事（數字下標是「省略指示符但位置仍算下標」，物質狀態則是「不算下標」）。</li>
+<li><strong>反應條件</strong>（催化劑、加熱、濃度）：課本印刷體常把這些寫在箭頭正上方（如「酵母菌」寫在→上面），這是比較複雜的空間排列構造。本章為求清楚易讀，一律把這類條件寫進中文說明句子裡，不寫進點字算式本身——算式維持乾淨的「反應物→生成物」構造。</li>
+</ul>
+<h3 id="物質溶在水中解離">1. 物質溶在水中解離</h3>
+<p>強酸、強鹼、大部分鹽類溶於水中會解離成陽離子和陰離子：</p>
+<ul>
+<li>氯化鈣在水中解離成鈣離子跟氯離子 (放熱)：<span
+class="math inline">\(CaCl_{2}\rightarrow Ca^{2+}+2Cl^{-}\)</span> →
+<span class="brl">⠠⠉⠁⠠⠉⠇⠆⠀⠫⠕⠀⠠⠉⠁⠘⠆⠬⠐⠬⠆⠠⠉⠇⠘⠤</span></li>
+<li>氯化鈉(食鹽)在水中解離成鈉離子和氯離子 (吸熱)：<span
+class="math inline">\(NaCl\rightarrow Na^{+}+Cl^{-}\)</span> →
+<span class="brl">⠠⠝⠁⠠⠉⠇⠀⠫⠕⠀⠠⠝⠁⠘⠬⠐⠬⠠⠉⠇⠘⠤</span></li>
+<li>硫酸在水中解離成氫離子和硫酸根離子 (放熱)：<span
+class="math inline">\(H_{2}SO_{4}\rightarrow 2H^{+}+SO_{4}^{2-}\)</span>
+→ <span class="brl">⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠼⠆⠠⠓⠘⠬⠐⠬⠠⠎⠠⠕⠲⠘⠆⠤</span></li>
+<li>硝酸在水中解離成氫離子和硝酸根離子 (放熱)：<span
+class="math inline">\(HNO_{3}\rightarrow H^{+}+NO_{3}^{-}\)</span> →
+<span class="brl">⠠⠓⠠⠝⠠⠕⠒⠀⠫⠕⠀⠠⠓⠘⠬⠐⠬⠠⠝⠠⠕⠒⠘⠤</span></li>
+<li>鹽酸在水中解離成氫離子和氯離子 (放熱)：<span
+class="math inline">\(HCl\rightarrow H^{+}+Cl^{-}\)</span> →
+<span class="brl">⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠓⠘⠬⠐⠬⠠⠉⠇⠘⠤</span></li>
+<li>醋酸在水中解離成氫離子和醋酸根離子 (放熱)：<span
+class="math inline">\(CH_{3}COOH\rightarrow H^{+}+CH_{3}COO^{-}\)</span>
+→ <span class="brl">⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠓⠀⠫⠕⠀⠠⠓⠘⠬⠐⠬⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠘⠤</span></li>
+<li>氫氧化鈉在水中解離成鈉離子和氫氧根離子 (放熱)：<span
+class="math inline">\(NaOH\rightarrow Na^{+}+OH^{-}\)</span> →
+<span class="brl">⠠⠝⠁⠠⠕⠠⠓⠀⠫⠕⠀⠠⠝⠁⠘⠬⠐⠬⠠⠕⠠⠓⠘⠤</span></li>
+<li>氫氧化鉀在水中解離成鉀離子和氫氧根離子 (放熱)：<span
+class="math inline">\(KOH\rightarrow K^{+}+OH^{-}\)</span> →
+<span class="brl">⠠⠅⠠⠕⠠⠓⠀⠫⠕⠀⠠⠅⠘⠬⠐⠬⠠⠕⠠⠓⠘⠤</span></li>
+</ul>
+<h3 id="酸鹼中和">2. 酸鹼中和</h3>
+<p>酸跟鹼反應會生成鹽和水（中和反應），以下是幾個具體例子：</p>
+<ul>
+<li>硫酸加氫氧化鈉生成硫酸鈉和水 (放熱)：<span
+class="math inline">\(H_{2}SO_{4}+2NaOH\rightarrow
+Na_{2}SO_{4}+2H_{2}O\)</span> →
+<span class="brl">⠠⠓⠆⠠⠎⠠⠕⠲⠬⠆⠠⠝⠁⠠⠕⠠⠓⠀⠫⠕⠀⠠⠝⠁⠆⠠⠎⠠⠕⠲⠬⠆⠠⠓⠆⠠⠕</span></li>
+<li>硫酸加氫氧化銨生成硫酸銨和水 (放熱)：<span
+class="math inline">\(H_{2}SO_{4}+2NH_{4}OH\rightarrow(NH_{4})_{2}SO_{4}+2H_{2}O\)</span>
+→ <span class="brl">⠠⠓⠆⠠⠎⠠⠕⠲⠬⠆⠠⠝⠠⠓⠲⠠⠕⠠⠓⠀⠫⠕⠀⠷⠠⠝⠠⠓⠲⠾⠰⠆⠐⠠⠎⠠⠕⠲⠬⠆⠠⠓⠆⠠⠕</span></li>
+<li>鹽酸加氫氧化鈉生成氯化鈉和水 (放熱)：<span
+class="math inline">\(HCl+NaOH\rightarrow NaCl+H_{2}O\)</span> →
+<span class="brl">⠠⠓⠠⠉⠇⠬⠠⠝⠁⠠⠕⠠⠓⠀⠫⠕⠀⠠⠝⠁⠠⠉⠇⠬⠠⠓⠆⠠⠕</span></li>
+<li>鹽酸加氫氧化鉀生成氯化鉀和水 (放熱)：<span
+class="math inline">\(HCl+KOH\rightarrow KCl+H_{2}O\)</span> →
+<span class="brl">⠠⠓⠠⠉⠇⠬⠠⠅⠠⠕⠠⠓⠀⠫⠕⠀⠠⠅⠠⠉⠇⠬⠠⠓⠆⠠⠕</span></li>
+<li>醋酸加氫氧化鈉生成醋酸鈉和水 (放熱)：<span
+class="math inline">\(CH_{3}COOH+NaOH\rightarrow
+CH_{3}COONa+H_{2}O\)</span> →
+<span class="brl">⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠓⠬⠠⠝⠁⠠⠕⠠⠓⠀⠫⠕⠀⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠝⠁⠬⠠⠓⠆⠠⠕</span></li>
+<li>碳酸鈉(俗稱蘇打，為弱鹼)加硫酸產生二氧化碳氣體 (放熱)：<span
+class="math inline">\(Na_{2}CO_{3}+H_{2}SO_{4}\rightarrow
+CO_{2}\uparrow+Na_{2}SO_{4}+H_{2}O\)</span> →
+<span class="brl">⠠⠝⠁⠆⠠⠉⠠⠕⠒⠬⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠠⠉⠠⠕⠆⠫⠣⠀⠬⠠⠝⠁⠆⠠⠎⠠⠕⠲⠬⠠⠓⠆⠠⠕</span></li>
+<li>碳酸鈉加鹽酸產生二氧化碳氣體 (放熱)：<span
+class="math inline">\(Na_{2}CO_{3}+2HCl\rightarrow
+2NaCl+H_{2}O+CO_{2}\uparrow\)</span> →
+<span class="brl">⠠⠝⠁⠆⠠⠉⠠⠕⠒⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠼⠆⠠⠝⠁⠠⠉⠇⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>碳酸氫鈉(俗稱小蘇打，為弱鹼)加鹽酸產生二氧化碳氣體 (放熱)：<span
+class="math inline">\(NaHCO_{3}+HCl\rightarrow
+NaCl+H_{2}O+CO_{2}\uparrow\)</span> →
+<span class="brl">⠠⠝⠁⠠⠓⠠⠉⠠⠕⠒⠬⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠝⠁⠠⠉⠇⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+</ul>
+<h3 id="加酸反應">3. 加酸反應</h3>
+<p>不同物質加酸之後的反應結果：</p>
+<ul>
+<li>大理石(碳酸鈣，灰石)加鹽酸產生二氧化碳氣體 (放熱)：<span
+class="math inline">\(CaCO_{3}+2HCl\rightarrow
+CaCl_{2}+H_{2}O+CO_{2}\uparrow\)</span> →
+<span class="brl">⠠⠉⠁⠠⠉⠠⠕⠒⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠉⠁⠠⠉⠇⠆⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>碳酸鈉加硫酸產生二氧化碳氣體 (放熱，也算酸鹼中和)：<span
+class="math inline">\(NaCO_{3}+H_{2}SO_{4}\rightarrow
+CO_{2}\uparrow+Na_{2}SO_{4}+H_{2}O\)</span> →
+<span class="brl">⠠⠝⠁⠠⠉⠠⠕⠒⠬⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠠⠉⠠⠕⠆⠫⠣⠀⠬⠠⠝⠁⠆⠠⠎⠠⠕⠲⠬⠠⠓⠆⠠⠕</span></li>
+<li>碳酸鈉加鹽酸產生二氧化碳氣體 (放熱，也算酸鹼中和)：<span
+class="math inline">\(Na_{2}CO_{3}+2HCl\rightarrow
+2NaCl+H_{2}O+CO_{2}\uparrow\)</span> →
+<span class="brl">⠠⠝⠁⠆⠠⠉⠠⠕⠒⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠼⠆⠠⠝⠁⠠⠉⠇⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>碳酸氫鈉加鹽酸產生二氧化碳氣體 (放熱，也算酸鹼中和)：<span
+class="math inline">\(NaHCO_{3}+HCl\rightarrow
+NaCl+H_{2}O+CO_{2}\uparrow\)</span> →
+<span class="brl">⠠⠝⠁⠠⠓⠠⠉⠠⠕⠒⠬⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠝⠁⠠⠉⠇⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>活性大的金屬加鹽酸產生氫氣 (放熱)：<span
+class="math inline">\(Mg+2HCl\rightarrow MgCl_{2}+H_{2}\uparrow\)</span>
+→ <span class="brl">⠠⠍⠛⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠍⠛⠠⠉⠇⠆⠬⠠⠓⠆⠫⠣</span></li>
+<li>活性大的金屬加鹽酸產生氫氣 (放熱)：<span
+class="math inline">\(Zn+2HCl\rightarrow ZnCl_{2}+H_{2}\uparrow\)</span>
+→ <span class="brl">⠠⠵⠝⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠠⠵⠝⠠⠉⠇⠆⠬⠠⠓⠆⠫⠣</span></li>
+<li>活性大的金屬加硫酸產生氫氣 (放熱)：<span
+class="math inline">\(Zn+H_{2}SO_{4}\rightarrow
+ZnSO_{4}+H_{2}\uparrow\)</span> → <span class="brl">⠠⠵⠝⠬⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠠⠵⠝⠠⠎⠠⠕⠲⠬⠠⠓⠆⠫⠣</span></li>
+<li>銅的活性小，不與大部分酸產生反應，但會與濃硝酸作用產生二氧化氮氣體：<span
+class="math inline">\(Cu+4HNO_3\rightarrow
+Cu(NO_3)_2+2H_2O+2NO_2\uparrow\)</span> →
+<span class="brl">⠠⠉⠥⠬⠲⠠⠓⠠⠝⠠⠕⠒⠀⠫⠕⠀⠠⠉⠥⠷⠠⠝⠠⠕⠒⠾⠰⠆⠐⠬⠆⠠⠓⠆⠠⠕⠬⠆⠠⠝⠠⠕⠆⠫⠣</span></li>
+<li>銅的活性小，不與大部分酸產生反應，但會與稀硝酸作用產生一氧化氮氣體：<span
+class="math inline">\(3Cu+8HNO_3\rightarrow
+3Cu(NO_3)_2+4H_2O+2NO\uparrow\)</span> →
+<span class="brl">⠼⠒⠠⠉⠥⠬⠦⠠⠓⠠⠝⠠⠕⠒⠀⠫⠕⠀⠼⠒⠠⠉⠥⠷⠠⠝⠠⠕⠒⠾⠰⠆⠐⠬⠲⠠⠓⠆⠠⠕⠬⠆⠠⠝⠠⠕⠫⠣</span></li>
+<li>硫代硫酸鈉加鹽酸的反應：<span
+class="math inline">\(Na_{2}S_{2}O_{3}+2HCl\rightarrow
+2NaCl+SO_{2}\uparrow+H_{2}O+S\downarrow\)</span> →
+<span class="brl">⠠⠝⠁⠆⠠⠎⠆⠠⠕⠒⠬⠆⠠⠓⠠⠉⠇⠀⠫⠕⠀⠼⠆⠠⠝⠁⠠⠉⠇⠬⠠⠎⠠⠕⠆⠫⠣⠀⠬⠠⠓⠆⠠⠕⠬⠠⠎⠫⠩</span></li>
+<li>鉻酸鉀加硫酸顏色由黃色變橙色（可逆反應）：<span
+class="math inline">\(2K_{2}CrO_{4}+H_{2}SO_{4}\rightleftharpoons
+K_{2}Cr_{2}O_{7}+H_{2}O+K_{2}SO_{4}\)</span> →
+<span class="brl">⠼⠆⠠⠅⠆⠠⠉⠗⠠⠕⠲⠬⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠒⠕⠫⠪⠒⠀⠠⠅⠆⠠⠉⠗⠆⠠⠕⠶⠬⠠⠓⠆⠠⠕⠬⠠⠅⠆⠠⠎⠠⠕⠲</span></li>
+</ul>
+<h3 id="加水反應">4. 加水反應</h3>
+<p>不同物質加到水裡的反應結果：</p>
+<ul>
+<li>活性極大的金屬鈉丟入水中會產生氫氣 (放熱)：<span
+class="math inline">\(2Na+2H_{2}O\rightarrow
+2NaOH+H_{2}\uparrow\)</span> → <span class="brl">⠼⠆⠠⠝⠁⠬⠆⠠⠓⠆⠠⠕⠀⠫⠕⠀⠼⠆⠠⠝⠁⠠⠕⠠⠓⠬⠠⠓⠆⠫⠣</span></li>
+<li>活性極大的金屬鉀丟入水中會產生氫氣 (放熱)：<span
+class="math inline">\(2K+2H_{2}O\rightarrow 2KON+H_{2}\uparrow\)</span>
+→ <span class="brl">⠼⠆⠠⠅⠬⠆⠠⠓⠆⠠⠕⠀⠫⠕⠀⠼⠆⠠⠅⠠⠕⠠⠝⠬⠠⠓⠆⠫⠣</span></li>
+<li>氧化鈣(生石灰)溶於水中形成氫氧化鈣水溶液(石灰水)：<span
+class="math inline">\(CaO+H_{2}O\rightarrow Ca(OH)_{2}\)</span> →
+<span class="brl">⠠⠉⠁⠠⠕⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠉⠁⠷⠠⠕⠠⠓⠾⠰⠆</span></li>
+<li>氧化鎂與水反應生成氫氧化鎂 (放熱)：<span
+class="math inline">\(MgO+H_{2}O\rightarrow Mg(OH)_{2}\)</span> →
+<span class="brl">⠠⠍⠛⠠⠕⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠍⠛⠷⠠⠕⠠⠓⠾⠰⠆</span></li>
+<li>氧化鋅與水反應生成氫氧化鋅 (放熱)：<span
+class="math inline">\(ZnO+H_{2}O\rightarrow Zn(OH)_{2}\)</span> →
+<span class="brl">⠠⠵⠝⠠⠕⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠵⠝⠷⠠⠕⠠⠓⠾⠰⠆</span></li>
+<li>氨水的製造是把氨氣灌到水裡面 (放熱)：<span
+class="math inline">\(NH_{3}+H_{2}O\rightarrow
+NH_{4}^{+}+OH^{-}\)</span> → <span class="brl">⠠⠝⠠⠓⠒⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠝⠠⠓⠲⠘⠬⠐⠬⠠⠕⠠⠓⠘⠤</span></li>
+<li>二氧化硫溶於水生成亞硫酸 (放熱)：<span
+class="math inline">\(SO_{2}+H_{2}O\rightarrow H_{2}SO_{3}\)</span> →
+<span class="brl">⠠⠎⠠⠕⠆⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠓⠆⠠⠎⠠⠕⠒</span></li>
+<li>二氧化碳溶於水生成碳酸 (放熱)：<span
+class="math inline">\(CO_{2}+H_{2}O\rightarrow H_{2}CO_{3}\)</span> →
+<span class="brl">⠠⠉⠠⠕⠆⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠓⠆⠠⠉⠠⠕⠒</span></li>
+<li>二氧化氮溶於水生成硝酸：<span
+class="math inline">\(3NO_{2}+H_{2}O\rightarrow NO+2HNO_{3}\)</span> →
+<span class="brl">⠼⠒⠠⠝⠠⠕⠆⠬⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠝⠠⠕⠬⠆⠠⠓⠠⠝⠠⠕⠒</span></li>
+</ul>
+<h3 id="燃燒反應">5. 燃燒反應</h3>
+<p>金屬、非金屬、烴類（碳氫化合物）燃燒的反應式：</p>
+<ul>
+<li>金屬鈉燃燒生成白色的氧化鈉 (放熱)：<span
+class="math inline">\(4Na+O_{2}\rightarrow 2Na_{2}O\)</span> →
+<span class="brl">⠼⠲⠠⠝⠁⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠝⠁⠆⠠⠕</span></li>
+<li>金屬鎂燃燒生成氧化鎂 (放熱)：<span
+class="math inline">\(2Mg+O_{2}\rightarrow 2MgO\)</span> →
+<span class="brl">⠼⠆⠠⠍⠛⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠍⠛⠠⠕</span></li>
+<li>金屬鎂在二氧化碳中可以燃燒，燃燒時鎂會搶走二氧化碳中的氧
+(放熱)：<span class="math inline">\(2Mg+CO_{2}\rightarrow
+C+2MgO\)</span> → <span class="brl">⠼⠆⠠⠍⠛⠬⠠⠉⠠⠕⠆⠀⠫⠕⠀⠠⠉⠬⠆⠠⠍⠛⠠⠕</span></li>
+<li>金屬銅燃燒生成氧化銅 (放熱)：<span
+class="math inline">\(2Cu+O_{2}\rightarrow 2CuO\)</span> →
+<span class="brl">⠼⠆⠠⠉⠥⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠉⠥⠠⠕</span></li>
+<li>金屬鋅燃燒生成氧化鋅 (放熱)：<span
+class="math inline">\(2Zn+O_{2}\rightarrow 2ZnO\)</span> →
+<span class="brl">⠼⠆⠠⠵⠝⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠵⠝⠠⠕</span></li>
+<li>硫粉燃燒生成二氧化硫 (放熱)：<span
+class="math inline">\(S+O_{2}\rightarrow SO_{2}\)</span> →
+<span class="brl">⠠⠎⠬⠠⠕⠆⠀⠫⠕⠀⠠⠎⠠⠕⠆</span></li>
+<li>碳燃燒生成二氧化碳 (放熱)：<span
+class="math inline">\(C+O_{2}\rightarrow CO_{2}\)</span> →
+<span class="brl">⠠⠉⠬⠠⠕⠆⠀⠫⠕⠀⠠⠉⠠⠕⠆</span></li>
+<li>碳在氧氣不足的情形下會生成一氧化碳 (放熱)：<span
+class="math inline">\(2C+O_{2}\rightarrow 2CO\)</span> →
+<span class="brl">⠼⠆⠠⠉⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠉⠠⠕</span></li>
+<li>一氧化碳燃燒也可以生成二氧化碳 (放熱)：<span
+class="math inline">\(2CO+O_{2}\rightarrow 2CO_{2}\)</span> →
+<span class="brl">⠼⠆⠠⠉⠠⠕⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠉⠠⠕⠆</span></li>
+<li>氫氣燃燒生成水 (放熱)：<span
+class="math inline">\(2H_{2}+O_{2}\rightarrow 2H_{2}O\)</span> →
+<span class="brl">⠼⠆⠠⠓⠆⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠓⠆⠠⠕</span></li>
+<li>甲烷燃燒生成二氧化碳和水 (放熱)：<span
+class="math inline">\(CH_{4}+2O_{2}\rightarrow CO_{2}+2H_{2}O\)</span> →
+<span class="brl">⠠⠉⠠⠓⠲⠬⠆⠠⠕⠆⠀⠫⠕⠀⠠⠉⠠⠕⠆⠬⠆⠠⠓⠆⠠⠕</span></li>
+<li>乙烷燃燒生成二氧化碳和水 (放熱)：<span
+class="math inline">\(2C_{2}H_{6}+7O_{2}\rightarrow
+4CO_{2}+6H_{2}O\)</span> → <span class="brl">⠼⠆⠠⠉⠆⠠⠓⠖⠬⠶⠠⠕⠆⠀⠫⠕⠀⠼⠲⠠⠉⠠⠕⠆⠬⠖⠠⠓⠆⠠⠕</span></li>
+<li>丙烷燃燒生成二氧化碳和水 (放熱)：<span
+class="math inline">\(C_{3}H_{8}+5O_{2}\rightarrow
+3CO_{2}+4H_{2}O\)</span> → <span class="brl">⠠⠉⠒⠠⠓⠦⠬⠢⠠⠕⠆⠀⠫⠕⠀⠼⠒⠠⠉⠠⠕⠆⠬⠲⠠⠓⠆⠠⠕</span></li>
+<li>甲醇燃燒生成二氧化碳和水 (放熱)：<span
+class="math inline">\(CH_{3}OH+2O_{2}\rightarrow CO_{2}+2H_{2}O\)</span>
+→ <span class="brl">⠠⠉⠠⠓⠒⠠⠕⠠⠓⠬⠆⠠⠕⠆⠀⠫⠕⠀⠠⠉⠠⠕⠆⠬⠆⠠⠓⠆⠠⠕</span></li>
+<li>氮氣與氧氣燃燒生成一氧化氮 (放熱)：<span
+class="math inline">\(N_{2}+O_{2}\rightarrow 2NO\)</span> →
+<span class="brl">⠠⠝⠆⠬⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠝⠠⠕</span></li>
+</ul>
+<h3 id="催化與發酵反應">6. 催化與發酵反應</h3>
+<p>以下反應都需要催化劑或微生物才能進行，催化劑/微生物名稱寫在說明句子裡，不寫進點字算式：</p>
+<ul>
+<li>雙氧水經二氧化錳催化形成水和氧氣 (放熱)：<span
+class="math inline">\(2H_2O_2\rightarrow 2H_2O+O_2\uparrow\)</span> →
+<span class="brl">⠼⠆⠠⠓⠆⠠⠕⠆⠀⠫⠕⠀⠼⠆⠠⠓⠆⠠⠕⠬⠠⠕⠆⠫⠣</span></li>
+<li>葡萄糖經酵母菌催化分解可製成酒精 (放熱)：<span
+class="math inline">\(C_6H_{12}O_6\rightarrow
+2C_2H_5OH+2CO_2\uparrow\)</span> →
+<span class="brl">⠠⠉⠖⠠⠓⠂⠆⠠⠕⠖⠀⠫⠕⠀⠼⠆⠠⠉⠆⠠⠓⠢⠠⠕⠠⠓⠬⠆⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>酒精(乙醇)與空氣中的氧反應，經醋酸菌催化成醋酸 (放熱)：<span
+class="math inline">\(C_2H_5OH+O_2\rightarrow CH_3COOH+H_2O\)</span> →
+<span class="brl">⠠⠉⠆⠠⠓⠢⠠⠕⠠⠓⠬⠠⠕⠆⠀⠫⠕⠀⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠓⠬⠠⠓⠆⠠⠕</span></li>
+<li>乙酸加乙醇經濃硫酸催化後生成乙酸乙酯和水：<span
+class="math inline">\(CH_3COOH+C_2H_5OH\rightarrow
+CH_3COOC_2H_5+H_2O\)</span> →
+<span class="brl">⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠓⠬⠠⠉⠆⠠⠓⠢⠠⠕⠠⠓⠀⠫⠕⠀⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠉⠆⠠⠓⠢⠬⠠⠓⠆⠠⠕</span></li>
+<li>乙酸加正丁醇經濃硫酸催化後生成乙酸正丁酯和水：<span
+class="math inline">\(CH_3COOH+C_4H_9OH\rightarrow
+CH_3COOC_4H_9+H_2O\)</span> →
+<span class="brl">⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠓⠬⠠⠉⠲⠠⠓⠔⠠⠕⠠⠓⠀⠫⠕⠀⠠⠉⠠⠓⠒⠠⠉⠠⠕⠠⠕⠠⠉⠲⠠⠓⠔⠬⠠⠓⠆⠠⠕</span></li>
+<li>哈柏法製氨，在高溫高壓下以鐵粉做為催化劑 (放熱)：<span
+class="math inline">\(N_2+3H_2\rightarrow 2NH_3\)</span> →
+<span class="brl">⠠⠝⠆⠬⠒⠠⠓⠆⠀⠫⠕⠀⠼⠆⠠⠝⠠⠓⠒</span></li>
+</ul>
+<h3 id="沉澱反應">7. 沉澱反應</h3>
+<ul>
+<li>氯化鈣溶液與碳酸鈉溶液混合會形成白色碳酸鈣沉澱 (吸熱)：<span
+class="math inline">\(CaCl_{2}+Na_{2}CO_{3}\rightarrow
+CaCO_{3}\downarrow+2NaCl\)</span> →
+<span class="brl">⠠⠉⠁⠠⠉⠇⠆⠬⠠⠝⠁⠆⠠⠉⠠⠕⠒⠀⠫⠕⠀⠠⠉⠁⠠⠉⠠⠕⠒⠫⠩⠀⠬⠆⠠⠝⠁⠠⠉⠇</span></li>
+<li>石灰水通入二氧化碳會產生碳酸鈣沉澱 (放熱)：<span
+class="math inline">\(Ca(OH)_{2}+CO_{2}\rightarrow
+CaCO_{3}\downarrow+H_{2}O\)</span> →
+<span class="brl">⠠⠉⠁⠷⠠⠕⠠⠓⠾⠰⠆⠐⠬⠠⠉⠠⠕⠆⠀⠫⠕⠀⠠⠉⠁⠠⠉⠠⠕⠒⠫⠩⠀⠬⠠⠓⠆⠠⠕</span></li>
+<li>氯化鋇溶液加硫酸鈉溶液形成硫酸鋇沉澱和氯化鈉溶液：<span
+class="math inline">\(BaCl_{2}+Na_{2}SO_{4}\rightarrow
+BaSO_{4}\downarrow+2NaCl\)</span> →
+<span class="brl">⠠⠃⠁⠠⠉⠇⠆⠬⠠⠝⠁⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠠⠃⠁⠠⠎⠠⠕⠲⠫⠩⠀⠬⠆⠠⠝⠁⠠⠉⠇</span></li>
+<li>鋇離子跟硫酸根離子產生硫酸鋇沉澱的離子方程式：<span
+class="math inline">\(Ba^{2+}+SO_{4}^{2-}\rightarrow
+BaSO_{4}\downarrow\)</span> → <span class="brl">⠠⠃⠁⠘⠆⠬⠐⠬⠠⠎⠠⠕⠲⠘⠆⠤⠀⠫⠕⠀⠠⠃⠁⠠⠎⠠⠕⠲⠫⠩</span></li>
+</ul>
+<h3 id="加熱分解反應">8. 加熱分解反應</h3>
+<ul>
+<li>碳酸鈣(灰石)加熱至 800℃時會分解成氧化鈣和二氧化碳 (吸熱)：<span
+class="math inline">\(CaCO_3\rightarrow CaO+CO_2\uparrow\)</span> →
+<span class="brl">⠠⠉⠁⠠⠉⠠⠕⠒⠀⠫⠕⠀⠠⠉⠁⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+<li>碳酸氫鈉加熱分解出二氧化碳 (吸熱)：<span
+class="math inline">\(2NaHCO_3\rightarrow
+Na_2CO_3+H_2O+CO_2\uparrow\)</span> →
+<span class="brl">⠼⠆⠠⠝⠁⠠⠓⠠⠉⠠⠕⠒⠀⠫⠕⠀⠠⠝⠁⠆⠠⠉⠠⠕⠒⠬⠠⠓⠆⠠⠕⠬⠠⠉⠠⠕⠆⠫⠣</span></li>
+</ul>
+<h3 id="氧化還原反應">9. 氧化還原反應</h3>
+<ul>
+<li>鐵礦(氧化鐵)與一氧化碳反應生成鐵及二氧化碳（放熱，氧化鐵為氧化劑，一氧化碳為還原劑）：<span
+class="math inline">\(Fe_{2}O_{3}+3CO\rightarrow 2Fe+3CO_{2}\)</span> →
+<span class="brl">⠠⠋⠑⠆⠠⠕⠒⠬⠒⠠⠉⠠⠕⠀⠫⠕⠀⠼⠆⠠⠋⠑⠬⠒⠠⠉⠠⠕⠆</span></li>
+<li>鐵礦(氧化鐵)與焦炭反應生成鐵及二氧化碳（吸熱，氧化鐵為氧化劑，焦碳為還原劑）：<span
+class="math inline">\(2Fe_{2}O_{3}+3C\rightarrow 4Fe+3CO_{2}\)</span> →
+<span class="brl">⠼⠆⠠⠋⠑⠆⠠⠕⠒⠬⠒⠠⠉⠀⠫⠕⠀⠼⠲⠠⠋⠑⠬⠒⠠⠉⠠⠕⠆</span></li>
+<li>鎂與氧化銅的氧化還原反應（放熱，鎂為還原劑，氧化銅為氧化劑）：<span
+class="math inline">\(Mg+CuO\rightarrow Cu+MgO\)</span> →
+<span class="brl">⠠⠍⠛⠬⠠⠉⠥⠠⠕⠀⠫⠕⠀⠠⠉⠥⠬⠠⠍⠛⠠⠕</span></li>
+<li>氫與氧化銅反應生成水與銅（需加熱，放熱，氫為還原劑，氧化銅為氧化劑）：<span
+class="math inline">\(H_2+CuO\rightarrow H_2O+Cu\)</span> →
+<span class="brl">⠠⠓⠆⠬⠠⠉⠥⠠⠕⠀⠫⠕⠀⠠⠓⠆⠠⠕⠬⠠⠉⠥</span></li>
+<li>光合作用（吸熱，二氧化碳為氧化劑，水為還原劑）：<span
+class="math inline">\(6CO_{2}+6H_{2}O\rightarrow
+C_{6}H_{12}O_{6}+6O_{2}\)</span> →
+<span class="brl">⠼⠖⠠⠉⠠⠕⠆⠬⠖⠠⠓⠆⠠⠕⠀⠫⠕⠀⠠⠉⠖⠠⠓⠂⠆⠠⠕⠖⠬⠖⠠⠕⠆</span></li>
+<li>呼吸作用（放熱，氧氣為氧化劑，葡萄糖為還原劑）：<span
+class="math inline">\(6O_{2}+C_{6}H_{12}O_{6}\rightarrow
+6CO_{2}+6H_{2}O\)</span> → <span class="brl">⠼⠖⠠⠕⠆⠬⠠⠉⠖⠠⠓⠂⠆⠠⠕⠖⠀⠫⠕⠀⠼⠖⠠⠉⠠⠕⠆⠬⠖⠠⠓⠆⠠⠕</span></li>
+</ul>
+<h3 id="其他反應電解">10. 其他反應（電解）</h3>
+<ul>
+<li>純水電解成氫氣與氧氣：<span class="math inline">\(2H_{2}O\rightarrow
+2H_{2}\uparrow+O_{2}\uparrow\)</span> → <span class="brl">⠼⠆⠠⠓⠆⠠⠕⠀⠫⠕⠀⠼⠆⠠⠓⠆⠫⠣⠀⠬⠠⠕⠆⠫⠣</span></li>
+<li>純水電解時正極的化學方程式：<span
+class="math inline">\(2H_{2}O_{(l)}\rightarrow
+O_{2}\uparrow+4H^{+}+4e^{-}\)</span> →
+<span class="brl">⠼⠆⠠⠓⠆⠠⠕⠷⠇⠾⠀⠫⠕⠀⠠⠕⠆⠫⠣⠀⠬⠲⠠⠓⠘⠬⠐⠬⠲⠑⠘⠤</span></li>
+<li>純水電解時負極的化學方程式：<span
+class="math inline">\(2H^{+}+2e^{-}\rightarrow H_{2}\uparrow\)</span> →
+<span class="brl">⠼⠆⠠⠓⠘⠬⠐⠬⠆⠑⠘⠤⠀⠫⠕⠀⠠⠓⠆⠫⠣</span></li>
+<li>電解氯化鈉水溶液，正極產生氯氣、負極產生氫氣：<span
+class="math inline">\(2H_{2}O_{(l)}+2NaCl_{(aq)}\rightarrow
+Cl_{2(g)}\uparrow+H_{2(g)}\uparrow+2NaOH_{(aq)}\)</span> →
+<span class="brl">⠼⠆⠠⠓⠆⠠⠕⠷⠇⠾⠬⠆⠠⠝⠁⠠⠉⠇⠷⠁⠟⠾⠀⠫⠕⠀⠠⠉⠇⠆⠷⠛⠾⠫⠣⠀⠬⠠⠓⠆⠷⠛⠾⠫⠣⠀⠬⠆⠠⠝⠁⠠⠕⠠⠓⠷⠁⠟⠾</span></li>
+<li>電解鹽酸水溶液，正極產生氯氣、負極產生氫氣：<span
+class="math inline">\(2HCl_{(aq)}\rightarrow
+Cl_{2(g)}\uparrow+H_{2(g)}\uparrow\)</span> →
+<span class="brl">⠼⠆⠠⠓⠠⠉⠇⠷⠁⠟⠾⠀⠫⠕⠀⠠⠉⠇⠆⠷⠛⠾⠫⠣⠀⠬⠠⠓⠆⠷⠛⠾⠫⠣</span></li>
+<li>銅與濃硫酸反應生成硫酸銅、二氧化硫和水：<span
+class="math inline">\(Cu+2H_{2}SO_{4}\rightarrow
+CuSO_{4}+SO_{2}+2H_{2}O\)</span> →
+<span class="brl">⠠⠉⠥⠬⠆⠠⠓⠆⠠⠎⠠⠕⠲⠀⠫⠕⠀⠠⠉⠥⠠⠎⠠⠕⠲⠬⠠⠎⠠⠕⠆⠬⠆⠠⠓⠆⠠⠕</span></li>
+<li>氨與氧化銅反應生成氮氣、銅和水：<span
+class="math inline">\(2NH_{3}+3CuO\rightarrow N_{2}+3Cu+3H_{2}O\)</span>
+→ <span class="brl">⠼⠆⠠⠝⠠⠓⠒⠬⠒⠠⠉⠥⠠⠕⠀⠫⠕⠀⠠⠝⠆⠬⠒⠠⠉⠥⠬⠒⠠⠓⠆⠠⠕</span></li>
+<li>氯氣與氫氣反應生成氯化氫：<span
+class="math inline">\(Cl_{2}+H_{2}\rightarrow 2HCl\)</span> →
+<span class="brl">⠠⠉⠇⠆⠬⠠⠓⠆⠀⠫⠕⠀⠼⠆⠠⠓⠠⠉⠇</span></li>
+<li>氯氣與金屬鈉反應生成氯化鈉：<span
+class="math inline">\(Cl_{2}+2Na\rightarrow 2NaCl\)</span> →
+<span class="brl">⠠⠉⠇⠆⠬⠆⠠⠝⠁⠀⠫⠕⠀⠼⠆⠠⠝⠁⠠⠉⠇</span></li>
+<li>二氧化碳加碳生成一氧化碳：<span
+class="math inline">\(CO_{2}+C\rightarrow 2CO\)</span> →
+<span class="brl">⠠⠉⠠⠕⠆⠬⠠⠉⠀⠫⠕⠀⠼⠆⠠⠉⠠⠕</span></li>
+</ul>
+<hr />
+<h2 id="ch11-物理定律與公式">CH11 物理定律與公式</h2>
+<p>物理公式使用的記號跟 CH10 化學不同——不需要新的點字規則，全部沿用
+CH1-9
+已經教過的數學構造（分數、指數、下標、希臘字母），本章直接以公式參考表的形式列出，比照《108課綱學測數A/B公式》這類公式表的精神。範圍涵蓋國中理化與高中必修課綱，高中選修（加深加廣）的進階內容（如簡諧運動、必歐-沙伐定律、量子數）不在本章範圍內。</p>
+<h3 id="力與運動">1. 力與運動</h3>
+<p>牛頓運動定律是古典力學的基礎：</p>
+<ul>
+<li>牛頓第一運動定律（慣性定律）：物體不受外力或所受合力為零時，靜者恆靜、動者維持等速度直線運動</li>
+<li>牛頓第二運動定律：<span class="math inline">\(F=ma\)</span> →
+<span class="brl">⠠⠋⠀⠨⠅⠀⠍⠁</span></li>
+<li>牛頓第三運動定律（作用力與反作用力，<span
+class="math inline">\(F_{12}\)</span> 為物體 1 施加在物體 2
+上的力，<span class="math inline">\(F_{21}\)</span> 為物體 2 施加在物體
+1
+上的力）：兩物體交互作用時，作用力與反作用力大小相等、方向相反、分別作用在兩個不同物體上：<span
+class="math inline">\(F_{12}=-F_{21}\)</span> → <span class="brl">⠠⠋⠂⠆⠀⠨⠅⠀⠤⠠⠋⠆⠂</span></li>
+<li>摩擦力（<span class="math inline">\(\mu\)</span> 為摩擦係數，<span
+class="math inline">\(N\)</span> 為正向力）：<span
+class="math inline">\(f=\mu N\)</span> → <span class="brl">⠋⠀⠨⠅⠀⠨⠍⠠⠝</span></li>
+<li>力矩：<span class="math inline">\(\tau=F\times d\)</span> →
+<span class="brl">⠨⠞⠀⠨⠅⠀⠠⠋⠈⠡⠙</span></li>
+<li>壓力：<span class="math inline">\(P=\frac{F}{A}\)</span> →
+<span class="brl">⠠⠏⠀⠨⠅⠀⠹⠠⠋⠌⠠⠁⠼</span></li>
+<li>浮力（阿基米德原理，<span class="math inline">\(\rho\)</span>
+為流體密度，<span class="math inline">\(V\)</span>
+為排開流體體積）：<span class="math inline">\(F_b=\rho Vg\)</span> →
+<span class="brl">⠠⠋⠰⠃⠀⠨⠅⠀⠨⠗⠠⠧⠛</span></li>
+<li>功：<span class="math inline">\(W=F\times s\)</span> →
+<span class="brl">⠠⠺⠀⠨⠅⠀⠠⠋⠈⠡⠎</span></li>
+<li>力的單位「牛頓」定義：1 牛頓的力使質量 1 公斤的物體產生 1
+公尺/秒平方的加速度：<span
+class="math inline">\(1N=1kg\times1m/s^2\)</span> →
+<span class="brl">⠼⠂⠠⠝⠀⠨⠅⠀⠼⠂⠅⠛⠈⠡⠂⠍⠸⠌⠎⠘⠆</span></li>
+</ul>
+<h3 id="波動">2. 波動</h3>
+<p>波速、頻率、波長三者的關係：</p>
+<ul>
+<li>波速公式：<span class="math inline">\(v=f\lambda\)</span> →
+<span class="brl">⠧⠀⠨⠅⠀⠋⠨⠇</span></li>
+<li>代入範例：聲速 340 公尺/秒、頻率 170 赫茲：<span
+class="math inline">\(v=340m/s\)</span> → <span class="brl">⠧⠀⠨⠅⠀⠼⠒⠲⠴⠍⠸⠌⠎</span></li>
+<li>求波長：<span class="math inline">\(\lambda=\frac{v}{f}=2m\)</span>
+→ <span class="brl">⠨⠇⠀⠨⠅⠀⠹⠧⠌⠋⠼⠀⠨⠅⠀⠼⠆⠍</span></li>
+<li>反射定律：入射角等於反射角：<span
+class="math inline">\(\theta_i=\theta_r\)</span> → <span class="brl">⠨⠹⠰⠊⠀⠨⠅⠀⠨⠹⠰⠗</span></li>
+</ul>
+<h3 id="萬有引力">3. 萬有引力</h3>
+<ul>
+<li>萬有引力定律（<span class="math inline">\(G\)</span>
+為萬有引力常數）：<span
+class="math inline">\(F=G\frac{m_1m_2}{r^2}\)</span> →
+<span class="brl">⠠⠋⠀⠨⠅⠀⠠⠛⠹⠍⠂⠍⠆⠌⠗⠘⠆⠐⠼</span></li>
+<li>重量與質量的關係（<span class="math inline">\(g\)</span>
+為重力加速度）：<span class="math inline">\(W=mg\)</span> →
+<span class="brl">⠠⠺⠀⠨⠅⠀⠍⠛</span></li>
+</ul>
+<h3 id="電學">4. 電學</h3>
+<p>電流、電壓、電阻、電功率的定義與關係：</p>
+<ul>
+<li>電流定義（<span class="math inline">\(Q\)</span> 為電量，<span
+class="math inline">\(t\)</span> 為時間）：<span
+class="math inline">\(I=\frac{Q}{t}\)</span> → <span class="brl">⠠⠊⠀⠨⠅⠀⠹⠠⠟⠌⠞⠼</span></li>
+<li>電壓定義（<span class="math inline">\(W\)</span> 為做的功，也常寫成
+<span class="math inline">\(E\)</span>，都代表能量）：<span
+class="math inline">\(V=\frac{W}{Q}\)</span> → <span class="brl">⠠⠧⠀⠨⠅⠀⠹⠠⠺⠌⠠⠟⠼</span></li>
+<li>歐姆定律：<span class="math inline">\(R=\frac{V}{I}\)</span> →
+<span class="brl">⠠⠗⠀⠨⠅⠀⠹⠠⠧⠌⠠⠊⠼</span></li>
+<li>歐姆定律另一種寫法：<span class="math inline">\(V=IR\)</span> →
+<span class="brl">⠠⠧⠀⠨⠅⠀⠠⠊⠠⠗</span></li>
+<li>電功率定義：<span class="math inline">\(P=\frac{E}{t}\)</span> →
+<span class="brl">⠠⠏⠀⠨⠅⠀⠹⠠⠑⠌⠞⠼</span></li>
+<li>電功率與電流電壓的關係：<span class="math inline">\(P=IV\)</span> →
+<span class="brl">⠠⠏⠀⠨⠅⠀⠠⠊⠠⠧</span></li>
+<li>電功率與電阻的關係：<span class="math inline">\(P=I^2R\)</span> →
+<span class="brl">⠠⠏⠀⠨⠅⠀⠠⠊⠘⠆⠐⠠⠗</span></li>
+<li>電功率與電阻的關係（另一種形式）：<span
+class="math inline">\(P=\frac{V^2}{R}\)</span> → <span class="brl">⠠⠏⠀⠨⠅⠀⠹⠠⠧⠘⠆⠐⠌⠠⠗⠼</span></li>
+<li>庫倫定律（<span class="math inline">\(k\)</span> 為庫倫常數，<span
+class="math inline">\(q_1\)</span>、<span
+class="math inline">\(q_2\)</span> 為兩電荷電量）：<span
+class="math inline">\(F=k\frac{q_1q_2}{r^2}\)</span> →
+<span class="brl">⠠⠋⠀⠨⠅⠀⠅⠹⠟⠂⠟⠆⠌⠗⠘⠆⠐⠼</span></li>
+<li>基本電荷（電子的電量）：<span
+class="math inline">\(e=1.6\times10^{-19}C\)</span> →
+<span class="brl">⠑⠀⠨⠅⠀⠼⠂⠨⠖⠈⠡⠂⠴⠘⠤⠂⠔⠐⠠⠉</span></li>
+<li>代入範例：每分鐘流經的電量 60 庫侖、電能損耗 600 焦耳，求電壓：<span
+class="math inline">\(V=\frac{E}{Q}=\frac{600}{60}=10V\)</span> →
+<span class="brl">⠠⠧⠀⠨⠅⠀⠹⠠⠑⠌⠠⠟⠼⠀⠨⠅⠀⠹⠖⠴⠴⠌⠖⠴⠼⠀⠨⠅⠀⠼⠂⠴⠠⠧</span></li>
+<li>代入範例：電流 5 安培、電阻 16 歐姆，求電功率：<span
+class="math inline">\(P=I^2R=5^2\times16=400W\)</span> →
+<span class="brl">⠠⠏⠀⠨⠅⠀⠠⠊⠘⠆⠐⠠⠗⠀⠨⠅⠀⠼⠢⠘⠆⠐⠈⠡⠂⠖⠀⠨⠅⠀⠼⠲⠴⠴⠠⠺</span></li>
+</ul>
+<h3 id="功與能量">5. 功與能量</h3>
+<ul>
+<li>動能：<span class="math inline">\(E_k=\frac{1}{2}mv^2\)</span> →
+<span class="brl">⠠⠑⠰⠅⠀⠨⠅⠀⠹⠂⠌⠆⠼⠍⠧⠘⠆</span></li>
+<li>位能（<span class="math inline">\(h\)</span> 為高度）：<span
+class="math inline">\(E_p=mgh\)</span> → <span class="brl">⠠⠑⠰⠏⠀⠨⠅⠀⠍⠛⠓</span></li>
+<li>力學能守恆（<span class="math inline">\(E_{k1}\)</span>、<span
+class="math inline">\(E_{p1}\)</span> 為初始動能與位能，<span
+class="math inline">\(E_{k2}\)</span>、<span
+class="math inline">\(E_{p2}\)</span>
+為之後的動能與位能）：不受非保守力（如摩擦力）作用時，動能與位能的總和保持不變：<span
+class="math inline">\(E_{k1}+E_{p1}=E_{k2}+E_{p2}\)</span> →
+<span class="brl">⠠⠑⠰⠅⠂⠐⠬⠠⠑⠰⠏⠂⠀⠨⠅⠀⠠⠑⠰⠅⠆⠐⠬⠠⠑⠰⠏⠆</span></li>
+<li>質能互換（愛因斯坦質能方程式，<span class="math inline">\(c\)</span>
+為光速）：<span class="math inline">\(E=mc^2\)</span> → <span class="brl">⠠⠑⠀⠨⠅⠀⠍⠉⠘⠆</span></li>
+<li>光子能量（<span class="math inline">\(h\)</span> 為蒲朗克常數，<span
+class="math inline">\(\nu\)</span> 為頻率）：<span
+class="math inline">\(E=h\nu\)</span> → <span class="brl">⠠⠑⠀⠨⠅⠀⠓⠨⠝</span></li>
+</ul>
+<hr />
+<h2 id="附錄常用單位符號與換算範例">附錄：常用單位符號與換算範例</h2>
+<p>理化教材裡數字後面常常接單位符號（公分、公斤、公尺/秒等）。這些符號本身不是數學變數，是「印刷體上的英文縮寫」，跟
+CH10
+化學式的元素符號是不同情況（元素符號不論幾個字母都不加任何字母指示符）。這裡整理
+CH10、CH11
+常見的長度、密度、速度單位，以及一組溫度換算的實際運算範例。</p>
+<p><strong>單位縮寫這裡選擇跟隨教育部《點字符號彙編－理化點字》（民國 89
+年出版，後續理化點字教科書長期沿用至今的慣例）：不論單字母（m、g、s）或多字母（cm、km、kg）縮寫，前面都不加英文字母指示符
+<span class="brl">⠰</span>。</strong> 這跟 BANA《The Nemeth Braille Code for Mathematics and
+Science Notation, 2022》Rule 10.3
+的規定不同——官方規則要求單字母縮寫一律要加指示符，不受前後緊貼的數字/符號影響。選擇跟隨舊慣例是考量教學現場長期以來的相容性；下面兩個表格用「本教材」「BANA
+官方寫法」兩欄同時列出，供需要對照國際標準時參考，並多加一欄「是否相同」，✗
+表示兩欄寫法真的不一樣（都是單字母 m/g/s 相關的項目），✓ 表示 cm、km、kg
+等兩個字母以上的縮寫兩欄結果一致、不受這條規則影響：</p>
+<h3 id="長度面積體積">長度、面積、體積</h3>
+<div class="scroll"><table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>中文</th>
+<th>符號</th>
+<th>本教材（沿用舊慣例）</th>
+<th>BANA Nemeth 2022 官方寫法</th>
+<th>是否相同</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>公分</td>
+<td><span class="math inline">\(\text{cm}\)</span></td>
+<td><span class="brl">⠉⠍</span></td>
+<td><span class="brl">⠉⠍</span></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>平方公分</td>
+<td><span class="math inline">\(\text{cm}^2\)</span></td>
+<td><span class="brl">⠉⠍⠘⠆</span></td>
+<td><span class="brl">⠉⠍⠘⠆</span></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>立方公分</td>
+<td><span class="math inline">\(\text{cm}^3\)</span></td>
+<td><span class="brl">⠉⠍⠘⠒</span></td>
+<td><span class="brl">⠉⠍⠘⠒</span></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>公尺</td>
+<td><span class="math inline">\(\text{m}\)</span></td>
+<td><span class="brl">⠍</span></td>
+<td><span class="brl">⠰⠍</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>平方公尺</td>
+<td><span class="math inline">\(\text{m}^2\)</span></td>
+<td><span class="brl">⠍⠘⠆</span></td>
+<td><span class="brl">⠰⠍⠘⠆</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>立方公尺</td>
+<td><span class="math inline">\(\text{m}^3\)</span></td>
+<td><span class="brl">⠍⠘⠒</span></td>
+<td><span class="brl">⠰⠍⠘⠒</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>公里</td>
+<td><span class="math inline">\(\text{km}\)</span></td>
+<td><span class="brl">⠅⠍</span></td>
+<td><span class="brl">⠅⠍</span></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>平方公里</td>
+<td><span class="math inline">\(\text{km}^2\)</span></td>
+<td><span class="brl">⠅⠍⠘⠆</span></td>
+<td><span class="brl">⠅⠍⠘⠆</span></td>
+<td>✓</td>
+</tr>
+</tbody>
+</table></div>
+<p>範例（單位換算）：<span class="math inline">\(100cm=1m\)</span> →
+<span class="brl">⠼⠂⠴⠴⠉⠍⠀⠨⠅⠀⠼⠂⠍</span></p>
+<h3 id="密度速度">密度、速度</h3>
+<div class="scroll"><table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>中文</th>
+<th>符號</th>
+<th>本教材（沿用舊慣例）</th>
+<th>BANA Nemeth 2022 官方寫法</th>
+<th>是否相同</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>密度</td>
+<td><span class="math inline">\(\text{g}/\text{cm}^3\)</span></td>
+<td><span class="brl">⠛⠸⠌⠉⠍⠘⠒</span></td>
+<td><span class="brl">⠰⠛⠸⠌⠉⠍⠘⠒</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>密度</td>
+<td><span class="math inline">\(\text{kg}/\text{m}^3\)</span></td>
+<td><span class="brl">⠅⠛⠸⠌⠍⠘⠒</span></td>
+<td><span class="brl">⠅⠛⠸⠌⠰⠍⠘⠒</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>速度</td>
+<td><span class="math inline">\(\text{cm}/\text{s}\)</span></td>
+<td><span class="brl">⠉⠍⠸⠌⠎</span></td>
+<td><span class="brl">⠉⠍⠸⠌⠰⠎</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>速度</td>
+<td><span class="math inline">\(\text{m}/\text{s}\)</span></td>
+<td><span class="brl">⠍⠸⠌⠎</span></td>
+<td><span class="brl">⠰⠍⠸⠌⠰⠎</span></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>速度</td>
+<td><span class="math inline">\(\text{km}/\text{hr}\)</span></td>
+<td><span class="brl">⠅⠍⠸⠌⠓⠗</span></td>
+<td><span class="brl">⠅⠍⠸⠌⠓⠗</span></td>
+<td>✓</td>
+</tr>
+</tbody>
+</table></div>
+<p>速度公式（<span class="math inline">\(a\)</span> 為加速度、<span
+class="math inline">\(t\)</span> 為時間）：<span
+class="math inline">\(v=at\)</span> → <span class="brl">⠧⠀⠨⠅⠀⠁⠞</span></p>
+<p>代入範例：加速度 6 m/s²、時間 15 秒，求末速度：<span
+class="math inline">\(v=6\times15=90m/s\)</span> →
+<span class="brl">⠧⠀⠨⠅⠀⠼⠖⠈⠡⠂⠢⠀⠨⠅⠀⠼⠔⠴⠍⠸⠌⠎</span></p>
+<p>密度公式（<span class="math inline">\(m\)</span> 為質量、<span
+class="math inline">\(V\)</span> 為體積）：<span
+class="math inline">\(\rho=\frac{m}{V}\)</span> → <span class="brl">⠨⠗⠀⠨⠅⠀⠹⠍⠌⠠⠧⠼</span></p>
+<p>代入範例：質量 54 公克、體積 20 立方公分，求密度：<span
+class="math inline">\(\rho=\frac{54}{20}=2.7g/cm^3\)</span> →
+<span class="brl">⠨⠗⠀⠨⠅⠀⠹⠢⠲⠌⠆⠴⠼⠀⠨⠅⠀⠼⠆⠨⠶⠛⠸⠌⠉⠍⠘⠒</span></p>
+<h3 id="溫度換算範例">溫度換算範例</h3>
+<p>攝氏、華氏度數符號用的是 CH3「度」已經教過的上標構造 <span class="brl">⠘⠨⠡</span>（見
+CH3「度」一節），degree 符號後面接 C 或 F 表示攝氏或華氏。度數符號跟 C/F
+之間加不加英文字母指示符 <span class="brl">⠰</span>，依 BANA Rule 10.6.3 分兩支：印刷體度數符號跟
+C/F 之間沒有空格時（如 <code>20°C</code> 的點字是
+<span class="brl">⠼⠆⠴⠘⠨⠡⠐⠠⠉</span>），改插入回基線記號 <span class="brl">⠐</span>（點
+5），標示接下來的字母已經退回基線層級；有空格時（如 <code>20° C</code>
+的點字是 <span class="brl">⠼⠆⠴⠘⠨⠡⠀⠰⠠⠉</span>），C/F
+前後都接空格、當一般單獨字母處理，改加英文字母指示符
+<span class="brl">⠰</span>，不用回基線記號。教育部《點字符號彙編》給的範例是「有空格」這一支（如
+<code>30°C</code> 的點字是
+<span class="brl">⠼⠒⠴⠘⠨⠡⠀⠰⠠⠉</span>），後續許多教科書也沿用這個版本，所以這裡的範例以有空格版本為主，BANA
+官方「無空格」版本附在最後供對照：</p>
+<ul>
+<li>華氏 32 度等於攝氏 0 度：<span class="math inline">\(32^\circ
+F=0^\circ C\)</span> → <span class="brl">⠼⠒⠆⠘⠨⠡⠀⠰⠠⠋⠀⠨⠅⠀⠼⠴⠘⠨⠡⠀⠰⠠⠉</span></li>
+<li>度數的加法示範：<span class="math inline">\(18^\circ C+20^\circ
+C=38^\circ C\)</span> → <span class="brl">⠼⠂⠦⠘⠨⠡⠀⠰⠠⠉⠬⠆⠴⠘⠨⠡⠀⠰⠠⠉⠀⠨⠅⠀⠼⠒⠦⠘⠨⠡⠀⠰⠠⠉</span></li>
+<li>華氏換攝氏的一般公式：<span class="math inline">\(^\circ
+C=\frac{5}{9}(^\circ F-32)\)</span> → <span class="brl">⠘⠨⠡⠀⠰⠠⠉⠀⠨⠅⠀⠹⠢⠌⠔⠼⠷⠘⠨⠡⠀⠰⠠⠋⠤⠒⠆⠾</span></li>
+<li>第一條若改成印刷體無空格（BANA 官方版本，供對照）：<span
+class="math inline">\(32^\circ F=0^\circ C\)</span> →
+<span class="brl">⠼⠒⠆⠘⠨⠡⠐⠠⠋⠀⠨⠅⠀⠼⠴⠘⠨⠡⠐⠠⠉</span></li>
+</ul>
+<hr />
+<h2 id="附錄長算式的換行規則">附錄：長算式的換行規則</h2>
+<p>實體點字紙或點顯器的一行寬度是固定的（常見上限 40
+格，部分格式甚至只有 30 格）。這份教材本身是流動排版的 Word
+文件，不需要照這個規則手動斷行；但如果之後要把內容做成實體點字書或點顯器格式，遇到太長放不下一行的算式，Nemeth
+有一套固定的斷行規則，整理在這裡供參考。</p>
+<h3 id="斷行地點的優先順序">斷行地點的優先順序</h3>
+<p>算式放不下一行時，依下列順序選擇斷行點（由高到低）：</p>
+<ol type="1">
+<li>在基線上的比較符號（等號、大於、小於等）前面</li>
+<li>在基線上的運算符號（加、減、乘、除）前面</li>
+<li>特定構造的邊界前面：分數開始記號、必須拆開時的除線、接在數學單位前的回基線指示符、上下標本身太長時的變換層級指示符</li>
+<li>結束指示符之後</li>
+<li>封閉清單（用逗號分隔、括號框住的一串項目）裡的項目之間，如果整組放不下</li>
+</ol>
+<h3 id="不能拆開的構造">不能拆開的構造</h3>
+<p>分數（連同分子分母）、帶分數、括號裡的內容、底數跟指數、項目跟它的修飾符（如線段/射線/
+弧的橫線、箭頭修飾符）、函式名稱跟它的引數，這些都要盡量保持完整，不能被斷行切開。</p>
+<h3 id="接續行開頭不用加空格">接續行開頭不用加空格</h3>
+<p>比較符號、運算符號如果剛好變成接續行的第一個東西，直接接在行首，不用在前面多加一格空白——
+「符號前後要空一格」這條規則管的是同一行內的間距，換行本身已經提供視覺區隔，不需要重複。</p>
+<h3 id="換行要縮排">換行要縮排</h3>
+<p>實體點字書裡，接續行不是頂格接著寫，要縮排。以這份教材的項目符號（bullet）格式來說：算式本身（這裡是「→」後面的點字）要比項目符號文字本身多縮
+2 格；如果算式太長還需要再換行，接續行要比算式開頭再多縮 2
+格（等於比項目符號文字多縮 4 格）。層級越多縮得越多，每多一層再加 2
+格。</p>
+<h3 id="範例假設點顯器一行只能顯示-20-格">範例（假設點顯器一行只能顯示
+20 格）</h3>
+<p><strong>範例一：優先在比較符號、運算符號前斷行</strong>（改編自 BANA
+Example 26-19）</p>
+<p><span
+class="math inline">\((a_1+a_2)(b_1+b_2)=a_1b_1+a_1b_2+a_2b_1+a_2b_2\)</span>
+完整點字共 37 格，超過 20
+格上限，需要斷成三行：括號本身是「不能拆開的構造」，裡面的加號不能當斷點；第一個可用斷點是等號（比較符號，優先序最高），第一行斷完剛好
+14 格；剩下的部分還是超過 20
+格，第二個斷點選最後一個加號（運算符號，優先序次高），讓第二行剛好 17
+格：</p>
+<ul>
+<li>第 1 行 → <span class="brl">⠷⠁⠂⠬⠁⠆⠾⠷⠃⠂⠬⠃⠆⠾</span></li>
+<li>第 2 行（接續行開頭是等號，不用加空格） → <span class="brl">⠨⠅⠀⠁⠂⠃⠂⠬⠁⠂⠃⠆⠬⠁⠆⠃⠂</span></li>
+<li>第 3 行（接續行開頭是加號） → <span class="brl">⠬⠁⠆⠃⠆</span></li>
+</ul>
+<p><strong>範例二：底數跟指數保持完整，斷點選在回基線記號前</strong>（改編自
+BANA Example 26-21）</p>
+<p><span class="math inline">\((2a)^{5}(3b)^{4}(4c)^{3}(5d)^{2}\)</span>
+完整點字共 27 格，超過 20
+格上限。這個算式裡沒有比較符號跟運算符號可用（四個括號指數項之間是隱含的乘法），唯一的斷點候選是每個指數結束、回到基線的地方；選最後一個回基線記號（點
+5）前斷行，讓第一行盡量放滿又不拆開任何一個「底數＋指數」單元：</p>
+<ul>
+<li>第 1 行 → <span class="brl">⠷⠆⠁⠾⠘⠢⠐⠷⠒⠃⠾⠘⠲⠐⠷⠲⠉⠾⠘⠒</span></li>
+<li>第 2 行（接續行開頭是回基線記號） → <span class="brl">⠐⠷⠢⠙⠾⠘⠆</span></li>
+</ul>
+<hr />
+<h2 id="參考資料">參考資料</h2>
+<p>本教材的 Nemeth 記法均依下列規範性來源核對：</p>
+<ul>
+<li><em>The Nemeth Braille Code for Mathematics and Science Notation,
+2022</em>. Braille Authority of North America (BANA), 2022. ISBN
+979-8-9883302-4-0（印刷版）、979-8-9883302-5-7 （點字版）。</li>
+<li><em>Chemical Notation Using the Nemeth Braille Code, 2023</em>.
+Braille Authority of North America (BANA), 2023. ISBN
+979-8-9883302-2-6（印刷版）、979-8-9883302-3-3（點字版）。</li>
+<li>Walton, Lindy B. (revised). <em>An Introduction to Braille
+Mathematics Using UEB with Nemeth: A Course for Transcribers</em>. 2nd
+ed. National Library Service for the Blind and Print Disabled, Library
+of Congress, in cooperation with the National Federation of the Blind
+Braille Certification Training Program, 2025.</li>
+<li>Paths to Literacy, <em>Nemeth Symbol Library</em>. <a
+href="https://www.pathstoliteracy.org/nemeth-symbol-library/"
+class="uri">https://www.pathstoliteracy.org/nemeth-symbol-library/</a></li>
+<li>教育部（主持人：張訓誥）。《點字符號彙編》（數學點字、理化點字等冊）。臺北市：教育部，民國89年12月。ISBN
+957-02-7406-9。（台灣理化／數學點字教材長期沿用的範本，附錄「常用單位符號與換算範例」的單位縮寫寫法依循其慣例）</li>
+<li>劉佑星（編譯）。《聶美茲數學與科學點字記號彙編》（原名 <em>The
+Nemeth Braille Code for Mathematics and Science
+Notation</em>）。臺南：國立臺南師範學院視覺障礙兒童混合教育計畫師資訓練班，民國73年3月初版。</li>
+</ul>
+<p>課程內容範圍依下列課綱文件核對：</p>
+<ul>
+<li>國家教育研究院，《數學領域課程手冊》（定稿版）。 <a
+href="https://www.naer.edu.tw/upload/1/16/doc/2069/數學領域課程手冊(定稿版).pdf"
+class="uri">https://www.naer.edu.tw/upload/1/16/doc/2069/數學領域課程手冊(定稿版).pdf</a></li>
+<li>教育部，《十二年國民基本教育課程綱要國民中小學暨普通型高級中等學校－數學領域》。
+<a
+href="https://www.naer.edu.tw/upload/1/16/doc/815/十二年國民基本教育課程綱要國民中小學暨普通型高級中等學校-數學領域.pdf"
+class="uri">https://www.naer.edu.tw/upload/1/16/doc/815/十二年國民基本教育課程綱要國民中小學暨普通型高級中等學校-數學領域.pdf</a></li>
+<li>教育部，《十二年國民基本教育課程綱要國民中小學暨普通型高級中等學校－自然科學領域》。
+<a
+href="https://www.naer.edu.tw/upload/1/16/doc/820/十二年國民基本教育課程綱要國民中小學暨普通型高級中等校-自然科學領域.pdf"
+class="uri">https://www.naer.edu.tw/upload/1/16/doc/820/十二年國民基本教育課程綱要國民中小學暨普通型高級中等校-自然科學領域.pdf</a></li>
+</ul>
+<h3 id="延伸工具">延伸工具</h3>
+<ul>
+<li>Nemeth↔︎LaTeX 雙向轉譯：<a
+href="https://hurthuang.github.io/vi-tools/#math"
+class="uri">https://hurthuang.github.io/vi-tools/#math</a>（輸入 LaTeX
+算式即可即時看到對應的 Nemeth 點字，也支援反向查詢：點字轉回
+LaTeX）</li>
+<li>Nemeth 符號快速查詢：<a
+href="https://class.kh.edu.tw/19061/bulletin/msg_view/818"
+class="uri">https://class.kh.edu.tw/19061/bulletin/msg_view/818</a>（符號對照表，適合快速查符號對照）</li>
+</ul>
+
+</main>
+<script>
+// SimBraille：把 Unicode 點字換成北美 ASCII 點字，用 SimBraille 字型顯示（跟 Word 的 ASCII+SimBraille 版一樣）；記在這台電腦
+(function () {
+  const ASC = ' A1B\'K2L@CIF/MSP"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)=';
+  const box = document.getElementById('simbrl'), spans = document.querySelectorAll('.brl');
+  spans.forEach(s => { s.dataset.u = s.textContent; });
+  function apply(on) {
+    document.documentElement.classList.toggle('simbrl', on);
+    spans.forEach(s => { s.textContent = on ? [...s.dataset.u].map(c => ASC[c.codePointAt(0) - 0x2800]).join('') : s.dataset.u; });
+  }
+  let on = false;
+  try { on = localStorage.getItem('nemeth-book-simbrl') === '1'; } catch (e) {}
+  box.checked = on; if (on) apply(true);
+  box.addEventListener('change', () => { apply(box.checked); try { localStorage.setItem('nemeth-book-simbrl', box.checked ? '1' : '0'); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
