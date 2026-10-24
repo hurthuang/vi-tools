@@ -227,14 +227,31 @@ function classify(x, y, op) {
   return st.slice(1).every(s => s.L === '1') ? '5d-2' : '5d-3';
 }
 
-// 乘法（兩位數 × 一位數）：照直式，先把個位的乘積撥上去，再把十位的乘積加在十位、百位。
-// 依「加十位乘積」那一步用到什麼來分級。
+// 乘法：照直式，乘數從個位開始一位一位乘（76 × 58 先算 76 × 8，再算 76 × 5），
+// 每一位又從被乘數的個位開始；九九的乘積撥在「兩個數字的位數相加」那一位起，照唸法先撥高位。
+// 算盤上邊乘邊加，不用記中間結果。回傳每一個撥珠動作 { L, carry }。
+function mulTrace(x, y) {
+  const d = [0, 0, 0, 0, 0, 0], st = [];
+  function add(k, v, carry) {
+    st.push({ k, L: addd(d[k], v), carry });
+    const s = d[k] + v; d[k] = s % 10;
+    if (s >= 10) add(k + 1, 1, true);
+  }
+  const xs = String(x).split('').reverse().map(Number), ys = String(y).split('').reverse().map(Number);
+  ys.forEach((b, j) => xs.forEach((a, i) => {
+    String(a * b).split('').reverse().map((v, t) => [i + j + t, +v]).filter(([, v]) => v)
+      .reverse().forEach(([k, v]) => add(k, v, false));
+  }));
+  return st;
+}
+// 第 6 級（× 一位數）與第 7 級（兩位數 × 兩位數）都看撥珠時最難的動作：
+// 直接撥 → 要用小補數 → 要進位（第 7 級再分進位一次、兩次以上）。
 function classifyMul(x, y) {
-  if (x < 10) return '6a';
-  const p0 = (x % 10) * y, p1 = Math.floor(x / 10) * y;
-  const st = trace(p0, p1 * 10, '+');
-  if (st.some(s => s.carry)) return '6d';
-  return st.every(s => s.L === '1') ? '6b' : '6c';
+  if (y < 10 && x < 10) return '6a';
+  const st = mulTrace(x, y), carries = st.filter(s => s.carry).length;
+  const g = y < 10 ? '6' : '7';
+  if (carries) return g === '6' ? '6d' : carries === 1 ? '7c' : '7d';
+  return g + (st.every(s => s.L === '1') ? (g === '6' ? 'b' : 'a') : (g === '6' ? 'c' : 'b'));
 }
 
 const LEVELS = [
@@ -257,6 +274,10 @@ const LEVELS = [
   { id: '6b', group: '第 6 級：乘法', name: '兩位數 × 一位數，十位乘積直接撥', desc: '先撥個位的乘積，再加十位的乘積，不用補數', mul: '21×4、34×2、20×3' },
   { id: '6c', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要用小補數', desc: '加十位乘積時下珠不夠，要動上珠', mul: '16×4、18×3' },
   { id: '6d', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要進位', desc: '加十位乘積時要用大補數，進位到百位', mul: '29×4、75×4、58×9' },
+  { id: '7a', group: '第 7 級：兩位數 × 兩位數', name: '直接撥', desc: '照直式先乘個位、再乘十位，邊乘邊加，不用補數', mul: '21×13、12×54' },
+  { id: '7b', group: '第 7 級：兩位數 × 兩位數', name: '要用小補數', desc: '加乘積時下珠不夠，要動上珠', mul: '12×13、23×12' },
+  { id: '7c', group: '第 7 級：兩位數 × 兩位數', name: '進位一次', desc: '加乘積時有一次要用大補數進位', mul: '24×13、34×12' },
+  { id: '7d', group: '第 7 級：兩位數 × 兩位數', name: '進位兩次以上', desc: '進位兩次以上，或連續進位', mul: '76×58、22×48' },
 ];
 
 // 1～4 級的題型（數字有幾位），每一級在設定頁分別選。
@@ -274,6 +295,8 @@ function formOf(x, y, op) {
 }
 function inRange(lv, x, y, op) {
   if (lv.startsWith('6')) return x >= 2 && x <= 99 && y >= 2 && y <= 9;
+  // 第 7 級不出有 0 的數（× 10、× 20 其實是第 6 級的撥法）
+  if (lv.startsWith('7')) return x >= 11 && x <= 99 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
   if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
@@ -297,7 +320,7 @@ function buildBank() {
       }
     }
   }
-  for (let x = 2; x <= 99; x++) for (let y = 2; y <= 9; y++) {
+  for (let x = 2; x <= 99; x++) for (let y = 2; y <= 99; y++) {
     const lv = classifyMul(x, y);
     if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, null]);
   }
@@ -314,7 +337,7 @@ function parseAnswer(raw) {
   return { hasSign: m[1] === '#', value: parseInt(m[2], 10) };
 }
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, classify, classifyMul, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyMul, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
 </script>
 
 <!-- ===== 介面 ===== -->
@@ -333,14 +356,15 @@ const FORM_CHOICES = [
   ['F1 F2 F3', '全部'],
 ];
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
-// 第 5、6 級的題型是固定的，表格上直接寫出來
+// 第 5、6、7 級的題型是固定的，表格上直接寫出來
 function fixedForm(id) {
   if (id === '5c-3') return '三位數 ± 一位數';
   if (id.startsWith('5d')) return '兩位數 ± 兩位數';
   if (id.startsWith('5')) return '兩位數 ± 一位數';
+  if (id.startsWith('7')) return '兩位數 × 兩位數';
   return id === '6a' ? '一位數 × 一位數' : '兩位數 × 一位數';
 }
-// 這一級選的題型；沒有選單（第 5、6 級）時回傳 null，表示不篩選
+// 這一級選的題型；沒有選單（第 5、6、7 級）時回傳 null，表示不篩選
 function formsFor(lv) {
   const sel = document.querySelector(`#level-list select[data-lv="${lv}"]`);
   return sel ? sel.value.split(' ') : null;
@@ -350,15 +374,15 @@ const pool = (op, lv) => { const f = formsFor(lv); return getBank()[op][lv].filt
 let session = null;
 
 // ---- 設定畫面 ----
-// 每一列是一個級別，欄是加法、減法（第 6 級是乘法）。勾選框的值是「級別|運算」，例如 2|+。
+// 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法）。勾選框的值是「級別|運算」，例如 2|+。
 const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul']];
 function renderLevels() {
   const prev = new Set([...document.querySelectorAll('#level-list input:checked')].map(i => i.value));
   const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
   const first = !document.querySelector('#level-list input');
   const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
-  // 第 5、6 級各收在一個可以展開的標題下，預設收合
-  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法' };
+  // 第 5、6、7 級各收在一個可以展開的標題下，預設收合
+  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數' };
   const groups = [];
   for (const lv of LEVELS) {
     const g = groups[groups.length - 1];
@@ -414,7 +438,7 @@ function updateCounts() {
     document.querySelector(`#level-list .ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
   }
 }
-// 收合時也看得出第 5、6 級各勾了幾項
+// 收合時也看得出第 5、6、7 級各勾了幾項
 function countLv5() {
   for (const d of document.querySelectorAll('#level-list details')) {
     const all = [...d.querySelectorAll('input')];

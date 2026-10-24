@@ -1,6 +1,7 @@
 /*
  * 撥珠動畫：把一題加、減、乘法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
- * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位。
+ * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位；
+ * 兩位數乘數一行一行做（76 × 58 先算 76 × 8，再算 76 × 5），跟出題頁 mulTrace 同順序。
  * 順序照出題頁的 trace()：從個位往左，進位、借位時先動左邊一檔，再回來用補數修正。
  * abacusSteps(x, y, op) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
@@ -73,7 +74,27 @@
       });
     }
 
-    if (op === '×') {
+    if (op === '×' && y >= 10) {
+      // 兩位數乘數：照直式一行一行做，76 × 58 先算 76 × 8，再算 76 × 5；每一行從被乘數的個位開始。
+      // 九九的乘積撥在「兩個數字的位數相加」那一位起，照唸法先撥高位。算盤上邊乘邊加。
+      const xs = String(x).split('').reverse().map(Number), ys = String(y).split('').reverse().map(Number);
+      steps[0].text = `算盤先清空。${x} × ${y}，跟直式一樣：${ys.map(b => `先算 ${x} × ${b}`).join('，再算 ').replace(/，再算 先算/g, '，再算')}。`;
+      const rows = [];
+      ys.forEach((b, j) => {
+        if (!b) { push([], `乘數的${PLACE[j]}是 0，這一行不用撥。`); rows.push(0); return; }
+        xs.forEach((a, i) => {
+          const p = a * b, k = i + j;
+          if (!p) { push([], `${b} × ${a} = 0，不用撥。`); return; }
+          pending += `${b} × ${a} = ${p}，${PLACE[j]} × ${PLACE[i]}，`;
+          pending += p >= 10 ? `${Math.floor(p / 10)} 加在${PLACE[k + 1]}、${p % 10 ? `${p % 10} 加在${PLACE[k]}` : `0 不用撥`}：` : `加在${PLACE[k]}：`;
+          apply(p, k, add, '加', false, true);
+        });
+        rows.push(x * b);
+        const last = steps[steps.length - 1], now = last.d.reduce((s, v, t) => s + v * 10 ** t, 0);
+        if (j === 0) last.text += `第一行做完：算盤上是 ${now}，就是直式第一行 ${x} × ${b} 的答案。`;
+        else last.text += `第二行 ${x} × ${b} = ${rows[1]}，往左一位就是 ${rows[1] * 10}；${rows[0]} + ${rows[1] * 10} = ${now}，算盤上已經加好了。`;
+      });
+    } else if (op === '×') {
       // 照直式從個位開始：每一位乘 y 的乘積，加在同一位（和左邊一位）
       steps[0].text = `算盤先清空。${x} × ${y}，從個位開始乘。`;
       String(x).split('').reverse().map(Number).forEach((xi, k) => {
@@ -221,8 +242,7 @@
         err.textContent = '';
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
-        if (op === '×' && y > 9) { err.textContent = '乘數是兩位數以上的撥法還沒整理，第二個數請輸入 1～9'; return; }
-        if (op === '×' && x > 999) { err.textContent = '乘法目前做到三位數 × 一位數'; return; }
+        if (op === '×' && (y > 99 || x > (y > 9 ? 99 : 999))) { err.textContent = '乘法目前做到三位數 × 一位數、兩位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
         load(x, y, op);
       };
     }
