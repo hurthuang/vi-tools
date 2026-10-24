@@ -459,17 +459,29 @@ function makeProblems(picks, count) {
     if (list.length) pools.push({ op, lv, items: shuffle(list.slice()), i: 0 });
   }
   if (!pools.length) return [];
-  const out = [];
-  let last = null;
-  for (let n = 0; n < count; n++) {
-    let p = pools[Math.floor(Math.random() * pools.length)];
-    if (pools.length > 1 && last === p && Math.random() < 0.5) p = pools[Math.floor(Math.random() * pools.length)];
+  // 題數平均分給各級，同一級再平均分給加、減；除不盡的餘數隨機給
+  const split = (n, k) => { const a = Array(k).fill(Math.floor(n / k)); shuffle([...a.keys()]).slice(0, n % k).forEach(i => a[i]++); return a; };
+  const levels = [...new Set(pools.map(p => p.lv))];
+  split(count, levels.length).forEach((n, li) => {
+    const ps = pools.filter(p => p.lv === levels[li]);
+    split(n, ps.length).forEach((m, pi) => { ps[pi].left = m; });
+  });
+  // 排順序：盡量不要同一種連著出；某一種剩太多（超過一半）時先出它，免得最後擠在一起
+  const seq = [];
+  for (let rest = count; rest > 0; rest--) {
+    const last = seq[seq.length - 1];
+    let cand = pools.filter(p => p.left > rest / 2);
+    if (!cand.length) cand = pools.filter(p => p.left && p !== last);
+    if (!cand.length) cand = pools.filter(p => p.left);
+    let r = Math.random() * cand.reduce((s, p) => s + p.left, 0);
+    const p = cand.find(c => (r -= c.left) < 0) || cand[cand.length - 1];
+    p.left--; seq.push(p);
+  }
+  return seq.map(p => {
     if (p.i >= p.items.length) { shuffle(p.items); p.i = 0; }
     const [x, y, form] = p.items[p.i++];
-    out.push({ x, y, op: p.op, lv: p.lv, form });
-    last = p;
-  }
-  return out;
+    return { x, y, op: p.op, lv: p.lv, form };
+  });
 }
 
 const calc = p => p.op === '+' ? p.x + p.y : p.op === '-' ? p.x - p.y : p.x * p.y;
