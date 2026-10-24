@@ -108,8 +108,10 @@
         apply(p, k, add, '加', false, true);
       });
     } else if (op === '÷') {
-      // 除法（除數一位數）：算盤只放被除數，除數和商記在點顯器上。從最高位開始，
-      // 這一位（連同上一位剩下的）裡有幾個除數，商就打幾；乘回來從算盤扣掉，扣的時候跟減法一樣從低位撥。
+      // 除法：算盤只放被除數，除數和商記在點顯器上。從最高位開始，
+      // 這一位（連同上一位剩下的）裡有幾個除數，商就打幾；乘回來從算盤扣掉，扣的方向照 dir。
+      // 除數兩位數時商要先估：心裡試乘（從「去掉最後一位 ÷ 除數十位」估起，超過就往下試），
+      // 這一步算盤不動，確認了才把整個乘積一次扣掉。
       // 每一步多記 q（點顯器上已經打的商）和 mark（正在除的那一位）。
       const ds = String(x).split('').map(Number), n = ds.length;
       steps[0].text = `算盤上撥好 ${x}。除數 ${y} 記在點顯器上，從最高位開始除，商一位一位打在點顯器上。`;
@@ -127,7 +129,14 @@
         }
         const q = Math.floor(r / y), p = q * y;
         qs += q;
-        pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
+        if (y >= 10) {
+          const top = Math.floor(r / 10), t = Math.floor(y / 10);
+          const first = y % 10 ? Math.min(9, Math.floor(top / t)) : q;
+          let est = `${look}。心裡估商（算盤不動）：` + (y % 10 ? `${top} ÷ ${t}，先試 ${first}。` : `除數是整十，看 ${top} ÷ ${t}，試 ${q}。`);
+          for (let c = first; c > q; c--) est += `${y} × ${c} = ${y * c}，比 ${r} 大，太多了，試 ${c - 1}。`;
+          push([], est + `${y} × ${q} = ${p}，沒有超過，商的${R}打 ${q}。`);
+          pending += `算盤上把 ${p} 一次扣掉：`;
+        } else pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
         apply(p, k, sub, '減', true, dir === 'high');
         r -= p;
         steps[steps.length - 1].text += r ? `剩下 ${r}${k ? `，跟${PLACE[k - 1]}合起來看` : ''}。` : k ? '剛好扣完。' : '';
@@ -309,7 +318,7 @@
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
         if (op === '×' && (y > 99 || x > (y > 9 ? 99 : 999))) { err.textContent = '乘法目前做到三位數 × 一位數、兩位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
-        if (op === '÷' && y > 9) { err.textContent = '除數是兩位數要先在心裡試乘估商，動畫只做除數是一位數的除法'; return; }
+        if (op === '÷' && y > 99) { err.textContent = '除法目前做到除數是兩位數'; return; }
         if (op === '÷' && x < y) { err.textContent = '被除數不能比除數小'; return; }
         load(x, y, op, curDir());
       };
