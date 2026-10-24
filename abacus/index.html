@@ -466,10 +466,11 @@ function makeProblems(picks, count) {
     const ps = pools.filter(p => p.lv === levels[li]);
     split(n, ps.length).forEach((m, pi) => { ps[pi].left = m; });
   });
-  // 排順序：盡量不要同一種連著出；某一種剩太多（超過一半）時先出它，免得最後擠在一起
+  // 排順序：大多換一種，但約一半的機會允許連著出，免得完全輪流被猜到；
+  // 某一種剩太多（超過一半）時先出它，免得最後擠在一起
   const seq = [];
   for (let rest = count; rest > 0; rest--) {
-    const last = seq[seq.length - 1];
+    const last = Math.random() < 0.5 ? null : seq[seq.length - 1];
     let cand = pools.filter(p => p.left > rest / 2);
     if (!cand.length) cand = pools.filter(p => p.left && p !== last);
     if (!cand.length) cand = pools.filter(p => p.left);
