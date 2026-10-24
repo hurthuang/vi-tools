@@ -1,5 +1,5 @@
 // 教材網頁版：node tools/build-books.mjs（要有 pandoc）
-// 內容只改 document/教材/ 底下的 md，再跑這支產生網頁；加 --check 只檢查網頁是不是最新的（改了 md 忘了重跑會失敗）。
+// 內容只改 document/教材/ 底下的原稿（md；UEB 學習手冊是 Word），再跑這支產生網頁；加 --check 只檢查網頁是不是最新的（改了 md 忘了重跑會失敗）。
 // 數理點字教材的 md 也由 document/教材/.build/rebuild.js 產生點字版、ASCII+SimBraille 版 docx。
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -15,7 +15,34 @@ const BOOKS = [
     tool: ['braille-translate.htm', '文字轉點字'],
     lead: '國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號。標點符號的名稱、說明引用教育部《重訂標點符號手冊》，點字依教育部《點字符號彙編 國語點字》，彙編沒有定義的符號另外提出建議。原載視覺障礙輔助科技筆記本（<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/75">聲韻調、拼法</a>、<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/77">標點符號</a>）。',
   },
+  {
+    // 原稿是 Word（主編在雲端硬碟改，改完複製到 document/教材/UEB 學習手冊.docx 再跑）。只留封面圖，其他圖不放
+    src: 'document/教材/UEB 學習手冊.docx', out: 'ueb-book.html', math: false, title: 'UEB 學習手冊',
+    tool: ['UEB-g2-query.html', 'UEB 查詢'], cover: 'ueb-book-cover.jpg',
+    lead: '給初學者的統一英文點字（UEB）手冊：第一部分是英文字母、數字、大寫、標點符號和簡寫字，第二部分是各類縮寫，最後是綜合練習、相關輔助科技和縮寫快速查詢表。作者黃偉豪、陳英廷，PDF 版見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/1039">視覺障礙輔助科技筆記本</a>。',
+  },
 ];
+
+// Word 轉出來的 HTML 整理：拿掉 Word 的目錄（頁首另外產生）、標題裡的粗體、空標題；
+// 圖只留第一張（封面），換成縮小的 jpg；表格第一列不是粗體的，是 Word 預設把第一列當表頭，改回一般列
+function fixDocx(body, book) {
+  body = body.replace(/<h2 class="TOC-Heading"[\s\S]*?(?=<h2 )/, '');
+  body = body.replace(/<(h[1-6])([^>]*)>([\s\S]*?)<\/\1>/g, (m, h, attr, t) => `<${h}${attr}>${t.replace(/<\/?strong>/g, '').trim()}</${h}>`);
+  body = body.replace(/<(h[1-6])[^>]*>(?:\s|<br \/>)*<\/\1>\n?/g, '');
+  let first = true;
+  body = body.replace(/<img [^>]*\/>/g, m => {
+    if (!first || !book.cover) return '';
+    first = false;
+    const alt = (m.match(/alt="([^"]*)"/) || [, ''])[1];
+    return `<img class="cover" src="${book.cover}" alt="${alt.replace(/\s+/g, ' ').trim()}">`;
+  });
+  // 圖拿掉後，只剩圖說（設定畫面、顯示狀況）的段落也拿掉
+  body = body.replace(/<p>(?:設定畫面|顯示狀況)(?:<br \/>|\s)*<\/p>\n?/g, '');
+  body = body.replace(/<p>(?:\s|<br \/>)*<\/p>\n?/g, '');
+  body = body.replace(/<thead>\s*(<tr[^>]*>[\s\S]*?<\/tr>)\s*<\/thead>\s*<tbody>/g, (m, tr) =>
+    /<th[^>]*>(?!\s*<strong>)/.test(tr) ? `<tbody>\n${tr.replace(/<(\/?)th\b/g, '<$1td')}` : m);
+  return body;
+}
 
 const root = new URL('../', import.meta.url);
 const path = u => decodeURIComponent(u.pathname).replace(/^\/([A-Za-z]:)/, '$1');
@@ -31,13 +58,15 @@ window.MathJax = {
 `;
 
 function build(book) {
-  const src = new URL(book.src, root);
-  const md = readFileSync(src, 'utf8');
-  const title = (md.match(/^title:\s*(.+)$/m) || [, book.out])[1].trim();
-  let body = execFileSync('pandoc', [path(src), '-f', 'markdown+east_asian_line_breaks', '-t', 'html', ...(book.math ? ['--mathjax'] : []), '--shift-heading-level-by=1'],
+  const src = new URL(book.src, root), docx = book.src.endsWith('.docx');
+  const md = docx ? '' : readFileSync(src, 'utf8');
+  const title = book.title || (md.match(/^title:\s*(.+)$/m) || [, book.out])[1].trim();
+  let body = execFileSync('pandoc', [path(src), '-f', docx ? 'docx' : 'markdown+east_asian_line_breaks', '-t', 'html', ...(book.math ? ['--mathjax'] : []), '--shift-heading-level-by=1'],
     { encoding: 'utf8', maxBuffer: 64 << 20 }).replace(/\r\n/g, '\n');
+  if (docx) body = fixDocx(body, book);
   // 表格外面包一層可以左右捲動（手機窄螢幕）
-  body = body.replace(/<table>/g, '<div class="scroll"><table>').replace(/<\/table>/g, '</table></div>');
+  body = body.replace(/<table[^>]*>/g, '<div class="scroll"><table>').replace(/<colgroup>[\s\S]*?<\/colgroup>\n?/g, '')
+    .replace(/<\/table>/g, '</table></div>');
   // 點字（Unicode U+2800～U+283F）包成 span，方便切換 SimBraille 顯示；只換標籤外面的文字
   body = body.replace(/(<[^>]*>)|([⠀-⠿]+)/g, (m, tag, brl) => tag || `<span class="brl">${brl}</span>`);
 
@@ -79,11 +108,13 @@ h4{font-size:1rem;margin:20px 0 4px}
 table{border-collapse:collapse;background:var(--card)}
 th,td{border:1px solid var(--line);padding:4px 10px;text-align:left;vertical-align:top}
 .brl{color:var(--brl);font-size:1.15em;letter-spacing:.05em;word-break:break-all}
+td .brl,th .brl{white-space:nowrap;word-break:normal}
 html.simbrl .brl{font-family:'SimBraille';font-size:1.4em;letter-spacing:0}
 nav.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;margin:12px 0}
 nav.toc>ul{margin:0;padding-left:1.2em}
 nav.toc ul ul{font-size:.92rem;columns:2 14em;margin:2px 0 8px}
 hr{display:none}
+img.cover{display:block;max-width:100%;height:auto;margin:8px 0;border-radius:6px}
 code{font-family:Consolas,monospace}
 </style>
 </head>
