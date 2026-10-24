@@ -7,6 +7,7 @@
 <script src="../music/js/theme.js"></script>
 <script src="../music/js/brf.js"></script>
 <script src="abacus-dir.js"></script>
+<script src="abacus-levels.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}}
@@ -69,7 +70,7 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   <fieldset id="levels">
     <legend>級數與運算（可複選）</legend>
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
-    <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5d。乘法一律從個位開始，除法一律從最高位開始。</p>
+    <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5c。乘法一律從個位開始，除法一律從最高位開始。</p>
     <div id="level-list"></div>
     <button type="button" class="secondary" id="all-on">全選</button>
     <button type="button" class="secondary" id="all-off">全不選</button>
@@ -201,8 +202,8 @@ function trace(x, y, op, high) {
 
 // 回傳級數代號；不屬於任何一級回傳 null。
 // 1～4 級只看撥珠時最難的動作，數字有幾位另外設定。
-// 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5c）、
-// 進位撞上這一檔自己要加的數（5d）。
+// 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5b）、
+// 進位撞上這一檔自己要加的數（5c）。
 const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3, '4': 4 };
 function classify(x, y, op, high) {
   if (y % 10 === 0) return null;            // 個位一定要撥
@@ -219,9 +220,9 @@ function classify(x, y, op, high) {
       if (carries[0].L === '2') return '5a' + (ones.L === '4' ? '-2' : '-1');
       return null;
     }
-    if (carries.some(s => s.k >= 2 && s.L === '2')) return '5c-3';
+    if (carries.some(s => s.k >= 2 && s.L === '2')) return '5b-3';
     if (carries.some(s => s.L === '2')) return null;          // 十位用小補數又連續進位：不歸類
-    return ones.L === '4' ? '5c-2' : '5c-1';
+    return ones.L === '4' ? '5b-2' : '5b-1';
   }
   // 多位數：進位沒有撞上那一檔自己要加的數 → 跟一位數一樣，看最難的那一步
   const collide = carries.some(s => ys[s.k]);
@@ -230,13 +231,13 @@ function classify(x, y, op, high) {
     return st.filter(s => !s.carry).reduce((a, s) => RANK[s.L] > RANK[a] ? s.L : a, '1');
   }
   const has4 = st.some(s => s.L === '4');
-  if (nC >= 2) return has4 ? '5d-5' : '5d-4';
-  if (has4) return '5d-3b';
-  return st.slice(1).every(s => s.L === '1') ? '5d-2' : '5d-3';
+  if (nC >= 2) return has4 ? '5c-5' : '5c-4';
+  if (has4) return '5c-3';
+  return st.slice(1).every(s => s.L === '1') ? '5c-1' : '5c-2';
 }
 
 // 從最高位開始（聽題目的學生）：十位先撥完，個位那一步就是「兩位數 ± 一位數」，
-// 照 1～4、5a、5c 的分法；進位不會撞上還沒撥的十位，所以沒有 5d。
+// 照 1～4、5a、5b 的分法；進位不會撞上還沒撥的十位，所以沒有 5c。
 // 十位那一步比個位那一步難時：1～4 級取比較難的；第 5 級不歸類。
 function classifyHigh(x, y, op) {
   const tens = y - y % 10, x2 = op === '+' ? x + tens : x - tens;
@@ -245,7 +246,7 @@ function classifyHigh(x, y, op) {
   const Lt = st[0].L, c = classify(x2, y % 10, op);
   if (!c) return null;
   if (RANK[c]) return RANK[Lt] > RANK[c] ? Lt : c;
-  return RANK[Lt] <= (/-2$/.test(c) || c === '5c-3' ? 4 : 3) ? c : null;
+  return RANK[Lt] <= (/-2$/.test(c) || c === '5b-3' ? 4 : 3) ? c : null;
 }
 
 // 乘法：照直式，乘數從個位開始一位一位乘（76 × 58 先算 76 × 8，再算 76 × 5），
@@ -313,39 +314,8 @@ function classifyDiv2(x, y) {
   return most === 1 ? '9b' : most === 2 ? '9c' : '9d';
 }
 
-const LEVELS = [
-  { id: '1',    group: '基本', name: '不動補數', desc: '珠子夠，直接撥', add: '2+2、21+3、32+15', sub: '4−3、37−5、47−21' },
-  { id: '2',    group: '基本', name: '小補數（五）', desc: '下珠不夠，要動上珠', add: '3+4、23+4、12+33', sub: '8−4、16−3、56−21' },
-  { id: '3a',   group: '基本', name: '大補數，修正只動下珠', desc: '大補數是 1～4', add: '8+7、27+8、32+91', sub: '12−8、41−7、115−71' },
-  { id: '3b',   group: '基本', name: '大補數，修正會動上珠', desc: '大補數是 5～9', add: '6+5、16+4、61+52', sub: '11−5、32−3、113−51' },
-  { id: '4',    group: '基本', name: '大小補數同時（複合題）', desc: '動十位後，個位又要用小補數', add: '7+6、15+7、71+62', sub: '21−6、12−7、122−61' },
-  { id: '5a-1', group: '第 5 級：進位、借位延伸', name: '進位、借位時十位用小補數（個位 3 級）', desc: '加法十位是 4，進 1 要動上珠；減法十位是 5，借 1 要退上珠', add: '43+8、49+1', sub: '51−3、50−2' },
-  { id: '5a-2', group: '第 5 級：進位、借位延伸', name: '進位、借位時十位用小補數（個位 4 級）', desc: '同上，個位是複合題', add: '45+6', sub: '52−6' },
-  { id: '5c-1', group: '第 5 級：進位、借位延伸', name: '連續進位／退位（個位 3 級）', desc: '十位是 9（加）或 0（減），要動到百位', add: '98+3、99+1', sub: '100−1、103−4' },
-  { id: '5c-2', group: '第 5 級：進位、借位延伸', name: '連續進位／退位（個位 4 級）', desc: '同上，個位是複合題', add: '95+6', sub: '101−6' },
-  { id: '5c-3', group: '第 5 級：進位、借位延伸', name: '連續進退位，百位又用小補數', desc: '百位是 4（加）或 5（減）', add: '493+8', sub: '502−7' },
-  { id: '5d-2', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位', desc: '個位進位後，十位還要加（減）自己的數；十位簡單', add: '24+18', sub: '41−18' },
-  { id: '5d-3', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位且十位要用小補數', desc: '十位加進位或扣借位後遇到 5', add: '34+28', sub: '62−28' },
-  { id: '5d-3b', group: '第 5 級：多位數，進位撞上十位要加的數', name: '一次進退位且含複合題', desc: '進退位的那一位是 4 級（個位或十位）', add: '17+16、36+27', sub: '42−17、33−16' },
-  { id: '5d-4', group: '第 5 級：多位數，進位撞上十位要加的數', name: '兩次進退位', desc: '個位、十位都進位（或都借位）', add: '88+27', sub: '121−58' },
-  { id: '5d-5', group: '第 5 級：多位數，進位撞上十位要加的數', name: '兩次進退位且含複合題', desc: '其中一位是 4 級', add: '57+68、75+48', sub: '132−47、143−67' },
-  { id: '6a', group: '第 6 級：乘法', name: '一位數 × 一位數', desc: '把九九乘法的答案撥上去，練習撥在哪兩檔', mul: '2×3、7×6' },
-  { id: '6b', group: '第 6 級：乘法', name: '兩位數 × 一位數，十位乘積直接撥', desc: '先撥個位的乘積，再加十位的乘積，不用補數', mul: '21×4、34×2、20×3' },
-  { id: '6c', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要用小補數', desc: '加十位乘積時下珠不夠，要動上珠', mul: '16×4、18×3' },
-  { id: '6d', group: '第 6 級：乘法', name: '兩位數 × 一位數，加十位乘積要進位', desc: '加十位乘積時要用大補數，進位到百位', mul: '29×4、75×4、58×9' },
-  { id: '7a', group: '第 7 級：兩位數 × 兩位數', name: '直接撥', desc: '照直式先乘個位、再乘十位，邊乘邊加，不用補數', mul: '21×13、12×54' },
-  { id: '7b', group: '第 7 級：兩位數 × 兩位數', name: '要用小補數', desc: '加乘積時下珠不夠，要動上珠', mul: '12×13、23×12' },
-  { id: '7c', group: '第 7 級：兩位數 × 兩位數', name: '進位一次', desc: '加乘積時有一次要用大補數進位', mul: '24×13、34×12' },
-  { id: '7d', group: '第 7 級：兩位數 × 兩位數', name: '進位兩次以上', desc: '進位兩次以上，或連續進位', mul: '76×58、22×48' },
-  { id: '8a', group: '第 8 級：除法（除數是一位數）', name: '每一位都除得盡', desc: '從最高位一位一位除，每一位都剛好扣完', div: '6÷2、28÷7、68÷2、486÷2' },
-  { id: '8b', group: '第 8 級：除法（除數是一位數）', name: '要往下一位借來除', desc: '這一位扣完有剩，剩下的跟下一位合起來再除', div: '52÷4、96÷4、736÷4' },
-  { id: '8c', group: '第 8 級：除法（除數是一位數）', name: '有餘數', desc: '除到個位還有剩，剩下的比除數小，就是餘數', div: '7÷2、14÷3、86÷4' },
-  { id: '8d', group: '第 8 級：除法（除數是一位數）', name: '商有 0，或第一位比除數小', desc: '不夠除的那一位商要打 0；第一位不夠除時跟下一位合起來看', div: '80÷4、412÷4、240÷6、619÷3' },
-  { id: '9a', group: '第 9 級：除數是兩位數', name: '除數是整十', desc: '估商就是九九，例如 250÷70 看 25÷7', div: '60÷20、250÷70、840÷40' },
-  { id: '9b', group: '第 9 級：除數是兩位數', name: '試乘一次就對', desc: '先估商，心裡算除數 × 商，沒有超過才扣；每一位第一次估就對', div: '84÷21、96÷32、736÷23' },
-  { id: '9c', group: '第 9 級：除數是兩位數', name: '要試乘兩次', desc: '第一次估的商太大，試乘超過，商減 1 再試', div: '81÷27、156÷26、875÷25' },
-  { id: '9d', group: '第 9 級：除數是兩位數', name: '要試乘三次以上', desc: '大多是除數 11～19，估的商常常差兩、三', div: '96÷16、391÷17' },
-];
+// 分級的名稱、說明、例題放在 abacus-levels.js，三個珠算頁面共用
+const LEVELS = AbacusLevels.LEVELS;
 
 // 1～4 級的題型（數字有幾位），每一級在設定頁分別選。
 const FORMS = [
@@ -373,11 +343,11 @@ function inRange(lv, x, y, op, high) {
   if (lv.startsWith('9')) return y >= 11 && y <= 99 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
-  // 從最高位開始時，兩位數 ± 兩位數的進退位歸 5a、5c，範圍跟 5d 一樣
-  if (high && !one && /^5[ac]/.test(lv)) return x >= 10 && x <= (op === '+' ? 99 : 199) && y <= 99;
+  // 從最高位開始時，兩位數 ± 兩位數的進退位歸 5a、5b，範圍跟 5c 一樣
+  if (high && !one && /^5[ab]/.test(lv)) return x >= 10 && x <= (op === '+' ? 99 : 199) && y <= 99;
   if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
-  if (lv.startsWith('5c')) return one && x >= 10 && x <= 999;
-  // 5d
+  if (lv.startsWith('5b')) return one && x >= 10 && x <= 999;
+  // 5c
   if (op === '+') return x >= 10 && x <= 99 && y >= 10 && y <= 99;
   return x >= 10 && x <= 199 && y >= 10 && y <= 99;
 }
@@ -453,12 +423,8 @@ const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9');
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
 // 第 5、6、7 級的題型是固定的，表格上直接寫出來
 function fixedForm(id) {
-  if (id === '5c-3') return '三位數 ± 一位數';
-  if (id.startsWith('5d')) return '兩位數 ± 兩位數';
-  if (dirHigh() && id !== '5c-3') return '兩位數 ± 一位數、兩位數';
-  if (id.startsWith('5')) return '兩位數 ± 一位數';
-  if (id.startsWith('7')) return '兩位數 × 兩位數';
-  return id === '6a' ? '一位數 × 一位數' : '兩位數 × 一位數';
+  if (dirHigh() && /^5[ab]-/.test(id) && id !== '5b-3') return '兩位數 ± 一位數、兩位數';
+  return (LEVELS.find(l => l.id === id) || {}).form || '';
 }
 // 這一級選的題型；沒有選單（第 5、6、7 級）時回傳 null，表示不篩選
 function formsFor(lv) {
@@ -477,14 +443,15 @@ function renderLevels() {
   const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
   const first = !document.querySelector('#level-list input');
   const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
-  // 第 5～9 級各收在一個可以展開的標題下，預設收合
-  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數', '8': '第 8 級：除法（除數是一位數）', '9': '第 9 級：除數是兩位數' };
+  // 第 5～9 級各收在一個可以展開的標題下，預設收合；組名和表格標題跟另外兩頁一樣（abacus-levels.js）
+  const FOLD = Object.fromEntries(AbacusLevels.GROUPS.filter(gr => gr.key !== '1').map(gr => [gr.key, gr.title]));
   const groups = [];
   for (const lv of LEVELS) {
-    if (dirHigh() && lv.id.startsWith('5d')) continue;    // 從最高位開始沒有 5d
+    if (dirHigh() && lv.id.startsWith('5c')) continue;    // 從最高位開始沒有 5c
     const g = groups[groups.length - 1];
-    if (g && g.name === lv.group) g.levels.push(lv);
-    else groups.push({ name: lv.group, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
+    const cap = lv.part || AbacusLevels.groupTitle(AbacusLevels.groupOf(lv.id));
+    if (g && g.name === cap) g.levels.push(lv);
+    else groups.push({ name: cap, fold: FOLD[lv.id[0]] ? lv.id[0] : '', levels: [lv] });
   }
   let html = '', fold = '';
   for (const g of groups) {
@@ -494,7 +461,7 @@ function renderLevels() {
       fold = g.fold;
     }
     const ops = OPS.filter(([, , key]) => g.levels.some(lv => lv[key]));
-    html += `<table class="lv-table"><caption>${g.name === '基本' ? '1～4 級' : g.name}</caption>
+    html += `<table class="lv-table"><caption>${g.name}</caption>
       <tr><th scope="col">級別</th><th scope="col">題型</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
     for (const lv of g.levels) {
       html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;

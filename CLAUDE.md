@@ -1111,6 +1111,7 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - 分級核心在 `<script id="core">`（addd／subd／trace／mulTrace／classify／classifyMul／classifyDiv／buildBank），node 可以抽出來單獨測
 - 乘法順序（使用者 2026-10-24 定案）：照直式一行一行做（76 × 58 先 76 × 8 再 76 × 5），每行從個位開始；九九乘積撥在位數相加那一位起，照唸法先撥高位。第 7 級（兩位數 × 兩位數）分 7a 直接撥、7b 小補數、7c 進位一次、7d 進位兩次以上，不出含 0 的數
 - `abacus-dir.js`：三頁共用的加減法撥珠方向（預設從最高位開始）
+- `abacus-levels.js`：三頁共用的分級資料（名稱、說明、代表例題）；改完跑 `node tools/check-abacus.mjs`
 - `abacus-anim.js`：撥珠動畫（`abacusSteps` 與出題核心同順序），各級撥珠教法頁用浮動面板，例題標題或 `data-demo` 段落自動加「看動畫」
 - .brl 匯出：題號 ⠼＋上位數字＋⠲，點字 ASCII 寫小寫（同 bt）
 - 加減法撥珠方向（從個位／從最高位）與除法（第 8 級）的做法、分級：見 `docs/notes/abacus.md`
