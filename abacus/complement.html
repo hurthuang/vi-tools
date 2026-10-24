@@ -40,6 +40,7 @@ nav ul{columns:2;column-gap:24px}
   <li><a href="#small">小補數：合起來是 5</a></li>
   <li><a href="#big">大補數：合起來是 10</a></li>
   <li><a href="#rules">四個基本規則</a></li>
+  <li><a href="#demo">撥珠動畫</a></li>
   <li><a href="#lv1">1 級：不動補數</a></li>
   <li><a href="#lv2">2 級：小補數</a></li>
   <li><a href="#lv3a">3a 級：大補數，只動下珠</a></li>
@@ -97,6 +98,11 @@ nav ul{columns:2;column-gap:24px}
   <p><strong>減法，大補數：</strong>這一檔不夠減 → 左邊一檔減 1（就是減 10）→ 減太多了 → 這一檔加回大補數。</p>
 </div>
 <p>記法：<strong>加法是「先多加，再拿掉」；減法是「先多減，再加回」。</strong></p>
+
+<h2 id="demo">撥珠動畫</h2>
+<p>輸入一題加法、減法或乘法，按「下一步」一步一步看珠子怎麼動，這一步動到的珠子會變成藍色。下面各級的例題都可以放進來看，例如 3 + 4（2 級）、7 + 6（4 級）、29 × 4（6d）。</p>
+<p class="muted">撥法跟這一頁說明的一樣：從個位開始往左；不夠加或不夠減，先動左邊一檔（10），再用補數修正。乘法是一位數到三位數乘一位數。</p>
+<div id="demo-box" role="group" aria-labelledby="demo"></div>
 
 <h2 id="lv1">1 級：不動補數</h2>
 <p>珠子夠，直接撥。</p>
@@ -175,9 +181,6 @@ nav ul{columns:2;column-gap:24px}
   <li>第二步（小補數）：個位 7 是上珠＋下珠 2 顆，下珠只有 2 顆，不夠拿掉 4。這其實就是一題「7 − 4」：先拿掉上珠 5，多拿了 1，再撥上下珠 1 顆。</li>
   <li>個位剩下珠 3 顆，十位 1，答案 13。</li>
 </ol>
-<h4 id="demo-title">撥珠動畫</h4>
-<p class="muted">按「下一步」一步一步看珠子怎麼動，這一步動到的珠子會變色。下面也可以自己出題。</p>
-<div id="demo-lv4" role="group" aria-labelledby="demo-title"></div>
 <h3>例：21 − 6 = 15</h3>
 <ol>
   <li>個位是 1，不夠減 6。</li>
@@ -291,6 +294,6 @@ nav ul{columns:2;column-gap:24px}
 
 <p><a href="index.html">回到出題練習</a></p>
 </main>
-<script>AbacusDemo.mount(document.getElementById('demo-lv4'), { x: 7, y: 6, op: '+', custom: true });</script>
+<script>AbacusDemo.mount(document.getElementById('demo-box'), { x: 7, y: 6, op: '+', custom: true });</script>
 </body>
 </html>

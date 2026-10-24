@@ -1,5 +1,6 @@
 /*
- * 撥珠動畫：把一題加減法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
+ * 撥珠動畫：把一題加、減、乘法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
+ * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位（同出題頁 classifyMul）。
  * 順序照出題頁的 trace()：從個位往左，進位、借位時先動左邊一檔，再回來用補數修正。
  * abacusSteps(x, y, op) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
@@ -8,7 +9,7 @@
   const PLACE = ['個位', '十位', '百位', '千位', '萬位', '十萬位'];
 
   function abacusSteps(x, y, op) {
-    const d = String(x).split('').reverse().map(Number);
+    const d = String(op === '×' ? 0 : x).split('').reverse().map(Number);
     while (d.length < 6) d.push(0);
     const steps = [{ d: d.slice(), moved: [], text: `算盤上撥好 ${x}。` }];
     let pending = '';
@@ -60,14 +61,32 @@
       addDirect(k, c);
     }
 
-    const ys = String(y).split('').reverse().map(Number);
-    const many = ys.filter(Boolean).length > 1;
-    ys.forEach((v, k) => {
-      if (!v) return;
-      if (many) pending += `${PLACE[k]}${op === '+' ? '加' : '減'} ${v}。`;
-      (op === '+' ? add : sub)(k, v);
-    });
-    const ans = op === '+' ? x + y : x - y;
+    // 把 n 從第 shift 檔開始加上去（或減掉），一檔一檔從右往左
+    function apply(n, shift, f, verb, label = true) {
+      const ns = String(n).split('').reverse().map(Number);
+      const many = label && ns.filter(Boolean).length > 1;
+      ns.forEach((v, j) => {
+        if (!v) return;
+        if (many) pending += `${PLACE[shift + j]}${verb} ${v}。`;
+        f(shift + j, v);
+      });
+    }
+
+    if (op === '×') {
+      // 照直式從個位開始：每一位乘 y 的乘積，加在同一位（和左邊一位）
+      steps[0].text = `算盤先清空。${x} × ${y}，從個位開始乘。`;
+      String(x).split('').reverse().map(Number).forEach((xi, k) => {
+        const p = xi * y, R = PLACE[k];
+        if (!p) { push([], `${R} ${xi} × ${y} = 0，不用撥。`); return; }
+        pending += `${R} ${xi} × ${y} = ${p}`;
+        if (k) pending += `，是 ${p} 個${['', '十', '百', '千'][k]}`;
+        pending += p >= 10 ? `，${Math.floor(p / 10)} 加在${PLACE[k + 1]}、${p % 10} 加在${R}：` : `，加在${R}：`;
+        apply(p, k, add, '加', false);
+      });
+    } else {
+      apply(y, 0, op === '+' ? add : sub, op === '+' ? '加' : '減');
+    }
+    const ans = op === '+' ? x + y : op === '-' ? x - y : x * y;
     steps[steps.length - 1].text += `答案 ${ans}。`;
     return steps;
   }
@@ -77,14 +96,14 @@
 .abd{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:12px 14px;margin:12px 0}
 .abd-frame{position:relative;margin:4px auto 0;border:6px solid var(--abd-wood);border-radius:6px;background:var(--abd-bg);height:262px}
 .abd-beam{position:absolute;left:0;right:0;top:80px;height:8px;background:var(--abd-wood)}
-.abd-rod{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--abd-rod)}
+.abd-rod{position:absolute;top:0;bottom:0;width:5px;margin-left:-2.5px;background:var(--abd-rod)}
 .abd-bead{position:absolute;width:50px;height:24px;margin-left:-25px;border-radius:50%;background:var(--abd-bead);
-  border:1px solid rgba(0,0,0,.35);transition:top .45s ease,background-color .2s}
-.abd-bead.moved{background:var(--accent)}
+  border:2px solid var(--abd-edge);transition:top .45s ease,background-color .2s}
+.abd-bead.moved{background:var(--abd-moved);border-color:var(--abd-moved-edge)}
 .abd-labels{position:relative;height:3.2em;margin:4px auto 0;font-size:.9rem;line-height:1.5}
 .abd-labels span{position:absolute;width:56px;margin-left:-28px;text-align:center;color:var(--muted)}
 .abd-labels span b{display:block;font-size:1.1rem;color:var(--fg)}
-.abd-labels span.on{color:var(--accent);font-weight:700}
+.abd-labels span.on{color:var(--abd-moved);font-weight:700}
 .abd-text{min-height:3.4em;margin:8px 0 4px;font-size:1.05rem}
 .abd-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .abd button{font:inherit;font-size:.95rem;padding:4px 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
@@ -97,9 +116,9 @@
 .abd-own input{width:5.5em;font:inherit;padding:2px 6px}
 .abd-own select{font:inherit}
 .abd-err{color:#c0392b}
-:root{--abd-wood:#8a5a2b;--abd-bg:#fbf6ee;--abd-rod:#b9a58a;--abd-bead:#d9a066;--abd-hl:#fff1c2}
-:root[data-theme="dark"]{--abd-wood:#6b4a2a;--abd-bg:#26231f;--abd-rod:#6d6253;--abd-bead:#b98552;--abd-hl:#4a3f1c}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--abd-wood:#6b4a2a;--abd-bg:#26231f;--abd-rod:#6d6253;--abd-bead:#b98552;--abd-hl:#4a3f1c}}
+:root{--abd-wood:#4a2c12;--abd-bg:#fffdf7;--abd-rod:#5c4a36;--abd-bead:#c06a1c;--abd-edge:#3d2208;--abd-moved:#0047b3;--abd-moved-edge:#001f52;--abd-hl:#ffe9a3}
+:root[data-theme="dark"]{--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--abd-wood:#b07a45;--abd-bg:#121110;--abd-rod:#9c8a72;--abd-bead:#f0a85a;--abd-edge:#fff1dc;--abd-moved:#5aa9ff;--abd-moved-edge:#ffffff;--abd-hl:#5a4a12}}
 @media (prefers-reduced-motion: reduce){.abd-bead{transition:none}}
 `;
   const ROD = 64, UP_OFF = 6, UP_ON = 55, LOW_ON = 89, LOW_OFF = 152, BEAD = 24;
@@ -124,7 +143,7 @@
       <ol></ol>
       ${opts.custom ? `<form class="abd-own">自己出題：
         <input type="number" min="0" max="9999" aria-label="第一個數" required>
-        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option></select>
+        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option></select>
         <input type="number" min="1" max="9999" aria-label="第二個數" required>
         <button type="submit">看步驟</button><span class="abd-err" role="alert"></span></form>` : ''}`;
     const frame = box.querySelector('.abd-frame'), labels = box.querySelector('.abd-labels');
@@ -135,7 +154,7 @@
     function load(x, y, op) {
       stop();
       steps = abacusSteps(x, y, op);
-      const top = Math.max(x, op === '+' ? x + y : x);
+      const top = Math.max(x, op === '+' ? x + y : op === '×' ? x * y : x);
       rods = Math.max(2, String(top).length);
       const w = rods * ROD;
       frame.style.width = w + 12 + 'px'; labels.style.width = w + 'px';
@@ -154,7 +173,7 @@
       labels.innerHTML = Array.from({ length: rods }, (_, r) =>
         `<span style="left:${r * ROD + ROD / 2}px">${['個位', '十位', '百位', '千位', '萬位'][rods - 1 - r]}<b></b></span>`).join('');
       list.innerHTML = steps.map(s => `<li>${s.text}</li>`).join('');
-      list.setAttribute('aria-label', `${x} ${op === '+' ? '+' : '−'} ${y} 的撥珠步驟`);
+      list.setAttribute('aria-label', `${x} ${op === '-' ? '−' : op} ${y} 的撥珠步驟`);
       go(0);
     }
 
@@ -200,6 +219,7 @@
         err.textContent = '';
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
+        if (op === '×' && (y > 9 || x > 999)) { err.textContent = '乘法是一位數到三位數 × 一位數，第二個數請輸入 1～9'; return; }
         load(x, y, op);
       };
     }
