@@ -1,6 +1,6 @@
 /*
  * 撥珠動畫：把一題加、減、乘法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
- * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位（同出題頁 classifyMul）。
+ * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位。
  * 順序照出題頁的 trace()：從個位往左，進位、借位時先動左邊一檔，再回來用補數修正。
  * abacusSteps(x, y, op) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
@@ -61,14 +61,15 @@
       addDirect(k, c);
     }
 
-    // 把 n 從第 shift 檔開始加上去（或減掉），一檔一檔從右往左
-    function apply(n, shift, f, verb, label = true) {
-      const ns = String(n).split('').reverse().map(Number);
-      const many = label && ns.filter(Boolean).length > 1;
-      ns.forEach((v, j) => {
-        if (!v) return;
-        if (many) pending += `${PLACE[shift + j]}${verb} ${v}。`;
-        f(shift + j, v);
+    // 把 n 從第 shift 檔開始加上去（或減掉）。加減法一檔一檔從右往左；
+    // 乘法的乘積照九九唸法先撥高位（highFirst），例如 42 先撥 4 再撥 2
+    function apply(n, shift, f, verb, label = true, highFirst = false) {
+      const ns = String(n).split('').reverse().map((v, j) => [shift + j, +v]).filter(([, v]) => v);
+      if (highFirst) ns.reverse();
+      const many = label && ns.length > 1;
+      ns.forEach(([k, v]) => {
+        if (many) pending += `${PLACE[k]}${verb} ${v}。`;
+        f(k, v);
       });
     }
 
@@ -81,7 +82,7 @@
         pending += `${R} ${xi} × ${y} = ${p}`;
         if (k) pending += `，是 ${p} 個${['', '十', '百', '千'][k]}`;
         pending += p >= 10 ? `，${Math.floor(p / 10)} 加在${PLACE[k + 1]}、${p % 10} 加在${R}：` : `，加在${R}：`;
-        apply(p, k, add, '加', false);
+        apply(p, k, add, '加', false, true);
       });
     } else {
       apply(y, 0, op === '+' ? add : sub, op === '+' ? '加' : '減');
