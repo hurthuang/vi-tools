@@ -221,7 +221,8 @@
         err.textContent = '';
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
-        if (op === '×' && (y > 9 || x > 999)) { err.textContent = '乘法是一位數到三位數 × 一位數，第二個數請輸入 1～9'; return; }
+        if (op === '×' && y > 9) { err.textContent = '乘數是兩位數以上的撥法還沒整理，第二個數請輸入 1～9'; return; }
+        if (op === '×' && x > 999) { err.textContent = '乘法目前做到三位數 × 一位數'; return; }
         load(x, y, op);
       };
     }

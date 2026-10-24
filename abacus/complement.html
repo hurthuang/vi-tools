@@ -27,6 +27,7 @@ ol li{margin:2px 0}
 nav ul{columns:2;column-gap:24px}
 @media (max-width:560px){nav ul{columns:1}}
 .demo-btn{font:inherit;font-size:.8rem;font-weight:400;margin-left:8px;padding:1px 10px;border-radius:14px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:middle}
+p[data-demo]:not([data-demo=""]) .demo-btn{margin-left:0}
 .demo-btn:hover{background:var(--accent);color:var(--bg)}
 #demo-fab{position:fixed;right:16px;bottom:16px;z-index:20;font:inherit;font-size:1rem;padding:10px 18px;border-radius:24px;border:none;background:var(--accent);color:var(--bg);box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer}
 #demo-panel{position:fixed;z-index:30;background:var(--bg);border:0 solid var(--line);overflow:auto;padding:8px 14px 16px;box-shadow:0 0 16px rgba(0,0,0,.25)}
@@ -252,6 +253,7 @@ nav ul{columns:2;column-gap:24px}
   <li>十位是 9，加 1 也不夠加：百位加 1，十位拿掉 1 的大補數 9，十位變 0。</li>
   <li>答案 101。</li>
 </ol>
+<p data-demo="98 + 3 = 101"></p>
 <p>減法反過來：十位是 0 的時候借不到，要再跟百位借。</p>
 <ol>
   <li>100 − 1：個位 0 不夠減，要跟十位借，但十位也是 0。</li>
@@ -259,11 +261,12 @@ nav ul{columns:2;column-gap:24px}
   <li>個位加回 1 的大補數 9。</li>
   <li>答案 99。</li>
 </ol>
+<p data-demo="100 − 1 = 99"></p>
 
 <h3>5d：多位數，進位撞上十位要加的數</h3>
 <p>從個位開始，一位一位做；每一位都是前面學過的題型之一。進位或借位馬上撥到左邊一檔，再做那一檔自己的數。</p>
 <p>難的地方是<strong>十位會被動兩次</strong>：先因為進位加 1，再加上十位自己的數。第二次撥的時候，十位的珠子已經變了，要重新看清楚現在是多少。</p>
-<p>例：57 + 68 = 125</p>
+<p data-demo>例：57 + 68 = 125</p>
 <ol>
   <li>個位 7 加 8：十位加 1（十位 5 變 6），個位拿掉 2，個位剩 5。（3a 級）</li>
   <li>十位 6 加 6：百位加 1，十位要拿掉 4；十位 6 只有下珠 1 顆，不夠拿：拿掉上珠 5、撥上下珠 1 顆，十位剩 2。（4 級）</li>
@@ -336,18 +339,26 @@ nav ul{columns:2;column-gap:24px}
   document.getElementById('demo-close').onclick = close;
   panel.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(); } });
 
-  // 例題：標題裡的「例：7 + 6 = 13」「7 × 6 = 42」，一個算式一個按鈕
+  // 例題：標題裡的「例：7 + 6 = 13」加一個按鈕；有兩個算式的標題（5c）不加，改用下面的 data-demo。
+  // data-demo="98 + 3 = 101"：在這個段落放「看 98 + 3 的動畫」；data-demo 空白：用段落本身的算式。
   const OP = { '+': '+', '−': '-', '×': '×' };
+  const RE = /(\d+) ([+−×]) (\d+) = \d+/g;
+  function addBtn(el, m, label) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'demo-btn'; b.textContent = label;
+    b.setAttribute('aria-label', `看 ${m[1]} ${m[2]} ${m[3]} 的撥珠動畫`);
+    b.setAttribute('aria-controls', 'demo-panel');
+    b.onclick = () => { demo.show(+m[1], +m[3], OP[m[2]]); open(b); };
+    el.appendChild(b);
+  }
   document.querySelectorAll('main h3').forEach(h => {
-    if (!h.textContent.includes('例')) return;
-    for (const m of h.textContent.matchAll(/(\d+) ([+−×]) (\d+) = \d+/g)) {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'demo-btn'; b.textContent = '▶ 看動畫';
-      b.setAttribute('aria-label', `看 ${m[1]} ${m[2]} ${m[3]} 的撥珠動畫`);
-      b.setAttribute('aria-controls', 'demo-panel');
-      b.onclick = () => { demo.show(+m[1], +m[3], OP[m[2]]); open(b); };
-      h.appendChild(b);
-    }
+    const ms = [...h.textContent.matchAll(RE)];
+    if (ms.length === 1) addBtn(h, ms[0], '▶ 看動畫');
+  });
+  document.querySelectorAll('main [data-demo]').forEach(el => {
+    const src = el.dataset.demo || el.textContent;
+    const m = [...src.matchAll(RE)][0];
+    if (m) addBtn(el, m, el.dataset.demo ? `▶ 看 ${m[1]} ${m[2]} ${m[3]} 的動畫` : '▶ 看動畫');
   });
 })();
 </script>
