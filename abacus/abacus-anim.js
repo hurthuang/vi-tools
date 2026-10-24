@@ -113,8 +113,9 @@
 .abd ol{margin:10px 0 0;padding-left:1.6em;font-size:.95rem}
 .abd ol li{cursor:pointer;border-radius:4px;padding:0 4px}
 .abd ol li.on{background:var(--abd-hl);font-weight:600}
-.abd-own{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
-.abd-own input{width:5.5em;font:inherit;padding:2px 6px}
+.abd-own{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.abd-own .abd-q{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;white-space:nowrap}
+.abd-own input{width:4em;font:inherit;padding:2px 6px}
 .abd-own select{font:inherit}
 .abd-err{color:#c0392b}
 :root{--abd-wood:#4a2c12;--abd-bg:#fffdf7;--abd-rod:#5c4a36;--abd-bead:#c06a1c;--abd-edge:#3d2208;--abd-moved:#0047b3;--abd-moved-edge:#001f52;--abd-hl:#ffe9a3}
@@ -131,6 +132,11 @@
     }
     box.classList.add('abd');
     box.innerHTML = `
+      ${opts.custom ? `<form class="abd-own"><span class="abd-q">出題：
+        <input type="number" min="0" max="9999" aria-label="第一個數" required>
+        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option></select>
+        <input type="number" min="1" max="9999" aria-label="第二個數" required>
+        <button type="submit">看步驟</button></span><span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
       <p class="abd-text" aria-live="polite"></p>
@@ -141,12 +147,7 @@
         <button type="button" data-a="reset">重來</button>
         <span class="abd-count"></span>
       </div>
-      <ol></ol>
-      ${opts.custom ? `<form class="abd-own">自己出題：
-        <input type="number" min="0" max="9999" aria-label="第一個數" required>
-        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option></select>
-        <input type="number" min="1" max="9999" aria-label="第二個數" required>
-        <button type="submit">看步驟</button><span class="abd-err" role="alert"></span></form>` : ''}`;
+      <ol></ol>`;
     const frame = box.querySelector('.abd-frame'), labels = box.querySelector('.abd-labels');
     const text = box.querySelector('.abd-text'), count = box.querySelector('.abd-count'), list = box.querySelector('ol');
     const btn = a => box.querySelector(`[data-a="${a}"]`);
