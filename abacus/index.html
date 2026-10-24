@@ -37,8 +37,9 @@ button.secondary{background:transparent;color:var(--accent)}
 .problem{font-size:3.2rem;text-align:center;padding:24px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin:12px 0}
 .problem math{font-size:1em}
 .progress{color:var(--muted)}
-#answer{display:block;font-size:2rem;width:100%;max-width:24ch;margin:4px 0;text-align:left;font-family:"Segoe UI Symbol","Apple Braille",system-ui,sans-serif}
-#answer.six-on{border:2px solid var(--accent)}
+#answer,#rem{display:block;font-size:2rem;width:100%;max-width:24ch;margin:4px 0;text-align:left;font-family:"Segoe UI Symbol","Apple Braille",system-ui,sans-serif}
+#rem{max-width:10ch}
+#answer.six-on,#rem.six-on{border:2px solid var(--accent)}
 .feedback{min-height:2.2em;font-size:1.2rem;margin:12px 0;padding:8px 12px;border-radius:8px}
 .feedback.ok{color:var(--ok)}
 .feedback.bad{color:var(--bad)}
@@ -116,10 +117,12 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 <section id="practice" hidden aria-label="練習">
   <p class="progress" id="progress"></p>
   <div id="problem" class="problem" tabindex="0"></div>
-  <p class="hint" id="howto">每一題開始時，游標會直接在答案欄。答案欄前面會有題目，打完答案按 Enter 送出。打的答案也會同時顯示在上面的題目裡。按 Shift+Tab 可以回到題目再讀一次，在題目按 Enter 回到答案欄。答案可以用點顯器的點字鍵輸入，也可以用鍵盤六點輸入。</p>
+  <p class="hint" id="howto">每一題開始時，游標會直接在答案欄。答案欄前面會有題目，打完答案按 Enter 送出。打的答案也會同時顯示在上面的題目裡。按 Shift+Tab 可以回到題目再讀一次，在題目按 Enter 回到答案欄。答案可以用點顯器的點字鍵輸入，也可以用鍵盤六點輸入。除法題的答案欄是商，打完按 Enter 跳到餘數欄，再按 Enter 送出；沒有餘數時餘數欄可以不打。</p>
   <form id="answer-form" autocomplete="off">
-    <label for="answer">答案</label>
+    <label for="answer" id="answer-label">答案</label>
     <input type="text" id="answer" class="brl" inputmode="text" spellcheck="false">
+    <span id="rem-wrap" hidden><label for="rem">餘數</label>
+    <input type="text" id="rem" class="brl" inputmode="text" spellcheck="false"></span>
     <button type="submit">送出</button>
     <p class="hint" id="six-state"></p>
   </form>
@@ -254,6 +257,25 @@ function classifyMul(x, y) {
   return g + (st.every(s => s.L === '1') ? (g === '6' ? 'b' : 'a') : (g === '6' ? 'c' : 'b'));
 }
 
+// 除法（除數一位數）：從最高位開始，這一位（連同上一位剩下的）裡有幾個除數，商就寫幾，乘回來扣掉。
+// 第 8 級看題型：每一位都除得盡 → 要往下一位借來除 → 有餘數 → 商有 0 或第一位比除數小。
+// 第一位比除數小但商只有一位（28÷7、14÷3）是九九的範圍，不算 8d。
+function classifyDiv(x, y) {
+  if (x < y) return null;
+  const ds = String(x).split('').map(Number), qd = [];
+  let r = 0, borrow = false;
+  ds.forEach((v, i) => {
+    r = r * 10 + v;
+    const q = Math.floor(r / y);
+    if (qd.length || q) qd.push(q);
+    r -= q * y;
+    if (r && qd.length && i < ds.length - 1) borrow = true;
+  });
+  if (qd.includes(0) || (qd.length > 1 && qd.length < ds.length)) return '8d';
+  if (r) return '8c';
+  return borrow ? '8b' : '8a';
+}
+
 const LEVELS = [
   { id: '1',    group: '基本', name: '不動補數', desc: '珠子夠，直接撥', add: '2+2、21+3、32+15', sub: '4−3、37−5、47−21' },
   { id: '2',    group: '基本', name: '小補數（五）', desc: '下珠不夠，要動上珠', add: '3+4、23+4、12+33', sub: '8−4、16−3、56−21' },
@@ -278,6 +300,10 @@ const LEVELS = [
   { id: '7b', group: '第 7 級：兩位數 × 兩位數', name: '要用小補數', desc: '加乘積時下珠不夠，要動上珠', mul: '12×13、23×12' },
   { id: '7c', group: '第 7 級：兩位數 × 兩位數', name: '進位一次', desc: '加乘積時有一次要用大補數進位', mul: '24×13、34×12' },
   { id: '7d', group: '第 7 級：兩位數 × 兩位數', name: '進位兩次以上', desc: '進位兩次以上，或連續進位', mul: '76×58、22×48' },
+  { id: '8a', group: '第 8 級：除法（除數是一位數）', name: '每一位都除得盡', desc: '從最高位一位一位除，每一位都剛好扣完', div: '6÷2、28÷7、68÷2、486÷2' },
+  { id: '8b', group: '第 8 級：除法（除數是一位數）', name: '要往下一位借來除', desc: '這一位扣完有剩，剩下的跟下一位合起來再除', div: '52÷4、96÷4、736÷4' },
+  { id: '8c', group: '第 8 級：除法（除數是一位數）', name: '有餘數', desc: '除到個位還有剩，剩下的比除數小，就是餘數', div: '7÷2、14÷3、86÷4' },
+  { id: '8d', group: '第 8 級：除法（除數是一位數）', name: '商有 0，或第一位比除數小', desc: '不夠除的那一位商要打 0；第一位不夠除時跟下一位合起來看', div: '80÷4、412÷4、240÷6、619÷3' },
 ];
 
 // 1～4 級的題型（數字有幾位），每一級在設定頁分別選。
@@ -285,7 +311,10 @@ const FORMS = [
   { id: 'F1', name: '20 以內', ex: '3+4、12+5、12−8' },
   { id: 'F2', name: '兩位數 ± 一位數', ex: '23+4、15+7、41−7' },
   { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
+  { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
+  { id: 'D3', name: '三位數 ÷ 一位數', ex: '486÷2、736÷4' },
 ];
+const divForm = x => x >= 100 ? 'D3' : 'D2';
 // 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
 function formOf(x, y, op) {
   const r = op === '+' ? x + y : x - y;
@@ -297,6 +326,7 @@ function inRange(lv, x, y, op) {
   if (lv.startsWith('6')) return x >= 2 && x <= 99 && y >= 2 && y <= 9;
   // 第 7 級不出有 0 的數（× 10、× 20 其實是第 6 級的撥法）
   if (lv.startsWith('7')) return x >= 11 && x <= 99 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
+  if (lv.startsWith('8')) return y >= 2 && y <= 9 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
   if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
@@ -306,10 +336,11 @@ function inRange(lv, x, y, op) {
   return x >= 10 && x <= 199 && y >= 10 && y <= 99;
 }
 
-// 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']。1～4 級以外題型是 null。
+// 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']，除法放在 bank['÷']。
+// 題型只有 1～4 級（F1～F3）和第 8 級（D2、D3）有，其他是 null。
 function buildBank() {
-  const bank = { '+': {}, '-': {}, '×': {} };
-  for (const lv of LEVELS) { bank['+'][lv.id] = []; bank['-'][lv.id] = []; bank['×'][lv.id] = []; }
+  const bank = { '+': {}, '-': {}, '×': {}, '÷': {} };
+  for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
   for (const op of ['+', '-']) {
     for (let x = 1; x <= 999; x++) {
       for (let y = 1; y <= 99; y++) {
@@ -324,6 +355,10 @@ function buildBank() {
     const lv = classifyMul(x, y);
     if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, null]);
   }
+  for (let x = 2; x <= 999; x++) for (let y = 2; y <= 9; y++) {
+    const lv = classifyDiv(x, y);
+    if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, divForm(x)]);
+  }
   return bank;
 }
 
@@ -337,7 +372,7 @@ function parseAnswer(raw) {
   return { hasSign: m[1] === '#', value: parseInt(m[2], 10) };
 }
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyMul, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyMul, classifyDiv, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS };
 </script>
 
 <!-- ===== 介面 ===== -->
@@ -355,6 +390,13 @@ const FORM_CHOICES = [
   ['F1 F2', '20 以內＋兩位數 ± 一位數'],
   ['F1 F2 F3', '全部'],
 ];
+// 第 8 級（除法）的題型選單：被除數幾位
+const DIV_CHOICES = [
+  ['D2', '兩位數以內 ÷ 一位數'],
+  ['D3', '三位數 ÷ 一位數'],
+  ['D2 D3', '全部'],
+];
+const hasForm = id => !!RANK[id] || id.startsWith('8');
 const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
 // 第 5、6、7 級的題型是固定的，表格上直接寫出來
 function fixedForm(id) {
@@ -374,15 +416,15 @@ const pool = (op, lv) => { const f = formsFor(lv); return getBank()[op][lv].filt
 let session = null;
 
 // ---- 設定畫面 ----
-// 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法）。勾選框的值是「級別|運算」，例如 2|+。
-const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul']];
+// 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8 級是除法）。勾選框的值是「級別|運算」，例如 2|+。
+const OPS = [['+', '加法', 'add'], ['-', '減法', 'sub'], ['×', '乘法', 'mul'], ['÷', '除法', 'div']];
 function renderLevels() {
   const prev = new Set([...document.querySelectorAll('#level-list input:checked')].map(i => i.value));
   const prevForm = Object.fromEntries([...document.querySelectorAll('#level-list select')].map(s => [s.dataset.lv, s.value]));
   const first = !document.querySelector('#level-list input');
   const open = new Set([...document.querySelectorAll('#level-list details[open]')].map(d => d.dataset.lv));
-  // 第 5、6、7 級各收在一個可以展開的標題下，預設收合
-  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數' };
+  // 第 5～8 級各收在一個可以展開的標題下，預設收合
+  const FOLD = { '5': '第 5 級：進位借位延伸、多位數', '6': '第 6 級：乘法', '7': '第 7 級：兩位數 × 兩位數', '8': '第 8 級：除法（除數是一位數）' };
   const groups = [];
   for (const lv of LEVELS) {
     const g = groups[groups.length - 1];
@@ -401,9 +443,9 @@ function renderLevels() {
       <tr><th scope="col">級別</th><th scope="col">題型</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
     for (const lv of g.levels) {
       html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
-      if (RANK[lv.id]) {
-        const cur = prevForm[lv.id] || 'F1';
-        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${FORM_CHOICES.map(([v, t]) =>
+      if (hasForm(lv.id)) {
+        const div = lv.id.startsWith('8'), cur = prevForm[lv.id] || (div ? 'D2' : 'F1');
+        html += `<td><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(div ? DIV_CHOICES : FORM_CHOICES).map(([v, t]) =>
           `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
       } else html += `<td>${fixedForm(lv.id)}</td>`;
       for (const [op, name, key] of ops) {
@@ -430,15 +472,15 @@ function updateCounts() {
     s.textContent = `（${list.length} 題）`;
     const f = formsFor(lv);
     if (!f) continue;
-    const key = op === '+' ? 'add' : 'sub';
+    const key = { '+': 'add', '-': 'sub', '÷': 'div' }[op];
     const lvObj = LEVELS.find(l => l.id === lv);
     // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
-    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−]/).map(Number); return formOf(x, y, op) === id; })
+    const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x) : formOf(x, y, op)) === id; })
       || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
     document.querySelector(`#level-list .ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
   }
 }
-// 收合時也看得出第 5、6、7 級各勾了幾項
+// 收合時也看得出第 5～8 級各勾了幾項
 function countLv5() {
   for (const d of document.querySelectorAll('#level-list details')) {
     const all = [...d.querySelectorAll('input')];
@@ -451,7 +493,7 @@ $('level-list').addEventListener('change', e => { if (e.target.tagName === 'SELE
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-// picks：勾選的「級別|運算」，例如 ['2|+', '2|-', '6b|×']
+// picks：勾選的「級別|運算」，例如 ['2|+', '2|-', '6b|×', '8a|÷']
 function makeProblems(picks, count) {
   const pools = [];
   for (const [lv, op] of picks.map(v => v.split('|'))) {
@@ -485,7 +527,10 @@ function makeProblems(picks, count) {
   });
 }
 
-const calc = p => p.op === '+' ? p.x + p.y : p.op === '-' ? p.x - p.y : p.x * p.y;
+// 除法的 calc 是商，餘數另外算
+const calc = p => p.op === '+' ? p.x + p.y : p.op === '-' ? p.x - p.y : p.op === '×' ? p.x * p.y : Math.floor(p.x / p.y);
+const remOf = p => p.op === '÷' ? p.x % p.y : 0;
+const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 
 function startSession(problems) {
   session = {
@@ -497,7 +542,7 @@ function startSession(problems) {
     sound: $('sound').checked,
     pre: document.querySelector('input[name=pre]:checked').value,
     started: new Date(),
-    problems: problems.map(p => ({ ...p, answer: calc(p), tries: [], correct: false, done: false })),
+    problems: problems.map(p => ({ ...p, answer: calc(p), rem: remOf(p), tries: [], correct: false, done: false })),
     idx: 0,
   };
   clearPreview();
@@ -515,7 +560,7 @@ function showPreview() {
   if (!problems) return;
   previewProblems = problems;
   $('preview-list').innerHTML = problems.map(p =>
-    `<li>${p.x} ${sym(p.op)} ${p.y} = ${calc(p)}（${p.lv} 級）</li>`).join('');
+    `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${p.lv} 級）</li>`).join('');
   $('preview').hidden = false;
   $('preview-title').focus();
 }
@@ -547,13 +592,13 @@ function newProblems() {
 }
 
 // ---- 練習畫面 ----
-const sym = op => ({ '+': '+', '-': '−', '×': '×' })[op];
+const sym = op => ({ '+': '+', '-': '−', '×': '×', '÷': '÷' })[op];
 function exprMath(p, withAnswer) {
-  const ans = withAnswer ? `<mn>${p.answer}</mn>` : '';
+  const ans = withAnswer ? `<mn>${p.answer}</mn>` + (p.rem ? `<mtext>餘</mtext><mn>${p.rem}</mn>` : '') : '';
   return `<math display="block"><mn>${p.x}</mn><mo>${sym(p.op)}</mo><mn>${p.y}</mn><mo>=</mo>${ans}</math>`;
 }
 function exprText(p, withAnswer) {
-  return `${p.x}${p.op}${p.y}=${withAnswer ? p.answer : ''}`;
+  return `${p.x}${p.op}${p.y}=${withAnswer ? p.answer + (p.rem ? ` 餘 ${p.rem}` : '') : ''}`;
 }
 const expr = (p, w) => session.fmt === 'mathml' ? exprMath(p, w) : exprText(p, w);
 
@@ -564,16 +609,17 @@ function typedShown(raw) {
 }
 function renderProblem() {
   const p = session.problems[session.idx];
-  const t = typedShown(answerPart());
-  if (session.fmt !== 'mathml') { $('problem').textContent = exprText(p, false) + t; return; }
-  const ans = !t ? '' : /^\d+$/.test(t) ? `<mn>${t}</mn>` : `<mtext>${escapeHtml(t)}</mtext>`;
+  const t = typedShown(answerPart()), r = p.op === '÷' ? typedShown($('rem').value) : '';
+  if (session.fmt !== 'mathml') { $('problem').textContent = exprText(p, false) + t + (r ? ` 餘 ${r}` : ''); return; }
+  const node = v => /^\d+$/.test(v) ? `<mn>${v}</mn>` : `<mtext>${escapeHtml(v)}</mtext>`;
+  const ans = (t ? node(t) : '') + (r ? `<mtext>餘</mtext>${node(r)}` : '');
   $('problem').innerHTML = exprMath(p, false).replace('</math>', ans + '</math>');
 }
 
 // Nemeth：開頭要數字記號，運算符號後面的數字不用；等號前後空一格。21−6= → ⠼⠆⠂⠤⠖⠀⠨⠅
 const nemNum = n => [...String(n)].map(d => NEMETH_DIGITS[d]).join('');
 function exprNemeth(p) {
-  return '⠼' + nemNum(p.x) + ({ '+': '⠬', '-': '⠤', '×': '⠈⠡' })[p.op] + nemNum(p.y) + '⠀⠨⠅';
+  return '⠼' + nemNum(p.x) + ({ '+': '⠬', '-': '⠤', '×': '⠈⠡', '÷': '⠨⠌' })[p.op] + nemNum(p.y) + '⠀⠨⠅';
 }
 
 // 答案欄前面放題目（學生不能改），送出時只取後面的答案。
@@ -585,12 +631,16 @@ function answerPrefix(p) {
 }
 const answerPart = () => { const v = $('answer').value; return v.startsWith(prefix) ? v.slice(prefix.length) : lastAns; };
 function selectAnswer() { const el = $('answer'); el.focus(); el.setSelectionRange(prefix.length, el.value.length); }
+function selectRem() { const el = $('rem'); el.focus(); el.select(); }
 
 function showProblem() {
   const p = session.problems[session.idx];
   $('progress').textContent = `第 ${session.idx + 1} 題，共 ${session.problems.length} 題`;
   prefix = answerPrefix(p); lastAns = '';
   $('answer').value = prefix;
+  const div = p.op === '÷';
+  $('answer-label').textContent = div ? '商' : '答案';
+  $('rem-wrap').hidden = !div; $('rem').value = ''; $('rem').disabled = false;
   renderProblem();
   $('answer').disabled = false;
   $('answer-form').hidden = false;
@@ -608,7 +658,7 @@ function say(msg, kind) {
 
 function finish(p, ok, msg) {
   p.done = true; p.correct = ok;
-  $('answer').disabled = true;
+  $('answer').disabled = true; $('rem').disabled = true;
   $('answer-form').hidden = true;
   const last = session.idx === session.problems.length - 1;
   if (ok) {
@@ -630,23 +680,35 @@ $('answer-form').addEventListener('submit', e => {
   e.preventDefault();
   const p = session.problems[session.idx];
   if (p.done) return;
+  const div = p.op === '÷';
   const raw = answerPart();
-  if (!raw.replace(/[\s⠀]/g, '')) { say('還沒有打答案。', 'bad'); return; }
+  if (!raw.replace(/[\s⠀]/g, '')) { say(div ? '還沒有打商。' : '還沒有打答案。', 'bad'); gotoAnswer(); return; }
   const a = parseAnswer(raw);
-  if (!a) { say('看不懂這個答案。請打數字記號（點 3456）和數字，例如 #15。', 'bad'); selectAnswer(); return; }
-  const signOk = a.hasSign || !session.needSign;
-  const valueOk = a.value === p.answer;
-  p.tries.push({ raw, value: a.value, hasSign: a.hasSign });
+  if (!a) { say(`看不懂這個${div ? '商' : '答案'}。請打數字記號（點 3456）和數字，例如 #15。`, 'bad'); selectAnswer(); return; }
+  // 除法：商打完按 Enter 先跳到餘數欄，在餘數欄按 Enter 才送出。餘數欄空白當作沒有餘數。
+  if (div && document.activeElement !== $('rem')) { $('rem').focus(); return; }
+  let r = { hasSign: true, value: 0 }, rRaw = '';
+  if (div && (rRaw = $('rem').value.trim()).replace(/[\s⠀]/g, '')) {
+    r = parseAnswer(rRaw);
+    if (!r) { say('看不懂這個餘數。請打數字記號（點 3456）和數字，例如 #2；沒有餘數可以不打。', 'bad'); selectRem(); return; }
+  }
+  const hasSign = a.hasSign && r.hasSign;
+  const signOk = hasSign || !session.needSign;
+  const qOk = a.value === p.answer, rOk = r.value === p.rem;
+  const valueOk = qOk && rOk;
+  p.tries.push(div ? { raw: raw.trim() + (rRaw ? ` 餘 ${rRaw}` : ''), value: a.value, rem: r.value, hasSign } : { raw, value: a.value, hasSign });
   if (valueOk && signOk) { sound('up'); finish(p, true); return; }
   sound('down');
   const left = MAX_TRIES - p.tries.length;
+  const wrong = !div ? '答錯了' : !qOk && !rOk ? '商和餘數都不對' : !qOk ? '商不對' : '商對了，餘數不對';
   let msg;
   if (valueOk) msg = '數字對了，但是少打數字記號。';
-  else if (!signOk) msg = '答錯了，也少打數字記號。';
-  else msg = '答錯了。';
+  else if (!signOk) msg = `${wrong}，也少打數字記號。`;
+  else msg = `${wrong}。`;
+  if (div && r.value >= p.y) msg += '餘數要比除數小。';
   if (left <= 0) { finish(p, false, msg); return; }
   say(`${msg}再試一次，還有 ${left} 次機會。`, 'bad');
-  selectAnswer();
+  if (div && qOk && !rOk) selectRem(); else selectAnswer();
 });
 
 $('next').onclick = () => {
@@ -685,7 +747,7 @@ const SOUNDS = {
 function sound(name) { if (session && session.sound) SOUNDS[name](); }
 
 // ---- 結果 ----
-const OPNAME = { '+': ' 加', '-': ' 減', '×': ' 乘' };
+const OPNAME = { '+': ' 加', '-': ' 減', '×': ' 乘', '÷': ' 除' };
 function showResult() {
   if (session.problems.every(p => p.done)) sound('done');   // 全部做完才慶祝，中途結束不放
   const done = session.problems.filter(p => p.done);
@@ -748,7 +810,7 @@ $('export-txt').onclick = () => {
   const lines = ['珠算練習題目' + (student ? `（${student}）` : ''), new Date().toLocaleString('zh-TW'), '', '題目'];
   ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} =`));
   lines.push('', '答案');
-  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${calc(p)}（${p.lv} 級，${formName(p.form) || fixedForm(p.lv)}）`));
+  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${p.lv} 級，${formName(p.form) || fixedForm(p.lv)}）`));
   saveFile(`珠算題目_${student || '練習'}_${stampOf(new Date())}.txt`, '﻿' + lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8');
 };
 // .brl：每行一題。題號照慣用寫法用上位數字加點 256，例如 1. 是 ⠼⠁⠲。每頁 25 行，換頁用 form feed。
@@ -770,7 +832,7 @@ $('download').onclick = () => {
   session.problems.forEach((p, i) => {
     if (!p.done) return;
     const tr = [0, 1, 2].map(k => p.tries[k] ? showTry(p.tries[k]) : '');
-    rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), p.answer, p.lv, formName(p.form) || fixedForm(p.lv), ...tr,
+    rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), ansText(p), p.lv, formName(p.form) || fixedForm(p.lv), ...tr,
       p.correct ? '對' : '錯', p.tries.length, p.tries.filter(t => !t.hasSign).length]);
   });
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -786,7 +848,7 @@ const held = new Set();
 
 function setSix(on, announce) {
   sixOn = on;
-  $('answer').classList.toggle('six-on', on);
+  $('answer').classList.toggle('six-on', on); $('rem').classList.toggle('six-on', on);
   $('six-state').textContent = on ? '六點輸入：開（Ctrl+B 關閉）' : '六點輸入：關（Ctrl+B 開啟）';
   held.clear(); chord = 0;
   if (announce) echo(on ? '六點輸入開' : '六點輸入關');
@@ -807,9 +869,11 @@ function echo(msg) {
   setTimeout(() => { el.textContent = msg; }, 30);
 }
 
+// 答案欄前面有題目（prefix），餘數欄沒有
+const preLen = el => el.id === 'answer' ? prefix.length : 0;
 // 刪掉游標前一格（或選取的部分），但不會刪到前面的題目。
-function eraseCell() {
-  const el = $('answer'), P = prefix.length;
+function eraseCell(el) {
+  const P = preLen(el);
   let s = el.selectionStart, e = el.selectionEnd;
   if (s === e) s = e - 1;
   s = Math.max(s, P);
@@ -821,16 +885,15 @@ function eraseCell() {
 }
 const submitAnswer = () => $('answer-form').requestSubmit();
 // 一次按鍵（和弦）放開後：點 7 單獨刪除、點 8 單獨送出，其他只取點 1～6。
-function chordDone(bits) {
-  if (bits === 0x40) eraseCell();
+function chordDone(el, bits) {
+  if (bits === 0x40) eraseCell(el);
   else if (bits === 0x80) submitAnswer();
-  else if (bits & 0x3f) insertCell(bits & 0x3f);
+  else if (bits & 0x3f) insertCell(el, bits & 0x3f);
 }
 
-function insertCell(bits) {
-  const el = $('answer');
+function insertCell(el, bits) {
   const c = String.fromCodePoint(0x2800 + bits);
-  const P = prefix.length;
+  const P = preLen(el);
   const s = Math.max(el.selectionStart, P), e = Math.max(el.selectionEnd, P);
   el.value = el.value.slice(0, s) + c + el.value.slice(e);
   el.selectionStart = el.selectionEnd = s + 1;
@@ -857,8 +920,9 @@ $('answer').addEventListener('focus', () => {
 const toBraille = str => MB.brf.toUnicode(str.normalize('NFKC'), { blankCell: true });
 
 // 保護前面的題目：不能刪、不能在題目中間打字；打進來的 ASCII 換成點字。
-$('answer').addEventListener('beforeinput', e => {
-  const el = $('answer'), P = prefix.length;
+const brlInputs = [$('answer'), $('rem')];
+brlInputs.forEach(inp => inp.addEventListener('beforeinput', e => {
+  const el = e.currentTarget, P = preLen(el);
   const s = el.selectionStart, t = el.selectionEnd;
   if (e.inputType.startsWith('delete')) {
     if (!P) return;
@@ -868,7 +932,7 @@ $('answer').addEventListener('beforeinput', e => {
   }
   if (e.inputType !== 'insertText' || e.data == null || (sixOn && held.size)) return;
   // 點顯器若把點 7、點 8 單獨送成點字字元，也當作 Backspace、Enter。
-  if (e.data === '⡀') { e.preventDefault(); eraseCell(); return; }
+  if (e.data === '⡀') { e.preventDefault(); eraseCell(el); return; }
   if (e.data === '⢀') { e.preventDefault(); submitAnswer(); return; }
   const d = toBraille(e.data);
   if (d === e.data && s >= P) return;
@@ -877,7 +941,8 @@ $('answer').addEventListener('beforeinput', e => {
   el.value = el.value.slice(0, a) + d + el.value.slice(b);
   el.setSelectionRange(a + d.length, a + d.length);
   el.dispatchEvent(new Event('input', { bubbles: true }));
-});
+}));
+$('rem').addEventListener('input', renderProblem);
 $('answer').addEventListener('input', () => {
   const el = $('answer');
   if (el.value.startsWith(prefix)) lastAns = el.value.slice(prefix.length);
@@ -888,34 +953,36 @@ $('answer').addEventListener('input', () => {
   renderProblem();
 });
 
-$('answer').addEventListener('keydown', e => {
-  if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === 'KeyB') { e.preventDefault(); setSix(!sixOn, true); return; }
-  if (!sixOn || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.code in SIX_BITS) {
+brlInputs.forEach(inp => {
+  inp.addEventListener('keydown', e => {
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === 'KeyB') { e.preventDefault(); setSix(!sixOn, true); return; }
+    if (!sixOn || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.code in SIX_BITS) {
+      e.preventDefault();
+      if (!e.repeat) { held.add(e.code); chord |= SIX_BITS[e.code]; }
+      return;
+    }
+    if (e.code === 'Space') { e.preventDefault(); insertCell(inp, 0); }
+  });
+  inp.addEventListener('keyup', e => {
+    if (!sixOn || !(e.code in SIX_BITS)) return;
     e.preventDefault();
-    if (!e.repeat) { held.add(e.code); chord |= SIX_BITS[e.code]; }
-    return;
-  }
-  if (e.code === 'Space') { e.preventDefault(); insertCell(0); }
+    held.delete(e.code);
+    if (held.size === 0 && chord) { const b = chord; chord = 0; chordDone(inp, b); }
+  });
+  // 中文輸入法開著時 keydown 擋不住字母，這裡再擋一次。
+  inp.addEventListener('beforeinput', e => {
+    if (sixOn && held.size && e.inputType.startsWith('insert')) e.preventDefault();
+  });
+  inp.addEventListener('compositionstart', () => {
+    if (sixOn) echo('請把輸入法切到英文，六點輸入才能用');
+  });
+  inp.addEventListener('blur', () => { held.clear(); chord = 0; });
 });
-$('answer').addEventListener('keyup', e => {
-  if (!sixOn || !(e.code in SIX_BITS)) return;
-  e.preventDefault();
-  held.delete(e.code);
-  if (held.size === 0 && chord) { const b = chord; chord = 0; chordDone(b); }
-});
-// 中文輸入法開著時 keydown 擋不住字母，這裡再擋一次。
-$('answer').addEventListener('beforeinput', e => {
-  if (sixOn && held.size && e.inputType.startsWith('insert')) e.preventDefault();
-});
-$('answer').addEventListener('compositionstart', () => {
-  if (sixOn) echo('請把輸入法切到英文，六點輸入才能用');
-});
-$('answer').addEventListener('blur', () => { held.clear(); chord = 0; });
 
 // 紀錄裡顯示學生打的點字，後面加上讀成的數字，例如 ⠼⠂⠢（#15）
 function showTry(t) {
-  const plain = (t.hasSign ? '#' : '') + t.value;
+  const plain = (t.hasSign ? '#' : '') + t.value + (t.rem ? ` 餘 ${t.rem}` : '');
   return t.raw.trim() === plain ? plain : `${t.raw.trim()}（${plain}）`;
 }
 

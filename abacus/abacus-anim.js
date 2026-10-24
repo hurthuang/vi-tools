@@ -1,8 +1,9 @@
 /*
- * 撥珠動畫：把一題加、減、乘法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
+ * 撥珠動畫：把一題加、減、乘、除法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
  * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位；
  * 兩位數乘數一行一行做（76 × 58 先算 76 × 8，再算 76 × 5），跟出題頁 mulTrace 同順序。
  * 順序照出題頁的 trace()：從個位往左，進位、借位時先動左邊一檔，再回來用補數修正。
+ * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列），乘回來扣的時候從低位撥。
  * abacusSteps(x, y, op) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
 (function (g) {
@@ -13,9 +14,9 @@
     const d = String(op === '×' ? 0 : x).split('').reverse().map(Number);
     while (d.length < 6) d.push(0);
     const steps = [{ d: d.slice(), moved: [], text: `算盤上撥好 ${x}。` }];
-    let pending = '';
+    let pending = '', qs = '', mark = -1;   // qs、mark 只有除法用
     const push = (moved, text) => {
-      steps.push({ d: d.slice(), moved, text: pending + text });
+      steps.push(op === '÷' ? { d: d.slice(), moved, text: pending + text, q: qs, mark } : { d: d.slice(), moved, text: pending + text });
       pending = '';
     };
 
@@ -105,6 +106,36 @@
         pending += p >= 10 ? `，${Math.floor(p / 10)} 加在${PLACE[k + 1]}、${p % 10} 加在${R}：` : `，加在${R}：`;
         apply(p, k, add, '加', false, true);
       });
+    } else if (op === '÷') {
+      // 除法（除數一位數）：算盤只放被除數，除數和商記在點顯器上。從最高位開始，
+      // 這一位（連同上一位剩下的）裡有幾個除數，商就打幾；乘回來從算盤扣掉，扣的時候跟減法一樣從低位撥。
+      // 每一步多記 q（點顯器上已經打的商）和 mark（點顯器標記的那一位）。
+      const ds = String(x).split('').map(Number), n = ds.length;
+      steps[0].text = `算盤上撥好 ${x}。除數 ${y} 記在點顯器上，從最高位開始除，商一位一位打在點顯器上。`;
+      steps[0].q = ''; steps[0].mark = n - 1;
+      let r = 0;
+      ds.forEach((v, idx) => {
+        const k = n - 1 - idx, R = PLACE[k];
+        mark = k; r = r * 10 + v;
+        const look = r !== v ? `${R}連同剩下的是 ${r}` : `${R}是 ${r}`;
+        if (r < y) {
+          if (!qs) { pending += `${look}，比 ${y} 小，不夠除，商的${R}不用打，跟${PLACE[k - 1]}合起來看。`; return; }
+          qs += '0';
+          push([], `${look}，${r ? `比 ${y} 小` : `0 裡沒有 ${y}`}，不夠除，商的${R}要打 0。${k && r ? `${r} 留著，跟${PLACE[k - 1]}合起來看。` : ''}`);
+          return;
+        }
+        const q = Math.floor(r / y), p = q * y;
+        qs += q;
+        pending += `${look}：${r} 裡有 ${q} 個 ${y}，商的${R}打 ${q}。${q} × ${y} = ${p}，算盤上扣掉 ${p}：`;
+        apply(p, k, sub, '減');
+        r -= p;
+        steps[steps.length - 1].text += r ? `剩下 ${r}${k ? `，跟${PLACE[k - 1]}合起來看` : ''}。` : k ? '剛好扣完。' : '';
+      });
+      mark = -1;
+      const last = steps[steps.length - 1];
+      last.mark = -1;
+      last.text += r ? `除完了，算盤上剩下 ${r}，比 ${y} 小，就是餘數。答案 ${qs} 餘 ${r}。` : `除完了，算盤上清空，沒有餘數。答案 ${qs}。`;
+      return steps;
     } else {
       apply(y, 0, op === '+' ? add : sub, op === '+' ? '加' : '減');
     }
@@ -126,6 +157,9 @@
 .abd-labels span{position:absolute;width:56px;margin-left:-28px;text-align:center;color:var(--muted)}
 .abd-labels span b{display:block;font-size:1.1rem;color:var(--fg)}
 .abd-labels span.on{color:var(--abd-moved);font-weight:700}
+.abd-quo{margin:6px auto 0;font-size:1rem;text-align:center}
+.abd-quo b{display:inline-block;min-width:1.4em;padding:0 4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);font-size:1.15rem;letter-spacing:.15em}
+.abd-labels span.cur b{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:3px}
 .abd-text{min-height:3.4em;margin:8px 0 4px;font-size:1.05rem}
 .abd-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .abd button{font:inherit;font-size:.95rem;padding:4px 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
@@ -155,11 +189,12 @@
     box.innerHTML = `
       ${opts.custom ? `<form class="abd-own"><span class="abd-q">出題：
         <input type="number" min="0" max="9999" aria-label="第一個數" required>
-        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option></select>
+        <select aria-label="運算"><option value="+">＋</option><option value="-">－</option><option value="×">×</option><option value="÷">÷</option></select>
         <input type="number" min="1" max="9999" aria-label="第二個數" required>
         <button type="submit">看步驟</button></span><span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
+      <p class="abd-quo" aria-hidden="true" hidden></p>
       <p class="abd-text" aria-live="polite"></p>
       <div class="abd-bar">
         <button type="button" data-a="prev">上一步</button>
@@ -170,13 +205,15 @@
       </div>
       <ol></ol>`;
     const frame = box.querySelector('.abd-frame'), labels = box.querySelector('.abd-labels');
-    const text = box.querySelector('.abd-text'), count = box.querySelector('.abd-count'), list = box.querySelector('ol');
+    const quo = box.querySelector('.abd-quo'), text = box.querySelector('.abd-text'), count = box.querySelector('.abd-count'), list = box.querySelector('ol');
     const btn = a => box.querySelector(`[data-a="${a}"]`);
-    let steps = [], i = 0, rods = 0, beads = [], timer = null;
+    let steps = [], i = 0, rods = 0, beads = [], timer = null, divisor = 0;
 
     function load(x, y, op) {
       stop();
       steps = abacusSteps(x, y, op);
+      divisor = op === '÷' ? y : 0;
+      quo.hidden = !divisor;
       const top = Math.max(x, op === '+' ? x + y : op === '×' ? x * y : x);
       rods = Math.max(2, String(top).length);
       const w = rods * ROD;
@@ -213,7 +250,10 @@
         for (let b = 1; b <= 4; b++) set[b].classList.toggle('moved', mv && (b <= prev % 5) !== (b <= low));
         const lab = labels.children[rods - 1 - k];
         lab.classList.toggle('on', mv); lab.querySelector('b').textContent = v;
+        lab.classList.toggle('cur', !!divisor && s.mark === k);
       }
+      // 除法：模擬點顯器，除數和已經打的商；算盤上正在除的那一位加底線（點顯器上的第 7、8 點標記）
+      if (divisor) quo.innerHTML = `點顯器：除數 <b>${divisor}</b>　商 <b>${s.q || '&nbsp;'}</b>`;
       text.textContent = s.text;
       count.textContent = `第 ${i + 1} 步，共 ${steps.length} 步`;
       [...list.children].forEach((li, j) => li.classList.toggle('on', j === i));
@@ -243,6 +283,8 @@
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
         if (op === '×' && (y > 99 || x > (y > 9 ? 99 : 999))) { err.textContent = '乘法目前做到三位數 × 一位數、兩位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
+        if (op === '÷' && y > 9) { err.textContent = '除法目前做到除數是一位數；二位數除數的撥法還沒整理'; return; }
+        if (op === '÷' && x < y) { err.textContent = '被除數不能比除數小'; return; }
         load(x, y, op);
       };
     }

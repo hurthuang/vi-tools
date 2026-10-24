@@ -141,7 +141,7 @@ nav ul{columns:2;column-gap:24px}
 
 <h2 id="levels">依難度分級</h2>
 <div class="box">
-  <p><strong>級別</strong>：看撥珠時最難的那一步。1～4 級是一位數就會遇到的撥法；第 5 級是一位數碰不到、只有多位數才會出現的情況；第 6 級是乘一位數，第 7 級是兩位數 × 兩位數。</p>
+  <p><strong>級別</strong>：看撥珠時最難的那一步。1～4 級是一位數就會遇到的撥法；第 5 級是一位數碰不到、只有多位數才會出現的情況；第 6 級是乘一位數，第 7 級是兩位數 × 兩位數，第 8 級是除法（除數是一位數）。</p>
   <p><strong>題型</strong>：數字有幾位，和級別分開。1～4 級每一級都可以選「20 以內」「兩位數 ± 一位數」「兩位數 ± 兩位數」。</p>
   <p><strong>不出答案是 0 的題目</strong>，例如 1 − 1、11 − 11。</p>
 </div>
@@ -207,6 +207,18 @@ nav ul{columns:2;column-gap:24px}
   <tr><td>7d</td><td>進位兩次以上，或連續進位</td><td>76×58、22×48</td></tr>
 </table></div>
 
+<h3>第 8 級：除法（除數是一位數）</h3>
+<p>從最高位開始，這一位（連同上一位剩下的）裡有幾個除數，商就打幾，再把「商 × 除數」從算盤上扣掉；扣的時候跟減法一樣從低位撥。商打在點顯器上（見<a href="#muldiv">乘法與除法</a>）。每一步的「扣」就是減法，撥珠難度 1～5 級已經練過，所以第 8 級<strong>看題型</strong>分級，順序參考文部科學省〈珠算編〉第 4 章。被除數可以選兩位數以內或三位數，除數 2～9。</p>
+<div class="scroll"><table>
+  <caption>第 8 級</caption>
+  <tr><th scope="col">等級</th><th scope="col">類型</th><th scope="col">例題</th></tr>
+  <tr><td>8a</td><td>每一位都除得盡</td><td>6÷2、28÷7、68÷2、486÷2</td></tr>
+  <tr><td>8b</td><td>要往下一位借來除（這一位扣完有剩）</td><td>52÷4、96÷4、736÷4</td></tr>
+  <tr><td>8c</td><td>有餘數</td><td>7÷2、14÷3、86÷4</td></tr>
+  <tr><td>8d</td><td>商有 0，或第一位比除數小</td><td>80÷4、412÷4、240÷6、619÷3</td></tr>
+</table></div>
+<p>一題同時有好幾種情況時，歸到後面的級別（例如有餘數又要往下一位借，算 8c；商有 0 又有餘數，算 8d）。28÷7、14÷3 這種第一位不夠除、但商只有一位的題目是九九的範圍，不算 8d。二位數除數要估商、會估太大，之後做成第 9 級。</p>
+
 <h3>全部個位組合</h3>
 <p>一位數的加法、減法各 81 種（不含答案是 0 的題目）。可直接拿來出題；減法 3～4 級前面有十位 1，實際出題時十位可以換成其他數，但避開 5 和 0；加法若在前面加上十位，則避開 4 和 9，以免變成第 5 級。</p>
 <div class="scroll"><table>
@@ -233,6 +245,8 @@ nav ul{columns:2;column-gap:24px}
   <tr><td>兩位數進位：28+2、27+18、37+28，特別提醒「注意十位的計算」</td><td>3、4 級的兩位數題型，以及 5d</td></tr>
   <tr><td>連續進位：93+8、105−9</td><td>5c</td></tr>
   <tr><td>第 3 卷：乘法，2×3 → 20×3 → 34×2 → 16×4 → 58×3、75×4</td><td>第 6 級的 6a～6d</td></tr>
+  <tr><td>第 4 章：除法，6÷2、28÷7 → 7÷2、14÷3（有餘數）→ 80÷4、68÷2、52÷4、62÷3 → 600÷3、736÷4 → 240÷6、427÷5、619÷3</td><td>第 8 級的 8a～8d</td></tr>
+  <tr><td>除法接著是二位數除數：60÷20、250÷70 → 72÷24 → 81÷27（商估太大要退回）</td><td>第 9 級（還沒做）</td></tr>
 </table></div>
 <p>和本筆記不同的地方：</p>
 <ul>
@@ -240,13 +254,15 @@ nav ul{columns:2;column-gap:24px}
   <li><strong>進位的順序</strong>：日本是「先拿掉補數，再進位」，例如 3 + 8 是「拿掉 2，十位進 1」；本筆記是「先動 10，太多了再用補數修正」。結果一樣，撥珠先後相反。</li>
   <li><strong>口訣</strong>：日本也有「たす 8 は、2 とって 10 入れる」這類說法，但放在概念說明之後，當作加快速度用，和本筆記「先理解，口訣只當參考」相近。</li>
   <li><strong>乘法的撥法</strong>：日本把被乘數撥在算盤上，一邊算一邊撥掉；本筆記不把算式放上算盤，被乘數留在點顯器上。</li>
+  <li><strong>除法的商</strong>：日本把商撥在算盤上（除數一位數時，答案的個位在被除數個位往左 2 檔）；本筆記把商打在點顯器上，不用判斷商撥在哪一檔。</li>
 </ul>
 <p class="muted">來源：<a href="https://www.mext.go.jp/component/a_menu/education/micro_detail/__icsFiles/afieldfile/2015/07/22/1358361_08.pdf">文部科學省〈珠算編〉</a>、<a href="https://www.shuzan.jp/kentei/shuzan/">日本珠算連盟珠算能力檢定試驗</a>。</p>
 
 <h2 id="page">練習頁怎麼設定</h2>
 <ul>
-  <li><strong>級數表格</strong>：每一列是一個級別，欄是加法、減法（第 6、7 級是乘法）。同一級加法、減法都勾就是加減混合。勾了好幾級時，題數平均分給各級（同一級再平均分給加、減），大多換一種，偶爾連著出同一種。第 5、6、7 級預設收合。</li>
-  <li><strong>題型選單</strong>：1～4 級每一列可以選「20 以內」「兩位數 ± 一位數」「兩位數 ± 兩位數」「20 以內＋兩位數 ± 一位數」「全部」。格子裡的題數和例題會跟著變。</li>
+  <li><strong>級數表格</strong>：每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8 級是除法）。同一級加法、減法都勾就是加減混合。勾了好幾級時，題數平均分給各級（同一級再平均分給加、減），大多換一種，偶爾連著出同一種。第 5～8 級預設收合。</li>
+  <li><strong>題型選單</strong>：1～4 級每一列可以選「20 以內」「兩位數 ± 一位數」「兩位數 ± 兩位數」「20 以內＋兩位數 ± 一位數」「全部」；第 8 級可以選「兩位數以內 ÷ 一位數」「三位數 ÷ 一位數」「全部」。格子裡的題數和例題會跟著變。</li>
+  <li><strong>除法作答</strong>：答案欄打商，按 Enter 跳到餘數欄，再按 Enter 送出；沒有餘數時餘數欄可以不打。商和餘數分開判斷，答錯時會說是哪一個不對；餘數打得比除數大，會提醒「餘數要比除數小」。</li>
   <li><strong>建議順序</strong>：每一級先用「20 以內」練熟，再換成「兩位數 ± 一位數」，最後「兩位數 ± 兩位數」，然後才往下一級。</li>
   <li><strong>先看題目、匯出</strong>：可以先預覽，匯出文字檔（附答案，給老師）或 .brl 點字檔（Nemeth，不附答案，題號用上位數字，例如 ⠼⠁⠲）。</li>
   <li><strong>結果</strong>：依「級別＋運算＋題型」分開統計，看得出是補數不熟還是位值弄錯；可下載 CSV。</li>
@@ -284,8 +300,8 @@ nav ul{columns:2;column-gap:24px}
   <li><strong>算盤只放被除數，貼右。</strong>個位在最右邊一檔，不必分區、不必數檔。除數留在點顯器上。</li>
   <li><strong>從高位問「有幾個」，商打在點顯器上。</strong>商由左往右寫，和紙筆長除法一樣。</li>
   <li><strong>「扣」就是減法</strong>，在算盤上套用減法的 1～5 級。</li>
-  <li><strong>估太大就修正。</strong>先試乘再扣；例如 156÷26 先估 7，7×26=182 太大 → 改 6。說法和補數一致：「太多了，退回一個」。</li>
-  <li><strong>餘數</strong>：除完後算盤上剩下的就是餘數，在點顯器打「餘 r」。</li>
+  <li><strong>估太大就修正</strong>（二位數除數才會遇到）。先試乘再扣；例如 156÷26 先估 7，7×26=182 太大 → 改 6。說法和補數一致：「太多了，退回一個」。</li>
+  <li><strong>餘數</strong>：除完後算盤上剩下的就是餘數。練習頁的商和餘數分兩格打。</li>
 </ol>
 <p>例：96÷4</p>
 <ol>
@@ -294,9 +310,9 @@ nav ul{columns:2;column-gap:24px}
   <li>點顯器上是「24」。</li>
 </ol>
 <p><strong>注意一：每往右一位就寫一位商，0 也要寫。</strong>漏寫會錯一位（412÷4 變成 13）。核對方式：商的位數 = 被除數從開始除的那一位到個位的位數。點顯器上打出的 0 摸得到，所以 90÷3=30、400÷4=100 不會像算盤空檔那樣讀錯。</p>
-<p><strong>注意二：打字時手離開算盤，可能忘記做到哪一位。</strong>程式在被除數目前這一位加上第 7、8 點（底線），每打一位商就自動往右移。用一般鍵盤數字鍵的學生，也可以一手打字、一手留在算盤上當記號；點字鍵盤要兩手，只能靠點顯器標記。</p>
+<p><strong>注意二：打字時手離開算盤，可能忘記做到哪一位。</strong>構想是程式在被除數目前這一位加上第 7、8 點（底線），每打一位商就自動往右移（練習頁還沒做，撥珠動畫用底線示範）。用一般鍵盤數字鍵的學生，也可以一手打字、一手留在算盤上當記號；點字鍵盤要兩手，只能靠點顯器標記。</p>
 <p>備用做法（商放在算盤上時）：商的「個位」固定在有定位點的檔，第一個商用位值判斷放哪一檔（如 400÷4 的 1 放在商的百位）。不要讓商貼左，否則 90÷3 的「3 空」會摸成 3。</p>
-<p>建議順序：一位數除數且整除（如 96÷4）→ 一位數除數有餘數 → 商中間有 0（如 412÷4）→ 兩位數除數。</p>
+<p>建議順序：一位數除數且整除（如 96÷4）→ 一位數除數有餘數 → 商中間有 0（如 412÷4）→ 兩位數除數。練習頁的第 8 級照這個順序分成 8a～8d（見<a href="#levels">分級</a>），兩位數除數之後做成第 9 級。</p>
 <h3>與日本商除法教材核對</h3>
 <p>上述做法和日本現行的商除法大致相同，只有「商放哪裡」不同。</p>
 <div class="scroll"><table>
@@ -310,6 +326,13 @@ nav ul{columns:2;column-gap:24px}
 </table></div>
 <p>商用點顯器記錄是本筆記的做法，日本教材中沒有看到。它把「商放哪一檔」的問題換成「每一位都要寫一個商」，和紙筆長除法的規則一致。筑波的視障用そろばん手引き目前只公開第 1 冊（加減法），沒有找到除法冊。</p>
 <p class="muted">來源：<a href="https://kappakanjikanthari.com/soro-wari/">そろばん割り算のやり方｜位取り・片落とし・定位法</a>、<a href="https://pico-soroban.com/abacus/%E3%81%9D%E3%82%8D%E3%81%B0%E3%82%93%E3%81%AE%E4%BD%BF%E3%81%84%E6%96%B9%EF%BD%9E%E3%82%8F%E3%82%8A%E7%AE%97%E7%B7%A8%EF%BD%9E/">ピコそろばん教室：わり算編</a>、<a href="https://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q12320519912">Yahoo!知恵袋（となり／とんで）</a>、<a href="https://gakko.rdy.jp/kdb/downloadpdfdisp/100">筑波《指導の手引き1》</a>。</p>
+
+<h3>與 Cranmer 算盤手冊、巴西教育部手冊核對</h3>
+<ul>
+  <li><a href="https://archive.org/details/usingcranmerabac00byfr">Gissoni (1964)《Using the Cranmer Abacus for the Blind》</a>：商撥在算盤上、被除數左邊；位置規則是「除數不比被除數第一位大就隔一檔，比較大就緊鄰」。先教一位數除數（short division），再教二位數以上（long division），並建議用乘法驗算。它的目標是撥法「自動化、不必多想」，和本筆記先理解位值的方向不同。</li>
+  <li><a href="https://iparadigma.org.br/wp-content/uploads/Ed-incluisva-43.pdf">巴西教育部《Soroban: Manual de Técnicas Operatórias para Pessoas com Deficiência Visual》</a>（MEC/SEESP 2009，2012 年版）：同時收錄由高位往低位、<strong>由低位往高位</strong>、日本補數法三種技法。由低位往高位的那一套，除法做法和本筆記幾乎一樣：第一位不夠除時「1 個百 = 10 個十，跟十位合起來」；扣乘積時先扣低位再扣高位；左手食指移到正在除的那一位當記號。不同的是它把商記在算盤另一區，本筆記打在點顯器上。</li>
+</ul>
+<p>三份教材都先教一位數除數、再教二位數除數，都要學生除完確認「餘數比除數小」，和第 8、9 級的規劃一致。</p>
 
 <h2 id="refs">文獻清單</h2>
 <p>珠算與視障的研究不多，而且以教學實務、教師問卷和小樣本研究為主。<strong>以視障者為對象的珠心算（不用實體算盤的心算）研究，目前一篇都沒找到。</strong></p>
@@ -345,6 +368,7 @@ nav ul{columns:2;column-gap:24px}
   <tr><td><a href="https://periodicosonline.uems.br/educacaoculturalinguagem/article/view/6641">Do Ábaco ao Soroban adaptado: os benefícios para a pessoa com deficiência visual</a></td><td>文獻回顧</td><td>整理 2001–2010 年相關研究</td></tr>
   <tr><td><a href="https://www.researchgate.net/publication/314466297">O soroban na formação inicial do professor de Matemática</a></td><td>師資培育</td><td>soroban 作為視障與明眼學生共用的概念工具</td></tr>
   <tr><td><a href="https://editorarealize.com.br/editora/anais/cintedi/2016/TRABALHO_EV060_MD1_SA16_ID1184_01092016234555.pdf">Sorobã: um instrumento auxiliador ao conhecimento matemático dos deficientes visuais</a>（CINTEDI 2016）</td><td>會議論文</td><td>職前教師模擬盲生用 soroban 做加減法</td></tr>
+  <tr><td><a href="https://iparadigma.org.br/wp-content/uploads/Ed-incluisva-43.pdf">Soroban: Manual de Técnicas Operatórias para Pessoas com Deficiência Visual</a>（MEC/SEESP 2009）</td><td>教育部手冊</td><td>三種技法的四則運算，含由低位往高位的除法（見<a href="#muldiv">除法核對</a>）</td></tr>
   <tr><td><a href="https://www.academia.edu/27958315">Matemática inclusiva: o soroban no ensino de multiplicação e divisão para alunos com DV</a></td><td>教學實務</td><td>乘除法教學</td></tr>
   <tr><td><a href="https://repositorio.uema.br/handle/123456789/1816">Soroban: tecnologia assistiva para a inclusão do deficiente visual</a>（UEMA 2022）</td><td>訪談 16 位教師</td><td>soroban 有助於融合數學教學</td></tr>
   <tr><td><a href="http://www.inscricoes.fmb.unesp.br/upload/trabalhos/20188623838.pdf">A utilização do Soroban Adaptado para deficientes visuais</a>（UNESP）</td><td>報告</td><td>歷史與 2006 年部令</td></tr>
