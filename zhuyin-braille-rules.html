@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 這個檔案由 tools/build-books.mjs 從 document/教材/注音點字規則整理.md 產生，不要直接改 -->
+<title>台灣注音點字規則整理</title>
+<script src="music/js/theme.js"></script>
+<style>
+@font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--brl:#7a3e00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.7 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.6rem;margin:8px 0 4px}
+h2{font-size:1.35rem;margin:40px 0 8px;padding-top:12px;border-top:2px solid var(--line)}
+h3{font-size:1.15rem;margin:28px 0 6px}
+h4{font-size:1rem;margin:20px 0 4px}
+.lead{color:var(--muted);margin:0 0 12px}
+.bar{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin:0 0 8px;font-size:.95rem}
+.bar label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.scroll{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;background:var(--card)}
+th,td{border:1px solid var(--line);padding:4px 10px;text-align:left;vertical-align:top}
+.brl{color:var(--brl);font-size:1.15em;letter-spacing:.05em;word-break:break-all}
+html.simbrl .brl{font-family:'SimBraille';font-size:1.4em;letter-spacing:0}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;margin:12px 0}
+nav.toc>ul{margin:0;padding-left:1.2em}
+nav.toc ul ul{font-size:.92rem;columns:2 14em;margin:2px 0 8px}
+hr{display:none}
+code{font-family:Consolas,monospace}
+</style>
+</head>
+<body>
+<main>
+<div class="bar">
+  <a href="braille-translate.htm">文字轉點字</a>
+  <label><input type="checkbox" id="simbrl"> 點字用 SimBraille 字型顯示（ASCII 點字）</label>
+</div>
+<h1>台灣注音點字規則整理</h1>
+<p class="lead">國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號。標點符號的名稱、說明引用教育部《重訂標點符號手冊》，點字依教育部《點字符號彙編 國語點字》，彙編沒有定義的符號另外提出建議。原載視覺障礙輔助科技筆記本（<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/75">聲韻調、拼法</a>、<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/77">標點符號</a>）。</p>
+<nav class="toc" aria-label="目錄">
+<ul>
+<li><a href="#聲韻調拼法">聲韻調、拼法</a><ul><li><a href="#點字的點位">點字的點位</a></li><li><a href="#聲母">聲母</a></li><li><a href="#韻母">韻母</a></li><li><a href="#結合韻">結合韻</a></li><li><a href="#聲調">聲調</a></li><li><a href="#範例與換行">範例與換行</a></li></ul></li>
+<li><a href="#標點符號">標點符號</a><ul><li><a href="#括號圓括號方括號大括號">括號（圓括號、方括號、大括號）</a></li><li><a href="#連接號">連接號</a></li></ul></li>
+</ul>
+</nav>
+<h2 id="聲韻調拼法">聲韻調、拼法</h2>
+<h3 id="點字的點位">點字的點位</h3>
+<p>點字單位為「方」，每一方由左右兩排上中下共六點所組成，其點位如下</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>左排</th>
+<th>右排</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>左排上：第 1 點</td>
+<td>右排上：第 4 點</td>
+</tr>
+<tr>
+<td>左排中：第 2 點</td>
+<td>右排中：第 5 點</td>
+</tr>
+<tr>
+<td>左排下：第 3 點</td>
+<td>右排下：第 6 點</td>
+</tr>
+</tbody>
+</table></div>
+<p>點字只由六點是否凸起來做組合，共 64
+種(含全部沒有凸起)變化，數量有限；而無法用視覺閱讀的點字使用者，只能依賴拼音的方式來處理文字，故台灣的國語點字以注音符號來拼寫。</p>
+<h3 id="聲母">聲母</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>聲母</th>
+<th>點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ㄅ</td>
+<td><span class="brl">⠕</span> (135)</td>
+</tr>
+<tr>
+<td>ㄆ</td>
+<td><span class="brl">⠏</span> (1234)</td>
+</tr>
+<tr>
+<td>ㄇ</td>
+<td><span class="brl">⠍</span> (134)</td>
+</tr>
+<tr>
+<td>ㄈ</td>
+<td><span class="brl">⠟</span> (12345)</td>
+</tr>
+<tr>
+<td>ㄉ</td>
+<td><span class="brl">⠙</span> (145)</td>
+</tr>
+<tr>
+<td>ㄊ</td>
+<td><span class="brl">⠋</span> (124)</td>
+</tr>
+<tr>
+<td>ㄋ</td>
+<td><span class="brl">⠝</span> (1345)</td>
+</tr>
+<tr>
+<td>ㄌ</td>
+<td><span class="brl">⠉</span> (14)</td>
+</tr>
+<tr>
+<td>ㄍ</td>
+<td><span class="brl">⠅</span> (13)</td>
+</tr>
+<tr>
+<td>ㄎ</td>
+<td><span class="brl">⠇</span> (123)</td>
+</tr>
+<tr>
+<td>ㄏ</td>
+<td><span class="brl">⠗</span> (1235)</td>
+</tr>
+<tr>
+<td>ㄐ</td>
+<td><span class="brl">⠅</span> (13)</td>
+</tr>
+<tr>
+<td>ㄑ</td>
+<td><span class="brl">⠚</span> (245)</td>
+</tr>
+<tr>
+<td>ㄒ</td>
+<td><span class="brl">⠑</span> (15)</td>
+</tr>
+<tr>
+<td>ㄓ</td>
+<td><span class="brl">⠁</span> (1)</td>
+</tr>
+<tr>
+<td>ㄔ</td>
+<td><span class="brl">⠃</span> (12)</td>
+</tr>
+<tr>
+<td>ㄕ</td>
+<td><span class="brl">⠊</span> (24)</td>
+</tr>
+<tr>
+<td>ㄖ</td>
+<td><span class="brl">⠛</span> (1245)</td>
+</tr>
+<tr>
+<td>ㄗ</td>
+<td><span class="brl">⠓</span> (125)</td>
+</tr>
+<tr>
+<td>ㄘ</td>
+<td><span class="brl">⠚</span> (245)</td>
+</tr>
+<tr>
+<td>ㄙ</td>
+<td><span class="brl">⠑</span> (15)</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>有三組聲母點字記號相同</li>
+</ul>
+<p>ㄍ、ㄐ<span class="brl">⠀</span>共用<span class="brl">⠀⠅⠀</span>(13)<br />
+ㄑ、ㄘ<span class="brl">⠀</span>共用<span class="brl">⠀⠚⠀</span>(245)<br />
+ㄒ、ㄙ<span class="brl">⠀</span>共用<span class="brl">⠀⠑⠀</span>(15)</p>
+<p>但因之後所接的韻母或結合韻不會重複，故使用時需讀至後方韻母或結合韻，來判斷該方點字使用何種讀音。</p>
+<p>例：ㄍㄨˇ ㄐㄧˊ ，ㄍ 後面也不會接 ㄧ ， ㄐ 後面不會接 ㄨ 。</p>
+<ul>
+<li>聲母 ㄓ ㄔ ㄕ ㄖ ㄗ ㄘ ㄙ 在注音規則上能單獨成字，但又分別與英文字母
+A B E G H I J 點位相同，故單獨使用時必須先加空韻母 ㄦ <span class="brl">⠱</span> (156)
+才能加聲調。</li>
+</ul>
+<p>例：指 ㄓ(ㄦ)ˇ <span class="brl">⠁⠱⠈⠀</span>(1-156-4)</p>
+<h3 id="韻母">韻母</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>韻母</th>
+<th>點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ㄚ</td>
+<td><span class="brl">⠜</span> (345)</td>
+</tr>
+<tr>
+<td>ㄛ</td>
+<td><span class="brl">⠣</span> (126)</td>
+</tr>
+<tr>
+<td>ㄜ</td>
+<td><span class="brl">⠮</span> (2346)</td>
+</tr>
+<tr>
+<td>ㄝ</td>
+<td><span class="brl">⠢</span> (26)</td>
+</tr>
+<tr>
+<td>ㄞ</td>
+<td><span class="brl">⠺</span> (2456)</td>
+</tr>
+<tr>
+<td>ㄟ</td>
+<td><span class="brl">⠴</span> (356)</td>
+</tr>
+<tr>
+<td>ㄠ</td>
+<td><span class="brl">⠩</span> (146)</td>
+</tr>
+<tr>
+<td>ㄡ</td>
+<td><span class="brl">⠷</span> (12356)</td>
+</tr>
+<tr>
+<td>ㄢ</td>
+<td><span class="brl">⠧</span> (1236)</td>
+</tr>
+<tr>
+<td>ㄣ</td>
+<td><span class="brl">⠥</span> (136)</td>
+</tr>
+<tr>
+<td>ㄤ</td>
+<td><span class="brl">⠭</span> (1346)</td>
+</tr>
+<tr>
+<td>ㄥ</td>
+<td><span class="brl">⠵</span> (1356)</td>
+</tr>
+<tr>
+<td>ㄦ</td>
+<td><span class="brl">⠱</span> (156)</td>
+</tr>
+<tr>
+<td>ㄧ</td>
+<td><span class="brl">⠡</span> (16)</td>
+</tr>
+<tr>
+<td>ㄨ</td>
+<td><span class="brl">⠌</span> (34)</td>
+</tr>
+<tr>
+<td>ㄩ</td>
+<td><span class="brl">⠳</span> (1256)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="結合韻">結合韻</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>結合韻</th>
+<th>點字</th>
+<th>結合韻</th>
+<th>點字</th>
+<th>結合韻</th>
+<th>點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ㄧㄚ</td>
+<td><span class="brl">⠾</span> (23456)</td>
+<td>ㄨㄚ</td>
+<td><span class="brl">⠔</span> (35)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄛ</td>
+<td><span class="brl">⠴</span> (356)</td>
+<td>ㄨㄛ</td>
+<td><span class="brl">⠒</span> (25)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄝ</td>
+<td><span class="brl">⠬</span> (346)</td>
+<td></td>
+<td></td>
+<td>ㄩㄝ</td>
+<td><span class="brl">⠦</span> (236)</td>
+</tr>
+<tr>
+<td>ㄧㄞ</td>
+<td><span class="brl">⠢</span> (26)</td>
+<td>ㄨㄞ</td>
+<td><span class="brl">⠶</span> (2356)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ㄨㄟ</td>
+<td><span class="brl">⠫</span> (1246)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄠ</td>
+<td><span class="brl">⠪</span> (246)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄡ</td>
+<td><span class="brl">⠎</span> (234)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄢ</td>
+<td><span class="brl">⠞</span> (2345)</td>
+<td>ㄨㄢ</td>
+<td><span class="brl">⠻</span> (12456)</td>
+<td>ㄩㄢ</td>
+<td><span class="brl">⠘</span> (45)</td>
+</tr>
+<tr>
+<td>ㄧㄣ</td>
+<td><span class="brl">⠹</span> (1456)</td>
+<td>ㄨㄣ</td>
+<td><span class="brl">⠿</span> (123456)</td>
+<td>ㄩㄣ</td>
+<td><span class="brl">⠲</span> (256)</td>
+</tr>
+<tr>
+<td>ㄧㄤ</td>
+<td><span class="brl">⠨</span> (46)</td>
+<td>ㄨㄤ</td>
+<td><span class="brl">⠸</span> (456)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ㄧㄥ</td>
+<td><span class="brl">⠽</span> (13456)</td>
+<td>ㄨㄥ</td>
+<td><span class="brl">⠯</span> (12346)</td>
+<td>ㄩㄥ</td>
+<td><span class="brl">⠖</span> (235)</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>遇到結合韻時，為節省方數，直接以一方結合韻點寫。</li>
+</ul>
+<p>例：<br />
+文 ㄨㄣˊ <span class="brl">⠿⠂⠀</span>(123456-2)<br />
+管 ㄍㄨㄢˇ <span class="brl">⠅⠻⠈⠀</span>(13-12456-4)</p>
+<ul>
+<li>韻母 ㄟ 和結合韻 ㄧㄛ 點字記號共用 <span class="brl">⠴</span> (356) 且均能單獨成字，經查<a
+href="http://dict.revised.moe.edu.tw/cbdic/">教育部字典</a>， ㄟ
+只有四聲有「<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010371">欸</a>」這個字，
+ㄧㄛ 只有一聲有「<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010762">唷</a>」這個字，可依後方調號判別。</li>
+<li>韻母 ㄝ 和結合韻 ㄧㄞ 點字記號共用 <span class="brl">⠢</span> (26) 且均能單獨成字，經查<a
+href="http://dict.revised.moe.edu.tw/cbdic/">教育部字典</a>， ㄝ
+只有四聲有「<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010331">誒</a>」這個字，
+ㄧㄞ 只有二聲有「<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010810">崖</a>、<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010809">啀</a>、<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010808">厓</a>、<a
+href="http://dict.revised.moe.edu.tw/cgi-bin/cbdic/gsweb.cgi?o=dcbdic&amp;searchid=W00000010811">睚</a>」四個字，可依後方調號判別。<br />
+(感謝 詹博丞 提供加註建議)<br />
+</li>
+</ul>
+<h3 id="聲調">聲調</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>聲調</th>
+<th>點字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>陰平(一聲)</td>
+<td><span class="brl">⠄</span> (3)</td>
+</tr>
+<tr>
+<td>陽平(二聲) ˊ</td>
+<td><span class="brl">⠂</span> (2)</td>
+</tr>
+<tr>
+<td>上聲(三聲) ˇ</td>
+<td><span class="brl">⠈</span> (4)</td>
+</tr>
+<tr>
+<td>去聲(四聲) ˋ</td>
+<td><span class="brl">⠐</span> (5)</td>
+</tr>
+<tr>
+<td>輕聲 ˙</td>
+<td><span class="brl">⠁</span> (1)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="範例與換行">範例與換行</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>國字</th>
+<th>他</th>
+<th>要</th>
+<th>學</th>
+<th>點</th>
+<th>字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>注音</td>
+<td>ㄊㄚ</td>
+<td>ㄧㄠˋ</td>
+<td>ㄒㄩㄝˊ</td>
+<td>ㄉㄧㄢˇ</td>
+<td>ㄗ(ㄦ)ˋ</td>
+</tr>
+<tr>
+<td>點字</td>
+<td><span class="brl">⠋⠜⠄</span></td>
+<td><span class="brl">⠪⠐</span></td>
+<td><span class="brl">⠑⠦⠂</span></td>
+<td><span class="brl">⠙⠞⠈</span></td>
+<td><span class="brl">⠓⠱⠐</span></td>
+</tr>
+<tr>
+<td>點位</td>
+<td>124-345-3</td>
+<td>246-5</td>
+<td>15-236-2</td>
+<td>145-2345-3</td>
+<td>125-156-5</td>
+</tr>
+</tbody>
+</table></div>
+<p>今<span class="brl">⠀⠀</span>天<span class="brl">⠀⠀</span>天<span class="brl">⠀⠀</span>氣<span class="brl">⠀⠀</span>很<span class="brl">⠀⠀</span>好</p>
+<p><span class="brl">⠅⠹⠄⠋⠞⠄⠋⠞⠄⠚⠡⠐⠗⠥⠈⠗⠩⠈</span></p>
+<ul>
+<li>換行時應以字為單位(含聲調)，如剩餘方數不足，應將整個字移至下一行點寫。</li>
+</ul>
+<h2 id="標點符號">標點符號</h2>
+<p>本文件參照</p>
+<ul>
+<li><p>教育部國語推行委員會編著，<a
+href="http://language.moe.gov.tw/001/Upload/FILES/SITE_CONTENT/M0001/HAU/c2.htm">《重訂標點符號手冊》修訂版</a>。中華民國97年12月。</p></li>
+<li><p>點字符號彙編 國語點字（教育部，民89）</p></li>
+</ul>
+<p>比較兩份文件，符號共有三種類型</p>
+<p>一、《重訂標點符號手冊》與《點字符號彙編
+國語點字》均有列出之符號參照。</p>
+<p>二、僅《點字符號彙編 國語點字》列出，無相關釋義。</p>
+<p>三、僅《重訂標點符號手冊》列出，無對應點字。</p>
+<p>因《重訂標點符號手冊》修訂日期較新，故整理之標點符號「名稱」、「說明」欄位，均直接引用《重訂標點符號手冊》為準則，實際使用時也應依其相關規範，點字規則部份再參照《點字符號彙編
+國語點字》，尚未定義之符號則於「說明」欄位提出個人建議及理由。</p>
+<h3
+id="文句尚未結束的標點符號逗號頓號分號冒號間隔號刪節號破折號">文句尚未結束的標點符號（逗號、頓號、分號、冒號、間隔號、刪節號、破折號）</h3>
+<p>點字規則</p>
+<ul>
+<li><p>符號前後不需空方。</p></li>
+<li><p>符號不能在行首，應將前一行最後一字與符號一起換行點寫。</p></li>
+<li><p>兩方以上符號不可分開點寫（冒號、刪節號、破折號）</p></li>
+<li><p>與其他符號連書之間不用空方。</p></li>
+</ul>
+<h4 id="逗號">逗號　，</h4>
+<p>點字：<span class="brl">⠆</span> (23)</p>
+<p>用於隔開複句內各分句，或標示句子內語氣的停頓。</p>
+<h4 id="頓號">頓號　、</h4>
+<p>點字：<span class="brl">⠠</span> (6)</p>
+<p>用於並列連用的詞、語之間，或標示條列次序的文字之後。</p>
+<h4 id="分號">分號　；</h4>
+<p>點字：<span class="brl">⠰</span> (56)</p>
+<p>用於分開複句中平列的句子。</p>
+<h4 id="冒號">冒號　：</h4>
+<p>點字：<span class="brl">⠒⠒</span> (25-25)</p>
+<p>用於總起下文，或舉例說明上文。</p>
+<p><strong>點字規則</strong>冒號之後如遇複合韻 ㄨㄛ 的字[點字同為 <span class="brl">⠒</span>
+(25)]，中間需空一方，冒號若於行尾，複合韻 ㄨㄛ
+的字於次行首則無需空方。</p>
+<p>註：許多點字使用者表示，冒號後面接 ㄨㄛ
+因不易混淆，平時使用不會特別空方，目前點字書也沒有空方。</p>
+<h4 id="間隔號">間隔號　．</h4>
+<p>點字：<span class="brl">⠤</span> (36)</p>
+<ol type="1">
+<li><p>用於書名號乙式書名與篇章卷名之間。</p></li>
+<li><p>用於書名號乙式套書與單本書名之間。</p></li>
+<li><p>用於原住民命名習慣之間隔。</p></li>
+<li><p>用於翻譯外國人的名字與姓氏之間。</p></li>
+</ol>
+<p><strong>點字規則</strong> 1. 《點字符號彙編
+國語點字》稱「音界號」</p>
+<ol start="2" type="1">
+<li>間隔號與句點共用點字符號 <span class="brl">⠤</span> (36)
+，句號之後需空方，間隔號不需空方即可接下文。</li>
+</ol>
+<h4 id="刪節號">刪節號　……</h4>
+<p>點字：<span class="brl">⠐⠐⠐</span> (5-5-5)</p>
+<p>用於節略原文、語句未完、意思未盡，或表示語句斷斷續續等。</p>
+<h4 id="破折號">破折號　──</h4>
+<p>點字：<span class="brl">⠐⠂</span> (5-2)</p>
+<p>用於語意的轉變、聲音的延續，或在行文中為補充說明某詞語之處，而此說明後文氣需要停頓。</p>
+<p><strong>點字規則</strong>破折號可於行首或行尾</p>
+<h3
+id="文句終止的標點符號句號問號驚嘆號">文句終止的標點符號（句號、問號、驚嘆號）</h3>
+<p>點字規則</p>
+<ul>
+<li><p>符號在句子中間，之後要空方，符號在最後一方，下一句首字位於行首，無需空方。</p></li>
+<li><p>符號之後接後引號、後括號不需空方。</p></li>
+<li><p>符號不能在行首，應將前一行最後一字與符號一起換行點寫。</p></li>
+</ul>
+<h4 id="句號">句號　。</h4>
+<p>點字：<span class="brl">⠤</span> (36)</p>
+<ol type="1">
+<li><p>用於一個語義完整的句末，不用於疑問句、感嘆句。</p></li>
+<li><p>原則上單一句號不成行。</p></li>
+</ol>
+<h4 id="問號">問號　？</h4>
+<p>點字：<span class="brl">⠕</span> (135)</p>
+<ol type="1">
+<li><p>用於疑問句之後。</p></li>
+<li><p>用於歷史人物生死或事件始末之時間不詳。</p></li>
+</ol>
+<h4 id="驚嘆號">驚嘆號　！</h4>
+<p>點字：<span class="brl">⠇</span> (123)</p>
+<p>用於感嘆語氣及加重語氣的詞、語、句之後。</p>
+<h3
+id="前後包覆之標點符號引號夾注號專名號書名號">前後包覆之標點符號（引號、夾注號、專名號、書名號）</h3>
+<p>點字規則</p>
+<ul>
+<li><p>前符號不能在行尾，後符號不能在行首。</p></li>
+<li><p>兩方代表一符號者，不能分開點寫。</p></li>
+<li><p>除專名號與甲式書名號外，其餘前後不空方。</p></li>
+</ul>
+<h4 id="單引號雙引號">單引號、雙引號　「 」、『 』</h4>
+<p>點字：<span class="brl">⠰⠤⠀⠤⠆</span> (56-36 36-23)；<span class="brl">⠦⠦⠀⠴⠴</span> (236-236 356-356)</p>
+<ol type="1">
+<li><p>用於標示說話、引語、特別指稱或強調的詞語。</p></li>
+<li><p>引號分單引號及雙引號，通常先用單引號，如果有需要，單引號內再用雙引號，依此類推。</p></li>
+<li><p>一般引文的句尾符號標在引號之內。</p></li>
+<li><p>引文用作全句結構中的一部分，其下引號之前，通常不加標點符號。</p></li>
+</ol>
+<p><strong>點字規則</strong> 1.
+前引號要與後一字同一行，後引號要與前一字同一行。</p>
+<ol start="2" type="1">
+<li><p>若遇專名號，先寫前引號再寫專名號。</p></li>
+<li><p>後引號與其前一方符號間不需空方。</p></li>
+</ol>
+<h4 id="夾注號-甲式-乙式">夾注號　甲式（ ）、乙式── ──</h4>
+<p>點字：<span class="brl">⠪⠀⠕</span> (246-135)；<span class="brl">⠐⠂⠀⠐⠂</span> (5-2 5-2)</p>
+<ol type="1">
+<li><p>用於行文中需要注釋或補充說明。</p></li>
+<li><p>甲式：前後符號各占一個字的位置，居正中。前半不出現在一行之末，後半不出現在一行之首。</p></li>
+<li><p>乙式：前後符號各占行中兩格。前半不出現在一行之末，後半不出現在一行之首。</p></li>
+</ol>
+<p><strong>點字規則</strong>《點字符號彙編
+國語點字》僅列出乙式夾注號，甲式夾注號與書中「圓括號」形狀及作用相同，故列於此。</p>
+<h4 id="專名號">專名號　＿＿</h4>
+<p>點字：<span class="brl">⠰⠰</span> (56-56 0)</p>
+<p>在專用名詞下方畫橫線，用於人名、族名、國名、地名、機構名等。</p>
+<p><strong>點字規則</strong> 1. 《點字符號彙編
+國語點字》稱「私名號」。</p>
+<ol start="2" type="1">
+<li><p>專名號點寫於專有名詞之前，在專用名詞後需空一方再接下文。</p></li>
+<li><p>專有名詞在最後一方結束，次行行首仍需空一方再接下文。</p></li>
+</ol>
+<h4 id="書名號-甲式-乙式">書名號　甲式 ﹏﹏、乙式《 》〈 〉</h4>
+<p>點字：甲式 <span class="brl">⠠⠤</span> (6-36 0)；乙式未定義，建議寫法見下方點字規則第 4 點</p>
+<p>甲式：直行標在書名左旁，橫行標在書名之下畫波浪線。</p>
+<p>乙式：</p>
+<ol type="1">
+<li><p>《 》多用於書名，〈 〉多用於篇名。</p></li>
+<li><p>直行標在書名上下，橫行標在書名前後。</p></li>
+<li><p>每一種符號前半後半各占行中一格。前半不出現在一行之末，後半不出現在一行之首。</p></li>
+</ol>
+<p><strong>點字規則</strong> 1. 《點字符號彙編
+國語點字》僅列出甲式書名號。</p>
+<ol start="2" type="1">
+<li><p>甲式書名號點寫於書名或篇名之前，在書名或篇名後需空一方再接下文。</p></li>
+<li><p>書名或篇名在最後一方結束，次行行首仍需空一方再接下文。</p></li>
+<li><p>乙式書名號未列於《點字符號彙編
+國語點字》，因考慮點字符號重複問題，故建議使用半形 &lt; <span class="brl">⠣</span> (126)
+與<span class="brl">⠀</span>&gt;<span class="brl">⠀⠜</span> (345)<span class="brl">⠀</span> 之點字符號</p>
+<p><span class="brl">⠣⠣⠀⠜⠜</span> (126-126 345-345) 表示 《 》</p>
+<p><span class="brl">⠣⠀⠜⠀</span>(126 345) 表示〈 〉</p>
+<p>捨棄其形似之下列符號</p>
+<p><span class="brl">⠪⠪⠀⠕⠕</span> (246-246 135-135) 與問號前後並用會造成辨識困難</p>
+<p><span class="brl">⠪⠀⠕⠀</span>(246 135) 與圓括號重複</p>
+<p><span class="brl">⠐⠅⠀⠨⠂</span> (5-13 46-2) 後括號與 ㄧㄤˊ 重複</p></li>
+</ol>
+<h3
+id="清單項目符號星標記號精讀記號">清單項目符號（星標記號、精讀記號）</h3>
+<p>僅《點字符號彙編 國語點字》列出，無相關釋義。</p>
+<p>點字規則</p>
+<ul>
+<li><p>兩方代表一符號者，不能分開點寫。</p></li>
+<li><p>前後均需空方再寫下文</p></li>
+</ul>
+<h4 id="星標記號">星標記號　※</h4>
+<p>點字：<span class="brl">⠈⠼</span> (4-3456)</p>
+<p>符號形狀為一 X ，上下左右缺口各有一實心圓點。</p>
+<h4 id="精讀記號">精讀記號　◎</h4>
+<p>點字：<span class="brl">⠪⠕</span> (246-135)</p>
+<p>符號形狀為一大一小同心圓。當用於課文必須精讀之記號。</p>
+<h3 id="括號圓括號方括號大括號">括號（圓括號、方括號、大括號）</h3>
+<p>僅《點字符號彙編 國語點字》列出，無相關釋義。</p>
+<p>點字規則</p>
+<ul>
+<li><p>前括號之前後不空方，後括號之前不空方，之後需空方，後括號之後若接標點符號則不空方。</p></li>
+<li><p>前括號不能在行尾，後括號不能在行首。</p></li>
+<li><p>括號內若使用英文或數學括號，英數前括號之前與後括號之後均應空方。</p></li>
+</ul>
+<h4 id="圓括號">圓括號　（ ）</h4>
+<p>點字：<span class="brl">⠪⠀⠕</span> (246 135)</p>
+<h4 id="方括號">方括號　［ ］</h4>
+<p>點字：<span class="brl">⠯⠀⠽</span> (12346 13456)</p>
+<h4 id="大括號">大括號　｛ ｝</h4>
+<p>點字：<span class="brl">⠦⠀⠴</span> (236 356)</p>
+<h3 id="連接號">連接號</h3>
+<p>僅《重訂標點符號手冊》列出，無對應點字。</p>
+<h4 id="連接號-甲式-乙式">連接號　甲式 —、乙式 ～</h4>
+<p>點字：未定義</p>
+<p>用於連接時空的起止或數量的多寡等。</p>
+<p>甲式連接號形狀為一全形橫線，位於中央高度</p>
+<p>乙式連接號形狀為一全形波浪號</p>
+<p><strong>點字規則</strong>連接號未列於《點字符號彙編
+國語點字》，取其形似建議</p>
+<p>甲式連接號 — 可用 <span class="brl">⠤⠤⠀</span>(36-36) 前後不空方表示</p>
+<p>乙式連接號 ～ 可用 <span class="brl">⠔⠔⠀</span>(35-35) 前後不空方表示</p>
+
+</main>
+<script>
+// SimBraille：把 Unicode 點字換成北美 ASCII 點字，用 SimBraille 字型顯示（跟 Word 的 ASCII+SimBraille 版一樣）；各教材共用，記在這台電腦
+(function () {
+  const ASC = ' A1B\'K2L@CIF/MSP"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)=';
+  const box = document.getElementById('simbrl'), spans = document.querySelectorAll('.brl');
+  spans.forEach(s => { s.dataset.u = s.textContent; });
+  function apply(on) {
+    document.documentElement.classList.toggle('simbrl', on);
+    spans.forEach(s => { s.textContent = on ? [...s.dataset.u].map(c => ASC[c.codePointAt(0) - 0x2800]).join('') : s.dataset.u; });
+  }
+  let on = false;
+  try { on = localStorage.getItem('vitools-book-simbrl') === '1'; } catch (e) {}
+  box.checked = on; if (on) apply(true);
+  box.addEventListener('change', () => { apply(box.checked); try { localStorage.setItem('vitools-book-simbrl', box.checked ? '1' : '0'); } catch (e) {} });
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- 這個檔案由 tools/build-nemeth-book.mjs 從 document/教材/Nemeth-數學點字教材-CH1-9.md 產生，不要直接改 -->
+<!-- 這個檔案由 tools/build-books.mjs 從 document/教材/Nemeth-數學點字教材-CH1-9.md 產生，不要直接改 -->
 <title>Nemeth 數理點字教材</title>
 <script src="music/js/theme.js"></script>
 <script>
@@ -2459,7 +2459,7 @@ class="uri">https://class.kh.edu.tw/19061/bulletin/msg_view/818</a>（符號對�
 
 </main>
 <script>
-// SimBraille：把 Unicode 點字換成北美 ASCII 點字，用 SimBraille 字型顯示（跟 Word 的 ASCII+SimBraille 版一樣）；記在這台電腦
+// SimBraille：把 Unicode 點字換成北美 ASCII 點字，用 SimBraille 字型顯示（跟 Word 的 ASCII+SimBraille 版一樣）；各教材共用，記在這台電腦
 (function () {
   const ASC = ' A1B\'K2L@CIF/MSP"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)=';
   const box = document.getElementById('simbrl'), spans = document.querySelectorAll('.brl');
@@ -2469,9 +2469,9 @@ class="uri">https://class.kh.edu.tw/19061/bulletin/msg_view/818</a>（符號對�
     spans.forEach(s => { s.textContent = on ? [...s.dataset.u].map(c => ASC[c.codePointAt(0) - 0x2800]).join('') : s.dataset.u; });
   }
   let on = false;
-  try { on = localStorage.getItem('nemeth-book-simbrl') === '1'; } catch (e) {}
+  try { on = localStorage.getItem('vitools-book-simbrl') === '1'; } catch (e) {}
   box.checked = on; if (on) apply(true);
-  box.addEventListener('change', () => { apply(box.checked); try { localStorage.setItem('nemeth-book-simbrl', box.checked ? '1' : '0'); } catch (e) {} });
+  box.addEventListener('change', () => { apply(box.checked); try { localStorage.setItem('vitools-book-simbrl', box.checked ? '1' : '0'); } catch (e) {} });
 })();
 </script>
 </body>
