@@ -27,7 +27,6 @@ ol li{margin:2px 0}
 nav ul{columns:2;column-gap:24px}
 @media (max-width:560px){nav ul{columns:1}}
 .demo-btn{font:inherit;font-size:.8rem;font-weight:400;margin-left:8px;padding:1px 10px;border-radius:14px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:middle}
-p[data-demo]:not([data-demo=""]) .demo-btn{margin-left:0}
 .demo-btn:hover{background:var(--accent);color:var(--bg)}
 #demo-fab{position:fixed;right:16px;bottom:16px;z-index:20;font:inherit;font-size:1rem;padding:10px 18px;border-radius:24px;border:none;background:var(--accent);color:var(--bg);box-shadow:0 2px 10px rgba(0,0,0,.3);cursor:pointer}
 #demo-panel{position:fixed;z-index:30;background:var(--bg);border:0 solid var(--line);overflow:auto;padding:8px 14px 16px;box-shadow:0 0 16px rgba(0,0,0,.25)}
@@ -247,21 +246,19 @@ p[data-demo]:not([data-demo=""]) .demo-btn{margin-left:0}
 </ol>
 
 <h3>5c：連續進位或借位（例：98 + 3 = 101、100 − 1 = 99）</h3>
-<p>十位是 9 的時候再進 1，十位也滿了，要再往百位進位。</p>
+<p data-demo="98 + 3 = 101">十位是 9 的時候再進 1，十位也滿了，要再往百位進位。</p>
 <ol>
   <li>98 + 3：個位 8 加 3 不夠加，十位要加 1、個位拿掉 7，個位剩 1。</li>
   <li>十位是 9，加 1 也不夠加：百位加 1，十位拿掉 1 的大補數 9，十位變 0。</li>
   <li>答案 101。</li>
 </ol>
-<p data-demo="98 + 3 = 101"></p>
-<p>減法反過來：十位是 0 的時候借不到，要再跟百位借。</p>
+<p data-demo="100 − 1 = 99">減法反過來：十位是 0 的時候借不到，要再跟百位借。</p>
 <ol>
   <li>100 − 1：個位 0 不夠減，要跟十位借，但十位也是 0。</li>
   <li>百位減 1，十位加回 9。</li>
   <li>個位加回 1 的大補數 9。</li>
   <li>答案 99。</li>
 </ol>
-<p data-demo="100 − 1 = 99"></p>
 
 <h3>5d：多位數，進位撞上十位要加的數</h3>
 <p>從個位開始，一位一位做；每一位都是前面學過的題型之一。進位或借位馬上撥到左邊一檔，再做那一檔自己的數。</p>
