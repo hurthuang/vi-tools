@@ -425,13 +425,14 @@
 
   async function importPrn(f) {
     const { pages: decoded, w, h } = PrnCore.decode(await f.arrayBuffer());
+    if (onlyEmptyPage()) pages.length = 0;
     let note = '';
     if (w !== W || h !== H) {
       if (!pages.length) setPaper(w, h);   // 還沒有頁面：直接用這個檔案的紙張
       else note = `（這個檔案是 ${inch(w)} × ${inch(h)} 吋，已依目前紙張裁切或補白）`;
     }
     for (const dots of decoded)
-      pages.push({ title: '', titleBrl: '', dots: w === W && h === H ? dots : resizeDots(dots, w, h, W, H), labels: [], src: null, opts: defaultOpts(), undo: [] });
+      pages.push({ title: '', titleBrl: '', dots: w === W && h === H ? dots : resizeDots(dots, w, h, W, H), labels: [], src: null, opts: defaultOpts(), undo: [], fromPrn: true });
     $('#outName').value = f.name;
     selectPage(pages.length - decoded.length);
     if (note) $('#edStatus').textContent = '匯入 ' + decoded.length + ' 頁' + note;
@@ -485,6 +486,12 @@
   };
 
   // 空白頁：插在目前這頁後面
+  // 只有一開始那張（或唯一一張）完全空白、沒動過的頁面：開啟檔案、加入框選的圖時直接取代它
+  function onlyEmptyPage() {
+    if (pages.length !== 1) return false;
+    const pg = pages[0];
+    return !pg.title && !pg.src && !pg.labels.length && !objsOf(pg).length && !pg.dots.some(v => v) && !(pg.fillMask && pg.fillMask.some(v => v));
+  }
   function addBlankPage() {
     const prev = pages[cur];
     const title = prev ? prev.title : '';
@@ -678,11 +685,12 @@
 
   async function addFromSelection() {
     if (!sel) return;
-    const prev = pages[pages.length - 1];
+    const replace = onlyEmptyPage(), prev = replace ? null : pages[pages.length - 1];
     const title = prev ? prev.title : '選擇 ';
     const pg = { title, titleBrl: titleBraille(title).braille, dots: null, labels: [], src: { doc, page: viewPage, rect: sel }, opts: prev ? { ...prev.opts } : defaultOpts(), undo: [] };
     sel = null;
     await generate(pg);
+    if (replace && onlyEmptyPage()) pages.length = 0;
     pages.push(pg);
     selectPage(pages.length - 1);
     $('#titleText').focus();
@@ -1729,6 +1737,7 @@
     const data = JSON.parse(await f.text());
     if (data.format !== 'vi-tools-tactile' || !Array.isArray(data.pages)) throw new Error('這不是觸摸圖的編輯檔');
     // 插在目前這頁後面（同空白頁）；還沒有頁面時直接用編輯檔的紙張，有頁面時依目前紙張從左上角裁切或補白（畫的圖形超出紙張的部分不會匯出）
+    if (onlyEmptyPage()) pages.length = 0;
     const w = data.paper.w, h = data.paper.h, first = !pages.length, list = [];
     if (first) setPaper(w, h);
     const fit = a => w === W && h === H ? a : resizeDots(a, w, h, W, H);
@@ -1736,7 +1745,7 @@
       title: p.title || '', titleBrl: p.titleBrl || '',
       dots: fit(await unpackBytes(p.dots, w * h)), fillMask: fit(p.fillMask ? await unpackBytes(p.fillMask, w * h) : new Uint8Array(w * h)),
       objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l })), fills: p.fills || [],
-      src: null, opts: defaultOpts(), undo: [], fromFile: true,
+      src: null, opts: defaultOpts(), undo: [],
     });
     const at = first ? 0 : cur + 1;
     pages.splice(at, 0, ...list);
@@ -1778,7 +1787,7 @@
     pages.forEach((pg, i) => {
       const el = document.createElement('div');
       el.className = 'pg' + (i === cur ? ' cur' : '');
-      el.innerHTML = `<canvas></canvas><div class="t">${i + 1}. ${escapeHtml(pg.title || (pg.src || pg.fromFile ? '（無標題）' : '（匯入的 PRN）'))}</div>
+      el.innerHTML = `<canvas></canvas><div class="t">${i + 1}. ${escapeHtml(pg.title || (pg.fromPrn ? '（匯入的 PRN）' : '（無標題）'))}</div>
         <div class="ops"><button data-op="up" title="上移（Alt+↑）">▲</button><button data-op="down" title="下移（Alt+↓）">▼</button><button data-op="del" title="刪除">✕</button></div>`;
       drawThumb(el.querySelector('canvas'), pg);
       // 拖曳排序：拖到某頁的上半部插在它前面，下半部插在它後面
@@ -2756,6 +2765,7 @@
 
   try { const v = localStorage.getItem(PAPER_KEY); if (v) { const [w, h] = v.split('x').map(Number); if (w && h) setPaper(w, h); } } catch (e) {}
   if (!$('#paperInfo').textContent) setPaper(W, H);
+  addBlankPage();   // 一開始就有一張空白頁可以畫；開啟檔案、加入框選的圖時，沒動過就被取代
   drawEditor();
 })();
 </script>

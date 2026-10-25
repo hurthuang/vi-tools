@@ -27,8 +27,9 @@
 - JSON：`{ format: 'vi-tools-tactile', version: 1, paper: { w, h }, pages: [{ title, titleBrl, dots, fillMask, objs, labels, fills }] }`。
 - `dots`、`fillMask`：`{ enc: 'gzip'|'raw', data: base64 }`，有 `CompressionStream` 就 gzip。一頁 12×11 吋通常不到 1 KB 到十幾 KB。
 - 標籤存 `text`、`brl`、`manual`（手動改過的點字開回來不會被重新轉換蓋掉）、位置。
-- 不存原始 PDF／圖片：開回來 `src: null`，不能重新產生圖形或描圖；`fromFile` 讓頁面清單顯示「（無標題）」而不是「（匯入的 PRN）」。
+- 不存原始 PDF／圖片：開回來 `src: null`，不能重新產生圖形或描圖。
 - 開啟時插在目前這頁後面（同空白頁）；還沒有頁面時紙張改成檔案的尺寸，有頁面時用 `resizeDots` 依目前紙張裁切或補白（物件不裁，超出紙張的點不會匯出）。第一次開才帶入檔名、清掉未儲存的標記。
+- 一開始就有一張空白頁；只有一張完全沒動過的頁面時（`onlyEmptyPage`），開啟 .prn／.tactile、加入框選的圖會取代它，否則照原本插入或加在後面。匯入的 PRN 頁面標 `fromPrn`，清單沒有標題時顯示「（匯入的 PRN）」，其他顯示「（無標題）」。
 - `dirty`：`pushUndo`、標題、標籤文字改了就標記；匯出 PRN 時還沒存編輯檔，標頭顯示提醒。
 
 ## 第二階段（還沒做）
