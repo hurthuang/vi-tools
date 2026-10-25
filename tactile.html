@@ -68,11 +68,11 @@
   /* 氣泡提示：滑鼠移上去、或用鍵盤移到這個工具時顯示 */
   .tip { position: relative; }
   .tip:hover::after, .tip:has(:focus-visible)::after, .tip:focus-visible::after {
-    content: attr(data-tip); position: absolute; top: calc(100% + 7px); left: 0; z-index: 40; pointer-events: none;
+    content: attr(data-tip); position: absolute; bottom: calc(100% + 7px); left: 0; z-index: 40; pointer-events: none;
     background: #1d2330; color: #fff; font-size: 12px; line-height: 1.5; padding: 3px 8px; border-radius: 5px; white-space: nowrap;
   }
   .tip:hover::before, .tip:has(:focus-visible)::before, .tip:focus-visible::before {
-    content: ''; position: absolute; top: calc(100% + 1px); left: 10px; z-index: 40; border: 6px solid transparent; border-bottom-color: #1d2330; border-top: 0; pointer-events: none;
+    content: ''; position: absolute; bottom: calc(100% + 1px); left: 10px; z-index: 40; border: 6px solid transparent; border-top-color: #1d2330; border-bottom: 0; pointer-events: none;
   }
   #pageList { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
   .pg { display: grid; grid-template-columns: 72px 1fr auto; gap: 6px; align-items: center; padding: 4px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
@@ -167,7 +167,7 @@
   <section>
     <h2>② 調整（<span id="paperTitle">240 × 220 點，12 × 11 吋</span>）</h2>
     <div class="bar tools">
-      <label class="ic tip" data-tip="標籤：拖曳移動、方向鍵微調、Delete 刪除；在右邊「新增」輸入後點圖上位置加標籤"><input type="radio" name="tool" value="label" aria-label="標籤" checked><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="6.5" cy="5" r="1.8"/><circle cx="6.5" cy="10" r="1.8"/><circle cx="6.5" cy="15" r="1.8"/><circle cx="13.5" cy="5" r="1.8"/><circle cx="13.5" cy="10" r="1.8"/><circle cx="13.5" cy="15" r="1.8"/></g></svg></label>
+      <label class="ic tip" data-tip="標籤：拖曳移動、方向鍵微調、Delete 刪除；在右邊「新增」輸入後點圖上位置加標籤"><input type="radio" name="tool" value="label" aria-label="標籤" checked><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="6.5" cy="5" r="1.8"/><circle cx="6.5" cy="10" r="1.8"/><circle cx="13.5" cy="5" r="1.8"/><circle cx="13.5" cy="10" r="1.8"/><circle cx="13.5" cy="15" r="1.8"/></g></svg></label>
       <label class="ic tip" data-tip="選取：點一下選圖形或標籤（Shift 加選）；空白處拉框"><input type="radio" name="tool" value="select" aria-label="選取"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" stroke-dasharray="2.5 2"/></svg></label>
       <span class="sep"></span>
       <label class="ic tip" data-tip="畫點：手畫線條"><input type="radio" name="tool" value="pen" aria-label="畫點"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l1-4 8-8 3 3-8 8z"/><path d="M11 6l3 3"/></svg></label>
@@ -176,9 +176,9 @@
       <label class="ic tip" data-tip="矩形：Shift 畫正方形"><input type="radio" name="tool" value="rect" aria-label="矩形"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="14" height="10"/></svg></label>
       <label class="ic tip" data-tip="橢圓：拖出外框；Shift 畫正圓"><input type="radio" name="tool" value="ellipse" aria-label="橢圓"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="10" rx="7.5" ry="5"/></svg></label>
       <span class="sep"></span>
-      <label class="ic tip" data-tip="橡皮擦：只擦點陣和填色；畫的圖形用「選取」刪除或先轉成點陣"><input type="radio" name="tool" value="eraser" aria-label="橡皮擦"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 16l-4.5-4.5 8-8L18 10l-6 6z"/><path d="M7.5 7.5l6.5 6.5M8 16h9"/></svg></label>
+      <label class="ic tip" data-tip="橡皮擦：擦到畫的圖形時，那個圖形會變成點陣"><input type="radio" name="tool" value="eraser" aria-label="橡皮擦"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 16l-4.5-4.5 8-8L18 10l-6 6z"/><path d="M7.5 7.5l6.5 6.5M8 16h9"/></svg></label>
       <label class="ic tip" data-tip="框選擦：拉框清掉框內的點陣、填色和整個在框內的圖形，標籤保留"><input type="radio" name="tool" value="boxerase" aria-label="框選擦"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" stroke-dasharray="2.5 2"/><path d="M7.5 7.5l5 5M12.5 7.5l-5 5"/></svg></label>
-      <label class="ic tip" data-tip="填色：點在封閉的區域裡"><input type="radio" name="tool" value="fill" aria-label="填色"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5L9 4l6 6-5.5 5.5z"/><path d="M3.5 9.5h11.5"/><path d="M16.5 12.5c1.2 1.6 1.2 2.6 0 3.2-1.2-.6-1.2-1.6 0-3.2z" fill="currentColor"/></svg></label>
+      <label class="ic tip" data-tip="填色：點在封閉的區域裡"><input type="radio" name="tool" value="fill" aria-label="填色"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5L9 4l6 6-5.5 5.5z"/><path d="M3.5 9.5H15l-5.5 6z" fill="currentColor"/><path d="M16.5 12.5c1.2 1.6 1.2 2.6 0 3.2-1.2-.6-1.2-1.6 0-3.2z" fill="currentColor"/></svg></label>
       <span class="sep"></span>
       <button id="btnUndo" class="ic tip" data-tip="復原（Ctrl+Z）" aria-label="復原"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4"/><path d="M3 8h9a4.5 4.5 0 010 9H8"/></svg></button>
       <span id="optStroke" hidden>
@@ -2127,6 +2127,11 @@
     if (x1 < x0) for (const [x, y] of o.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
   }
+  // 圖形轉成點陣：蓋進底圖後從物件拿掉
+  function flattenObjs(pg, objs) {
+    for (const o of objs) for (const i of objCells(o)) { pg.dots[i] = LINE; if (pg.fillMask) pg.fillMask[i] = 0; }
+    pg.objs = objsOf(pg).filter(o => !objs.includes(o));
+  }
   // 底圖加上物件（標籤不算）：放標籤、填色時判斷哪裡有線
   function withObjs(pg) {
     const out = pg.dots.slice();
@@ -2431,7 +2436,16 @@
       pg.dots[y * W + x] = v;
       if (pg.fillMask) pg.fillMask[y * W + x] = 0;   // 畫線、擦掉的點不再算填色
     };
-    const erase = (pg, x, y) => { for (const [px, py] of brush(x, y, brushSize())) setDot(pg, px, py, 0); };
+    // 橡皮擦擦到畫的圖形：那個圖形先轉成點陣（之後不能再當圖形搬），再擦
+    const erase = (pg, x, y) => {
+      const pts = brush(x, y, brushSize()), hit = new Set(pts.filter(([px, py]) => px >= 0 && py >= 0 && px < W && py < H).map(([px, py]) => py * W + px));
+      const objs = objsOf(pg).filter(o => objCells(o).some(i => hit.has(i)));
+      if (objs.length) {
+        flattenObjs(pg, objs);
+        $('#edStatus').textContent = `擦到的 ${objs.length} 個圖形轉成點陣了（不能再當圖形搬；要整個復原請按 Ctrl+Z）`;
+      }
+      for (const [px, py] of pts) setDot(pg, px, py, 0);
+    };
     const hitLabel = (pg, x, y) => [...pg.labels].reverse().find(l => x >= l.x - 1 && x <= l.x + brlWidth(l.brl) && y >= l.y - 1 && y <= l.y + BRL_HEIGHT);
 
     cv.addEventListener('pointerdown', e => {
@@ -2483,10 +2497,7 @@
       } else {
         pushUndo(pg);
         if (tool === 'pen') { drag = { stroke: { type: 'pen', pts: [[x, y]], thick: brushSize(), dash: false } }; objsOf(pg).push(drag.stroke); drawEditor(); return; }
-        else if (tool === 'eraser') {
-          erase(pg, x, y);
-          if (hitItem(pg, x, y) && !isLabelItem(hitItem(pg, x, y))) $('#edStatus').textContent = '橡皮擦只擦點陣；畫的圖形要用「選取」點它再按 Delete，或先「轉成點陣」';
-        }
+        else if (tool === 'eraser') erase(pg, x, y);
         else if (tool === 'fill') {
           const fv = $('#fillLevel').value, v = isNaN(+fv) ? fv : +fv;
           const n = floodFill(pg, x, y, v);
@@ -2618,8 +2629,7 @@
     const pg = pages[cur]; if (!pg) return;
     const objs = selItems.filter(it => !isLabelItem(it)); if (!objs.length) return;
     pushUndo(pg);
-    for (const o of objs) for (const i of objCells(o)) { pg.dots[i] = LINE; if (pg.fillMask) pg.fillMask[i] = 0; }
-    pg.objs = objsOf(pg).filter(o => !objs.includes(o));
+    flattenObjs(pg, objs);
     selItems = selItems.filter(isLabelItem);
     $('#edStatus').textContent = `${objs.length} 個圖形轉成點陣，可以用橡皮擦擦了`;
     drawEditor(); updateThumb();
