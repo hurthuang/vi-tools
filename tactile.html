@@ -485,13 +485,15 @@
   };
 
   // 空白頁：插在目前這頁後面
-  $('#btnBlank').onclick = () => {
+  function addBlankPage() {
     const prev = pages[cur];
     const title = prev ? prev.title : '';
     const pg = { title, titleBrl: titleBraille(title).braille, dots: new Uint8Array(W * H), fillMask: new Uint8Array(W * H), labels: [], src: null, opts: defaultOpts(), undo: [] };
     pages.splice(cur + 1, 0, pg);
     selectPage(cur + 1);
-  };
+    return pg;
+  }
+  $('#btnBlank').onclick = addBlankPage;
 
   // ── 來源檢視與框選 ─────────────────────────────────────
   function goPage(n) {
@@ -1980,7 +1982,7 @@
     for (let x = 0; x <= W; x += 10) { ctx.beginPath(); ctx.moveTo(x * z + .5, 0); ctx.lineTo(x * z + .5, cv.height); ctx.stroke(); }
     for (let y = 0; y <= H; y += 10) { ctx.beginPath(); ctx.moveTo(0, y * z + .5); ctx.lineTo(cv.width, y * z + .5); ctx.stroke(); }
     const pg = pages[cur];
-    if (!pg) { $('#edStatus').textContent = '框選一張圖並加入，或開啟既有的 PRN'; return; }
+    if (!pg) { $('#edStatus').textContent = '框選一張圖並加入、開啟檔案，或直接畫（會自動加一張空白頁）'; return; }
     $('#trace').disabled = !(pg.src && pg.fig);
     if ($('#trace').checked && pg.src && pg.fig) {
       const t = traceCanvas(pg, z);
@@ -2449,7 +2451,11 @@
     const hitLabel = (pg, x, y) => [...pg.labels].reverse().find(l => x >= l.x - 1 && x <= l.x + brlWidth(l.brl) && y >= l.y - 1 && y <= l.y + BRL_HEIGHT);
 
     cv.addEventListener('pointerdown', e => {
-      const pg = pages[cur]; if (!pg) return;
+      let pg = pages[cur];
+      if (!pg) {   // 還沒有頁面：用畫的工具（或標籤已經填了字）就自動加一張空白頁；其他工具不動，狀態列本來就有提示
+        if (!['pen', 'line', 'arrow', 'rect', 'ellipse'].includes(tool) && !(tool === 'label' && newLabelEl.value.trim())) return;
+        pg = addBlankPage();
+      }
       cv.setPointerCapture(e.pointerId);
       const [x, y] = at(e);
       last = [x, y];
