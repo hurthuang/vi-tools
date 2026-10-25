@@ -360,17 +360,17 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-books">
     <span class="icon" aria-hidden="true">📚</span> 點字教材
   </div>
-  <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
-       tabindex="-1" aria-selected="false" aria-controls="frame-gq">
-    <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
+  <div class="tab" role="tab" id="tab-abacus" data-target="frame-abacus"
+       tabindex="-1" aria-selected="false" aria-controls="frame-abacus">
+    <span class="icon" aria-hidden="true">🧮</span> 珠算練習
   </div>
   <div class="tab" role="tab" id="tab-mstudent" data-target="frame-mstudent"
        tabindex="-1" aria-selected="false" aria-controls="frame-mstudent">
     <span class="icon" aria-hidden="true">🎹</span> 點字樂譜練習
   </div>
-  <div class="tab" role="tab" id="tab-abacus" data-target="frame-abacus"
-       tabindex="-1" aria-selected="false" aria-controls="frame-abacus">
-    <span class="icon" aria-hidden="true">🧮</span> 珠算練習
+  <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
+       tabindex="-1" aria-selected="false" aria-controls="frame-gq">
+    <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
   </div>
 </div>
 
@@ -527,18 +527,19 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
-             role="button" tabindex="0" aria-label="開啟 UEB 查詢工具" aria-describedby="desc-gq"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-gq')}">
-          <div class="tool-icon" aria-hidden="true">🔍</div>
+        <div class="tool-card" style="--card-accent:#e879f9" onclick="switchTo('frame-abacus')"
+             role="button" tabindex="0" aria-label="開啟珠算練習" aria-describedby="desc-abacus"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-abacus')}">
+          <div class="tool-icon" aria-hidden="true">🧮</div>
           <div class="tool-info">
             <div class="tool-name">
-              UEB 查詢
-              <span class="tool-badge" style="background:#f472b6">規則解析</span>
+              珠算練習
+              <span class="tool-badge" style="background:#e879f9">Nemeth</span>
             </div>
-            <div class="tool-desc" id="desc-gq">
-              輸入英文單字查詢 G2 點字並逐條說明套用了哪些縮寫規則；或輸入點字反查英文，
-              以動態規劃列出所有可能的切分方式。結果同步與 liblouis 比對，歧異可一鍵回報。
+            <div class="tool-desc" id="desc-abacus">
+              給盲生用算盤代替直式的分級練習：依撥珠時要用到的補數分級出題（加、減、兩位數乘一位數），
+              題目用點顯器摸讀，答案用點字鍵或六點鍵盤以 Nemeth 輸入，答錯可再試兩次；老師可先預覽、匯出 .brl 題目，練習結果存成 CSV。
+              附補數概念說明與教學法筆記。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -560,19 +561,18 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#e879f9" onclick="switchTo('frame-abacus')"
-             role="button" tabindex="0" aria-label="開啟珠算練習" aria-describedby="desc-abacus"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-abacus')}">
-          <div class="tool-icon" aria-hidden="true">🧮</div>
+        <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
+             role="button" tabindex="0" aria-label="開啟 UEB 查詢工具" aria-describedby="desc-gq"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-gq')}">
+          <div class="tool-icon" aria-hidden="true">🔍</div>
           <div class="tool-info">
             <div class="tool-name">
-              珠算練習
-              <span class="tool-badge" style="background:#e879f9">Nemeth</span>
+              UEB 查詢
+              <span class="tool-badge" style="background:#f472b6">規則解析</span>
             </div>
-            <div class="tool-desc" id="desc-abacus">
-              給盲生用算盤代替直式的分級練習：依撥珠時要用到的補數分級出題（加、減、兩位數乘一位數），
-              題目用點顯器摸讀，答案用點字鍵或六點鍵盤以 Nemeth 輸入，答錯可再試兩次；老師可先預覽、匯出 .brl 題目，練習結果存成 CSV。
-              附補數概念說明與教學法筆記。
+            <div class="tool-desc" id="desc-gq">
+              輸入英文單字查詢 G2 點字並逐條說明套用了哪些縮寫規則；或輸入點字反查英文，
+              以動態規劃列出所有可能的切分方式。結果同步與 liblouis 比對，歧異可一鍵回報。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -745,23 +745,15 @@
   const subbars = [...document.querySelectorAll('.subbar')];
   const panels  = [...document.querySelectorAll('.panel'), document.getElementById('home-panel'), document.getElementById('addons-panel')];
 
-  // 每組記得上次用的工具，點分組頁籤就回到那個工具
-  let lastTool = {};
-  try { lastTool = JSON.parse(localStorage.getItem('vitools-group-last') || '{}'); } catch (e) {}
+  // 點分組頁籤：一律打開該組第一項
   const subbarOf = id => subbars.find(b => b.querySelector('.tab[data-target="' + id + '"]'));
   function resolve(targetId) {
     const bar = subbars.find(b => b.dataset.group === targetId);
-    if (!bar) return targetId;
-    const last = lastTool[targetId];
-    return last && bar.querySelector('.tab[data-target="' + last + '"]') ? last : bar.querySelector('.tab').dataset.target;
+    return bar ? bar.querySelector('.tab').dataset.target : targetId;
   }
 
   function applyTab(targetId) {
     const bar = subbarOf(targetId), group = bar ? bar.dataset.group : targetId;
-    if (bar) {
-      lastTool[group] = targetId;
-      try { localStorage.setItem('vitools-group-last', JSON.stringify(lastTool)); } catch (e) {}
-    }
     subbars.forEach(b => { b.hidden = b !== bar; });
     tabs.forEach(t => {
       const isActive = t.dataset.target === targetId || t.dataset.target === group;
@@ -775,16 +767,19 @@
     if (p && p.dataset.src && !p.getAttribute('src')) p.src = p.dataset.src;
   }
 
-  function switchTo(targetId) {
+  // book：在點字教材框架裡打開哪一頁（BOOK_PAGES 的值，可帶 #錨點）；沒給就是教材列表
+  function switchTo(targetId, book) {
     targetId = resolve(targetId);
-    // 從卡片打開點字教材：一律先看到教材列表（之前可能直接開過某一本）
+    let hash = HASH_MAP[targetId] ?? '';
     if (targetId === 'frame-books') {
-      const f = document.getElementById('frame-books');
-      f.dataset.src = 'books.html';
-      if (f.getAttribute('src') && f.getAttribute('src') !== 'books.html') f.src = 'books.html';
+      // 從卡片、頁籤打開：一律先看到教材列表（之前可能直接開過某一本）
+      const page = book || 'books.html', f = document.getElementById('frame-books');
+      f.dataset.src = page;
+      if (f.getAttribute('src') && f.getAttribute('src') !== page) f.src = page;
+      const key = Object.keys(BOOK_PAGES).find(k => BOOK_PAGES[k] === page.split('#')[0]);
+      if (key) hash = key;
     }
     applyTab(targetId);
-    const hash = HASH_MAP[targetId] ?? '';
     history.pushState(null, '', location.pathname + (hash ? '#' + hash : ''));
     if (window.goatcounter && window.goatcounter.count)
       window.goatcounter.count({ path: location.pathname + (hash ? '#' + hash : '') });
@@ -795,6 +790,40 @@
     applyTab(fromHash());
   });
   tabs.forEach(tab => tab.addEventListener('click', () => switchTo(tab.dataset.target)));
+
+  // 框架裡的連結如果指到別的工具或教材（例：音樂點字頁首「回到點字樂譜轉換器」、數學點字頁首的教材連結），
+  // 不在原框架裡開，改成切到對應的頁籤，兩排頁籤跟著變
+  (function () {
+    const base = new URL('.', location.href);
+    const rel = u => u.origin === base.origin && u.pathname.startsWith(base.pathname) ? decodeURI(u.pathname.slice(base.pathname.length)) : null;
+    const PAGE_FRAME = {};
+    document.querySelectorAll('iframe.panel').forEach(f => {
+      const src = f.getAttribute('src') || f.dataset.src;
+      if (src) PAGE_FRAME[src] = f.id;
+    });
+    const BOOK_SET = new Set(Object.values(BOOK_PAGES).concat('books.html'));
+    function onClick(e, frame) {
+      if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey || e.altKey) return;
+      const a = e.target.closest && e.target.closest('a[href]');
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const u = new URL(a.href), page = rel(u);
+      if (page === null || u.pathname === frame.contentWindow.location.pathname) return;  // 同一頁的錨點照常
+      if (BOOK_SET.has(page)) { e.preventDefault(); switchTo('frame-books', page + u.hash); }
+      else if (PAGE_FRAME[page] && PAGE_FRAME[page] !== 'frame-books') { e.preventDefault(); switchTo(PAGE_FRAME[page]); }
+    }
+    function hook(f) {
+      try {
+        const d = f.contentDocument;
+        if (!d || d.vitoolsLinks || f.contentWindow.location.href === 'about:blank') return;
+        d.vitoolsLinks = true;
+        d.addEventListener('click', e => onClick(e, f));
+      } catch (ex) {}
+    }
+    document.querySelectorAll('iframe.panel').forEach(f => {
+      f.addEventListener('load', () => hook(f));
+      hook(f);
+    });
+  })();
 
   // nc → bt 銜接：nc 的「複製並開啟 bt」按鈕送出數學算式時，切到 bt 分頁，
   // 再轉發給 bt 的 iframe 讓它填進輸入框（bt 自己的 setBtInput 監聽器負責覆蓋）。
