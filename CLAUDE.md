@@ -1126,4 +1126,7 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 
 新功能的說明放在 `docs/notes/<功能>.md`，這裡只列索引，避免各分支都往這個檔案檔尾加段落而衝突。跨 repo、跨 session 的分支狀態與合併條件見上層的 `E:\Project\CLAUDE.md`。
 
-- [縮點對照頁（zh-tw-short.html）](docs/notes/zh-tw-short.md)：獨立頁面、zh-tw-short.js、prn-core 的 `{ nvda: true }` 與 word／begword、8DotBraille.ttf
+- [首頁分組](docs/notes/home-groups.md)：兩排頁籤、分組、新增工具的步驟
+- [點字教材網頁版](docs/notes/nemeth-book.md)
+- [珠算練習](docs/notes/abacus.md)、[珠算 NVDA 實測清單](docs/notes/abacus-test.md)
+- [縮點對照頁（zh-tw-short.html）](docs/notes/zh-tw-short.md)：學習與查詢的頁籤、zh-tw-short.js、prn-core 的 `{ nvda: true }` 與 word／begword、8DotBraille.ttf

@@ -90,12 +90,14 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
   .brl { font-size: 1.5rem; }
 }
 </style>
-<script>try { const t = localStorage.getItem('site-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+<script>try { const t = localStorage.getItem('site-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+// 放在 vi-tools 首頁框架裡時：主題跟著首頁切換
+window.addEventListener('message', e => { if (e.data && e.data.type === 'setTheme') document.documentElement.setAttribute('data-theme', e.data.theme === 'dark' ? 'dark' : 'light'); });</script>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <p class="status" style="margin:0 0 8px;"><a href="index.html">← vi-tools 首頁</a></p>
+  <p class="status" id="home-link" style="margin:0 0 8px;"><a href="index.html">← vi-tools 首頁</a></p>
   <h1>縮點</h1>
   <p class="sub">調號併入第七、八點的注音點字實驗　・　規則 v0.3（2026-10）</p>
   <div class="notice">
@@ -226,8 +228,8 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
 <section id="use" aria-labelledby="use-h">
   <h2 id="use-h">在 NVDA 使用</h2>
   <ul>
-    <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher">NVDA-brailleTableSwitcher</a> 1.3.0 起，輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
-    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME">6d-IME</a> 1.7 起（即將推出），用空白鍵＋點 4568 切到縮點模式。</li>
+    <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">NVDA-brailleTableSwitcher</a> 1.3.0 起，輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
+    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">6d-IME</a> 1.7 起（即將推出），用空白鍵＋點 4568 切到縮點模式。</li>
     <li><strong>不用縮點也可以</strong>：brailleTableSwitcher 另有「注音點字（多音字修正）」，一般注音點字加上同一份多音字修正；也修正了 NVDA 在編輯區、游標停在國字上時多音字讀錯的問題。</li>
     <li><strong>不安裝也能讀</strong>：NVDA 用中文（台灣，國語）點字表時，上方縮點欄的點字會原樣顯示在點顯器上。</li>
   </ul>
@@ -246,18 +248,19 @@ details.more label { display: block; margin-top: 6px; font-weight: normal; }
 <section id="history" aria-labelledby="history-h">
   <h2 id="history-h">緣起</h2>
   <ul>
-    <li>2018：<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/197">注音點字改良思考</a>，提出把調號併入第 7、8 點的構想。</li>
-    <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497">縮點輸入法</a>（已停止維護）。</li>
+    <li>2018：<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/197" target="_blank" rel="noopener">注音點字改良思考</a>，提出把調號併入第 7、8 點的構想。</li>
+    <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497" target="_blank" rel="noopener">縮點輸入法</a>（已停止維護）。</li>
     <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。</li>
   </ul>
 </section>
 </main>
 
 <footer>
-  <p>試用心得與回饋：<a href="https://www.facebook.com/vi.tech.tw/">Facebook 粉專</a>。轉譯核心同 <a href="index.html">vi-tools</a> 的文字轉點字；點字表取自 liblouis（LGPL 2.1 以上）。作者：hurt（<a href="https://class.kh.edu.tw/19061">視覺障礙輔助科技筆記本</a>）。點字字型由 hurt.tw 的 <a href="https://fontstruct.com/fontstructions/show/2057828/8dot-braille-1-1">8-dot braille</a> 產生（CC BY-NC-SA 3.0），空的點位畫成小點。</p>
+  <p>試用心得與回饋：<a href="https://www.facebook.com/vi.tech.tw/" target="_blank" rel="noopener">Facebook 粉專</a>。轉譯核心同 <a href="index.html">vi-tools</a> 的文字轉點字；點字表取自 liblouis（LGPL 2.1 以上）。作者：hurt（<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>）。點字字型由 hurt.tw 的 <a href="https://fontstruct.com/fontstructions/show/2057828/8dot-braille-1-1" target="_blank" rel="noopener">8-dot braille</a> 產生（CC BY-NC-SA 3.0），空的點位畫成小點。</p>
 </footer>
 </div>
 
+<script>if (window.self !== window.top) document.getElementById('home-link').hidden = true;   // 在首頁框架裡不需要回首頁的連結</script>
 <script src="prn-core.js"></script>
 <script src="zh-tw-short.js"></script>
 <script>

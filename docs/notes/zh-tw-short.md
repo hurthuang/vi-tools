@@ -2,6 +2,12 @@
 
 從 CLAUDE.md 搬出來的功能說明（2026-10-23）。縮點規則本身在本機的 zh-tw-short repo（E:/Project/zh-tw-short/rules.md）；跨 repo 的相依關係見 E:\Project\CLAUDE.md。
 
+## 首頁入口（2026-10-25）
+
+- 首頁改成兩排分組頁籤後（見 docs/notes/home-groups.md），縮點對照放在「學習與查詢」第二排 UEB 查詢後面（`#zh-tw-short`、`frame-zhshort`，`data-src` 第一次打開才載入），首頁卡片在學習與查詢那一組；不再放在附加元件區。
+- 頁面在首頁框架裡：隱藏「← vi-tools 首頁」、接收 `{type:'setTheme'}` 切換深淺色、外部連結（GitHub、文章、FontStruct）一律 `target="_blank"`。直接開 zh-tw-short.html 時照舊顯示回首頁連結。
+- guide.html（側欄、工具總覽、`#zhshort` 一節）與 README 的分組說明、工具表都有縮點對照。
+
 ## 第一版（2026-10-19）
 
 - 獨立頁面，不在主導覽分頁；入口是首頁「實驗功能」。縮點＝注音點字的調號併入第 7、8 點，只適用八點點顯器。規則文件在另一個 repo zh-tw-short（rules.md），網頁放這裡共用核心
