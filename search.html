@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>搜尋：視障輔助工具集與筆記本</title>
+<meta name="description" content="一次搜尋視障輔助工具集的工具、說明，以及「視覺障礙輔助科技筆記本」的文章（含內嵌的簡報、試算表、影片標題）。">
+<script src="music/js/theme.js"></script>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--mark:#fff1a8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--mark:#5a4a00}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--mark:#5a4a00}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.7 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.6rem;margin:8px 0 4px}
+.lead{color:var(--muted);margin:0 0 12px}
+form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+#q{flex:1 1 16em;min-width:0;font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+button{font:inherit;padding:6px 16px;border:1px solid var(--accent);border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}
+button.more{background:transparent;color:var(--accent);margin-top:12px}
+fieldset{border:0;padding:0;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.95rem}
+legend{float:left;margin-right:8px;color:var(--muted)}
+fieldset label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+#status{color:var(--muted);margin:8px 0}
+ol{list-style:none;padding:0;margin:0}
+li.r{border-top:1px solid var(--line);padding:10px 0}
+li.r h2{font-size:1.1rem;margin:0}
+.meta{color:var(--muted);font-size:.9rem;margin:0}
+.snip{margin:4px 0 0;word-break:break-word}
+mark{background:var(--mark);color:inherit}
+.google{margin-top:24px;font-size:.95rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>搜尋</h1>
+<p class="lead">一次搜尋這個工具集的工具與說明，以及<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>的文章。多個關鍵字用空白分開，要全部符合；結果都是標題，可以用標題鍵跳讀。</p>
+<form role="search" id="form">
+  <label for="q">關鍵字</label>
+  <input type="search" id="q" name="q" autocomplete="off" enterkeyhint="search">
+  <button type="submit">搜尋</button>
+</form>
+<fieldset id="kinds">
+  <legend>範圍</legend>
+  <label><input type="radio" name="kind" value="all" checked> 全部</label>
+  <label><input type="radio" name="kind" value="tools"> 工具與說明</label>
+  <label><input type="radio" name="kind" value="notes"> 筆記本</label>
+</fieldset>
+<p id="status" role="status" aria-live="polite">正在載入索引…</p>
+<ol id="results"></ol>
+<button type="button" class="more" id="more" hidden>顯示更多</button>
+<p class="google" id="google" hidden></p>
+</main>
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const PAGE = 30;
+  let idx = null, items = [], hits = [], shown = 0;
+  const inFrame = (() => { try { return window.top !== window && /index\.html$|\/$/.test(window.top.location.pathname); } catch (e) { return false; } })();
+
+  const norm = s => (s || '').normalize('NFKC').toLowerCase();
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // 每一筆整理成：標題、分類、要搜的文字（各欄位分開，計分用）
+  function prepare(d) {
+    const out = [];
+    for (const t of d.tools) out.push({ kind: t.k === 'tool' ? '工具' : '說明', group: 'tools', t: t.t, c: t.c,
+      href: inFrame ? t.p : 'index.html' + t.url, ext: false, date: '', x: t.x, sub: [], fields: { t: norm(t.t), c: norm(t.c.join(' ')), h: '', x: norm(t.x) } });
+    for (const n of d.notes) {
+      const sub = (n.e || []).map(e => ({ label: `內嵌${e.k}${e.t ? '「' + e.t + '」' : ''}`, x: [e.t, e.x].filter(Boolean).join('\n') }));
+      if (n.f) sub.push({ label: '附件', x: n.f.join('\n') });
+      out.push({ kind: '筆記', group: 'notes', t: n.t, c: n.c, href: `${d.source}/bulletin/msg_view/${n.id}`, ext: true,
+        date: n.u.slice(0, 10), x: n.x, sub,
+        fields: { t: norm(n.t), c: norm(n.c.join(' ')), h: norm((n.h || []).join('\n')), x: norm(n.x), s: norm(sub.map(s => s.label + '\n' + s.x).join('\n')) } });
+    }
+    return out;
+  }
+
+  const count = (hay, term) => { let n = 0, i = -1; while ((i = hay.indexOf(term, i + 1)) >= 0 && n < 20) n++; return n; };
+  function search(q, kind) {
+    const terms = [...new Set(norm(q).split(/\s+/).filter(Boolean))];
+    if (!terms.length) return { terms, list: [] };
+    const list = [];
+    for (const it of items) {
+      if (kind !== 'all' && it.group !== kind) continue;
+      const f = it.fields;
+      let score = 0, ok = true;
+      for (const term of terms) {
+        const t = count(f.t, term), c = count(f.c, term), h = count(f.h, term), x = count(f.x, term), s = count(f.s || '', term);
+        if (!(t || c || h || x || s)) { ok = false; break; }
+        score += t * 30 + c * 10 + h * 8 + Math.min(x, 10) * 2 + Math.min(s, 10);
+      }
+      if (!ok) continue;
+      if (f.t === terms.join(' ')) score += 50;   // 標題完全相同
+      list.push({ it, score });
+    }
+    list.sort((a, b) => b.score - a.score || (b.it.date > a.it.date ? 1 : b.it.date < a.it.date ? -1 : 0));
+    return { terms, list };
+  }
+
+  // 摘要：第一個關鍵字出現的地方前後各取一段，關鍵字標起來
+  function snippet(it, terms) {
+    const srcs = [{ label: '', x: it.x }, ...it.sub];
+    for (const s of srcs) {
+      const n = norm(s.x);
+      let pos = -1;
+      for (const term of terms) { const p = n.indexOf(term); if (p >= 0 && (pos < 0 || p < pos)) pos = p; }
+      if (pos < 0) continue;
+      const a = Math.max(0, pos - 40), b = Math.min(s.x.length, pos + 80);
+      let txt = (a ? '…' : '') + s.x.slice(a, b).replace(/\s*\n\s*/g, '／') + (b < s.x.length ? '…' : '');
+      return (s.label ? `（${s.label}）` : '') + mark(txt, terms);
+    }
+    return mark(it.x.slice(0, 100).replace(/\s*\n\s*/g, '／') + (it.x.length > 100 ? '…' : ''), terms);
+  }
+  // 在原文上標記關鍵字（不分大小寫；全形英數字搜得到但不會標起來）
+  function mark(txt, terms) {
+    const re = new RegExp(terms.map(t => reEsc(t)).sort((a, b) => b.length - a.length).join('|'), 'gi');
+    let out = '', last = 0;
+    for (const m of txt.matchAll(re)) { out += esc(txt.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>'; last = m.index + m[0].length; }
+    return out + esc(txt.slice(last));
+  }
+
+  function render(more) {
+    const ol = $('#results'), terms = hits.terms;
+    if (!more) { ol.innerHTML = ''; shown = 0; }
+    const frag = document.createDocumentFragment();
+    for (const { it } of hits.list.slice(shown, shown + PAGE)) {
+      const li = document.createElement('li'); li.className = 'r';
+      const meta = [it.kind, ...it.c, it.date && `更新 ${it.date}`].filter(Boolean).join('・');
+      li.innerHTML = `<h2><a href="${esc(it.href)}"${it.ext ? ' target="_blank" rel="noopener"' : ''}>${mark(it.t, terms)}</a></h2>
+        <p class="meta">${esc(meta)}${it.ext ? '（另開新分頁）' : ''}</p><p class="snip">${snippet(it, terms)}</p>`;
+      frag.appendChild(li);
+    }
+    const first = shown;
+    ol.appendChild(frag);
+    shown = Math.min(hits.list.length, shown + PAGE);
+    $('#more').hidden = shown >= hits.list.length;
+    $('#more').textContent = `顯示更多（還有 ${hits.list.length - shown} 筆）`;
+    if (more) ol.children[first]?.querySelector('a')?.focus();   // 顯示更多後，焦點移到新出現的第一筆
+  }
+
+  function run() {
+    if (!idx) return;
+    const q = $('#q').value.trim(), kind = document.querySelector('input[name=kind]:checked').value;
+    const url = new URL(location.href);
+    if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
+    if (kind !== 'all') url.searchParams.set('in', kind); else url.searchParams.delete('in');
+    history.replaceState(null, '', url);
+    hits = search(q, kind);
+    render(false);
+    const nt = hits.list.filter(h => h.it.group === 'tools').length, nn = hits.list.length - nt;
+    $('#status').textContent = !q ? '請輸入關鍵字' : hits.list.length
+      ? `找到 ${hits.list.length} 筆（工具與說明 ${nt} 筆、筆記 ${nn} 篇）`
+      : `找不到「${q}」，可以換個說法，或少打幾個字`;
+    const g = $('#google');
+    g.hidden = !q;
+    if (q) g.innerHTML = `找不到想要的？<a href="https://www.google.com/search?q=${encodeURIComponent(q + ' (site:class.kh.edu.tw/19061 OR site:hurthuang.github.io/vi-tools)')}" target="_blank" rel="noopener">用 Google 搜尋「${esc(q)}」</a>（另開新分頁）`;
+  }
+
+  $('#form').addEventListener('submit', e => { e.preventDefault(); run(); });
+  document.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener('change', run));
+  $('#more').addEventListener('click', () => render(true));
+
+  const p = new URLSearchParams(location.search);
+  $('#q').value = p.get('q') || '';
+  const k = document.querySelector(`input[name=kind][value="${p.get('in')}"]`); if (k) k.checked = true;
+
+  fetch('search-index.json').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => {
+    idx = d; items = prepare(d);
+    const built = new Date(d.built);
+    $('#status').textContent = `可以搜尋了：工具與說明 ${d.tools.length} 筆、筆記 ${d.notes.length} 篇（筆記更新到 ${built.getMonth() + 1}/${built.getDate()}）`;
+    if ($('#q').value) run(); else $('#q').focus();
+  }).catch(e => { $('#status').textContent = '索引載入失敗：' + e.message; });
+})();
+</script>
+</body>
+</html>
