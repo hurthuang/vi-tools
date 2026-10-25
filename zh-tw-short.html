@@ -145,7 +145,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
 
 <section id="rules" aria-labelledby="rules-h">
   <h2 id="rules-h">讀寫規則</h2>
-  <p><strong>讀打一致</strong>：閱讀和打字用同一套規則，讀到什麼就打什麼（6d-IME 縮點模式）。聲母、韻母的點位不變，只把調號方改成第 7、8 點；英文、數字、標點也不變。縮點閱讀表另外內建 702 條多音字修正（例：記得、值得的「得」是輕聲），NVDA 內建的注音點字讀錯的地方會改正。</p>
+  <p><strong>讀打一致</strong>：閱讀和打字用同一套規則，讀到什麼就打什麼（豪點輸入法的縮點模式）。聲母、韻母的點位不變，只把調號方改成第 7、8 點；英文、數字、標點也不變。縮點閱讀表另外內建 702 條多音字修正（例：記得、值得的「得」是輕聲），NVDA 內建的注音點字讀錯的地方會改正。</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th scope="col">聲調</th><th scope="col">寫法</th><th scope="col">例</th></tr></thead>
@@ -163,8 +163,8 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
 </section>
 
 <section id="typing" aria-labelledby="typing-h">
-  <h2 id="typing-h">打字（6d-IME 縮點模式）</h2>
-  <p>6d-IME 1.7 起（即將推出）。照上面的讀寫規則打，一方一方按，聲調和那一方同時按；一般的字不用空白鍵。例：天 <span class="kbrl brl">⠋</span> 124、<span class="kbrl brl">⠞</span> 2345，們 <span class="kbrl brl">⢍</span> 1348、<span class="kbrl brl">⠥</span> 136，因 <span class="kbrl brl">⠹</span> 1456、<span class="kbrl brl">⠄</span> 3。問號「？」是 <span class="kbrl brl">⠹</span> 1456 再按空白，和國語點字相同。</p>
+  <h2 id="typing-h">打字（豪點輸入法縮點模式）</h2>
+  <p>豪點輸入法（6d-IME）1.7 起。照上面的讀寫規則打，一方一方按，聲調和那一方同時按；一般的字不用空白鍵。例：天 <span class="kbrl brl">⠋</span> 124、<span class="kbrl brl">⠞</span> 2345，們 <span class="kbrl brl">⢍</span> 1348、<span class="kbrl brl">⠥</span> 136，因 <span class="kbrl brl">⠹</span> 1456、<span class="kbrl brl">⠄</span> 3。問號「？」是 <span class="kbrl brl">⠹</span> 1456 再按空白，和國語點字相同。</p>
   <h3>進階打法：一方打完（只用在打字）</h3>
   <p>下面 18 個音節可以省略韻母，只打聲母那一方。一般打法仍然可以用；閱讀時這些字照常寫聲母和韻母。</p>
   <div class="table-wrap">
@@ -191,7 +191,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
   </div>
   <h3>要注意的地方</h3>
   <ul>
-    <li><strong>聲母加點 8 有兩種意思</strong>：進階打法的四聲（是 <span class="kbrl brl">⢊</span> 248），或輕聲字的聲母（們 <span class="kbrl brl">⢍</span> 1348，後面還有韻母）。6d-IME 看下一方決定。少數情況會被誤判，例如四 <span class="kbrl brl">⢑</span> 158 接一 <span class="kbrl brl">⠡</span> 16、<span class="kbrl brl">⠄</span> 3 會被讀成 ㄒㄧ˙（樂一、個阿也是，每十萬字約 2 次）；遇到時四聲字改用一般打法（四 <span class="kbrl brl">⠑</span> 15、<span class="kbrl brl">⢱</span> 1568）。</li>
+    <li><strong>聲母加點 8 有兩種意思</strong>：進階打法的四聲（是 <span class="kbrl brl">⢊</span> 248），或輕聲字的聲母（們 <span class="kbrl brl">⢍</span> 1348，後面還有韻母）。豪點輸入法看下一方決定。少數情況會被誤判，例如四 <span class="kbrl brl">⢑</span> 158 接一 <span class="kbrl brl">⠡</span> 16、<span class="kbrl brl">⠄</span> 3 會被讀成 ㄒㄧ˙（樂一、個阿也是，每十萬字約 2 次）；遇到時四聲字改用一般打法（四 <span class="kbrl brl">⠑</span> 15、<span class="kbrl brl">⢱</span> 1568）。</li>
     <li>科 <span class="kbrl brl">⠇</span> 123、玻 <span class="kbrl brl">⠕</span> 135 的進階一聲要和空白鍵同時按；按完再按空白是標點「！」「）」。</li>
     <li>代名詞照讀法打（他 <span class="kbrl brl">⡋</span> 1247、<span class="kbrl brl">⠜</span> 345）或不打記號（<span class="kbrl brl">⠋</span> 124、<span class="kbrl brl">⠜</span> 345）都可以，選到哪個字由微軟注音決定；牠、祂照 ㄊㄚ 打。</li>
   </ul>
@@ -229,7 +229,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
   <h2 id="use-h">在 NVDA 使用</h2>
   <ul>
     <li><strong>閱讀</strong>：<a href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener">NVDA-brailleTableSwitcher</a> 1.3.0 起，輸出點字表選「縮點閱讀」。游標所在的字會顯示完整注音點字，方便確認聲調。</li>
-    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">6d-IME</a> 1.7 起（即將推出），用空白鍵＋點 4568 切到縮點模式。</li>
+    <li><strong>輸入</strong>：<a href="https://github.com/hurthuang/6d-IME" target="_blank" rel="noopener">豪點輸入法（6d-IME）</a> 1.7 起，用空白鍵＋點 4568 切到縮點模式。</li>
     <li><strong>不用縮點也可以</strong>：brailleTableSwitcher 另有「注音點字（多音字修正）」，一般注音點字加上同一份多音字修正；也修正了 NVDA 在編輯區、游標停在國字上時多音字讀錯的問題。</li>
     <li><strong>不安裝也能讀</strong>：NVDA 用中文（台灣，國語）點字表時，上方縮點欄的點字會原樣顯示在點顯器上。</li>
   </ul>
@@ -250,7 +250,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
   <ul>
     <li>2018：<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/197" target="_blank" rel="noopener">注音點字改良思考</a>，提出把調號併入第 7、8 點的構想。</li>
     <li>2020：高生旺老師在 NVDA 附加元件「高點」中實作縮點輸入，見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/497" target="_blank" rel="noopener">縮點輸入法</a>（已停止維護）。</li>
-    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和 6d-IME 實作。</li>
+    <li>2026：分成閱讀和輸入兩個方向，分別在 NVDA-brailleTableSwitcher 和豪點輸入法實作；規則集中在 <a href="https://github.com/hurthuang/zh-tw-short" target="_blank" rel="noopener">zh-tw-short</a> 維護。</li>
   </ul>
 </section>
 </main>
