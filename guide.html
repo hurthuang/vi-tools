@@ -221,7 +221,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#bt">→ 文字轉點字</a>
     <a href="#b2t">← 點字轉文字</a>
     <a href="#nc">π 數學點字</a>
-    <a href="#music">♪ 點字樂譜</a>
+    <a href="#music">♪ 音樂點字</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">教材製作</div>
@@ -230,9 +230,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">學習與查詢</div>
+    <a href="#books">📚 點字教材</a>
     <a href="#query">🔍 UEB 查詢</a>
     <a href="#abacus">🧮 珠算練習</a>
-    <a href="#books">📚 點字教材</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">桌面版</div>
@@ -246,7 +246,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <section id="overview">
   <h2 class="section-title">工具總覽</h2>
   <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。</p>
-  <p>工具分成三組。首頁上方第一排頁籤是組別：主頁、點字轉換、教材製作、學習與查詢、說明；選了組別，第二排是這一組的工具。頁籤用左右方向鍵切換，Tab 鍵從第一排移到第二排。每組會記得上次用的工具，再點組別就回到那個工具。首頁也依組別列出各工具的卡片，可以用 NVDA 的標題鍵（H）在組別之間跳。</p>
+  <p>工具分成四組。首頁上方第一排頁籤是組別：主頁、點字轉換、教材製作、學習與查詢、附加元件、說明；選了組別，第二排是這一組的工具（附加元件只有一頁，沒有第二排）。頁籤用左右方向鍵切換，Tab 鍵從第一排移到第二排。每組會記得上次用的工具，再點組別就回到那個工具。</p>
+  <p>用 NVDA 時，兩排頁籤在「工具導覽」地標裡，工具的內容在「主要」地標裡，按 D 可以在兩者之間跳。首頁依組別列出各工具的卡片，每一組是一個區域，可以用 D 或標題鍵（H）在組別之間跳。</p>
   <p>各工具的網址不變，例如 <code>#math</code> 直接開數學點字、<code>#abacus</code> 直接開珠算練習，已經分享出去的連結都可以用。</p>
   <p>另有 <a href="#app">Windows 桌面版</a>，可在沒有網路時使用，並能把朗讀內容存成 MP3 音檔。</p>
   <table class="ov-table">
@@ -271,7 +272,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <td>製作數學點字或電子文件</td>
       </tr>
       <tr>
-        <td>♪ 點字樂譜轉換</td>
+        <td>♪ 音樂點字</td>
         <td>ABC／MusicXML ↔ 音樂點字（BANA）</td>
         <td>把五線譜轉成點字樂譜、檢查點字樂譜、製作點字對照學習單</td>
       </tr>
@@ -288,14 +289,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       </tr>
       <tr><th colspan="3" scope="colgroup">學習與查詢</th></tr>
       <tr>
+        <td>📚 點字教材</td>
+        <td>注音點字、數理點字、UEB、音樂點字四本教材網頁版</td>
+        <td>查點字規則、教學參考</td>
+      </tr>
+      <tr>
         <td>🔍 UEB 查詢</td>
         <td>UEB G2 縮寫規則查詢</td>
         <td>查詢單一英文詞的 G2 點字及所用規則，供教學參考</td>
-      </tr>
-      <tr>
-        <td>🎼 點字樂譜規則</td>
-        <td>音樂點字規則對照，附可修改的例子</td>
-        <td>備課、教學生認識點字樂譜</td>
       </tr>
       <tr>
         <td>🎹 點字樂譜練習</td>
@@ -307,10 +308,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <td>算盤分級練習，點顯器作答</td>
         <td>盲生用算盤代替直式計算</td>
       </tr>
+      <tr><th colspan="3" scope="colgroup">附加元件</th></tr>
       <tr>
-        <td>📚 點字教材</td>
-        <td>數理點字、注音點字、UEB 三本教材網頁版</td>
-        <td>查點字規則、教學參考</td>
+        <td>🧩 NVDA 附加元件</td>
+        <td>點字表切換、六點輸入法等 6 個附加元件的連結</td>
+        <td>到 GitHub 下載、看說明</td>
       </tr>
     </tbody>
   </table>
@@ -570,7 +572,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
 <!-- ════════════ 點字樂譜 ════════════ -->
 <section id="music">
-  <h2 class="section-title">點字樂譜</h2>
+  <h2 class="section-title">音樂點字</h2>
 
   <div class="tool-header" style="--tool-color:#60a5fa">
     <div class="tool-icon">♪</div>
@@ -617,7 +619,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
 
   <h3>規則對照與學生練習</h3>
-  <p>「點字樂譜規則」頁依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字。「點字樂譜練習」是學生版，學生打點字樂譜，每打一個音就聽到它，寫好可以播放、存檔、匯出 MusicXML。這兩頁在「學習與查詢」這一組（<code>#music-rules</code>、<code>#music-student</code>），轉換器頁首也有連結。</p>
+  <p>首頁「點字轉換」組的「音樂點字」就是這個轉換器（<code>#music</code>）。</p>
+  <p>「點字樂譜規則對照」依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字，放在「點字教材」裡，名稱是「音樂點字」（<code>#music-rules</code>）。「點字樂譜練習」是學生版，學生打點字樂譜，每打一個音就聽到它，寫好可以播放、存檔、匯出 MusicXML，在「學習與查詢」這一組（<code>#music-student</code>）。轉換器頁首也有這兩頁的連結。</p>
 </section>
 
 
@@ -861,11 +864,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
 <section id="books">
   <h2 class="section-title">點字教材</h2>
-  <p>三本教材的網頁版，在「學習與查詢」這一組（<code>#books</code>，先看到三本的列表），也可以直接開某一本：<code>#nemeth-book</code>、<code>#zhuyin-rules</code>、<code>#ueb-book</code>。每章、每節都是標題，NVDA 可以用標題鍵跳讀；開頭有目錄。點字是 Unicode，點顯器摸得到；頁首可以改用 SimBraille 字型顯示 ASCII 點字，給明眼老師對照（三本共用這個設定）。</p>
+  <p>四本教材的網頁版，是「學習與查詢」這一組的第一項（<code>#books</code>，先看到四本的列表），也可以直接開某一本：<code>#zhuyin-rules</code>、<code>#nemeth-book</code>、<code>#ueb-book</code>、<code>#music-rules</code>。每章、每節都是標題，NVDA 可以用標題鍵跳讀；開頭有目錄。點字是 Unicode，點顯器摸得到；前三本的頁首可以改用 SimBraille 字型顯示 ASCII 點字，給明眼老師對照（三本共用這個設定）。</p>
   <ul>
-    <li><strong>數理點字教材</strong>（nemeth-book.html）：依 108 課綱與 Nemeth 2022 規則編寫，CH1～CH11 加附錄。算式用 MathJax 顯示，並附給報讀軟體的 MathML。</li>
     <li><strong>台灣注音點字規則整理</strong>（zhuyin-braille-rules.html）：聲韻調、拼法與換行；標點符號每個符號一個小標題，依序是點字、說明、點字規則。</li>
+    <li><strong>數理點字教材</strong>（nemeth-book.html）：依 108 課綱與 Nemeth 2022 規則編寫，CH1～CH11 加附錄。算式用 MathJax 顯示，並附給報讀軟體的 MathML。</li>
     <li><strong>UEB 學習手冊</strong>（ueb-book.html）：黃偉豪、陳英廷著，保留版權頁與 ISBN；最後附縮寫快速查詢表。</li>
+    <li><strong>音樂點字</strong>（music/rules.html）：點字樂譜規則對照，見<a href="#music">音樂點字</a>一節；點字顯示方式在頁面裡另外選。</li>
   </ul>
   <p>相關工具頁也有連結：數學點字連到數理點字教材，文字轉點字連到注音點字規則與 UEB 學習手冊，UEB 查詢連到 UEB 學習手冊。</p>
 </section>

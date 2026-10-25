@@ -4,22 +4,31 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
+// 順序就是教材列表的順序（使用者：注音點字放第一）
 const BOOKS = [
-  {
-    src: 'document/教材/Nemeth-數學點字教材-CH1-9.md', out: 'nemeth-book.html', math: true,
-    tool: ['nemeth_converter.html', '數學點字工具'],
-    lead: '依 108 課綱與 Nemeth 2022 規則編寫，國小到高中的數學，加上化學、物理公式。例子的點字都由數學點字工具產生，再跟規則書的範例核對。這份教材也分章發布在<a href="https://class.kh.edu.tw/19061/page/view/17#Nemeth">視覺障礙輔助科技筆記本</a>。',
-  },
   {
     src: 'document/教材/注音點字規則整理.md', out: 'zhuyin-braille-rules.html', math: false,
     tool: ['braille-translate.htm', '文字轉點字'],
     lead: '國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號。標點符號的名稱、說明引用教育部《重訂標點符號手冊》，點字依教育部《點字符號彙編 國語點字》，彙編沒有定義的符號另外提出建議。原載視覺障礙輔助科技筆記本（<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/75">聲韻調、拼法</a>、<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/77">標點符號</a>）。',
   },
   {
+    src: 'document/教材/Nemeth-數學點字教材-CH1-9.md', out: 'nemeth-book.html', math: true,
+    tool: ['nemeth_converter.html', '數學點字工具'],
+    lead: '依 108 課綱與 Nemeth 2022 規則編寫，國小到高中的數學，加上化學、物理公式。例子的點字都由數學點字工具產生，再跟規則書的範例核對。這份教材也分章發布在<a href="https://class.kh.edu.tw/19061/page/view/17#Nemeth">視覺障礙輔助科技筆記本</a>。',
+  },
+  {
     // 原稿是 Word（主編在雲端硬碟改，改完複製到 document/教材/UEB 學習手冊.docx 再跑）。只留封面圖，其他圖不放
     src: 'document/教材/UEB 學習手冊.docx', out: 'ueb-book.html', math: false, title: 'UEB 學習手冊',
     tool: ['UEB-g2-query.html', 'UEB 查詢'], cover: 'ueb-book-cover.jpg',
     lead: '給初學者的統一英文點字（UEB）手冊：第一部分是英文字母、數字、大寫、標點符號和簡寫字，第二部分是各類縮寫，最後是綜合練習、相關輔助科技和縮寫快速查詢表。作者黃偉豪、陳英廷，PDF 版見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/1039">視覺障礙輔助科技筆記本</a>。',
+  },
+];
+
+// 教材列表接在 BOOKS 後面的現成網頁（不由這支產生）
+const LINKS = [
+  {
+    href: 'music/rules.html', title: '音樂點字',
+    lead: '點字樂譜規則對照，依 BANA《Music Braille Code, 2015》：音符與時值、音層記號、音程與和弦，到歌曲（歌詞）、多聲部分譜、合奏總譜、人聲伴奏與合唱總譜。每條規則附可以修改的 ABC 例子，點字和五線譜跟著變。',
   },
 ];
 
@@ -163,7 +172,8 @@ ${body}
 // 教材列表 books.html（首頁「點字教材」卡片打開的頁面）：書名、說明照 BOOKS，樣式沿用教材頁
 function listPage(pages) {
   const css = pages[0].page.match(/<style>([\s\S]*?)<\/style>/)[1];
-  const items = BOOKS.map((b, i) => `<h2><a href="${b.out}">${pages[i].title}</a></h2>\n<p>${b.lead}</p>`).join('\n');
+  const items = [...BOOKS.map((b, i) => ({ href: b.out, title: pages[i].title, lead: b.lead })), ...LINKS]
+    .map(b => `<h2><a href="${b.href}">${b.title}</a></h2>\n<p>${b.lead}</p>`).join('\n');
   return `<!DOCTYPE html>
 <html lang="zh-Hant-TW">
 <head>
@@ -187,7 +197,7 @@ ${items}
 
 let bad = 0;
 const built = BOOKS.map(b => ({ out: b.out, ...build(b) }));
-built.push({ out: 'books.html', page: listPage(built), chapters: BOOKS.length });
+built.push({ out: 'books.html', page: listPage(built), chapters: BOOKS.length + LINKS.length });
 for (const { out: name, page, chapters } of built) {
   const book = { out: name }, out = new URL(name, root);
   if (process.argv.includes('--check')) {

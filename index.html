@@ -28,19 +28,24 @@
   body { display: flex; flex-direction: column; }
 
   /* ── Tab bar：第一排分組、第二排該組的工具 ── */
+  #site-nav { flex-shrink: 0; }
+  .toprow {
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  #tabbar { flex: 1; min-width: 0; }
   #tabbar, .subbar {
     display: flex;
     align-items: stretch;
-    flex-shrink: 0;
     height: var(--tab-h);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
     gap: 2px;
     padding: 0 8px;
     overflow-x: auto;
     scrollbar-width: thin;
   }
-  .subbar { height: 40px; background: var(--bg); }
+  .subbar { height: 40px; background: var(--bg); border-bottom: 1px solid var(--border); }
   .subbar[hidden] { display: none; }
   .subbar .tab { font-size: 0.84rem; padding: 0 14px; }
 
@@ -81,7 +86,7 @@
   .panel.active { display: block; }
 
   /* ── Home panel ── */
-  #home-panel {
+  #home-panel, #addons-panel {
     position: absolute;
     inset: 0;
     overflow-y: auto;
@@ -91,7 +96,7 @@
     padding: 48px 24px 64px;
     background: var(--bg);
   }
-  #home-panel.active { display: flex; }
+  #home-panel.active, #addons-panel.active { display: flex; }
 
   .home-inner {
     width: 100%;
@@ -228,6 +233,7 @@
   }
 
   .addon-cards {
+    margin-top: 24px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
@@ -286,6 +292,8 @@
 <body>
 <a href="#panels" class="skip-link">跳至主要內容</a>
 
+<nav id="site-nav" aria-label="工具導覽">
+<div class="toprow">
 <div id="tabbar" role="tablist" aria-label="分組">
   <div class="tab active" role="tab" id="tab-home" data-target="home-panel"
        tabindex="0" aria-selected="true" aria-controls="home-panel">
@@ -303,11 +311,15 @@
        tabindex="-1" aria-selected="false" aria-controls="sub-learn">
     <span class="icon" aria-hidden="true">🎓</span> 學習與查詢
   </div>
+  <div class="tab" role="tab" id="tab-addons" data-target="addons-panel"
+       tabindex="-1" aria-selected="false" aria-controls="addons-panel">
+    <span class="icon" aria-hidden="true">🧩</span> 附加元件
+  </div>
   <div class="tab" role="tab" id="tab-guide" data-target="frame-guide"
        tabindex="-1" aria-selected="false" aria-controls="frame-guide">
     <span class="icon" aria-hidden="true">📖</span> 說明
   </div>
-  <div style="flex:1"></div>
+</div>
   <button id="theme-btn" onclick="toggleTheme()" style="
     background:none;border:1px solid var(--border);color:var(--muted);
     border-radius:6px;padding:4px 12px;cursor:pointer;font-size:0.82rem;
@@ -330,7 +342,7 @@
   </div>
   <div class="tab" role="tab" id="tab-music" data-target="frame-music"
        tabindex="-1" aria-selected="false" aria-controls="frame-music">
-    <span class="icon" aria-hidden="true">♪</span> 點字樂譜轉換
+    <span class="icon" aria-hidden="true">♪</span> 音樂點字
   </div>
 </div>
 <div class="subbar" id="sub-make" role="tablist" aria-label="教材製作" data-group="group-make" hidden>
@@ -344,13 +356,13 @@
   </div>
 </div>
 <div class="subbar" id="sub-learn" role="tablist" aria-label="學習與查詢" data-group="group-learn" hidden>
+  <div class="tab" role="tab" id="tab-books" data-target="frame-books"
+       tabindex="-1" aria-selected="false" aria-controls="frame-books">
+    <span class="icon" aria-hidden="true">📚</span> 點字教材
+  </div>
   <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
        tabindex="-1" aria-selected="false" aria-controls="frame-gq">
     <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
-  </div>
-  <div class="tab" role="tab" id="tab-mrules" data-target="frame-mrules"
-       tabindex="-1" aria-selected="false" aria-controls="frame-mrules">
-    <span class="icon" aria-hidden="true">🎼</span> 點字樂譜規則
   </div>
   <div class="tab" role="tab" id="tab-mstudent" data-target="frame-mstudent"
        tabindex="-1" aria-selected="false" aria-controls="frame-mstudent">
@@ -360,22 +372,21 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-abacus">
     <span class="icon" aria-hidden="true">🧮</span> 珠算練習
   </div>
-  <div class="tab" role="tab" id="tab-books" data-target="frame-books"
-       tabindex="-1" aria-selected="false" aria-controls="frame-books">
-    <span class="icon" aria-hidden="true">📚</span> 點字教材
-  </div>
 </div>
 
-<div id="panels" tabindex="-1">
+</nav>
+
+<main id="panels" tabindex="-1">
 
   <div id="home-panel" class="active" role="tabpanel" aria-labelledby="tab-home" tabindex="0">
     <div class="home-inner">
       <h1 class="home-title">視障輔助工具集</h1>
       <p class="home-subtitle">
-        為視覺障礙教育設計的點字轉換、教材製作與學習工具，分成三組。<br>
+        為視覺障礙教育設計的點字轉換、教材製作與學習工具，分成四組。<br>
         上方第一排選組別，第二排選該組的工具；也可以直接點下面的卡片。
       </p>
 
+      <section aria-labelledby="home-convert">
       <h2 class="group-title" id="home-convert">點字轉換</h2>
       <p class="group-desc">文字、數學、樂譜和點字互相轉換。</p>
       <div class="tool-cards">
@@ -433,12 +444,12 @@
         </div>
 
         <div class="tool-card" style="--card-accent:#fb923c" onclick="switchTo('frame-music')"
-             role="button" tabindex="0" aria-label="開啟點字樂譜轉換" aria-describedby="desc-music"
+             role="button" tabindex="0" aria-label="開啟音樂點字" aria-describedby="desc-music"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-music')}">
           <div class="tool-icon" aria-hidden="true">♪</div>
           <div class="tool-info">
             <div class="tool-name">
-              點字樂譜轉換
+              音樂點字
               <span class="tool-badge" style="background:#fb923c">BANA 2015</span>
             </div>
             <div class="tool-desc" id="desc-music">
@@ -450,7 +461,9 @@
         </div>
 
       </div>
+      </section>
 
+      <section aria-labelledby="home-make">
       <h2 class="group-title" id="home-make">教材製作</h2>
       <p class="group-desc">把文件和圖形整理成視障學生可以用的教材。</p>
       <div class="tool-cards">
@@ -490,10 +503,29 @@
         </div>
 
       </div>
+      </section>
 
+      <section aria-labelledby="home-learn">
       <h2 class="group-title" id="home-learn">學習與查詢</h2>
       <p class="group-desc">點字規則查詢、教材與學生練習。</p>
       <div class="tool-cards">
+
+        <div class="tool-card" style="--card-accent:#60a5fa" onclick="switchTo('frame-books')"
+             role="button" tabindex="0" aria-label="開啟點字教材" aria-describedby="desc-books"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-books')}">
+          <div class="tool-icon" aria-hidden="true">📚</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              點字教材
+              <span class="tool-badge" style="background:#60a5fa">4 本</span>
+            </div>
+            <div class="tool-desc" id="desc-books">
+              台灣注音點字規則整理（聲韻調、標點符號）、數理點字教材（Nemeth，108 課綱國小到高中、化學、物理）、UEB 學習手冊（字母、縮寫、練習與縮寫快速查詢表）、音樂點字（點字樂譜規則對照，附可修改的例子）。
+              每章每節都是標題，點字可用點顯器摸讀，也可切換 SimBraille 顯示。
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
 
         <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
              role="button" tabindex="0" aria-label="開啟 UEB 查詢工具" aria-describedby="desc-gq"
@@ -507,22 +539,6 @@
             <div class="tool-desc" id="desc-gq">
               輸入英文單字查詢 G2 點字並逐條說明套用了哪些縮寫規則；或輸入點字反查英文，
               以動態規劃列出所有可能的切分方式。結果同步與 liblouis 比對，歧異可一鍵回報。
-            </div>
-          </div>
-          <div class="tool-arrow" aria-hidden="true">›</div>
-        </div>
-
-        <div class="tool-card" style="--card-accent:#fdba74" onclick="switchTo('frame-mrules')"
-             role="button" tabindex="0" aria-label="開啟點字樂譜規則" aria-describedby="desc-mrules"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-mrules')}">
-          <div class="tool-icon" aria-hidden="true">🎼</div>
-          <div class="tool-info">
-            <div class="tool-name">
-              點字樂譜規則
-              <span class="tool-badge" style="background:#fdba74">BANA 2015</span>
-            </div>
-            <div class="tool-desc" id="desc-mrules">
-              音符與時值、音層記號、音程與和弦，到歌曲（歌詞）、多聲部分譜、合奏總譜、人聲伴奏與合唱總譜等規則說明，附可修改的例子。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -562,26 +578,50 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
-        <div class="tool-card" style="--card-accent:#60a5fa" onclick="switchTo('frame-books')"
-             role="button" tabindex="0" aria-label="開啟點字教材" aria-describedby="desc-books"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-books')}">
-          <div class="tool-icon" aria-hidden="true">📚</div>
+      </div>
+      </section>
+
+      <section aria-labelledby="home-addons">
+      <h2 class="group-title" id="home-addons">附加元件</h2>
+      <p class="group-desc">配合點顯器與報讀軟體 NVDA 使用的附加元件。</p>
+      <div class="tool-cards">
+
+        <div class="tool-card" style="--card-accent:#94a3b8" onclick="switchTo('addons-panel')"
+             role="button" tabindex="0" aria-label="開啟 NVDA 附加元件" aria-describedby="desc-addons"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('addons-panel')}">
+          <div class="tool-icon" aria-hidden="true">🧩</div>
           <div class="tool-info">
             <div class="tool-name">
-              點字教材
-              <span class="tool-badge" style="background:#60a5fa">3 本</span>
+              NVDA 附加元件
+              <span class="tool-badge" style="background:#94a3b8">6 個</span>
             </div>
-            <div class="tool-desc" id="desc-books">
-              數理點字教材（Nemeth，108 課綱國小到高中、化學、物理）、台灣注音點字規則整理（聲韻調、標點符號）、UEB 學習手冊（字母、縮寫、練習與縮寫快速查詢表）。
-              每章每節都是標題，點字可用點顯器摸讀，也可切換 SimBraille 顯示。
+            <div class="tool-desc" id="desc-addons">
+              點字表切換、六點輸入法、語音字典切換、國語字典查詢、點字輸出匯出、光點驅動。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
       </div>
+      </section>
 
-      <h2 class="addon-section-title">NVDA 附加元件</h2>
+      <div class="home-footer">
+        文件內容在瀏覽器本機處理，不上傳至伺服器。<br>
+        適用於視障教育教材製作與教學。<br>
+        作者：黃偉豪
+        ／<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視障輔助科技筆記本</a>
+        ／<a href="https://github.com/hurthuang" target="_blank" rel="noopener">GitHub</a>
+        ／<a href="https://www.facebook.com/vi.tech.tw/" target="_blank" rel="noopener">Facebook</a><br>
+        <span id="app-download">💻 Windows 桌面版（離線使用、朗讀存成音檔）：<a href="https://github.com/hurthuang/vi-tools/releases/latest" target="_blank" rel="noopener" aria-label="下載 Windows 桌面版，在新視窗開啟">下載</a>，使用方式見「說明」</span><br>
+        <span id="gc-visit-count"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="addons-panel" role="tabpanel" aria-labelledby="tab-addons" tabindex="0">
+    <div class="home-inner">
+      <h1 class="home-title">NVDA 附加元件</h1>
+      <p class="home-subtitle">配合點顯器與報讀軟體 NVDA 使用，連結開到 GitHub 頁面（新視窗），在那裡下載與看說明。</p>
       <div class="addon-cards">
         <a class="addon-card" href="https://github.com/hurthuang/NVDA-brailleTableSwitcher" target="_blank" rel="noopener"
            aria-label="點字表切換 (brailleTableSwitcher)，在新視窗開啟">
@@ -615,16 +655,6 @@
         </a>
       </div>
 
-      <div class="home-footer">
-        文件內容在瀏覽器本機處理，不上傳至伺服器。<br>
-        適用於視障教育教材製作與教學。<br>
-        作者：黃偉豪
-        ／<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視障輔助科技筆記本</a>
-        ／<a href="https://github.com/hurthuang" target="_blank" rel="noopener">GitHub</a>
-        ／<a href="https://www.facebook.com/vi.tech.tw/" target="_blank" rel="noopener">Facebook</a><br>
-        <span id="app-download">💻 Windows 桌面版（離線使用、朗讀存成音檔）：<a href="https://github.com/hurthuang/vi-tools/releases/latest" target="_blank" rel="noopener" aria-label="下載 Windows 桌面版，在新視窗開啟">下載</a>，使用方式見「說明」</span><br>
-        <span id="gc-visit-count"></span>
-      </div>
     </div>
   </div>
 
@@ -633,8 +663,7 @@
   <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
   <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="文件整理"></iframe>
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq" title="UEB 查詢"></iframe>
-  <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="點字樂譜轉換"></iframe>
-  <iframe id="frame-mrules"   class="panel" data-src="music/rules.html"   role="tabpanel" aria-labelledby="tab-mrules"   title="點字樂譜規則"></iframe>
+  <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="音樂點字"></iframe>
   <iframe id="frame-mstudent" class="panel" data-src="music/student.html" role="tabpanel" aria-labelledby="tab-mstudent" title="點字樂譜練習"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸摸圖"></iframe>
   <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-labelledby="tab-abacus" title="珠算練習"></iframe>
@@ -642,7 +671,7 @@
   <iframe id="frame-books" class="panel" data-src="books.html" role="tabpanel" aria-labelledby="tab-books" title="點字教材"></iframe>
   <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
 
-</div>
+</main>
 
 <script>
   // ── Theme ──
@@ -693,7 +722,7 @@
   const HASH_MAP = {
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
-    'frame-music': 'music', 'frame-mrules': 'music-rules', 'frame-mstudent': 'music-student',
+    'frame-music': 'music', 'frame-mstudent': 'music-student', 'addons-panel': 'addons',
     'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
     'frame-books': 'books',
     'frame-guide': 'guide'
@@ -701,7 +730,8 @@
   const HASH_TO_TARGET = {};
   for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;
   // 各本教材也可以直接開（#nemeth-book 等），在點字教材的框架裡打開那一本
-  const BOOK_PAGES = { 'nemeth-book': 'nemeth-book.html', 'zhuyin-rules': 'zhuyin-braille-rules.html', 'ueb-book': 'ueb-book.html' };
+  const BOOK_PAGES = { 'zhuyin-rules': 'zhuyin-braille-rules.html', 'nemeth-book': 'nemeth-book.html', 'ueb-book': 'ueb-book.html',
+                       'music-rules': 'music/rules.html' };
   function fromHash() {
     const h = location.hash.slice(1), page = BOOK_PAGES[h];
     if (!page) return HASH_TO_TARGET[h] || 'home-panel';
@@ -713,7 +743,7 @@
 
   const tabs    = document.querySelectorAll('.tab');
   const subbars = [...document.querySelectorAll('.subbar')];
-  const panels  = [...document.querySelectorAll('.panel'), document.getElementById('home-panel')];
+  const panels  = [...document.querySelectorAll('.panel'), document.getElementById('home-panel'), document.getElementById('addons-panel')];
 
   // 每組記得上次用的工具，點分組頁籤就回到那個工具
   let lastTool = {};
