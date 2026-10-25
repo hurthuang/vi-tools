@@ -39,7 +39,7 @@
 
 | 附加元件 | 說明 |
 |----------|------|
-| [六點輸入法 (6d-IME)](https://github.com/hurthuang/6d-IME) | 六點點字鍵盤多模式輸入，支援注音點字、comp8、UEB、Nemeth |
+| [豪點輸入法 (6d-IME)](https://github.com/hurthuang/6d-IME) | 六點點字鍵盤多模式輸入，支援注音點字、comp8、UEB、Nemeth |
 | [語音字典切換 (DictSwitcher)](https://github.com/hurthuang/NVDA-DictSwitcher) | 快速在一般修正、注音點字、數學點字字典間循環切換 |
 | [國語字典查詢 (zhDict)](https://github.com/hurthuang/zhDict) | 選字查詢中文辭典（萌典）或英文字典，自動判斷語言 |
 | [點字表切換 (brailleTableSwitcher)](https://github.com/hurthuang/NVDA-brailleTableSwitcher) | 快速切換注音點字、UEB G1／G2 輸出轉譯表 |
