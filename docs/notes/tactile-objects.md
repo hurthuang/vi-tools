@@ -32,8 +32,10 @@
 - 一開始就有一張空白頁；只有一張完全沒動過的頁面時（`onlyEmptyPage`），開啟 .prn／.tactile、加入框選的圖會取代它，否則照原本插入或加在後面。匯入的 PRN 頁面標 `fromPrn`，清單沒有標題時顯示「（匯入的 PRN）」，其他顯示「（無標題）」。
 - `dirty`：`pushUndo`、標題、標籤文字改了就標記；匯出 PRN 時還沒存編輯檔，標頭顯示提醒。
 
-## 第二階段（還沒做）
+## 第二階段（2026-10-25）
 
-- 改大小、改粗細（點選後）。
-- 填色跟著圖形走（矩形、橢圓的填色紋理屬性）。
-- 自動備份到瀏覽器，不小心關掉時可以恢復。
+- 點選的控制點（`itemHandles`）：只選一條直線、箭頭時是兩個端點（`drag.endpt`，Shift 鎖角度）；其他是合起來外框的四個角（`drag.iresize`，`scaleItems` 依拖曳開始時的樣子縮放，對角固定、Shift 維持比例、拖過固定角會翻過去）。只有標籤時沒有控制點。
+- 選取工具選到圖形時，工具列顯示 `#optStroke`、`#optDash`、`#fillLevel`（多一個「不填色」），值取第一個圖形（`syncSelOpts`），改了就套用到選到的圖形（`editSelObjs`）。
+- 矩形、橢圓的 `fill`（同填色種類：3、7、dots、diag、grid）：`objInside` 判斷裡面，`objFillCells` 算出填色的點（紋理不貼外框，快取 `_fk`、`_fill`）。`withObjs` 只填在底圖空白的地方，`fm` 記下位置讓 `compose` 在標籤周圍清掉。填色工具點在圖形裡面就設定 `fill`，不做 flood fill；點選時點在有填色的圖形裡面也選得到；`flattenObjs` 連填色一起轉成點陣。
+- 修正：框選範圍拖角縮放時，`float.objs` 沒有跟著更新（第一階段漏掉）。
+- 自動備份（`AUTO_KEY = 'tactile-autosave'`，localStorage）：`markDirty` 後 1.5 秒存 `buildData()`；儲存編輯檔後清掉。打開時有備份就顯示 `#restoreBar`，恢復用 `loadTactile`（同開啟編輯檔，會取代沒動過的空白頁）；還沒決定前不覆蓋舊備份。頁面排序、刪除、匯入 PRN、加入框選的圖也會標記修改。
