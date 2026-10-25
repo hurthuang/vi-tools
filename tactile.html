@@ -1687,21 +1687,22 @@
   async function openTactile(f) {
     const data = JSON.parse(await f.text());
     if (data.format !== 'vi-tools-tactile' || !Array.isArray(data.pages)) throw new Error('這不是觸摸圖的編輯檔');
-    if (pages.length && !confirm(`開啟編輯檔會取代目前的 ${pages.length} 頁，確定嗎？`)) return;
-    const w = data.paper.w, h = data.paper.h, list = [];
+    // 插在目前這頁後面（同空白頁）；還沒有頁面時直接用編輯檔的紙張，有頁面時依目前紙張從左上角裁切或補白（畫的圖形超出紙張的部分不會匯出）
+    const w = data.paper.w, h = data.paper.h, first = !pages.length, list = [];
+    if (first) setPaper(w, h);
+    const fit = a => w === W && h === H ? a : resizeDots(a, w, h, W, H);
     for (const p of data.pages) list.push({
       title: p.title || '', titleBrl: p.titleBrl || '',
-      dots: await unpackBytes(p.dots, w * h), fillMask: p.fillMask ? await unpackBytes(p.fillMask, w * h) : new Uint8Array(w * h),
+      dots: fit(await unpackBytes(p.dots, w * h)), fillMask: fit(p.fillMask ? await unpackBytes(p.fillMask, w * h) : new Uint8Array(w * h)),
       objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l })), fills: p.fills || [],
       src: null, opts: defaultOpts(), undo: [], fromFile: true,
     });
-    pages.length = 0;
-    setPaper(w, h);   // 頁面先清空，紙張直接換成編輯檔的尺寸（不裁切）
-    pages.push(...list);
-    $('#outName').value = f.name.replace(/\.tactile$/i, '.prn');
-    dirty = false; $('#saveHint').hidden = true;
-    selectPage(0);
-    $('#edStatus').textContent = `開啟 ${f.name}（${list.length} 頁）`;
+    const at = first ? 0 : cur + 1;
+    pages.splice(at, 0, ...list);
+    if (first) { $('#outName').value = f.name.replace(/\.tactile$/i, '.prn'); dirty = false; $('#saveHint').hidden = true; }
+    else markDirty();
+    selectPage(at);
+    $('#edStatus').textContent = `插入 ${f.name} 的 ${list.length} 頁` + (first || (w === W && h === H) ? '' : `（這個檔案是 ${inch(w)} × ${inch(h)} 吋，已依目前紙張裁切或補白）`);
   }
 
   // ── 頁面清單與屬性 ─────────────────────────────────────
