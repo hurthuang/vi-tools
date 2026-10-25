@@ -77,6 +77,12 @@
   .lb input.manual { border-color: var(--warn); }
   .lb button { padding: 0 6px; }
   details summary { cursor: pointer; color: var(--muted); }
+  #alignOps { position: relative; display: inline-block; }
+  #alignOps summary { list-style: none; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--text); }
+  #alignOps summary::-webkit-details-marker { display: none; }
+  #alignOps.off summary { opacity: .45; cursor: default; }
+  #alignOps .menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: grid; grid-template-columns: repeat(3, auto); gap: 4px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  #alignOps .menu button { white-space: nowrap; text-align: left; }
   kbd { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 12px; background: var(--kbd); }
 </style>
 </head>
@@ -167,17 +173,20 @@
         <button id="opRot" title="順時針旋轉 90°">⟳ 90°</button>
         <button id="opCopy" title="複製（Ctrl+C）">複製</button>
         <button id="opPaste" title="貼上（Ctrl+V）">貼上</button>
-        <span id="alignOps">
-          <button data-align="left" title="靠左對齊（只選一個時對齊圖形範圍）">⇤ 左</button>
-          <button data-align="hcenter" title="水平置中（只選一個時放到頁面正中）">↔ 中</button>
-          <button data-align="right" title="靠右對齊">右 ⇥</button>
-          <button data-align="top" title="靠上對齊">⤒ 上</button>
-          <button data-align="vcenter" title="垂直置中（只選一個時放到頁面正中）">↕ 中</button>
-          <button data-align="bottom" title="靠下對齊">下 ⤓</button>
-          <button data-align="hdist" title="水平等距（選三個以上）">⋯ 等距</button>
-          <button data-align="vdist" title="垂直等距（選三個以上）">⋮ 等距</button>
-          <button id="opFlatten" title="選取的圖形轉成點陣：之後可以用橡皮擦擦一部分，但不能再當物件搬">轉成點陣</button>
-        </span>
+        <details id="alignOps" title="選兩個以上對齊彼此；只選一個時對齊圖形範圍，置中放到頁面正中">
+          <summary>對齊 ▾</summary>
+          <div class="menu">
+            <button data-align="left">⇤ 靠左</button>
+            <button data-align="hcenter">↔ 水平置中</button>
+            <button data-align="right">⇥ 靠右</button>
+            <button data-align="top">⤒ 靠上</button>
+            <button data-align="vcenter">↕ 垂直置中</button>
+            <button data-align="bottom">⤓ 靠下</button>
+            <button data-align="hdist" title="最左、最右不動，中間的間隔排成一樣（選三個以上）">⋯ 水平等距</button>
+            <button data-align="vdist" title="最上、最下不動，中間的間隔排成一樣（選三個以上）">⋮ 垂直等距</button>
+          </div>
+        </details>
+        <button id="opFlatten" title="選取的圖形轉成點陣：之後可以用橡皮擦擦一部分，但不能再當物件搬">轉成點陣</button>
       </span>
       <span style="flex:1"></span>
       <label class="muted" title="在編輯區底下半透明顯示原圖，照著描（原圖不會匯出）"><input type="checkbox" id="trace"> 描圖</label>
@@ -2002,6 +2011,8 @@
     $('#opPaste').disabled = !clip;
     for (const b of document.querySelectorAll('#alignOps [data-align]'))
       b.disabled = /dist$/.test(b.dataset.align) ? selItems.length < 3 : !selItems.length;
+    $('#alignOps').classList.toggle('off', !selItems.length);
+    if (!selItems.length) $('#alignOps').open = false;
     $('#opFlatten').disabled = !selItems.some(it => !isLabelItem(it));
   }
 
@@ -2551,8 +2562,14 @@
   }
   for (const b of document.querySelectorAll('#alignOps [data-align]')) b.onclick = () => {
     const pg = pages[cur]; if (!pg || !selItems.length) return;
-    pushUndo(pg); alignItems(selItems, b.dataset.align); itemsChanged();
+    pushUndo(pg); alignItems(selItems, b.dataset.align);
+    $('#alignOps').open = false; $('#alignOps summary').focus();
+    itemsChanged();
   };
+  // 對齊選單：沒選東西時不展開；點選單外面或按 Esc 收起
+  $('#alignOps summary').addEventListener('click', e => { if (!selItems.length) e.preventDefault(); });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#alignOps')) $('#alignOps').open = false; });
+  $('#alignOps').addEventListener('keydown', e => { if (e.key === 'Escape' && $('#alignOps').open) { e.stopPropagation(); $('#alignOps').open = false; $('#alignOps summary').focus(); } });
   $('#opFlatten').onclick = () => {
     const pg = pages[cur]; if (!pg) return;
     const objs = selItems.filter(it => !isLabelItem(it)); if (!objs.length) return;
