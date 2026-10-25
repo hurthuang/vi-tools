@@ -477,7 +477,7 @@
     refreshAll();
   }
   const askPaper = (w, h) => {
-    if (pages.length && (w !== W || h !== H) &&
+    if (pages.length && !onlyEmptyPage() && (w !== W || h !== H) &&   // 只有一開始那張沒動過的空白頁：直接換紙張，不用問
         !confirm(`改成 ${inch(w)} × ${inch(h)} 吋？\n現有 ${pages.length} 頁會從左上角裁切或補白（不能復原）。\n從 PDF 框選的頁面可以再按「重新產生圖形」依新紙張重新排版。`)) {
       setPaper(W, H); return;
     }

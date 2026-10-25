@@ -70,11 +70,11 @@ export async function startApp(exe, opts = {}) {
   }
   if (!page) throw new Error('app 沒有啟動，或首頁沒有載入');
   const cdp = await connect(page.webSocketDebuggerUrl);
-  // 等首頁載入、各分頁（iframe）都載入完成，橋接程式才會注入
+  // 等首頁載入、各分頁（iframe）都載入完成，橋接程式才會注入；data-src 的分頁點到才載入，不等
   let ready = false;
   for (let i = 0; i < 60 && !ready; i++) {
     ready = await cdp.ev(`/index\\.html/.test(location.href) && document.querySelectorAll('iframe').length > 0 &&
-      [...document.querySelectorAll('iframe')].every(f => { try { return f.contentDocument.readyState === 'complete' && f.contentWindow.location.href !== 'about:blank'; } catch { return false; } })`).catch(() => false) === true;
+      [...document.querySelectorAll('iframe[src]')].every(f => { try { return f.contentDocument.readyState === 'complete' && f.contentWindow.location.href !== 'about:blank'; } catch { return false; } })`).catch(() => false) === true;
     if (!ready) await sleep(500);
   }
   if (!ready) throw new Error('首頁或分頁沒有載入完成');

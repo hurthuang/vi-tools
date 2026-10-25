@@ -51,7 +51,7 @@ export default {
       let ready = false;
       for (let i = 0; i < 60 && !ready; i++) {
         await sleep(500);
-        ready = await cdp.ev(`document.querySelectorAll('iframe').length > 0 && [...document.querySelectorAll('iframe')].every(f => { try { return f.contentDocument.readyState === 'complete' && f.contentWindow.location.href !== 'about:blank'; } catch { return false; } })`).catch(() => false) === true;
+        ready = await cdp.ev(`document.querySelectorAll('iframe').length > 0 && [...document.querySelectorAll('iframe[src]')].every(f => { try { return f.contentDocument.readyState === 'complete' && f.contentWindow.location.href !== 'about:blank'; } catch { return false; } })`).catch(() => false) === true;
       }
       if (!check('首頁與分頁載入完成', ready)) { cdp.close(); return; }
       await sleep(1500);
