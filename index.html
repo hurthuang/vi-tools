@@ -745,15 +745,23 @@
   const subbars = [...document.querySelectorAll('.subbar')];
   const panels  = [...document.querySelectorAll('.panel'), document.getElementById('home-panel'), document.getElementById('addons-panel')];
 
-  // 點分組頁籤：一律打開該組第一項
+  // 點分組頁籤：打開該組上次用的工具，沒用過就是第一項（記在 localStorage，下次開網頁也記得）
+  let lastTool = {};
+  try { lastTool = JSON.parse(localStorage.getItem('vitools-group-last') || '{}'); } catch (e) {}
   const subbarOf = id => subbars.find(b => b.querySelector('.tab[data-target="' + id + '"]'));
   function resolve(targetId) {
     const bar = subbars.find(b => b.dataset.group === targetId);
-    return bar ? bar.querySelector('.tab').dataset.target : targetId;
+    if (!bar) return targetId;
+    const last = lastTool[targetId];
+    return last && bar.querySelector('.tab[data-target="' + last + '"]') ? last : bar.querySelector('.tab').dataset.target;
   }
 
   function applyTab(targetId) {
     const bar = subbarOf(targetId), group = bar ? bar.dataset.group : targetId;
+    if (bar) {
+      lastTool[group] = targetId;
+      try { localStorage.setItem('vitools-group-last', JSON.stringify(lastTool)); } catch (e) {}
+    }
     subbars.forEach(b => { b.hidden = b !== bar; });
     tabs.forEach(t => {
       const isActive = t.dataset.target === targetId || t.dataset.target === group;
