@@ -83,8 +83,8 @@
 <body>
 <header>
   <h1>✋ 觸摸圖 <span class="muted">ViewPlus Tiger PRN</span></h1>
-  <button id="btnOpen" class="primary">開啟 PDF／Word／圖片／PRN</button>
-  <input id="fileIn" type="file" accept=".pdf,.docx,.prn,image/*" hidden>
+  <button id="btnOpen" class="primary">開啟 PDF／Word／圖片／PRN／編輯檔</button>
+  <input id="fileIn" type="file" accept=".pdf,.docx,.prn,.tactile,image/*" hidden>
   <span class="muted">也可以拖曳檔案進來，或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖</span>
   <span style="flex:1"></span>
   <button id="btnHelp" title="操作說明、會考圖的處理方式">❓ 說明</button>
@@ -106,6 +106,8 @@
   <span id="paperInfo" class="muted"></span>
   <input id="outName" type="text" value="觸摸圖.prn" style="width:160px;padding:3px 6px;border:1px solid var(--line);border-radius:5px">
   <button id="btnExport" class="primary" disabled>匯出 PRN</button>
+  <button id="btnSave" disabled title="存成 .tactile：之後用「開啟」打開，圖形、標籤都能繼續編輯（PRN 只能印，不能再改）">儲存編輯檔</button>
+  <span id="saveHint" class="warn" hidden></span>
 </header>
 
 <main>
@@ -140,14 +142,14 @@
     <h2>② 調整（<span id="paperTitle">240 × 220 點，12 × 11 吋</span>）</h2>
     <div class="bar tools">
       <label title="拖曳移動標籤；方向鍵微調；Delete 刪除"><input type="radio" name="tool" value="label" checked>標籤</label>
-      <label title="框選一塊：拖曳移動、方向鍵微調、Delete 刪除（框內的標籤一起）"><input type="radio" name="tool" value="select">選取</label>
+      <label title="點一下選取畫的圖形或標籤（Shift 加選），拖曳移動、方向鍵微調、Delete 刪除、對齊；在空白處拉框：框住的圖形、標籤和匯入的點陣一起搬"><input type="radio" name="tool" value="select">選取</label>
       <label><input type="radio" name="tool" value="pen">畫點</label>
       <label title="Shift：鎖定 0°／45°／90°"><input type="radio" name="tool" value="line">直線</label>
       <label title="從起點拖到箭頭尖端；Shift：鎖定角度"><input type="radio" name="tool" value="arrow">箭頭</label>
       <label title="Shift：正方形"><input type="radio" name="tool" value="rect">矩形</label>
       <label title="拖出外框；Shift：正圓"><input type="radio" name="tool" value="ellipse">橢圓</label>
-      <label><input type="radio" name="tool" value="eraser">橡皮擦</label>
-      <label title="拉出矩形，放開就清掉框內的線條與填色（標籤保留）；適合清掉點陣圖裡的字"><input type="radio" name="tool" value="boxerase">框選擦</label>
+      <label title="只擦匯入的點陣和填色；畫的圖形是物件，要用「選取」點它再按 Delete，或先「轉成點陣」"><input type="radio" name="tool" value="eraser">橡皮擦</label>
+      <label title="拉出矩形，放開就清掉框內的點陣線條、填色，以及整個在框內的圖形（標籤保留）；適合清掉點陣圖裡的字"><input type="radio" name="tool" value="boxerase">框選擦</label>
       <select id="brushSize" title="畫點、直線、箭頭、矩形、橢圓、橡皮擦的粗細">
         <option value="1" selected>1 點</option><option value="2">2 點</option><option value="3">3 點</option><option value="5">5 點</option><option value="9">9 點</option>
       </select>
@@ -165,6 +167,17 @@
         <button id="opRot" title="順時針旋轉 90°">⟳ 90°</button>
         <button id="opCopy" title="複製（Ctrl+C）">複製</button>
         <button id="opPaste" title="貼上（Ctrl+V）">貼上</button>
+        <span id="alignOps">
+          <button data-align="left" title="靠左對齊（只選一個時對齊圖形範圍）">⇤ 左</button>
+          <button data-align="hcenter" title="水平置中（只選一個時放到頁面正中）">↔ 中</button>
+          <button data-align="right" title="靠右對齊">右 ⇥</button>
+          <button data-align="top" title="靠上對齊">⤒ 上</button>
+          <button data-align="vcenter" title="垂直置中（只選一個時放到頁面正中）">↕ 中</button>
+          <button data-align="bottom" title="靠下對齊">下 ⤓</button>
+          <button data-align="hdist" title="水平等距（選三個以上）">⋯ 等距</button>
+          <button data-align="vdist" title="垂直等距（選三個以上）">⋮ 等距</button>
+          <button id="opFlatten" title="選取的圖形轉成點陣：之後可以用橡皮擦擦一部分，但不能再當物件搬">轉成點陣</button>
+        </span>
       </span>
       <span style="flex:1"></span>
       <label class="muted" title="在編輯區底下半透明顯示原圖，照著描（原圖不會匯出）"><input type="checkbox" id="trace"> 描圖</label>
@@ -218,7 +231,7 @@
         </div>
         <div class="field"><span></span><label><input id="optSpecks" type="checkbox"> 去除圖裡的字（圖片裡的字、轉成外框的字）</label></div>
         <div class="field"><span></span><label><input id="optBlank" type="checkbox"> 在去掉的字的位置留空白標籤</label></div>
-        <div class="bar"><button id="btnRegen">重新產生圖形</button><span class="muted">標籤保留；手畫、擦掉的線會重來（可復原）</span></div>
+        <div class="bar"><button id="btnRegen">重新產生圖形</button><span class="muted">標籤、畫的圖形保留；用橡皮擦擦掉、畫成點陣的部分會重來（可復原）</span></div>
       </div>
     </div>
 
@@ -282,6 +295,7 @@
     const name = f.name || '貼上的圖片';
     try {
       if (/\.prn$/i.test(name)) return importPrn(f);
+      if (/\.tactile$/i.test(name)) return openTactile(f);
       if (/\.pdf$/i.test(name) || f.type === 'application/pdf') {
         await loadPdfJs();
         const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
@@ -615,6 +629,7 @@
     const pg = pages[cur];
     pushUndo(pg);
     pg.src = { doc, page: viewPage, rect: sel };
+    pg.objs = [];
     sel = null;
     await generate(pg);
     refreshAll();
@@ -1494,6 +1509,7 @@
     if (keepLabels) {
       const moved = old && (old.ox !== ox || old.oy !== oy || old.dpp !== r.dpp);
       const map = (v, o0, o1) => moved ? o1 + (v - o0) * r.dpp / old.dpp : v;
+      if (moved) for (const o of objsOf(pg)) o.pts = o.pts.map(([x, y]) => [Math.round(map(x, old.ox, ox)), Math.round(map(y, old.oy, oy))]);
       for (const lb of pg.labels) {
         const w = brlWidth(lb.brl);
         const cx = map(lb.x + w / 2, old && old.ox, ox), cy = map(lb.y + BRL_HEIGHT / 2, old && old.oy, oy);
@@ -1524,16 +1540,16 @@
 
   // ── 標籤自動排位：離原位置最近、不壓線、不互相重疊 ─────────────
   function placeAll(pg) {
-    const placed = [];
-    for (const lb of pg.labels) { placeLabel(pg, lb, placed); placed.push(lb); }
+    const placed = [], occ = withObjs(pg);
+    for (const lb of pg.labels) { placeLabel(pg, lb, placed, occ); placed.push(lb); }
   }
-  function placeLabel(pg, lb, others) {
+  function placeLabel(pg, lb, others, occ = withObjs(pg)) {
     const bw = brlWidth(lb.brl), bh = BRL_HEIGHT;
     const x0 = Math.round(lb.cx - bw / 2), y0 = Math.round(lb.cy - bh / 2);
     const fits = (x, y) => {
       if (x < 1 || y < LABEL_TOP || x + bw > W - 1 || y + bh > H - 1) return false;
       for (let yy = y - CLEAR; yy < y + bh + CLEAR; yy++) for (let xx = x - CLEAR; xx < x + bw + CLEAR; xx++)
-        if (yy >= 0 && yy < H && xx >= 0 && xx < W && pg.dots[yy * W + xx]) return false;
+        if (yy >= 0 && yy < H && xx >= 0 && xx < W && occ[yy * W + xx]) return false;
       return !others.some(o => {
         const ow = brlWidth(o.brl);
         return x < o.x + ow + 3 && o.x < x + bw + 3 && y < o.y + bh + 3 && o.y < y + bh + 3;
@@ -1553,7 +1569,7 @@
 
   // ── 合成與匯出 ───────────────────────────────────────
   function compose(pg) {
-    const out = pg.dots.slice();
+    const out = withObjs(pg);
     const clearFill = (x0, y0, w, h) => {
       for (let y = y0 - 2; y < y0 + h + 2; y++) for (let x = x0 - 2; x < x0 + w + 2; x++)
         if (x >= 0 && y >= 0 && x < W && y < H && ((out[y * W + x] > 0 && out[y * W + x] < LINE) || (pg.fillMask && pg.fillMask[y * W + x]))) out[y * W + x] = 0;
@@ -1585,18 +1601,19 @@
     return false;
   }
   // 依填色種類寫入一點：v 是 0／3／7 或 'dots'／'diag'／'grid'
-  function paintFillCell(pg, i, v) {
+  function paintFillCell(pg, i, v, lineDots = pg.dots) {
     const tex = TEX[v] || 0, x = i % W, y = (i / W) | 0;
-    if (tex) { pg.dots[i] = texOn(tex, x, y) && !nearLine(pg.dots, pg.fillMask, x, y) ? LINE : 0; pg.fillMask[i] = tex; }
+    if (tex) { pg.dots[i] = texOn(tex, x, y) && !nearLine(lineDots, pg.fillMask, x, y) ? LINE : 0; pg.fillMask[i] = tex; }
     else { pg.dots[i] = +v || 0; pg.fillMask[i] = +v ? 1 : 0; }
   }
 
   function floodFill(pg, x, y, v) {
     if (x < 0 || y < 0 || x >= W || y >= H) return 0;
     const dots = pg.dots, mask = pg.fillMask || (pg.fillMask = new Uint8Array(W * H));
-    const i0 = y * W + x, from = dots[i0], fm = mask[i0], tex = TEX[v] || 0;
-    // 同一塊：紋理看標記、實心看標記與高度、沒填過的看高度（碰到線就停）
-    const ok = fm >= 2 ? (j => mask[j] === fm) : fm === 1 ? (j => mask[j] === 1 && dots[j] === from) : (j => !mask[j] && dots[j] === from && from < LINE);
+    const i0 = y * W + x, from = dots[i0], fm = mask[i0], tex = TEX[v] || 0, wall = objMaskOf(pg);
+    // 同一塊：紋理看標記、實心看標記與高度、沒填過的看高度（碰到線就停）；畫的圖形（物件）也是線
+    const same = fm >= 2 ? (j => mask[j] === fm) : fm === 1 ? (j => mask[j] === 1 && dots[j] === from) : (j => !mask[j] && dots[j] === from && from < LINE);
+    const ok = j => !wall[j] && same(j);
     if (!ok(i0)) return 0;
     if (tex ? fm === tex : (fm < 2 && from === +v)) return 0;   // 已經是這種填色
     const seen = new Uint8Array(W * H), stack = [i0], cells = [];
@@ -1613,25 +1630,84 @@
       }
     }
     if (tex) for (const i of cells) { mask[i] = 0; dots[i] = 0; }   // 先清掉舊的填色，判斷緊鄰線時才不會把舊的凸點當成線
-    for (const i of cells) paintFillCell(pg, i, v);
+    const lineDots = tex ? withObjs(pg) : dots;
+    for (const i of cells) paintFillCell(pg, i, v, lineDots);
     return cells.length;
   }
 
-  $('#btnExport').onclick = () => {
-    const bytes = PrnCore.encode(pages.map(compose), W, H);
+  function download(blob, name) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
-    let name = $('#outName').value.trim() || '觸摸圖.prn';
-    if (!/\.prn$/i.test(name)) name += '.prn';
+    a.href = URL.createObjectURL(blob);
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  const baseName = () => ($('#outName').value.trim() || '觸摸圖.prn').replace(/\.(prn|tactile)$/i, '');
+  $('#btnExport').onclick = () => {
+    download(new Blob([PrnCore.encode(pages.map(compose), W, H)], { type: 'application/octet-stream' }), baseName() + '.prn');
+    if (dirty) { $('#saveHint').textContent = '要再修改請按「儲存編輯檔」（PRN 不能再編輯）'; $('#saveHint').hidden = false; }
   };
 
-  // ── 頁面清單與屬性 ─────────────────────────────────────
-  function selectPage(i) { cur = i; selLabel = null; selBox = null; float = null; refreshAll(); }
+  // ── 編輯檔（.tactile）：JSON，底圖點陣用 gzip＋base64；畫的圖形、標籤（含手動改過的點字）、填色紀錄都存 ──
+  //   不存原始 PDF／圖片，所以開回來不能「重新產生圖形」或描圖，其他都能繼續編輯
+  let dirty = false;
+  function markDirty() { dirty = true; $('#saveHint').hidden = true; }
+  async function packBytes(u8) {
+    let bytes = u8, enc = 'raw';
+    if (typeof CompressionStream === 'function') {
+      bytes = new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+      enc = 'gzip';
+    }
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return { enc, data: btoa(s) };
+  }
+  async function unpackBytes(p, len) {
+    if (!p) return new Uint8Array(len);
+    const bin = atob(p.data), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const out = p.enc === 'gzip' ? new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()) : bytes;
+    if (out.length !== len) throw new Error('點陣大小不符');
+    return out;
+  }
+  $('#btnSave').onclick = async () => {
+    dropFloat();
+    const data = { format: 'vi-tools-tactile', version: 1, paper: { w: W, h: H }, pages: [] };
+    for (const pg of pages) data.pages.push({
+      title: pg.title, titleBrl: pg.titleBrl,
+      dots: await packBytes(pg.dots), fillMask: pg.fillMask ? await packBytes(pg.fillMask) : null,
+      objs: objsOf(pg).map(cloneObj),
+      labels: pg.labels.map(({ text, brl, manual, x, y, cx, cy }) => ({ text, brl, manual: !!manual, x, y, cx, cy })),
+      fills: pg.fills || [],
+    });
+    download(new Blob([JSON.stringify(data)], { type: 'application/json' }), baseName() + '.tactile');
+    dirty = false; $('#saveHint').hidden = true;
+    $('#edStatus').textContent = `已儲存 ${baseName()}.tactile（${pages.length} 頁）`;
+  };
+  async function openTactile(f) {
+    const data = JSON.parse(await f.text());
+    if (data.format !== 'vi-tools-tactile' || !Array.isArray(data.pages)) throw new Error('這不是觸摸圖的編輯檔');
+    if (pages.length && !confirm(`開啟編輯檔會取代目前的 ${pages.length} 頁，確定嗎？`)) return;
+    const w = data.paper.w, h = data.paper.h, list = [];
+    for (const p of data.pages) list.push({
+      title: p.title || '', titleBrl: p.titleBrl || '',
+      dots: await unpackBytes(p.dots, w * h), fillMask: p.fillMask ? await unpackBytes(p.fillMask, w * h) : new Uint8Array(w * h),
+      objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l })), fills: p.fills || [],
+      src: null, opts: defaultOpts(), undo: [], fromFile: true,
+    });
+    pages.length = 0;
+    setPaper(w, h);   // 頁面先清空，紙張直接換成編輯檔的尺寸（不裁切）
+    pages.push(...list);
+    $('#outName').value = f.name.replace(/\.tactile$/i, '.prn');
+    dirty = false; $('#saveHint').hidden = true;
+    selectPage(0);
+    $('#edStatus').textContent = `開啟 ${f.name}（${list.length} 頁）`;
+  }
 
-  function refreshAll() { renderPageList(); renderProps(); drawEditor(); drawOverlay(); updateThumbStrip(); $('#btnExport').disabled = !pages.length; }
+  // ── 頁面清單與屬性 ─────────────────────────────────────
+  function selectPage(i) { cur = i; selLabel = null; selBox = null; float = null; selItems = []; refreshAll(); }
+
+  function refreshAll() { renderPageList(); renderProps(); drawEditor(); drawOverlay(); updateThumbStrip(); $('#btnExport').disabled = $('#btnSave').disabled = !pages.length; }
 
   function drawThumb(cv, pg) {
     cv.width = W; cv.height = H;
@@ -1660,7 +1736,7 @@
     pages.forEach((pg, i) => {
       const el = document.createElement('div');
       el.className = 'pg' + (i === cur ? ' cur' : '');
-      el.innerHTML = `<canvas></canvas><div class="t">${i + 1}. ${escapeHtml(pg.title || (pg.src ? '（無標題）' : '（匯入的 PRN）'))}</div>
+      el.innerHTML = `<canvas></canvas><div class="t">${i + 1}. ${escapeHtml(pg.title || (pg.src || pg.fromFile ? '（無標題）' : '（匯入的 PRN）'))}</div>
         <div class="ops"><button data-op="up" title="上移（Alt+↑）">▲</button><button data-op="down" title="下移（Alt+↓）">▼</button><button data-op="del" title="刪除">✕</button></div>`;
       drawThumb(el.querySelector('canvas'), pg);
       // 拖曳排序：拖到某頁的上半部插在它前面，下半部插在它後面
@@ -1737,7 +1813,7 @@
 
   $('#titleText').oninput = e => {
     const pg = pages[cur]; if (!pg) return;
-    pg.title = e.target.value;
+    pg.title = e.target.value; markDirty();
     pg.titleBrl = titleBraille(pg.title).braille;
     titleBrlEl.value = pg.titleBrl;
     showTitleWarn(pg);
@@ -1780,7 +1856,7 @@
     });
   } else for (const b of document.querySelectorAll('.dot-pad')) b.hidden = true;
 
-  titleBrlEl.oninput = e => { const pg = pages[cur]; if (!pg) return; pg.titleBrl = e.target.value; drawEditor(); updateThumb(); };
+  titleBrlEl.oninput = e => { const pg = pages[cur]; if (!pg) return; pg.titleBrl = e.target.value; markDirty(); drawEditor(); updateThumb(); };
 
   function renderLabelList() {
     const pg = pages[cur], box = $('#labelList');
@@ -1795,8 +1871,8 @@
       out.classList.toggle('manual', !!lb.manual);
       const focus = () => { selLabel = lb; drawEditor(); markSelectedRow(); };
       inp.onfocus = focus; out.addEventListener('focus', focus);
-      inp.oninput = () => { lb.text = inp.value; lb.brl = labelBraille(lb.text); lb.manual = false; out.value = lb.brl; out.classList.remove('manual'); drawEditor(); updateThumb(); };
-      out.oninput = () => { lb.brl = out.value; lb.manual = true; out.classList.add('manual'); drawEditor(); updateThumb(); };
+      inp.oninput = () => { lb.text = inp.value; lb.brl = labelBraille(lb.text); lb.manual = false; out.value = lb.brl; out.classList.remove('manual'); markDirty(); drawEditor(); updateThumb(); };
+      out.oninput = () => { lb.brl = out.value; lb.manual = true; out.classList.add('manual'); markDirty(); drawEditor(); updateThumb(); };
       el.querySelector('button').onclick = () => { pushUndo(pg); pg.labels.splice(pg.labels.indexOf(lb), 1); if (selLabel === lb) selLabel = null; renderLabelList(); drawEditor(); updateThumb(); };
       lb._row = el;
       box.appendChild(el);
@@ -1826,15 +1902,18 @@
   };
 
   // ── 復原 ───────────────────────────────────────────
-  function pushUndo(pg) {
-    pg.undo.push({ dots: pg.dots && pg.dots.slice(), labels: pg.labels.map(l => ({ ...l, _row: undefined })), src: pg.src, fig: pg.fig, fills: (pg.fills || []).map(f => ({ ...f })), fillMask: pg.fillMask && pg.fillMask.slice() });
+  const snapshot = (pg, dots = pg.dots && pg.dots.slice(), fillMask = pg.fillMask && pg.fillMask.slice()) =>
+    ({ dots, labels: pg.labels.map(l => ({ ...l, _row: undefined })), objs: objsOf(pg).map(cloneObj), src: pg.src, fig: pg.fig, fills: (pg.fills || []).map(f => ({ ...f })), fillMask });
+  function pushUndo(pg, snap = snapshot(pg)) {
+    pg.undo.push(snap);
     if (pg.undo.length > 60) pg.undo.shift();
+    markDirty();
   }
   function undo() {
     const pg = pages[cur]; if (!pg || !pg.undo.length) return;
     const s = pg.undo.pop();
-    pg.dots = s.dots; pg.labels = s.labels; pg.src = s.src; pg.fig = s.fig; pg.fills = s.fills; pg.fillMask = s.fillMask; selLabel = null;
-    float = null; selBox = null;
+    pg.dots = s.dots; pg.labels = s.labels; pg.objs = s.objs || []; pg.src = s.src; pg.fig = s.fig; pg.fills = s.fills; pg.fillMask = s.fillMask; selLabel = null;
+    float = null; selBox = null; selItems = [];
     refreshAll();
   }
   $('#btnUndo').onclick = undo;
@@ -1845,6 +1924,7 @@
   $('#trace').onchange = () => drawEditor();
 
   let preview = null;   // 形狀預覽：{ type, x0, y0, x1, y1, shift }
+  let selItems = [];    // 選取工具點選的項目：畫的圖形（pg.objs 裡的物件）、標籤
   let selBox = null;    // 選取框 { x, y, w, h }（點）
   let eraseBox = null;  // 框選擦拖曳中的範圍
   let hover = null;     // 滑鼠所在的點（顯示筆刷範圍）
@@ -1891,7 +1971,16 @@
     }
     if (preview) {
       ctx.fillStyle = '#e8590c';
-      for (const [lx, ly] of shapePts(preview)) for (const [x, y] of brush(lx, ly, brushSize())) { ctx.beginPath(); ctx.arc(x * z + z / 2, y * z + z / 2, rad, 0, 7); ctx.fill(); }
+      for (const i of objCells(shapeFrom(preview))) { ctx.beginPath(); ctx.arc((i % W) * z + z / 2, ((i / W) | 0) * z + z / 2, rad, 0, 7); ctx.fill(); }
+    }
+    if (selItems.length && tool === 'select') {
+      ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+      for (const it of selItems) { const b = itemBox(it); ctx.strokeRect((b.x - 1) * z, (b.y - 1) * z, (b.w + 2) * z, (b.h + 2) * z); }
+      if (selItems.length > 1) {
+        const u = unionBox(selItems);
+        ctx.strokeStyle = '#1a5fd0'; ctx.strokeRect((u.x - 2) * z, (u.y - 2) * z, (u.w + 4) * z, (u.h + 4) * z);
+      }
+      ctx.setLineDash([]);
     }
     if (eraseBox) {
       ctx.fillStyle = 'rgba(232, 89, 12, 0.12)';
@@ -1908,14 +1997,23 @@
       for (const [hx, hy] of selCorners()) ctx.fillRect(hx * z - z, hy * z - z, 2 * z, 2 * z);   // 縮放控制點
     }
     $('#selOps').hidden = tool !== 'select';
-    for (const id of ['opFlipH', 'opFlipV', 'opRot', 'opCopy']) $('#' + id).disabled = !selBox;
+    for (const id of ['opFlipH', 'opFlipV', 'opRot', 'opCopy']) $('#' + id).disabled = !selBox && !selItems.length;
     $('#opPaste').disabled = !clip;
+    for (const b of document.querySelectorAll('#alignOps [data-align]'))
+      b.disabled = /dist$/.test(b.dataset.align) ? selItems.length < 3 : !selItems.length;
+    $('#opFlatten').disabled = !selItems.some(it => !isLabelItem(it));
   }
 
-  // ── 形狀 → 點（照畫的順序，虛線才連續） ──
-  //   line / arrow：Shift 鎖定 0°／45°／90°；rect：Shift 正方形；ellipse：拖出外框，Shift 正圓
-  //   虛線：實 4 點、空 3 點；箭頭的頭一律實線
-  function shapePts({ type, x0, y0, x1, y1, shift }) {
+  // ── 畫的圖形是物件（pg.objs）：記住種類、控制點、粗細，畫面和匯出時才轉成點，蓋在底圖（pg.dots）上 ──
+  //   { type: 'line'|'arrow'|'rect'|'ellipse'|'pen', pts: [[x, y], …], thick, dash }
+  //   line / arrow：起點、終點（箭頭尖端）；rect / ellipse：外框的兩個對角；pen：手畫的每一點
+  //   搬移、翻轉、旋轉、縮放都只改控制點，重新轉成點，不會失真；粗細照原本
+  const objsOf = pg => pg.objs || (pg.objs = []);
+  const cloneObj = o => ({ type: o.type, pts: o.pts.map(p => [p[0], p[1]]), thick: o.thick, dash: !!o.dash });
+  const isLabelItem = it => 'brl' in it;
+
+  // 拖曳中的形狀 → 物件（Shift：直線、箭頭鎖定 0°／45°／90°；矩形正方形；橢圓正圓）
+  function shapeFrom({ type, x0, y0, x1, y1, shift }) {
     let dx = x1 - x0, dy = y1 - y0;
     if (shift && (type === 'line' || type === 'arrow')) {
       if (Math.abs(dx) > 2 * Math.abs(dy)) dy = 0;
@@ -1926,22 +2024,32 @@
       const m = Math.max(Math.abs(dx), Math.abs(dy));
       dx = (Math.sign(dx) || 1) * m; dy = (Math.sign(dy) || 1) * m;
     }
-    x1 = x0 + dx; y1 = y0 + dy;
+    return { type, pts: [[x0, y0], [x0 + dx, y0 + dy]], thick: brushSize(), dash: type !== 'pen' && $('#dashed').checked };
+  }
+
+  // 物件 → 線條中心點（照畫的順序，虛線才連續）；虛線：實 4 點、空 3 點；箭頭的頭一律實線
+  function objPath(o) {
     const path = [], heads = [];
     const seg = (a, b, c, d) => { const p = linePts(a, b, c, d); if (path.length) p.shift(); path.push(...p); };
-    if (type === 'line' || type === 'arrow') {
+    if (o.type === 'pen') {
+      if (o.pts.length === 1) return [o.pts[0]];
+      for (let k = 0; k + 1 < o.pts.length; k++) seg(o.pts[k][0], o.pts[k][1], o.pts[k + 1][0], o.pts[k + 1][1]);
+      return path;
+    }
+    const [[x0, y0], [x1, y1]] = o.pts, dx = x1 - x0, dy = y1 - y0;
+    if (o.type === 'line' || o.type === 'arrow') {
       seg(x0, y0, x1, y1);
       const len = Math.hypot(dx, dy);
-      if (type === 'arrow' && len >= 3) {
-        const L = Math.min(5 + brushSize(), len * 0.6), ux = -dx / len, uy = -dy / len;
+      if (o.type === 'arrow' && len >= 3) {
+        const L = Math.min(5 + o.thick, len * 0.6), ux = -dx / len, uy = -dy / len;
         for (const a of [Math.PI / 6, -Math.PI / 6]) {
           const hx = Math.round(x1 + L * (ux * Math.cos(a) - uy * Math.sin(a))), hy = Math.round(y1 + L * (ux * Math.sin(a) + uy * Math.cos(a)));
           heads.push(...linePts(x1, y1, hx, hy));
         }
       }
-    } else if (type === 'rect') {
+    } else if (o.type === 'rect') {
       seg(x0, y0, x1, y0); seg(x1, y0, x1, y1); seg(x1, y1, x0, y1); seg(x0, y1, x0, y0);
-    } else if (type === 'ellipse') {
+    } else if (o.type === 'ellipse') {
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = Math.abs(dx) / 2, ry = Math.abs(dy) / 2;
       const n = Math.max(16, Math.ceil(Math.PI * (rx + ry)));
       let prev = null;
@@ -1951,18 +2059,120 @@
         prev = p;
       }
     }
-    const dashed = $('#dashed').checked ? path.filter((_, k) => k % 7 < 4) : path;
+    const dashed = o.dash ? path.filter((_, k) => k % 7 < 4) : path;
     return dashed.concat(heads);
+  }
+  // 物件佔的點（頁面索引 y * W + x）；控制點沒變就用上次算好的
+  function objCells(o) {
+    const key = W + ',' + H + '|' + o.type + '|' + o.thick + '|' + (o.dash ? 1 : 0) + '|' + o.pts.join(';');
+    if (o._ck === key) return o._cells;
+    const set = new Set();
+    for (const [lx, ly] of objPath(o)) for (const [x, y] of brush(lx, ly, o.thick)) if (x >= 0 && y >= 0 && x < W && y < H) set.add(y * W + x);
+    Object.defineProperty(o, '_ck', { value: key, writable: true, configurable: true });
+    Object.defineProperty(o, '_cells', { value: [...set], writable: true, configurable: true });
+    return o._cells;
+  }
+  // 外框（點）：{ x, y, w, h }
+  function objBox(o) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const i of objCells(o)) { const x = i % W, y = (i / W) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < x0) for (const [x, y] of o.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }
+  // 底圖加上物件（標籤不算）：放標籤、填色時判斷哪裡有線
+  function withObjs(pg) {
+    const out = pg.dots.slice();
+    for (const o of objsOf(pg)) for (const i of objCells(o)) out[i] = LINE;
+    return out;
+  }
+  function objMaskOf(pg) {
+    const m = new Uint8Array(W * H);
+    for (const o of objsOf(pg)) for (const i of objCells(o)) m[i] = 1;
+    return m;
+  }
+
+  // 選取的項目（畫的圖形、標籤）：外框、搬移
+  function itemBox(it) {
+    if (!isLabelItem(it)) return objBox(it);
+    if (!it.brl) return { x: Math.round(it.cx) - 1, y: Math.round(it.cy) - 1, w: 3, h: 3 };
+    return { x: it.x, y: it.y, w: brlWidth(it.brl), h: BRL_HEIGHT };
+  }
+  function moveItem(it, dx, dy) {
+    if (!dx && !dy) return;
+    if (isLabelItem(it)) {
+      if (it.x != null) { it.x += dx; it.y += dy; }
+      it.cx = (it.cx != null ? it.cx : lbCx(it)) + dx; it.cy = (it.cy != null ? it.cy : lbCy(it)) + dy;
+    } else it.pts = it.pts.map(([x, y]) => [x + dx, y + dy]);
+  }
+  const unionBox = items => {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const it of items) { const b = itemBox(it); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  };
+  // 點 (x, y) 上的項目：標籤優先，再來是後畫的圖形
+  function hitItem(pg, x, y) {
+    const lb = [...pg.labels].reverse().find(l => l.brl ? x >= l.x - 1 && x <= l.x + brlWidth(l.brl) && y >= l.y - 1 && y <= l.y + BRL_HEIGHT
+                                                         : Math.abs(x - l.cx) <= 3 && Math.abs(y - l.cy) <= 3);
+    if (lb) return lb;
+    const objs = objsOf(pg);
+    for (let k = objs.length - 1; k >= 0; k--) {
+      const b = objBox(objs[k]);
+      if (x < b.x - 2 || x > b.x + b.w + 1 || y < b.y - 2 || y > b.y + b.h + 1) continue;
+      if (objCells(objs[k]).some(i => Math.abs(i % W - x) <= 1 && Math.abs(((i / W) | 0) - y) <= 1)) return objs[k];
+    }
+    return null;
+  }
+
+  // 對齊：選兩個以上對齊彼此的外框；只選一個時，左右上下對齊圖形範圍、置中放到頁面正中；等距要三個以上
+  function alignItems(items, how) {
+    if (!items.length) return;
+    const one = items.length === 1;
+    const ref = one ? (how === 'hcenter' || how === 'vcenter' ? { x: 0, y: 0, w: W, h: H } : AREA) : unionBox(items);
+    if (how === 'hdist' || how === 'vdist') {
+      if (items.length < 3) return;
+      const h = how === 'hdist', sorted = [...items].sort((a, b) => h ? itemBox(a).x - itemBox(b).x : itemBox(a).y - itemBox(b).y);
+      const boxes = sorted.map(itemBox), total = boxes.reduce((a, b) => a + (h ? b.w : b.h), 0);
+      const span = h ? ref.w : ref.h, gap = (span - total) / (sorted.length - 1);
+      let pos = h ? ref.x : ref.y;
+      sorted.forEach((it, k) => {
+        const b = boxes[k];
+        if (k > 0 && k < sorted.length - 1) moveItem(it, h ? Math.round(pos) - b.x : 0, h ? 0 : Math.round(pos) - b.y);
+        pos += (h ? b.w : b.h) + gap;
+      });
+      return;
+    }
+    for (const it of items) {
+      const b = itemBox(it);
+      const dx = how === 'left' ? ref.x - b.x : how === 'right' ? ref.x + ref.w - (b.x + b.w) : how === 'hcenter' ? Math.round(ref.x + ref.w / 2 - (b.x + b.w / 2)) : 0;
+      const dy = how === 'top' ? ref.y - b.y : how === 'bottom' ? ref.y + ref.h - (b.y + b.h) : how === 'vcenter' ? Math.round(ref.y + ref.h / 2 - (b.y + b.h / 2)) : 0;
+      moveItem(it, dx, dy);
+    }
+  }
+  // 選取的項目翻轉、旋轉 90°（以合起來的外框為準；點字標籤不翻轉，只搬位置）
+  function transformItems(items, kind) {
+    const u = unionBox(items), cxu = u.x + (u.w - 1) / 2, cyu = u.y + (u.h - 1) / 2;
+    const map = ([x, y]) => kind === 'h' ? [Math.round(2 * cxu - x), y] : kind === 'v' ? [x, Math.round(2 * cyu - y)]
+                                         : [Math.round(cxu - (y - cyu)), Math.round(cyu + (x - cxu))];
+    for (const it of items) {
+      if (!isLabelItem(it)) { it.pts = it.pts.map(map); continue; }
+      const b = itemBox(it), [nx, ny] = map([b.x + (b.w - 1) / 2, b.y + (b.h - 1) / 2]);
+      moveItem(it, Math.round(nx - (b.x + (b.w - 1) / 2)), Math.round(ny - (b.y + (b.h - 1) / 2)));
+    }
   }
 
   // ── 浮動選取：搬移、貼上、翻轉、旋轉、縮放的內容先浮在上面，底下原有的線不受影響；放下（點框外、換工具、換頁、Esc）才落定 ──
-  //   float = { pg, x, y, w, h, cells: [[dx, dy, 值, 填色標記]], labels: [[標籤, 中心 x, 中心 y]]（相對框的左上角）, base, mbase（拿起後的底圖） }
+  //   float = { pg, x, y, w, h, cells: [[dx, dy, 值, 填色標記]], labels: [[標籤, 中心 x, 中心 y]], objs: [[物件, 控制點]]（相對框的左上角）, base, mbase（拿起後的底圖） }
+  //   整個在框內的畫的圖形（物件）跟著一起搬、翻轉、縮放
   let float = null, clip = null;
   const lbCx = lb => lb.brl ? lb.x + brlWidth(lb.brl) / 2 : lb.cx;
   const lbCy = lb => lb.brl ? lb.y + 2 : lb.cy;
   function labelsIn(pg, box) {
     return pg.labels.filter(lb => { const cx = lbCx(lb), cy = lbCy(lb); return cx >= box.x && cx < box.x + box.w && cy >= box.y && cy < box.y + box.h; });
   }
+  function objsIn(pg, box) {
+    return objsOf(pg).filter(o => { const b = objBox(o); return b.x >= box.x && b.y >= box.y && b.x + b.w <= box.x + box.w && b.y + b.h <= box.y + box.h; });
+  }
+  const relObjs = (objs, x, y) => objs.map(o => [o, o.pts.map(([px, py]) => [px - x, py - y])]);
   function liftFloat(pg, box) {
     if (float) return float;
     const base = pg.dots.slice(), mbase = pg.fillMask ? pg.fillMask.slice() : null, cells = [];
@@ -1973,7 +2183,7 @@
       base[i] = 0; if (mbase) mbase[i] = 0;
     }
     float = { pg, x: box.x, y: box.y, w: box.w, h: box.h, cells, base, mbase,
-              labels: labelsIn(pg, box).map(lb => [lb, lbCx(lb) - box.x, lbCy(lb) - box.y]) };
+              labels: labelsIn(pg, box).map(lb => [lb, lbCx(lb) - box.x, lbCy(lb) - box.y]), objs: relObjs(objsIn(pg, box), box.x, box.y) };
     return float;
   }
   function applyFloat() {
@@ -1990,6 +2200,7 @@
       lb.cx = f.x + cx; lb.cy = f.y + cy;
       lb.x = Math.round(lb.cx - brlWidth(lb.brl) / 2); lb.y = Math.round(lb.cy - 2);
     }
+    for (const [o, rel] of f.objs || []) o.pts = rel.map(([x, y]) => [f.x + x, f.y + y]);
     selBox = { x: f.x, y: f.y, w: f.w, h: f.h };
   }
   function dropFloat() { float = null; }
@@ -2000,11 +2211,13 @@
     const f = float;
     f.cells = f.cells.map(([dx, dy, v, m]) => horizontal ? [f.w - 1 - dx, dy, v, m] : [dx, f.h - 1 - dy, v, m]);
     f.labels = f.labels.map(([lb, cx, cy]) => horizontal ? [lb, f.w - cx, cy] : [lb, cx, f.h - cy]);
+    f.objs = (f.objs || []).map(([o, rel]) => [o, rel.map(([x, y]) => horizontal ? [f.w - 1 - x, y] : [x, f.h - 1 - y])]);
   }
   function rotateFloat() {   // 順時針，中心不動
     const f = float, w = f.w, h = f.h;
     f.cells = f.cells.map(([dx, dy, v, m]) => [h - 1 - dy, dx, v, m]);
     f.labels = f.labels.map(([lb, cx, cy]) => [lb, h - cy, cx]);
+    f.objs = (f.objs || []).map(([o, rel]) => [o, rel.map(([x, y]) => [h - 1 - y, x])]);
     f.x += Math.round((w - h) / 2); f.y += Math.round((h - w) / 2);
     f.w = h; f.h = w;
   }
@@ -2023,7 +2236,7 @@
     const polys = [];
     straighten(lines, f.w, f.h, polys);
     return { w: f.w, h: f.h, polys, fill, fillMk, other, thick: Math.max(1, Math.min(5, Math.round(raw / Math.max(1, skel)))),
-             labels: f.labels.map(([lb, cx, cy]) => [lb, cx, cy]) };
+             labels: f.labels.map(([lb, cx, cy]) => [lb, cx, cy]), objs: (f.objs || []).map(([o, rel]) => [o, rel.map(p => [...p])]) };
   }
   function scaleFloat(vec, nw, nh) {
     const sx = nw / vec.w, sy = nh / vec.h, grid = new Uint8Array(nw * nh), mk = new Uint8Array(nw * nh);
@@ -2051,7 +2264,7 @@
     }
     const cells = [];
     for (let i = 0; i < grid.length; i++) if (grid[i] || mk[i]) cells.push([i % nw, (i / nw) | 0, grid[i], mk[i]]);
-    return { cells, labels: vec.labels.map(([lb, cx, cy]) => [lb, cx * sx, cy * sy]) };
+    return { cells, labels: vec.labels.map(([lb, cx, cy]) => [lb, cx * sx, cy * sy]), objs: vec.objs.map(([o, rel]) => [o, rel.map(P)]) };
   }
 
   // 剪貼簿（頁面之間共用）
@@ -2059,7 +2272,15 @@
     let src = float;
     if (!src) { src = liftFloat(pg, selBox); float = null; }   // 只是讀出框內的內容，畫面不變
     clip = { page: pg, x: src.x, y: src.y, w: src.w, h: src.h, cells: src.cells.map(c => [...c]),
-             labels: src.labels.map(([lb, cx, cy]) => [{ ...lb, _row: undefined }, cx, cy]) };
+             labels: src.labels.map(([lb, cx, cy]) => [{ ...lb, _row: undefined }, cx, cy]),
+             objs: (src.objs || []).map(([o, rel]) => [cloneObj(o), rel.map(p => [...p])]) };
+  }
+  // 點選的項目複製到剪貼簿（和框選一樣的格式，只是沒有點陣）
+  function copyItems(pg) {
+    const u = unionBox(selItems);
+    clip = { page: pg, x: u.x, y: u.y, w: u.w, h: u.h, cells: [], items: true,
+             labels: selItems.filter(isLabelItem).map(lb => [{ ...lb, _row: undefined }, lbCx(lb) - u.x, lbCy(lb) - u.y]),
+             objs: relObjs(selItems.filter(it => !isLabelItem(it)), u.x, u.y).map(([o, rel]) => [cloneObj(o), rel]) };
   }
   function pasteClip(pg, offset) {
     if (!clip) return false;
@@ -2069,26 +2290,39 @@
     if (offset || clip.page === pg) { x += 6; y += 6; }
     x = Math.max(0, Math.min(W - clip.w, x)); y = Math.max(0, Math.min(H - clip.h, y));
     const labels = clip.labels.map(([lb, cx, cy]) => { const n = { ...lb }; pg.labels.push(n); return [n, cx, cy]; });
-    float = { pg, x, y, w: clip.w, h: clip.h, cells: clip.cells.map(c => [...c]), labels,
+    const objs = (clip.objs || []).map(([o, rel]) => { const n = cloneObj(o); objsOf(pg).push(n); return [n, rel.map(p => [...p])]; });
+    float = { pg, x, y, w: clip.w, h: clip.h, cells: clip.cells.map(c => [...c]), labels, objs,
               base: pg.dots.slice(), mbase: pg.fillMask ? pg.fillMask.slice() : null };
     applyFloat();
+    if (!clip.cells.length) {   // 只有點選的項目：貼上後一樣是點選狀態，可以再對齊
+      selItems = [...labels.map(l => l[0]), ...objs.map(o => o[0])];
+      float = null; selBox = null;
+    }
     renderLabelList();
     return true;
   }
   function deleteFloat(pg) {   // 浮動中的內容整個拿掉（底圖留著）
     const f = float;
     pg.dots = f.base.slice(); if (f.mbase) pg.fillMask = f.mbase.slice();
-    const gone = f.labels.map(l => l[0]);
+    const gone = f.labels.map(l => l[0]), goneObjs = (f.objs || []).map(o => o[0]);
     pg.labels = pg.labels.filter(lb => !gone.includes(lb));
+    pg.objs = objsOf(pg).filter(o => !goneObjs.includes(o));
     if (gone.includes(selLabel)) selLabel = null;
     float = null;
+  }
+  function deleteItems(pg) {
+    pg.labels = pg.labels.filter(lb => !selItems.includes(lb));
+    pg.objs = objsOf(pg).filter(o => !selItems.includes(o));
+    if (selItems.includes(selLabel)) selLabel = null;
+    selItems = [];
   }
   function clearRegion(pg, box) {
     for (let y = Math.max(0, box.y); y < Math.min(H, box.y + box.h); y++) for (let x = Math.max(0, box.x); x < Math.min(W, box.x + box.w); x++) {
       pg.dots[y * W + x] = 0; if (pg.fillMask) pg.fillMask[y * W + x] = 0;
     }
-    const gone = labelsIn(pg, box);
+    const gone = labelsIn(pg, box), goneObjs = objsIn(pg, box);
     pg.labels = pg.labels.filter(lb => !gone.includes(lb));
+    pg.objs = objsOf(pg).filter(o => !goneObjs.includes(o));
     if (gone.includes(selLabel)) selLabel = null;
   }
 
@@ -2149,7 +2383,6 @@
       pg.dots[y * W + x] = v;
       if (pg.fillMask) pg.fillMask[y * W + x] = 0;   // 畫線、擦掉的點不再算填色
     };
-    const pen = (pg, x, y) => { for (const [px, py] of brush(x, y, brushSize())) setDot(pg, px, py, LINE); };
     const erase = (pg, x, y) => { for (const [px, py] of brush(x, y, brushSize())) setDot(pg, px, py, 0); };
     const hitLabel = (pg, x, y) => [...pg.labels].reverse().find(l => x >= l.x - 1 && x <= l.x + brlWidth(l.brl) && y >= l.y - 1 && y <= l.y + BRL_HEIGHT);
 
@@ -2185,11 +2418,27 @@
         } else if (selBox && x >= selBox.x && x < selBox.x + selBox.w && y >= selBox.y && y < selBox.y + selBox.h) {
           editStart(pg);
           drag = { fmove: true, sx: x, sy: y, ox: float.x, oy: float.y, moved: false };
-        } else { dropFloat(); selBox = null; drag = { sel: true, sx: x, sy: y }; }
+        } else {
+          dropFloat(); selBox = null;
+          const hit = hitItem(pg, x, y);
+          if (hit) {   // 點選：Shift 加選／取消；拖曳搬移選到的全部
+            if (e.shiftKey) selItems = selItems.includes(hit) ? selItems.filter(it => it !== hit) : [...selItems, hit];
+            else if (!selItems.includes(hit)) selItems = [hit];
+            if (selItems.includes(hit)) { pushUndo(pg); drag = { items: true, lx: x, ly: y, moved: false }; }
+            else drag = {};
+            showItemStatus();
+          } else {
+            if (!e.shiftKey) selItems = [];
+            drag = { sel: true, sx: x, sy: y, add: e.shiftKey };
+          }
+        }
       } else {
         pushUndo(pg);
-        if (tool === 'pen') pen(pg, x, y);
-        else if (tool === 'eraser') erase(pg, x, y);
+        if (tool === 'pen') { drag = { stroke: { type: 'pen', pts: [[x, y]], thick: brushSize(), dash: false } }; objsOf(pg).push(drag.stroke); drawEditor(); return; }
+        else if (tool === 'eraser') {
+          erase(pg, x, y);
+          if (hitItem(pg, x, y) && !isLabelItem(hitItem(pg, x, y))) $('#edStatus').textContent = '橡皮擦只擦點陣；畫的圖形要用「選取」點它再按 Delete，或先「轉成點陣」';
+        }
         else if (tool === 'fill') {
           const fv = $('#fillLevel').value, v = isNaN(+fv) ? fv : +fv;
           const n = floodFill(pg, x, y, v);
@@ -2212,7 +2461,12 @@
       if (tool === 'label' && selLabel && drag.dx != null) {
         selLabel.x = x - drag.dx; selLabel.y = y - drag.dy; drag.moved = true;
         selLabel.cx = selLabel.x + brlWidth(selLabel.brl) / 2; selLabel.cy = selLabel.y + 2;
-      } else if (tool === 'pen') { for (const [px, py] of linePts(...last, x, y)) pen(pg, px, py); }
+      } else if (drag.stroke) { const p = drag.stroke.pts, q = p[p.length - 1]; if (q[0] !== x || q[1] !== y) p.push([x, y]); }
+      else if (drag.items) {
+        for (const it of selItems) moveItem(it, x - drag.lx, y - drag.ly);
+        drag.moved = drag.moved || x !== drag.lx || y !== drag.ly;
+        drag.lx = x; drag.ly = y;
+      }
       else if (tool === 'eraser') { for (const [px, py] of linePts(...last, x, y)) erase(pg, px, py); }
       else if (preview) { preview.x1 = x; preview.y1 = y; preview.shift = e.shiftKey; }
       else if (drag.erase) {
@@ -2240,22 +2494,29 @@
     });
     cv.addEventListener('pointerleave', () => { hover = null; drawEditor(); });
     // 換工具時把選取框收掉
-    for (const r of document.querySelectorAll('input[name=tool]')) r.addEventListener('change', () => { if (tool !== 'select') { dropFloat(); selBox = null; } });
+    for (const r of document.querySelectorAll('input[name=tool]')) r.addEventListener('change', () => { if (tool !== 'select') { dropFloat(); selBox = null; selItems = []; } });
     cv.addEventListener('pointerup', () => {
       const pg = pages[cur];
-      if (pg && preview) { for (const [px, py] of shapePts(preview)) pen(pg, px, py); preview = null; }
-      if (pg && drag && (drag.fmove || drag.resize) && !drag.moved) pg.undo.pop();
+      if (pg && preview) { objsOf(pg).push(shapeFrom(preview)); preview = null; }
+      if (pg && drag && (drag.fmove || drag.resize || drag.items) && !drag.moved) pg.undo.pop();
+      if (pg && drag && drag.sel && selBox) {   // 框選：框裡沒有點陣，只有畫的圖形、標籤 → 改成點選，可以對齊
+        const b = selBox, its = [...labelsIn(pg, b), ...objsIn(pg, b)];
+        let raster = false;
+        for (let y = Math.max(0, b.y); y < Math.min(H, b.y + b.h) && !raster; y++) for (let x = Math.max(0, b.x); x < Math.min(W, b.x + b.w); x++) if (pg.dots[y * W + x]) { raster = true; break; }
+        if (!raster && its.length) { selItems = drag.add ? [...new Set([...selItems, ...its])] : its; selBox = null; showItemStatus(); }
+      }
       if (pg && drag && drag.erase && eraseBox) {   // 清掉框內有東西的點（線、填色、匯入 PRN 裡的點字），標籤不動
-        const b = eraseBox, before = pg.dots.slice(), mask = pg.fillMask && pg.fillMask.slice();
+        const b = eraseBox, snap = snapshot(pg);
         let n = 0;
+        const goneObjs = objsIn(pg, b);
+        if (goneObjs.length) pg.objs = objsOf(pg).filter(o => !goneObjs.includes(o));
         for (let y = Math.max(0, b.y); y < Math.min(H, b.y + b.h); y++) for (let x = Math.max(0, b.x); x < Math.min(W, b.x + b.w); x++) {
           const i = y * W + x;
           if (pg.dots[i]) { pg.dots[i] = 0; n++; }
           if (pg.fillMask) pg.fillMask[i] = 0;
         }
-        if (n) { pg.undo.push({ dots: before, labels: pg.labels.map(l => ({ ...l, _row: undefined })), src: pg.src, fig: pg.fig, fills: (pg.fills || []).map(f => ({ ...f })), fillMask: mask });
-                 if (pg.undo.length > 60) pg.undo.shift(); }
-        $('#edStatus').textContent = n ? `清掉 ${n} 點` : '框內沒有線條';
+        if (n || goneObjs.length) pushUndo(pg, snap);
+        $('#edStatus').textContent = n || goneObjs.length ? `清掉 ${n} 點` + (goneObjs.length ? `、${goneObjs.length} 個圖形` : '') : '框內沒有線條';
         eraseBox = null;
       }
       if (drag && drag.sel && selBox && selBox.w * selBox.h <= 1) selBox = null;
@@ -2265,14 +2526,42 @@
     });
   })();
 
-  const selOp = fn => () => {
-    const pg = pages[cur]; if (!pg || !selBox) return;
+  const selOp = (fn, kind) => () => {
+    const pg = pages[cur]; if (!pg) return;
+    if (selItems.length && !selBox) { pushUndo(pg); transformItems(selItems, kind); itemsChanged(); return; }
+    if (!selBox) return;
     editStart(pg); fn(); applyFloat(); drawEditor(); updateThumb();
   };
-  $('#opFlipH').onclick = selOp(() => flipFloat(true));
-  $('#opFlipV').onclick = selOp(() => flipFloat(false));
-  $('#opRot').onclick = selOp(rotateFloat);
-  $('#opCopy').onclick = () => { const pg = pages[cur]; if (pg && selBox) { copySelection(pg); $('#edStatus').textContent = '已複製（Ctrl+V 貼上，可貼到別頁）'; drawEditor(); } };
+  $('#opFlipH').onclick = selOp(() => flipFloat(true), 'h');
+  $('#opFlipV').onclick = selOp(() => flipFloat(false), 'v');
+  $('#opRot').onclick = selOp(rotateFloat, 'r');
+  $('#opCopy').onclick = () => {
+    const pg = pages[cur]; if (!pg) return;
+    if (selBox) copySelection(pg); else if (selItems.length) copyItems(pg); else return;
+    $('#edStatus').textContent = '已複製（Ctrl+V 貼上，可貼到別頁）'; drawEditor();
+  };
+  function itemsChanged() {
+    if (selItems.some(isLabelItem)) renderLabelList();
+    drawEditor(); updateThumb();
+  }
+  function showItemStatus() {
+    const nl = selItems.filter(isLabelItem).length, no = selItems.length - nl;
+    $('#edStatus').textContent = selItems.length ? `選了 ${[no && no + ' 個圖形', nl && nl + ' 個標籤'].filter(Boolean).join('、')}` + (selItems.length > 1 ? '（可以對齊）' : '（Shift＋點一下加選）') : '';
+  }
+  for (const b of document.querySelectorAll('#alignOps [data-align]')) b.onclick = () => {
+    const pg = pages[cur]; if (!pg || !selItems.length) return;
+    pushUndo(pg); alignItems(selItems, b.dataset.align); itemsChanged();
+  };
+  $('#opFlatten').onclick = () => {
+    const pg = pages[cur]; if (!pg) return;
+    const objs = selItems.filter(it => !isLabelItem(it)); if (!objs.length) return;
+    pushUndo(pg);
+    for (const o of objs) for (const i of objCells(o)) { pg.dots[i] = LINE; if (pg.fillMask) pg.fillMask[i] = 0; }
+    pg.objs = objsOf(pg).filter(o => !objs.includes(o));
+    selItems = selItems.filter(isLabelItem);
+    $('#edStatus').textContent = `${objs.length} 個圖形轉成點陣，可以用橡皮擦擦了`;
+    drawEditor(); updateThumb();
+  };
   $('#opPaste').onclick = () => { const pg = pages[cur]; if (pg && pasteClip(pg)) { drawEditor(); updateThumb(); } };
 
   // ── 鍵盤 ───────────────────────────────────────────
@@ -2291,6 +2580,14 @@
     }
     if (pg && tool === 'select' && (e.ctrlKey || e.metaKey)) {   // 複製、剪下、貼上、複製一份
       const k = e.key.toLowerCase();
+      if ((k === 'c' || k === 'x' || k === 'd') && !selBox && selItems.length) {
+        e.preventDefault();
+        copyItems(pg);
+        if (k === 'x') { pushUndo(pg); deleteItems(pg); renderLabelList(); }
+        if (k === 'd') pasteClip(pg, true);
+        $('#edStatus').textContent = k === 'c' ? '已複製（Ctrl+V 貼上，可貼到別頁）' : k === 'x' ? '已剪下' : '已複製一份';
+        drawEditor(); updateThumb(); return;
+      }
       if ((k === 'c' || k === 'x' || k === 'd') && selBox) {
         e.preventDefault();
         copySelection(pg);
@@ -2300,6 +2597,15 @@
         drawEditor(); updateThumb(); return;
       }
       if (k === 'v' && clip) { e.preventDefault(); pasteClip(pg); drawEditor(); updateThumb(); return; }
+    }
+    if (pg && selItems.length && !selBox && tool === 'select') {
+      const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (mv) { e.preventDefault(); pushUndo(pg); const k = e.shiftKey ? 5 : 1; for (const it of selItems) moveItem(it, mv[0] * k, mv[1] * k); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); pushUndo(pg); deleteItems(pg); renderLabelList(); }
+      else if (e.key === 'Escape') selItems = [];
+      else return;
+      itemsChanged(); showItemStatus();
+      return;
     }
     if (pg && selBox && tool === 'select') {
       const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
