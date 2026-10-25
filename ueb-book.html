@@ -1,0 +1,3398 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 這個檔案由 tools/build-books.mjs 從 document/教材/UEB 學習手冊.docx 產生，不要直接改 -->
+<title>UEB 學習手冊</title>
+<script src="music/js/theme.js"></script>
+<style>
+@font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--brl:#7a3e00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.7 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.6rem;margin:8px 0 4px}
+h2{font-size:1.35rem;margin:40px 0 8px;padding-top:12px;border-top:2px solid var(--line)}
+h3{font-size:1.15rem;margin:28px 0 6px}
+h4{font-size:1rem;margin:20px 0 4px}
+.lead{color:var(--muted);margin:0 0 12px}
+.bar{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin:0 0 8px;font-size:.95rem}
+.bar label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.scroll{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;background:var(--card)}
+th,td{border:1px solid var(--line);padding:4px 10px;text-align:left;vertical-align:top}
+.brl{color:var(--brl);font-size:1.15em;letter-spacing:.05em;word-break:break-all}
+td .brl,th .brl{white-space:nowrap;word-break:normal}
+html.simbrl .brl{font-family:'SimBraille';font-size:1.4em;letter-spacing:0}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;margin:12px 0}
+nav.toc>ul{margin:0;padding-left:1.2em}
+nav.toc ul ul{font-size:.92rem;columns:2 14em;margin:2px 0 8px}
+hr{display:none}
+img.cover{display:block;max-width:100%;height:auto;margin:8px 0;border-radius:6px}
+code{font-family:Consolas,monospace}
+</style>
+</head>
+<body>
+<main>
+<div class="bar">
+  <a href="books.html">📚 所有教材</a>
+  <a href="UEB-g2-query.html">UEB 查詢</a>
+  <label><input type="checkbox" id="simbrl"> 點字用 SimBraille 字型顯示（ASCII 點字）</label>
+</div>
+<h1>UEB 學習手冊</h1>
+<p class="lead">給初學者的統一英文點字（UEB）手冊：第一部分是英文字母、數字、大寫、標點符號和簡寫字，第二部分是各類縮寫，最後是綜合練習、相關輔助科技和縮寫快速查詢表。作者黃偉豪、陳英廷，PDF 版見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/1039" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>。</p>
+<nav class="toc" aria-label="目錄">
+<ul>
+<li><a href="#前言">前言</a><ul><li><a href="#英文字母-a-至-j">英文字母 A 至 J</a></li><li><a href="#英文字母-k-至-t">英文字母 K 至 T</a></li><li><a href="#英文字母-u-至-z">英文字母 U 至 Z</a></li><li><a href="#大寫字母">大寫字母</a></li><li><a href="#數字">數字</a></li><li><a href="#基本標點符號">基本標點符號</a></li></ul></li>
+<li><a href="#第二部分縮寫">第二部分：縮寫</a><ul><li><a href="#alphabetic-wordsigns">Alphabetic Wordsigns</a></li><li><a href="#strong-contractions">Strong Contractions</a></li><li><a href="#letter-縮寫表">Letter 縮寫表</a></li><li><a href="#標點符號">標點符號</a></li></ul></li>
+<li><a href="#綜合練習">綜合練習</a><ul><li><a href="#英文轉點字-11">英文轉點字</a></li><li><a href="#點字轉英文-11">點字轉英文</a></li></ul></li>
+<li><a href="#ueb-相關輔助科技">UEB 相關輔助科技</a><ul><li><a href="#nvda-螢幕報讀軟體">NVDA 螢幕報讀軟體</a></li><li><a href="#練習工具">練習工具</a></li><li><a href="#轉譯工具">轉譯工具</a></li></ul></li>
+<li><a href="#版權頁">版權頁</a></li>
+</ul>
+</nav>
+<p><img class="cover" src="ueb-book-cover.jpg" alt="書名： UEB 學習手冊 Guide Book for Learning Unify English Braille 淺黃色桌面上放了一台黑色的點字顯示器作為封面底圖">UEB
+學習手冊</p>
+<p><span class="brl">⠠⠠⠥⠑⠃</span> <span class="brl">⠑⠦⠂⠑⠡⠂⠊⠷⠈⠚⠮⠐</span></p>
+<p>Guide Book for Learning Unify English Braille</p>
+<p>作者：黃偉豪</p>
+<p>陳英廷</p>
+<h2 id="前言">前言</h2>
+<p>在視覺障礙者的英語學習過程中，點字是連結文字與世界的重要橋梁。為了協助初學者循序漸進地掌握統一英文點字（Unified
+English Braille, 簡稱 UEB）的基本知識與應用技巧，本教材應運而生。</p>
+<p>本書分為兩大部分，第一部分介紹 UEB
+的基礎元素，包括英文字母、數字、大寫、標點符號以及簡寫字的概念，讓學習者從單一符號到簡單單詞，逐步熟悉點字的結構與邏輯。第二部分介紹
+UEB
+的各類縮寫規則，依據不同的縮寫類型加以分類說明，並搭配實例句子與練習活動，協助學習者理解並活用各種縮寫組合。</p>
+<p>除了基本規則與實用練習，本書亦收錄點字與英文之互譯練習，以及常用的
+UEB 點字轉譯工具與輔助科技，如 NVDA 螢幕報讀軟體與 BrailleBlaster
+等，幫助學習者實際應用所學，無縫接軌至數位學習與文件製作。</p>
+<p>特別感謝國立高雄師範大學特殊教育系李永昌教授、國立臺北教育大學特殊教育學系吳純慧副教授給予編修建議與指導。</p>
+<h2
+id="第一部分英文字母數字與標點符號">第一部分：英文字母、數字與標點符號</h2>
+<h3 id="英文字母-a-至-j">英文字母 A 至 J</h3>
+<h4 id="英文字母與點位">英文字母與點位</h4>
+<p>UEB
+英文點字使用六點點字系統來表示英文字母。每個點字格由六個點位組成，這些點分為左右兩排，每排都有上、中、下三個點，左邊排的上、中、下為點
+1、點 2、點 3 ，右邊排的上、中、下為 點 4、點 5、點 6。 A 至 J
+的字母點位如下：</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>字母</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>點位</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a</td>
+<td><span class="brl">⠁</span></td>
+<td>點 1</td>
+</tr>
+<tr>
+<td>b</td>
+<td><span class="brl">⠃</span></td>
+<td>點 1 2</td>
+</tr>
+<tr>
+<td>c</td>
+<td><span class="brl">⠉</span></td>
+<td>點 1 4</td>
+</tr>
+<tr>
+<td>d</td>
+<td><span class="brl">⠙</span></td>
+<td>點 1 4 5</td>
+</tr>
+<tr>
+<td>e</td>
+<td><span class="brl">⠑</span></td>
+<td>點 1 5</td>
+</tr>
+<tr>
+<td>f</td>
+<td><span class="brl">⠋</span></td>
+<td>點 1 2 4</td>
+</tr>
+<tr>
+<td>g</td>
+<td><span class="brl">⠛</span></td>
+<td>點 1 2 4 5</td>
+</tr>
+<tr>
+<td>h</td>
+<td><span class="brl">⠓</span></td>
+<td>點 1 2 5</td>
+</tr>
+<tr>
+<td>i</td>
+<td><span class="brl">⠊</span></td>
+<td>點 2 4</td>
+</tr>
+<tr>
+<td>j</td>
+<td><span class="brl">⠚</span></td>
+<td>點 2 4 5</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="練習單字">練習單字</h4>
+<p>使用 A 至 J 字母組合成的簡單英文單字練習：</p>
+<h5 id="英文轉點字">英文轉點字</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td>add</td>
+<td><span class="brl">⠁⠙⠙</span></td>
+<td>添加</td>
+</tr>
+<tr>
+<td>age</td>
+<td><span class="brl">⠁⠛⠑</span></td>
+<td>年紀</td>
+</tr>
+<tr>
+<td>bad</td>
+<td><span class="brl">⠃⠁⠙</span></td>
+<td>壞的</td>
+</tr>
+<tr>
+<td>beef</td>
+<td><span class="brl">⠃⠑⠑⠋</span></td>
+<td>牛肉</td>
+</tr>
+<tr>
+<td>big</td>
+<td><span class="brl">⠃⠊⠛</span></td>
+<td>大的</td>
+</tr>
+<tr>
+<td>dad</td>
+<td><span class="brl">⠙⠁⠙</span></td>
+<td>爸爸</td>
+</tr>
+<tr>
+<td>cab</td>
+<td><span class="brl">⠉⠁⠃</span></td>
+<td>廂型車</td>
+</tr>
+<tr>
+<td>dig</td>
+<td><span class="brl">⠙⠊⠛</span></td>
+<td>挖</td>
+</tr>
+</tbody>
+</table></div>
+<h5 id="點字轉英文">點字轉英文</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td><span class="brl">⠑⠙⠛⠑</span></td>
+<td>edge</td>
+<td>邊緣</td>
+</tr>
+<tr>
+<td><span class="brl">⠑⠛⠛</span></td>
+<td>egg</td>
+<td>蛋</td>
+</tr>
+<tr>
+<td><span class="brl">⠊⠉⠑</span></td>
+<td>ice</td>
+<td>冰</td>
+</tr>
+<tr>
+<td><span class="brl">⠚⠁⠙⠑</span></td>
+<td>jade</td>
+<td>玉石</td>
+</tr>
+<tr>
+<td><span class="brl">⠃⠁⠙⠛⠑</span></td>
+<td>badge</td>
+<td>徽章</td>
+</tr>
+<tr>
+<td><span class="brl">⠉⠁⠛⠑</span></td>
+<td>cage</td>
+<td>籠子</td>
+</tr>
+<tr>
+<td><span class="brl">⠋⠁⠉⠑</span></td>
+<td>face</td>
+<td>臉</td>
+</tr>
+<tr>
+<td><span class="brl">⠓⠊⠙⠑</span></td>
+<td>hide</td>
+<td>隱藏</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><br />
+</strong></p>
+<h3 id="英文字母-k-至-t">英文字母 K 至 T</h3>
+<h4 id="英文字母與點位-1">英文字母與點位</h4>
+<p>繼續學習英文字母的點字表示， K 至 T 的字母點位如下：</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>字母</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>點位</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">k</td>
+<td style="text-align: left;"><span class="brl">⠅</span></td>
+<td style="text-align: left;">點 1 3</td>
+</tr>
+<tr>
+<td style="text-align: left;">l</td>
+<td style="text-align: left;"><span class="brl">⠇</span></td>
+<td style="text-align: left;">點 1 2 3</td>
+</tr>
+<tr>
+<td style="text-align: left;">m</td>
+<td style="text-align: left;"><span class="brl">⠍</span></td>
+<td style="text-align: left;">點 1 3 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">n</td>
+<td style="text-align: left;"><span class="brl">⠝</span></td>
+<td style="text-align: left;">點 1 3 4 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">o</td>
+<td style="text-align: left;"><span class="brl">⠕</span></td>
+<td style="text-align: left;">點 1 3 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">p</td>
+<td style="text-align: left;"><span class="brl">⠏</span></td>
+<td style="text-align: left;">點 1 2 3 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">q</td>
+<td style="text-align: left;"><span class="brl">⠟</span></td>
+<td style="text-align: left;">點 1 2 3 4 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">r</td>
+<td style="text-align: left;"><span class="brl">⠗</span></td>
+<td style="text-align: left;">點 1 2 3 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">s</td>
+<td style="text-align: left;"><span class="brl">⠎</span></td>
+<td style="text-align: left;">點 2 3 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">t</td>
+<td style="text-align: left;"><span class="brl">⠞</span></td>
+<td style="text-align: left;">點 2 3 4 5</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="練習單字-1">練習單字</h4>
+<p>使用 K 至 T 字母以及先前學過的 A 至 J
+字母組合成的簡單英文單字練習：</p>
+<h5 id="英文轉點字-1">英文轉點字</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td>kid</td>
+<td><span class="brl">⠅⠊⠙</span></td>
+<td>孩子</td>
+</tr>
+<tr>
+<td>lid</td>
+<td><span class="brl">⠇⠊⠙</span></td>
+<td>蓋子</td>
+</tr>
+<tr>
+<td>meet</td>
+<td><span class="brl">⠍⠑⠑⠞</span></td>
+<td>遇見</td>
+</tr>
+<tr>
+<td>nod</td>
+<td><span class="brl">⠝⠕⠙</span></td>
+<td>點頭</td>
+</tr>
+<tr>
+<td>orange</td>
+<td><span class="brl">⠕⠗⠁⠝⠛⠑</span></td>
+<td>橘子</td>
+</tr>
+<tr>
+<td>pet</td>
+<td><span class="brl">⠏⠑⠞</span></td>
+<td>寵物</td>
+</tr>
+<tr>
+<td>quit</td>
+<td><span class="brl">⠟⠥⠊⠞</span></td>
+<td>退出</td>
+</tr>
+<tr>
+<td>run</td>
+<td><span class="brl">⠗⠥⠝</span></td>
+<td>跑</td>
+</tr>
+</tbody>
+</table></div>
+<h5 id="點字轉英文-1">點字轉英文</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td><span class="brl">⠎⠊⠞</span></td>
+<td>sit</td>
+<td>坐下</td>
+</tr>
+<tr>
+<td><span class="brl">⠞⠕⠏</span></td>
+<td>top</td>
+<td>頂部</td>
+</tr>
+<tr>
+<td><span class="brl">⠇⠑⠋⠞</span></td>
+<td>left</td>
+<td>左邊</td>
+</tr>
+<tr>
+<td><span class="brl">⠍⠕⠕⠝</span></td>
+<td>moon</td>
+<td>月亮</td>
+</tr>
+<tr>
+<td><span class="brl">⠕⠇⠙</span></td>
+<td>old</td>
+<td>老的</td>
+</tr>
+<tr>
+<td><span class="brl">⠏⠕⠉⠅⠑⠞</span></td>
+<td>pocket</td>
+<td>口袋</td>
+</tr>
+<tr>
+<td><span class="brl">⠎⠑⠉⠗⠑⠞</span></td>
+<td>secret</td>
+<td>秘密</td>
+</tr>
+<tr>
+<td><span class="brl">⠞⠊⠉⠅⠑⠞</span></td>
+<td>ticket</td>
+<td>票</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><br />
+</strong></p>
+<h3 id="英文字母-u-至-z">英文字母 U 至 Z</h3>
+<h4 id="英文字母與點位-2">英文字母與點位</h4>
+<p>最後一組英文字母的點字表示，U至Z的字母點位如下：</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>字母</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>點位</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">u</td>
+<td style="text-align: left;"><span class="brl">⠥</span></td>
+<td style="text-align: left;">點 1 3 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">v</td>
+<td style="text-align: left;"><span class="brl">⠧</span></td>
+<td style="text-align: left;">點 1 2 3 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">w</td>
+<td style="text-align: left;"><span class="brl">⠺</span></td>
+<td style="text-align: left;">點 2 4 5 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">x</td>
+<td style="text-align: left;"><span class="brl">⠭</span></td>
+<td style="text-align: left;">點 1 3 4 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">y</td>
+<td style="text-align: left;"><span class="brl">⠽</span></td>
+<td style="text-align: left;">點 1 3 4 5 6</td>
+</tr>
+<tr>
+<td style="text-align: left;">z</td>
+<td style="text-align: left;"><span class="brl">⠵</span></td>
+<td style="text-align: left;">點 1 3 5 6</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="練習單字-2">練習單字</h4>
+<p>使用 U 至 Z 字母以及先前學過的字母組合成的簡單英文單字練習：</p>
+<h5 id="英文轉點字-2">英文轉點字</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td>up</td>
+<td><span class="brl">⠥⠏</span></td>
+<td>向上</td>
+</tr>
+<tr>
+<td>van</td>
+<td><span class="brl">⠧⠁⠝</span></td>
+<td>廂型車</td>
+</tr>
+<tr>
+<td>wig</td>
+<td><span class="brl">⠺⠊⠛</span></td>
+<td>假髮</td>
+</tr>
+<tr>
+<td>box</td>
+<td><span class="brl">⠃⠕⠭</span></td>
+<td>盒子</td>
+</tr>
+<tr>
+<td>yet</td>
+<td><span class="brl">⠽⠑⠞</span></td>
+<td>尚未</td>
+</tr>
+<tr>
+<td>zoo</td>
+<td><span class="brl">⠵⠕⠕</span></td>
+<td>動物園</td>
+</tr>
+<tr>
+<td>bus</td>
+<td><span class="brl">⠃⠥⠎</span></td>
+<td>公車</td>
+</tr>
+<tr>
+<td>cut</td>
+<td><span class="brl">⠉⠥⠞</span></td>
+<td>切</td>
+</tr>
+</tbody>
+</table></div>
+<h5 id="點字轉英文-2">點字轉英文</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td><span class="brl">⠋⠊⠭</span></td>
+<td>fix</td>
+<td>修復</td>
+</tr>
+<tr>
+<td><span class="brl">⠛⠥⠝</span></td>
+<td>gun</td>
+<td>槍</td>
+</tr>
+<tr>
+<td><span class="brl">⠥⠏⠎⠑⠞</span></td>
+<td>upset</td>
+<td>心煩</td>
+</tr>
+<tr>
+<td><span class="brl">⠧⠊⠎⠊⠞</span></td>
+<td>visit</td>
+<td>拜訪</td>
+</tr>
+<tr>
+<td><span class="brl">⠑⠭⠞⠗⠁</span></td>
+<td>extra</td>
+<td>額外的</td>
+</tr>
+<tr>
+<td><span class="brl">⠧⠁⠇⠥⠑</span></td>
+<td>value</td>
+<td>價值</td>
+</tr>
+<tr>
+<td><span class="brl">⠺⠕⠗⠗⠽</span></td>
+<td>worry</td>
+<td>擔心</td>
+</tr>
+<tr>
+<td><span class="brl">⠎⠊⠭</span></td>
+<td>six</td>
+<td>六</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="大寫字母">大寫字母</h3>
+<h4 id="大寫記號">大寫記號</h4>
+<p>在 UEB 中，大寫字母的表示需要在字母前加上大寫記號點 6
+(<span class="brl">⠠</span>)，簡稱「大寫點」。</p>
+<p>例如：</p>
+<ul>
+<li><p>大寫 A = <span class="brl">⠠⠁</span> (點 6, 點 1)</p></li>
+<li><p>大寫 B = <span class="brl">⠠⠃</span> (點 6, 點 1 2)</p></li>
+<li><p>大寫 C = <span class="brl">⠠⠉</span> (點 6, 點 1 4)</p></li>
+<li><p>McDonalds = <span class="brl">⠠⠍⠉⠠⠙⠕⠝⠁⠇⠙⠎</span> (大寫 M，小寫 c，大寫
+D，其餘小寫)</p></li>
+<li><p>iPhone = <span class="brl">⠊⠠⠏⠓⠕⠝⠑</span> (小寫 i，大寫 P，其餘小寫)</p></li>
+</ul>
+<h4 id="連續大寫字母">連續大寫字母</h4>
+<p>當同一單字有連續的大寫字母出現時（如縮寫詞或首字母縮略詞），我們可以使用連續大寫標記：兩個點
+6 (<span class="brl">⠠⠠</span>)。</p>
+<p>例如：</p>
+<ul>
+<li><p>USA = <span class="brl">⠠⠠⠥⠎⠁</span> (點 6 兩次，然後是 u, s, a)</p></li>
+<li><p>BBC = <span class="brl">⠠⠠⠃⠃⠉</span> (點 6 兩次，然後是 b, b, c)</p></li>
+</ul>
+<h4 id="練習單字-3">練習單字</h4>
+<p>請練習閱讀以下字詞，注意大寫記號的使用：</p>
+<h5 id="英文轉點字-3">英文轉點字</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td>Taiwan</td>
+<td><span class="brl">⠠⠞⠁⠊⠺⠁⠝</span></td>
+<td>臺灣</td>
+</tr>
+<tr>
+<td>John</td>
+<td><span class="brl">⠠⠚⠕⠓⠝</span></td>
+<td>約翰</td>
+</tr>
+<tr>
+<td>May</td>
+<td><span class="brl">⠠⠍⠁⠽</span></td>
+<td>五月</td>
+</tr>
+<tr>
+<td>OCR</td>
+<td><span class="brl">⠠⠠⠕⠉⠗</span></td>
+<td>光學字元辨識</td>
+</tr>
+<tr>
+<td>TTS</td>
+<td><span class="brl">⠠⠠⠞⠞⠎</span></td>
+<td>文字轉語音</td>
+</tr>
+<tr>
+<td>NY</td>
+<td><span class="brl">⠠⠠⠝⠽</span></td>
+<td>紐約</td>
+</tr>
+</tbody>
+</table></div>
+<h5 id="點字轉英文-3">點字轉英文</h5>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td><span class="brl">⠠⠠⠞⠧</span></td>
+<td>TV</td>
+<td>電視</td>
+</tr>
+<tr>
+<td><span class="brl">⠠⠓⠊</span></td>
+<td>Hi</td>
+<td>嗨</td>
+</tr>
+<tr>
+<td><span class="brl">⠠⠠⠊⠃⠍</span></td>
+<td>IBM</td>
+<td>國際商業機器公司</td>
+</tr>
+<tr>
+<td><span class="brl">⠠⠏⠁⠗⠊⠎</span></td>
+<td>Paris</td>
+<td>巴黎</td>
+</tr>
+<tr>
+<td><span class="brl">⠠⠇⠕⠝⠙⠕⠝</span></td>
+<td>London</td>
+<td>倫敦</td>
+</tr>
+<tr>
+<td><span class="brl">⠠⠠⠥⠎⠁</span></td>
+<td>USA</td>
+<td>美國</td>
+</tr>
+</tbody>
+</table></div>
+<p>大寫記號是點字閱讀中的重要元素，它能幫助讀者分辨專有名詞、句首、縮寫詞等需要大寫的情況。熟練掌握大寫記號的使用，將有助於準確理解點字文本的內容。</p>
+<h3 id="數字">數字</h3>
+<h4 id="數字記號與數字">數字記號與數字</h4>
+<h5 id="數字記號">數字記號</h5>
+<p>在 UEB 中，數字使用與字母 a 到 j
+相同的點位組合，但需要在前面加上「數字符號標記」。數字記號是點 3 4 5 6
+(<span class="brl">⠼</span>)，這個記號告訴讀者後面的點字應該被解讀為數字而非字母。</p>
+<h5 id="基本數字-0-9">基本數字 0-9</h5>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>數字</strong></th>
+<th style="text-align: left;"><strong>對應字母</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>點位</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">a</td>
+<td style="text-align: left;"><span class="brl">⠼⠁</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">b</td>
+<td style="text-align: left;"><span class="brl">⠼⠃</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 2</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">c</td>
+<td style="text-align: left;"><span class="brl">⠼⠉</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">d</td>
+<td style="text-align: left;"><span class="brl">⠼⠙</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 4 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">e</td>
+<td style="text-align: left;"><span class="brl">⠼⠑</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">6</td>
+<td style="text-align: left;">f</td>
+<td style="text-align: left;"><span class="brl">⠼⠋</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 2 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;">g</td>
+<td style="text-align: left;"><span class="brl">⠼⠛</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 2 4 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;">h</td>
+<td style="text-align: left;"><span class="brl">⠼⠓</span></td>
+<td style="text-align: left;">數字符號標記 + 點 1 2 5</td>
+</tr>
+<tr>
+<td style="text-align: left;">9</td>
+<td style="text-align: left;">i</td>
+<td style="text-align: left;"><span class="brl">⠼⠊</span></td>
+<td style="text-align: left;">數字符號標記 + 點 2 4</td>
+</tr>
+<tr>
+<td style="text-align: left;">0</td>
+<td style="text-align: left;">j</td>
+<td style="text-align: left;"><span class="brl">⠼⠚</span></td>
+<td style="text-align: left;">數字符號標記 + 點 2 4 5</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="多位數字">多位數字</h4>
+<p>當數字有多個位數時，數字符號標記只需在數字的開頭使用一次：</p>
+<ul>
+<li><p>23 <span class="brl">⠼⠃⠉</span> (數字符號 + b + c)</p></li>
+<li><p>456 <span class="brl">⠼⠙⠑⠋</span> (數字符號 + d + e + f)</p></li>
+<li><p>1980 <span class="brl">⠼⠁⠊⠓⠚</span> (數字符號 + a + i + h + j)</p></li>
+</ul>
+<h4 id="數字與字母混合文本">數字與字母混合文本</h4>
+<p>字母接數字時，需在數字前加數字記號；當數字後緊接著字母 a 到 j
+時，需要用「字母記號」來分隔，字母記號是點 5 6 (<span class="brl">⠰</span>)：</p>
+<ul>
+<li><p>B2 <span class="brl">⠠⠃⠼⠃</span> (大寫點 + b + 數字符號 + b)</p></li>
+<li><p>4a <span class="brl">⠼⠙⠰⠁</span> (數字符號 + d + 字母記號 + a)</p></li>
+<li><p>3rd <span class="brl">⠼⠉⠗⠙</span> (數字符號 + c + r + d)</p></li>
+</ul>
+<h4 id="數字閱讀練習">數字閱讀練習</h4>
+<p>請練習閱讀以下數字：</p>
+<ol type="1">
+<li><p><span class="brl">⠼⠁⠃⠉</span> (123)</p></li>
+<li><p><span class="brl">⠼⠊⠚⠚⠚</span> (9000)</p></li>
+<li><p><span class="brl">⠼⠃⠑</span> (25)</p></li>
+<li><p><span class="brl">⠼⠛⠓</span> (78)</p></li>
+<li><p><span class="brl">⠼⠉⠙⠑⠋</span> (3456)</p></li>
+<li><p><span class="brl">⠼⠁⠚⠁</span> (101)</p></li>
+</ol>
+<p>數字是日常生活中不可或缺的元素，掌握數字在 UEB
+中的表示方法，將幫助視障學生能夠獨立處理涉及數字的各種信息，如日期、時間、價格、電話號碼等。</p>
+<h3 id="基本標點符號">基本標點符號</h3>
+<p>同時學習一些基本標點符號，以便能閱讀完整的句子：</p>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>標點符號</strong></td>
+<td style="text-align: center;"><strong>點字符號</strong></td>
+<td style="text-align: center;"><strong>點位</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">句號 (.)</td>
+<td style="text-align: center;"><span class="brl">⠲</span></td>
+<td style="text-align: center;">點 2 5 6</td>
+</tr>
+<tr>
+<td style="text-align: center;">逗號 (,)</td>
+<td style="text-align: center;"><span class="brl">⠂</span></td>
+<td style="text-align: center;">點 2</td>
+</tr>
+<tr>
+<td style="text-align: center;">問號 (?)</td>
+<td style="text-align: center;"><span class="brl">⠦</span></td>
+<td style="text-align: center;">點 2 3 6</td>
+</tr>
+<tr>
+<td style="text-align: center;">驚嘆號 (!)</td>
+<td style="text-align: center;"><span class="brl">⠖</span></td>
+<td style="text-align: center;">點 2 3 5</td>
+</tr>
+<tr>
+<td style="text-align: center;">前引號 (")</td>
+<td style="text-align: center;"><span class="brl">⠦</span></td>
+<td style="text-align: center;">點 2 3 6</td>
+</tr>
+<tr>
+<td style="text-align: center;">後引號 (")</td>
+<td style="text-align: center;"><span class="brl">⠴</span></td>
+<td style="text-align: center;">點 3 5 6</td>
+</tr>
+<tr>
+<td style="text-align: center;">單引號 (')</td>
+<td style="text-align: center;"><span class="brl">⠄</span></td>
+<td style="text-align: center;">點 3</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="shortform-簡寫字-的概念介紹">Shortform (簡寫字)
+的概念介紹</h3>
+<p>在 UEB
+點字系統中，為了提高閱讀和書寫效率，常用的一些單字的部份字母來縮寫，稱為
+Shortform（簡寫字）。簡寫字使用較少的點位來表示完整的單字，大大節省了空間和閱讀時間。</p>
+<p>以下是一些由單字中的字母組成的簡寫字：</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>完整單字</strong></th>
+<th style="text-align: center;"><strong>簡寫形式</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>about</td>
+<td>ab</td>
+<td><span class="brl">⠁⠃</span></td>
+<td>關於</td>
+</tr>
+<tr>
+<td>above</td>
+<td>abv</td>
+<td><span class="brl">⠁⠃⠧</span></td>
+<td>在…之上</td>
+</tr>
+<tr>
+<td>according</td>
+<td>ac</td>
+<td><span class="brl">⠁⠉</span></td>
+<td>根據</td>
+</tr>
+<tr>
+<td>across</td>
+<td>acr</td>
+<td><span class="brl">⠁⠉⠗</span></td>
+<td>穿過</td>
+</tr>
+<tr>
+<td>after</td>
+<td>af</td>
+<td><span class="brl">⠁⠋</span></td>
+<td>之後</td>
+</tr>
+<tr>
+<td>afternoon</td>
+<td>afn</td>
+<td><span class="brl">⠁⠋⠝</span></td>
+<td>下午</td>
+</tr>
+<tr>
+<td>afterward</td>
+<td>afw</td>
+<td><span class="brl">⠁⠋⠺</span></td>
+<td>之後</td>
+</tr>
+<tr>
+<td>again</td>
+<td>ag</td>
+<td><span class="brl">⠁⠛</span></td>
+<td>再次</td>
+</tr>
+<tr>
+<td>almost</td>
+<td>alm</td>
+<td><span class="brl">⠁⠇⠍</span></td>
+<td>幾乎</td>
+</tr>
+<tr>
+<td>already</td>
+<td>alr</td>
+<td><span class="brl">⠁⠇⠗</span></td>
+<td>已經</td>
+</tr>
+<tr>
+<td>also</td>
+<td>al</td>
+<td><span class="brl">⠁⠇</span></td>
+<td>也</td>
+</tr>
+<tr>
+<td>altogether</td>
+<td>alt</td>
+<td><span class="brl">⠁⠇⠞</span></td>
+<td>完全地</td>
+</tr>
+<tr>
+<td>always</td>
+<td>alw</td>
+<td><span class="brl">⠁⠇⠺</span></td>
+<td>總是</td>
+</tr>
+<tr>
+<td>blind</td>
+<td>bl</td>
+<td><span class="brl">⠃⠇</span></td>
+<td>盲人</td>
+</tr>
+<tr>
+<td>braille</td>
+<td>brl</td>
+<td><span class="brl">⠃⠗⠇</span></td>
+<td>點字</td>
+</tr>
+<tr>
+<td>could</td>
+<td>cd</td>
+<td><span class="brl">⠉⠙</span></td>
+<td>可以</td>
+</tr>
+<tr>
+<td>deceive</td>
+<td>dcv</td>
+<td><span class="brl">⠙⠉⠧</span></td>
+<td>欺騙</td>
+</tr>
+<tr>
+<td>deceiving</td>
+<td>dcvg</td>
+<td><span class="brl">⠙⠉⠧⠛</span></td>
+<td>欺騙（進行式）</td>
+</tr>
+<tr>
+<td>declare</td>
+<td>dcl</td>
+<td><span class="brl">⠙⠉⠇</span></td>
+<td>宣布</td>
+</tr>
+<tr>
+<td>declaring</td>
+<td>dclg</td>
+<td><span class="brl">⠙⠉⠇⠛</span></td>
+<td>宣布（進行式）</td>
+</tr>
+<tr>
+<td>either</td>
+<td>ei</td>
+<td><span class="brl">⠑⠊</span></td>
+<td>任一</td>
+</tr>
+<tr>
+<td>friend</td>
+<td>fr</td>
+<td><span class="brl">⠋⠗</span></td>
+<td>朋友</td>
+</tr>
+<tr>
+<td>good</td>
+<td>gd</td>
+<td><span class="brl">⠛⠙</span></td>
+<td>好的</td>
+</tr>
+<tr>
+<td>great</td>
+<td>grt</td>
+<td><span class="brl">⠛⠗⠞</span></td>
+<td>偉大的</td>
+</tr>
+<tr>
+<td>him</td>
+<td>hm</td>
+<td><span class="brl">⠓⠍</span></td>
+<td>他</td>
+</tr>
+<tr>
+<td>himself</td>
+<td>hmf</td>
+<td><span class="brl">⠓⠍⠋</span></td>
+<td>他自己</td>
+</tr>
+<tr>
+<td>immediate</td>
+<td>imm</td>
+<td><span class="brl">⠊⠍⠍</span></td>
+<td>立即的</td>
+</tr>
+<tr>
+<td>letter</td>
+<td>lr</td>
+<td><span class="brl">⠇⠗</span></td>
+<td>信件</td>
+</tr>
+<tr>
+<td>little</td>
+<td>ll</td>
+<td><span class="brl">⠇⠇</span></td>
+<td>一點點</td>
+</tr>
+<tr>
+<td>myself</td>
+<td>myf</td>
+<td><span class="brl">⠍⠽⠋</span></td>
+<td>我自己</td>
+</tr>
+<tr>
+<td>necessary</td>
+<td>nec</td>
+<td><span class="brl">⠝⠑⠉</span></td>
+<td>必要的</td>
+</tr>
+<tr>
+<td>neither</td>
+<td>nei</td>
+<td><span class="brl">⠝⠑⠊</span></td>
+<td>兩者都不</td>
+</tr>
+<tr>
+<td>paid</td>
+<td>pd</td>
+<td><span class="brl">⠏⠙</span></td>
+<td>已付款</td>
+</tr>
+<tr>
+<td>quick</td>
+<td>qk</td>
+<td><span class="brl">⠟⠅</span></td>
+<td>快速</td>
+</tr>
+<tr>
+<td>receive</td>
+<td>rcv</td>
+<td><span class="brl">⠗⠉⠧</span></td>
+<td>接收</td>
+</tr>
+<tr>
+<td>receiving</td>
+<td>rcvg</td>
+<td><span class="brl">⠗⠉⠧⠛</span></td>
+<td>接收（進行式）</td>
+</tr>
+<tr>
+<td>rejoice</td>
+<td>rjc</td>
+<td><span class="brl">⠗⠚⠉</span></td>
+<td>歡喜</td>
+</tr>
+<tr>
+<td>rejoicing</td>
+<td>rjcg</td>
+<td><span class="brl">⠗⠚⠉⠛</span></td>
+<td>歡喜（進行式）</td>
+</tr>
+<tr>
+<td>said</td>
+<td>sd</td>
+<td><span class="brl">⠎⠙</span></td>
+<td>說過</td>
+</tr>
+<tr>
+<td>today</td>
+<td>td</td>
+<td><span class="brl">⠞⠙</span></td>
+<td>今天</td>
+</tr>
+<tr>
+<td>together</td>
+<td>tgr</td>
+<td><span class="brl">⠞⠛⠗</span></td>
+<td>一起</td>
+</tr>
+<tr>
+<td>tomorrow</td>
+<td>tm</td>
+<td><span class="brl">⠞⠍</span></td>
+<td>明天</td>
+</tr>
+<tr>
+<td>tonight</td>
+<td>tn</td>
+<td><span class="brl">⠞⠝</span></td>
+<td>今晚</td>
+</tr>
+<tr>
+<td>would</td>
+<td>wd</td>
+<td><span class="brl">⠺⠙</span></td>
+<td>將會</td>
+</tr>
+<tr>
+<td>your</td>
+<td>yr</td>
+<td><span class="brl">⠽⠗</span></td>
+<td>你的</td>
+</tr>
+<tr>
+<td>yourself</td>
+<td>yrf</td>
+<td><span class="brl">⠽⠗⠋</span></td>
+<td>你自己</td>
+</tr>
+<tr>
+<td>yourselves</td>
+<td>yrvs</td>
+<td><span class="brl">⠽⠗⠧⠎</span></td>
+<td>你們自己</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="實例句子">實例句子</h4>
+<ul>
+<li><p><u>Good</u> <u>afternoon.</u><br />
+<span class="brl">⠠⠛⠙</span> <span class="brl">⠁⠋⠝⠲</span><br />
+午安。</p></li>
+<li><p>He has a <u>little</u> dog.<br />
+<span class="brl">⠠⠓⠑</span> <span class="brl">⠓⠁⠎</span> <span class="brl">⠁</span> <span class="brl">⠇⠇</span> <span class="brl">⠙⠕⠛⠲</span><br />
+他有一隻小狗。</p></li>
+<li><p>John is my <u>friend</u>.<br />
+<span class="brl">⠠⠚⠕⠓⠝⠀⠊⠎⠀⠍⠽⠀⠋⠗⠲</span><br />
+約翰是我的朋友</p></li>
+</ul>
+<h4 id="練習活動">練習活動</h4>
+<h5 id="英文轉點字-4">英文轉點字</h5>
+<ol type="1">
+<li><p>I write a <u>letter</u>.<br />
+我寫了一封信<br />
+<span class="brl">⠠⠊⠀⠺⠗⠊⠞⠑⠀⠁⠀⠇⠇⠲</span></p></li>
+<li><p><u>Good</u> job!<br />
+做得好！<br />
+<span class="brl">⠠⠛⠙⠀⠚⠕⠃⠖</span></p></li>
+<li><p>I <u>already</u> ate.<br />
+我已經吃過了。<br />
+<span class="brl">⠠⠊⠀⠁⠇⠗⠀⠁⠞⠑⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-4">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠞⠕⠍⠀⠊⠎⠀⠍⠽⠀⠋⠗⠲</span><br />
+湯姆是我的朋友。<br />
+Tom is my <u>friend</u>.</p></li>
+<li><p><span class="brl">⠠⠎⠇⠑⠑⠏⠀⠊⠎⠀⠝⠑⠉⠲</span><br />
+睡眠是必要的。<br />
+Sleep is <u>necessary</u>.</p></li>
+<li><p><span class="brl">⠠⠊⠀⠓⠥⠗⠞⠀⠍⠽⠋⠲</span><br />
+我傷到自己了。<br />
+I hurt <u>myself</u>.</p></li>
+</ol>
+<p><strong><br />
+</strong></p>
+<h2 id="第二部分縮寫">第二部分：縮寫</h2>
+<h3 id="alphabetic-wordsigns">Alphabetic Wordsigns</h3>
+<h4 id="alphabetic-wordsigns-介紹">Alphabetic Wordsigns
+介紹</h4>
+<p>Alphabetic Wordsigns 是 UEB
+中最基本的縮寫形式之一。這些縮寫使用單個字母來代表整個單字。當這些字母單獨出現時，它們被解讀為特定的單字，而不是字母本身；
+a i o 三個字母沒有單字縮寫。</p>
+<h4 id="alphabetic-wordsigns-列表">Alphabetic Wordsigns
+列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>字母</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>代表單字</strong></th>
+<th style="text-align: left;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">b</td>
+<td style="text-align: left;"><span class="brl">⠃</span></td>
+<td style="text-align: left;">but</td>
+<td style="text-align: left;">但是</td>
+</tr>
+<tr>
+<td style="text-align: left;">c</td>
+<td style="text-align: left;"><span class="brl">⠉</span></td>
+<td style="text-align: left;">can</td>
+<td style="text-align: left;">能夠</td>
+</tr>
+<tr>
+<td style="text-align: left;">d</td>
+<td style="text-align: left;"><span class="brl">⠙</span></td>
+<td style="text-align: left;">do</td>
+<td style="text-align: left;">做</td>
+</tr>
+<tr>
+<td style="text-align: left;">e</td>
+<td style="text-align: left;"><span class="brl">⠑</span></td>
+<td style="text-align: left;">every</td>
+<td style="text-align: left;">每個</td>
+</tr>
+<tr>
+<td style="text-align: left;">f</td>
+<td style="text-align: left;"><span class="brl">⠋</span></td>
+<td style="text-align: left;">from</td>
+<td style="text-align: left;">從</td>
+</tr>
+<tr>
+<td style="text-align: left;">g</td>
+<td style="text-align: left;"><span class="brl">⠛</span></td>
+<td style="text-align: left;">go</td>
+<td style="text-align: left;">去</td>
+</tr>
+<tr>
+<td style="text-align: left;">h</td>
+<td style="text-align: left;"><span class="brl">⠓</span></td>
+<td style="text-align: left;">have</td>
+<td style="text-align: left;">有</td>
+</tr>
+<tr>
+<td style="text-align: left;">j</td>
+<td style="text-align: left;"><span class="brl">⠚</span></td>
+<td style="text-align: left;">just</td>
+<td style="text-align: left;">剛剛/僅僅</td>
+</tr>
+<tr>
+<td style="text-align: left;">k</td>
+<td style="text-align: left;"><span class="brl">⠅</span></td>
+<td style="text-align: left;">knowledge</td>
+<td style="text-align: left;">知識</td>
+</tr>
+<tr>
+<td style="text-align: left;">l</td>
+<td style="text-align: left;"><span class="brl">⠇</span></td>
+<td style="text-align: left;">like</td>
+<td style="text-align: left;">喜歡</td>
+</tr>
+<tr>
+<td style="text-align: left;">m</td>
+<td style="text-align: left;"><span class="brl">⠍</span></td>
+<td style="text-align: left;">more</td>
+<td style="text-align: left;">更多</td>
+</tr>
+<tr>
+<td style="text-align: left;">n</td>
+<td style="text-align: left;"><span class="brl">⠝</span></td>
+<td style="text-align: left;">not</td>
+<td style="text-align: left;">不是</td>
+</tr>
+<tr>
+<td style="text-align: left;">p</td>
+<td style="text-align: left;"><span class="brl">⠏</span></td>
+<td style="text-align: left;">people</td>
+<td style="text-align: left;">人們</td>
+</tr>
+<tr>
+<td style="text-align: left;">q</td>
+<td style="text-align: left;"><span class="brl">⠟</span></td>
+<td style="text-align: left;">quite</td>
+<td style="text-align: left;">相當</td>
+</tr>
+<tr>
+<td style="text-align: left;">r</td>
+<td style="text-align: left;"><span class="brl">⠗</span></td>
+<td style="text-align: left;">rather</td>
+<td style="text-align: left;">寧願</td>
+</tr>
+<tr>
+<td style="text-align: left;">s</td>
+<td style="text-align: left;"><span class="brl">⠎</span></td>
+<td style="text-align: left;">so</td>
+<td style="text-align: left;">所以</td>
+</tr>
+<tr>
+<td style="text-align: left;">t</td>
+<td style="text-align: left;"><span class="brl">⠞</span></td>
+<td style="text-align: left;">that</td>
+<td style="text-align: left;">那個</td>
+</tr>
+<tr>
+<td style="text-align: left;">u</td>
+<td style="text-align: left;"><span class="brl">⠥</span></td>
+<td style="text-align: left;">us</td>
+<td style="text-align: left;">我們</td>
+</tr>
+<tr>
+<td style="text-align: left;">v</td>
+<td style="text-align: left;"><span class="brl">⠧</span></td>
+<td style="text-align: left;">very</td>
+<td style="text-align: left;">非常</td>
+</tr>
+<tr>
+<td style="text-align: left;">w</td>
+<td style="text-align: left;"><span class="brl">⠺</span></td>
+<td style="text-align: left;">will</td>
+<td style="text-align: left;">將會</td>
+</tr>
+<tr>
+<td style="text-align: left;">x</td>
+<td style="text-align: left;"><span class="brl">⠭</span></td>
+<td style="text-align: left;">it</td>
+<td style="text-align: left;">它</td>
+</tr>
+<tr>
+<td style="text-align: left;">y</td>
+<td style="text-align: left;"><span class="brl">⠽</span></td>
+<td style="text-align: left;">you</td>
+<td style="text-align: left;">你</td>
+</tr>
+<tr>
+<td style="text-align: left;">z</td>
+<td style="text-align: left;"><span class="brl">⠵</span></td>
+<td style="text-align: left;">as</td>
+<td style="text-align: left;">如同</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="包含-alphabetic-wordsigns-的-shortform">包含 Alphabetic
+Wordsigns 的 Shortform</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>完整單字</strong></th>
+<th style="text-align: left;"><strong>簡寫形式</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">its</td>
+<td style="text-align: left;">x(it)s</td>
+<td style="text-align: left;"><span class="brl">⠭⠎</span></td>
+<td style="text-align: left;">它的</td>
+</tr>
+<tr>
+<td style="text-align: left;">itself</td>
+<td style="text-align: left;">x(it)f</td>
+<td style="text-align: left;"><span class="brl">⠭⠋</span></td>
+<td style="text-align: left;">它自己</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="使用規則">使用規則</h4>
+<ol type="1">
+<li><p>Alphabetic Wordsigns
+必須是「獨立」的單字，即前後有空格或標點。</p></li>
+<li><p>Alphabetic Wordsigns 不能用作較大單字的一部分。</p></li>
+<li><p>Alphabetic Wordsigns
+代表的是完整的單字，而不是字母本身，當句中要呈現單一字母時，需在前方加上一級指示記號
+<span class="brl">⠰</span> （點 56），例如：<br />
+h to l (h 到 l) <span class="brl">⠰⠓⠀⠞⠕⠀⠰⠇</span></p></li>
+</ol>
+<h4 id="實例句子-1">實例句子</h4>
+<p>使用 Alphabetic Wordsigns 的句子示例：</p>
+<ul>
+<li><p>I <u>can</u> <u>do</u> <u>it</u>.<br />
+<span class="brl">⠠⠊</span> <span class="brl">⠉</span> <span class="brl">⠙</span> <span class="brl">⠭⠲</span><br />
+我能做到。</p></li>
+<li><p><u>Can</u> <u>you</u> help <u>us</u>?<br />
+<span class="brl">⠠⠉</span> <span class="brl">⠽</span> <span class="brl">⠓⠑⠇⠏</span> <span class="brl">⠥⠦</span><br />
+你能幫助我們嗎？</p></li>
+<li><p><u>Very</u> <u>good</u>.<br />
+非常好。(good 是簡短字)<br />
+<span class="brl">⠠⠧</span> <span class="brl">⠛⠙⠲</span></p></li>
+<li><p>See <u>you</u> <u>tomorrow</u>.<br />
+<span class="brl">⠠⠎⠑⠑</span> <span class="brl">⠽</span> <span class="brl">⠞⠍⠲</span><br />
+明天見。(tomorrow 是簡短字)</p></li>
+</ul>
+<h4 id="練習活動-1">練習活動</h4>
+<h5 id="英文轉點字-5">英文轉點字</h5>
+<ol type="1">
+<li><p>Tom has a <u>very</u> cute dog.<br />
+湯姆有一隻非常可愛的狗。<br />
+<span class="brl">⠠⠞⠕⠍</span> <span class="brl">⠓⠁⠎</span> <span class="brl">⠁</span> <span class="brl">⠧</span> <span class="brl">⠉⠥⠞⠑</span> <span class="brl">⠙⠕⠛⠲</span></p></li>
+<li><p>I come <u>from</u> Taiwan.<br />
+我來自台灣。<br />
+<span class="brl">⠠⠊</span> <span class="brl">⠉⠕⠍⠑</span> <span class="brl">⠋</span> <span class="brl">⠠⠞⠁⠊⠺⠁⠝⠲</span></p></li>
+<li><p>See <u>you</u> <u>again</u>.<br />
+再見。<br />
+<span class="brl">⠠⠎⠑⠑</span> <span class="brl">⠽</span> <span class="brl">⠁⠛⠲</span></p></li>
+<li><p>I <u>like</u> <u>your</u> bag.<br />
+我喜歡你的背包。<br />
+<span class="brl">⠠⠊</span> <span class="brl">⠇</span> <span class="brl">⠽⠗</span> <span class="brl">⠃⠁⠛⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-5">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠭</span> <span class="brl">⠊⠎</span> <span class="brl">⠗</span> <span class="brl">⠝⠊⠉⠑⠲</span><br />
+這相當不錯。<br />
+<u>It</u> is <u>rather</u> nice.</p></li>
+<li><p><span class="brl">⠠⠏</span> <span class="brl">⠇</span> <span class="brl">⠉⠁⠞⠎⠲</span><br />
+人們喜歡貓。<br />
+<u>People</u> <u>like</u> cats.</p></li>
+<li><p><span class="brl">⠠⠃⠇</span> <span class="brl">⠏</span> <span class="brl">⠥⠎⠑</span> <span class="brl">⠃⠗⠇⠲</span><br />
+盲人使用點字。<br />
+<u>Blind</u> <u>people</u> use <u>braille</u>.</p></li>
+<li><p><span class="brl">⠠⠏</span> <span class="brl">⠓</span> <span class="brl">⠍</span> <span class="brl">⠅</span> <span class="brl">⠋</span> <span class="brl">⠃⠕⠕⠅⠎⠲</span><br />
+人們從書本中獲得更多知識。<br />
+<u>People</u> <u>have</u> <u>more</u> <u>knowledge</u> <u>from</u>
+books.<strong><br />
+</strong></p></li>
+</ol>
+<h3 id="strong-contractions">Strong Contractions</h3>
+<h4 id="strong-contractions-介紹">Strong Contractions
+介紹</h4>
+<p>Strong Contractions 是 UEB
+中的另一個重要縮寫類型，是六個常見的詞彙，與 Alphabetic Wordsigns
+不同，Strong Contractions 可以單獨成字，也可用在單字的任何位置。</p>
+<h4 id="strong-contractions-列表">Strong Contractions
+列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>代表單字</strong></th>
+<th style="text-align: left;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><span class="brl">⠯</span></td>
+<td style="text-align: left;">and</td>
+<td style="text-align: left;">和，與</td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="brl">⠿</span></td>
+<td style="text-align: left;">for</td>
+<td style="text-align: left;">為了</td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="brl">⠷</span></td>
+<td style="text-align: left;">of</td>
+<td style="text-align: left;">...的</td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="brl">⠮</span></td>
+<td style="text-align: left;">the</td>
+<td style="text-align: left;">這個/那個</td>
+</tr>
+<tr>
+<td style="text-align: left;"><span class="brl">⠾</span></td>
+<td style="text-align: left;">with</td>
+<td style="text-align: left;">與...一起</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="包含-strong-contractions-的-shortform">包含 Strong
+Contractions 的 Shortform</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>完整單字</strong></th>
+<th style="text-align: left;"><strong>簡寫形式</strong></th>
+<th style="text-align: left;"><strong>點字符號</strong></th>
+<th style="text-align: left;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">themselves</td>
+<td style="text-align: left;">!(the)mvs</td>
+<td style="text-align: left;"><span class="brl">⠮⠍⠧⠎</span></td>
+<td style="text-align: left;">他們自己</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><br />
+</strong></p>
+<h4 id="strong-contractions-使用規則">Strong Contractions
+使用規則</h4>
+<ol type="1">
+<li><p>Strong Contractions 代表完整的單字</p></li>
+<li><p>Strong Contractions 也可以作為較大單字的一部分使用</p></li>
+<li><p>Strong Contractions
+當用作完整單字時，前後需要有空格或標點符號</p></li>
+</ol>
+<h4 id="實例句子-2">實例句子</h4>
+<p>使用 Strong Contractions 的句子示例：</p>
+<ul>
+<li><p>Tom walks <u>with</u> <u>the</u> dog <u>and</u> cat.<br />
+<span class="brl">⠠⠞⠕⠍</span> <span class="brl">⠺⠁⠇⠅⠎</span> <span class="brl">⠾</span> <span class="brl">⠮</span> <span class="brl">⠙⠕⠛</span> <span class="brl">⠯</span> <span class="brl">⠉⠁⠞⠲</span><br />
+湯姆和狗貓散步。</p></li>
+<li><p>We buy fruit <u>and</u> milk <u>for</u> <u>the</u> week.<br />
+<span class="brl">⠠⠺⠑</span> <span class="brl">⠃⠥⠽</span> <span class="brl">⠋⠗⠥⠊⠞</span> <span class="brl">⠯</span> <span class="brl">⠍⠊⠇⠅</span> <span class="brl">⠿</span> <span class="brl">⠮</span> <span class="brl">⠺⠑⠑⠅⠲</span><br />
+我們買一週的雞蛋和牛奶。</p></li>
+<li><p>He <u>said</u>, "Play <u>with</u> <u>your</u>
+<u>friend</u>."<br />
+<span class="brl">⠠⠓⠑</span> <span class="brl">⠎⠙⠂</span> <span class="brl">⠦⠠⠏⠇⠁⠽</span> <span class="brl">⠾</span> <span class="brl">⠽⠗</span> <span class="brl">⠋⠗⠲⠴</span><br />
+他說：「和你的朋友一起玩。」</p></li>
+</ul>
+<h4 id="練習活動-2">練習活動</h4>
+<h5 id="英文轉點字-6">英文轉點字</h5>
+<ol type="1">
+<li><p><u>The</u> baby sleeps <u>with</u> mom <u>and</u> dad.<br />
+嬰兒和爸媽睡覺。<br />
+<span class="brl">⠠⠮</span> <span class="brl">⠃⠁⠃⠽</span> <span class="brl">⠎⠇⠑⠑⠏⠎</span> <span class="brl">⠾</span> <span class="brl">⠍⠕⠍</span> <span class="brl">⠯</span> <span class="brl">⠙⠁⠙⠲</span></p></li>
+<li><p>John plays <u>with</u> <u>friend</u>s <u>for</u> lots <u>of</u>
+fun.<br />
+約翰和朋友玩得很開心。<br />
+<span class="brl">⠠⠚⠕⠓⠝</span> <span class="brl">⠏⠇⠁⠽⠎</span> <span class="brl">⠾</span> <span class="brl">⠋⠗⠎</span> <span class="brl">⠿</span> <span class="brl">⠇⠕⠞⠎</span> <span class="brl">⠷</span> <span class="brl">⠋⠥⠝⠲</span></p></li>
+<li><p>David <u>said</u>, "<u>The</u> gift is <u>for</u> <u>you</u>
+<u>and</u> me."<br />
+大衛說：「這是給你和我的禮物。」<br />
+<span class="brl">⠠⠙⠁⠧⠊⠙</span> <span class="brl">⠎⠙⠂</span> <span class="brl">⠦⠠⠮</span> <span class="brl">⠛⠊⠋⠞</span> <span class="brl">⠊⠎</span> <span class="brl">⠿</span> <span class="brl">⠽</span> <span class="brl">⠯</span> <span class="brl">⠍⠑⠲⠴</span></p></li>
+</ol>
+<h5 id="點字轉英文-6">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠺⠑</span> <span class="brl">⠺⠁⠊⠞</span> <span class="brl">⠿</span> <span class="brl">⠮</span> <span class="brl">⠃⠥⠎</span> <span class="brl">⠾</span> <span class="brl">⠥⠍⠃⠗⠑⠇⠇⠁⠎⠲</span><br />
+我們撐傘等公車。<br />
+We wait <u>for</u> <u>the</u> bus <u>with</u> umbrellas.</p></li>
+<li><p><span class="brl">⠠⠮</span> <span class="brl">⠉⠁⠞</span> <span class="brl">⠎⠊⠞⠎</span> <span class="brl">⠾</span> <span class="brl">⠍⠑⠲</span><br />
+貓咪和我坐著。<br />
+<u>The</u> cat sits <u>with</u> me.</p></li>
+<li><p><span class="brl">⠦⠠⠮</span> <span class="brl">⠃⠁⠛</span> <span class="brl">⠾</span> <span class="brl">⠮</span> <span class="brl">⠞⠕⠽⠎</span> <span class="brl">⠊⠎</span> <span class="brl">⠿</span> <span class="brl">⠠⠞⠕⠍⠂⠴</span> <span class="brl">⠎⠙</span> <span class="brl">⠠⠍⠕⠍⠲</span><br />
+媽媽說：「那個裝玩具的袋子是給湯姆的。」<br />
+"<u>The</u> bag <u>with</u> <u>the</u> toys is <u>for</u> Tom,"
+<u>said</u> Mom.</p></li>
+</ol>
+<p><strong><br />
+</strong></p>
+<h3 id="strong-groupsignswordsigns">Strong
+Groupsigns/Wordsigns</h3>
+<h4 id="strong-groupsignswordsigns-介紹">Strong
+Groupsigns/Wordsigns 介紹</h4>
+<p>以下符號 <span class="brl">⠡</span> <span class="brl">⠣</span> <span class="brl">⠩</span> <span class="brl">⠹</span> <span class="brl">⠱</span> <span class="brl">⠫</span> <span class="brl">⠻</span> <span class="brl">⠳</span> <span class="brl">⠪</span> <span class="brl">⠌</span> <span class="brl">⠬</span> <span class="brl">⠜</span> 可用於字中(Strong
+Groupings)作為常用字根的縮寫，或是單獨成字(Strong
+Wordings)，單獨成字時比照一般單字，前後空方。</p>
+<p>前 9 個的規律是 a 到 i 加上第 6 點。</p>
+<h4 id="strong-groupsignswordsigns-列表">Strong
+Groupsigns/Wordsigns 列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>點位</strong></th>
+<th style="text-align: center;"><strong>單獨成字</strong></th>
+<th style="text-align: center;"><strong>在字中</strong></th>
+<th style="text-align: center;"><strong>範例</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="brl">⠡</span></td>
+<td>點 1 6</td>
+<td>child (孩子)</td>
+<td>ch</td>
+<td><u>ch</u>air (椅子) <span class="brl">⠡⠁⠊⠗</span><br />
+<u>ch</u>eese (起司) <span class="brl">⠡⠑⠑⠎⠑</span><br />
+<u>ch</u>ur<u>ch</u> (教堂) <span class="brl">⠡⠥⠗⠡</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠣</span></td>
+<td>點 1 2 6</td>
+<td></td>
+<td>gh</td>
+<td>li<u>gh</u>t (光) <span class="brl">⠇⠊⠣⠞</span><br />
+hi<u>gh</u> (高) <span class="brl">⠓⠊⠣</span><br />
+ni<u>gh</u>t (晚上) <span class="brl">⠝⠊⠣⠞</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠩</span></td>
+<td>點 1 4 6</td>
+<td>shall (將要)</td>
+<td>sh</td>
+<td><u>sh</u>ip (船) <span class="brl">⠩⠊⠏</span><br />
+<u>sh</u>oes (鞋) <span class="brl">⠩⠕⠑⠎</span><br />
+fi<u>sh</u> (魚) <span class="brl">⠋⠊⠩</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠹</span></td>
+<td>點 1 4 5 6</td>
+<td>this (這個)</td>
+<td>th</td>
+<td><u>th</u>ree (三) <span class="brl">⠹⠗⠑⠑</span><br />
+<u>th</u>anks (謝謝) <span class="brl">⠹⠁⠝⠅⠎</span><br />
+ba<u>th</u> (洗澡) <span class="brl">⠃⠁⠹</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠱</span></td>
+<td>點 1 5 6</td>
+<td>which (哪一個)</td>
+<td>wh</td>
+<td><u>wh</u>at (什麼) <span class="brl">⠱⠁⠞</span><br />
+<u>wh</u>o (誰) <span class="brl">⠱⠕</span><br />
+<u>wh</u>ale (鯨魚) <span class="brl">⠱⠁⠇⠑</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠫</span></td>
+<td>點 1 2 4 6</td>
+<td></td>
+<td>ed</td>
+<td><u>ed</u>it (編輯) <span class="brl">⠫⠊⠞</span><br />
+play<u>ed</u> (玩[過去式]) <span class="brl">⠏⠇⠁⠽⠫</span><br />
+jump<u>ed</u> (跳[過去式]) <span class="brl">⠚⠥⠍⠏⠫</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠻</span></td>
+<td>點 1 2 4 5 6</td>
+<td></td>
+<td>er</td>
+<td><u>er</u>as<u>er</u> (橡皮擦) <span class="brl">⠻⠁⠎⠻</span><br />
+runn<u>er</u> (跑者) <span class="brl">⠗⠥⠝⠝⠻</span><br />
+driv<u>er</u> (司機) <span class="brl">⠙⠗⠊⠧⠻</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠳</span></td>
+<td>點 1 2 5 6</td>
+<td>out (出去)</td>
+<td>ou</td>
+<td>h<u>ou</u>se (房子) <span class="brl">⠓⠳⠎⠑</span><br />
+m<u>ou</u>se (老鼠) <span class="brl">⠍⠳⠎⠑</span><br />
+cl<u>ou</u>d (雲) <span class="brl">⠉⠇⠳⠙</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠪</span></td>
+<td>點 2 4 6</td>
+<td></td>
+<td>ow</td>
+<td>sn<u>ow</u> (雪) <span class="brl">⠎⠝⠪</span><br />
+yell<u>ow</u> (黃色) <span class="brl">⠽⠑⠇⠇⠪</span><br />
+<u>ow</u>l (貓頭鷹) <span class="brl">⠪⠇</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠜</span></td>
+<td>點 3 4 5</td>
+<td></td>
+<td>ar</td>
+<td>c<u>ar</u> (汽車) <span class="brl">⠉⠜</span><br />
+f<u>ar</u>m (農場) <span class="brl">⠋⠜⠍</span><br />
+<u>ar</u>t (藝術) <span class="brl">⠜⠞</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠌</span></td>
+<td>點 3 4</td>
+<td>still (仍然)</td>
+<td>st</td>
+<td><u>st</u>op (停) <span class="brl">⠌⠕⠏</span><br />
+mo<u>st</u> (最多) <span class="brl">⠍⠕⠌</span><br />
+ca<u>st</u>le (城堡) <span class="brl">⠉⠁⠌⠇⠑</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠬</span></td>
+<td>點 3 4 6</td>
+<td></td>
+<td>ing</td>
+<td>s<u>ing</u> (唱歌) <span class="brl">⠎⠬</span><br />
+play<u>ing</u> (玩[現在進行式]) <span class="brl">⠏⠇⠅⠽⠬</span><br />
+runn<u>ing</u> (跑[現在進行式]) <span class="brl">⠗⠥⠝⠝⠬</span></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><br />
+</strong></p>
+<h4 id="包含-strong-groupsignswordsigns-的-shortform">包含
+Strong Groupsigns/Wordsigns 的 Shortform</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th><strong>完整單字</strong></th>
+<th><strong>簡寫形式</strong></th>
+<th><strong>點字符號</strong></th>
+<th><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>against</td>
+<td>ag/ (st)</td>
+<td><span class="brl">⠁⠛⠌</span></td>
+<td>反對</td>
+</tr>
+<tr>
+<td>first</td>
+<td>f/ (st)</td>
+<td><span class="brl">⠋⠌</span></td>
+<td>第一</td>
+</tr>
+<tr>
+<td>must</td>
+<td>m/ (st)</td>
+<td><span class="brl">⠍⠌</span></td>
+<td>必須</td>
+</tr>
+<tr>
+<td>children</td>
+<td>*(ch)n</td>
+<td><span class="brl">⠡⠝</span></td>
+<td>孩子們</td>
+</tr>
+<tr>
+<td>much</td>
+<td>m* (ch)</td>
+<td><span class="brl">⠍⠡</span></td>
+<td>很多</td>
+</tr>
+<tr>
+<td>such</td>
+<td>s* (ch)</td>
+<td><span class="brl">⠎⠡</span></td>
+<td>如此</td>
+</tr>
+<tr>
+<td>although</td>
+<td>al? (th)</td>
+<td><span class="brl">⠁⠇⠹</span></td>
+<td>雖然</td>
+</tr>
+<tr>
+<td>thyself</td>
+<td>?(th)yf</td>
+<td><span class="brl">⠹⠽⠋</span></td>
+<td>你自己</td>
+</tr>
+<tr>
+<td>ourselves</td>
+<td>|(ou)rvs</td>
+<td><span class="brl">⠳⠗⠧⠎</span></td>
+<td>我們自己</td>
+</tr>
+<tr>
+<td>should</td>
+<td>%(sh)d</td>
+<td><span class="brl">⠩⠙</span></td>
+<td>應該</td>
+</tr>
+<tr>
+<td>herself</td>
+<td>h}(er)f</td>
+<td><span class="brl">⠓⠻⠋</span></td>
+<td>她自己</td>
+</tr>
+<tr>
+<td>perceive</td>
+<td>p}(er)cv</td>
+<td><span class="brl">⠏⠻⠉⠧</span></td>
+<td>感知</td>
+</tr>
+<tr>
+<td>perceiving</td>
+<td>p}(er)cvg</td>
+<td><span class="brl">⠏⠻⠉⠧⠛</span></td>
+<td>正在感知</td>
+</tr>
+<tr>
+<td>perhaps</td>
+<td>p}(er)h</td>
+<td><span class="brl">⠏⠻⠓</span></td>
+<td>或許</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="實例句子-3">實例句子</h4>
+<p>使用 Strong Groupsigns 句子範例：</p>
+<ul>
+<li><p><u>The</u> tig<u>er</u> is sleep<u>ing</u>.<br />
+老虎在睡覺。<br />
+<span class="brl">⠠⠮⠀⠞⠊⠛⠻⠀⠊⠎⠀⠎⠇⠑⠑⠏⠬⠲</span></p></li>
+<li><p>He jump<u>ed</u> ov<u>er</u> <u>the</u> <u>ch</u>air.<br />
+他跳過椅子。<br />
+<span class="brl">⠠⠓⠑⠀⠚⠥⠍⠏⠫⠀⠕⠧⠻⠀⠮⠀⠡⠁⠊⠗⠲</span></p></li>
+<li><p><u>It</u> mi<u>gh</u>t sn<u>ow</u> <u>tomorrow</u>.<br />
+明天可能會下雪。<br />
+<span class="brl">⠠⠭⠀⠍⠊⠣⠞⠀⠎⠝⠪⠀⠞⠍⠲</span></p></li>
+<li><p><u>Perhaps</u> <u>the</u>y <u>will</u> come lat<u>er</u>.<br />
+也許他們會晚一點來。<br />
+<span class="brl">⠠⠏⠻⠓⠀⠮⠽⠀⠺⠀⠉⠕⠍⠑⠀⠇⠁⠞⠻⠲</span></p></li>
+</ul>
+<h4 id="練習活動-3">練習活動</h4>
+<h5 id="英文轉點字-7">英文轉點字</h5>
+<ol type="1">
+<li><p>I see a cl<u>ou</u>d <u>above</u> <u>the</u> h<u>ou</u>se.<br />
+我看到房子上方有一朵雲。<br />
+<span class="brl">⠠⠊⠀⠎⠑⠑⠀⠁⠀⠉⠇⠳⠙⠀⠁⠃⠧⠀⠮⠀⠓⠳⠎⠑⠲</span></p></li>
+<li><p><u>The</u> <u>child</u> holds a r<u>ed</u> fl<u>ower</u>.<br />
+那小孩拿著一朵紅花。<br />
+<span class="brl">⠠⠮⠀⠡⠀⠓⠕⠇⠙⠎⠀⠁⠀⠗⠫⠀⠋⠇⠪⠻⠲</span></p></li>
+<li><p><u>Wh</u>at did <u>you</u> draw on <u>the</u>
+blackbo<u>ar</u>d?<br />
+你在黑板畫了什麼？<br />
+<span class="brl">⠠⠱⠁⠞⠀⠙⠊⠙⠀⠽⠀⠙⠗⠁⠺⠀⠕⠝⠀⠮⠀</span> <span class="brl">⠃⠇⠁⠉⠅⠃⠕⠜⠙⠦</span></p></li>
+<li><p><u>The</u> <u>children</u> <u>ar</u>e play<u>ing</u>
+<u>ou</u>tside.<br />
+孩子們在外面玩。<br />
+<span class="brl">⠠⠮⠀⠡⠝⠀⠜⠑⠀⠏⠇⠁⠽⠬⠀⠳⠞⠎⠊⠙⠑⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-7">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠓⠑⠀⠺⠁⠩⠫⠀⠮⠀⠉⠜⠀⠹⠀⠍⠕⠗⠝⠬⠲</span><br />
+他今天早上洗了車。<br />
+He wa<u>shed</u> <u>the</u> c<u>ar</u> <u>this</u>
+morn<u>ing</u>.</p></li>
+<li><p><span class="brl">⠠⠩⠑⠀⠌⠜⠞⠫⠀⠮⠀⠛⠁⠍⠑⠀⠁⠛⠲</span><br />
+她又開始了遊戲。<br />
+<u>Sh</u>e <u>star</u>t<u>ed</u> <u>the</u> game <u>again</u>.</p></li>
+<li><p><span class="brl">⠠⠍⠽⠀⠎⠊⠌⠻⠀⠏⠇⠁⠽⠫⠀⠮⠀⠏⠊⠁⠝⠕⠲</span><br />
+我妹妹彈了鋼琴。<br />
+My si<u>ster</u> play<u>ed</u> <u>the</u> piano.</p></li>
+<li><p><span class="brl">⠠⠽⠀⠩⠙⠀⠞⠁⠅⠑⠀⠁⠀⠚⠁⠉⠅⠑⠞⠀⠾⠀⠽⠲</span><br />
+你應該帶一件外套。<br />
+<u>You</u> <u>should</u> take a jacket <u>with</u> <u>you</u>.</p></li>
+</ol>
+<h3 id="lower-groupsignswordsigns">Lower
+Groupsigns/Wordsigns</h3>
+<h4 id="lower-groupsignswordsigns-介紹">Lower
+Groupsigns/Wordsigns 介紹</h4>
+<p>Lower Groupsigns/Wordsigns 使用的是下位點(點 2 3 5
+6)的組合來代表特定的字根或單字，下列表格依據點字、點位、對應字根及其在單字中可能的出現位置（單獨成詞、字首、字中）進行整理與對照。</p>
+<h4 id="lower-groupsignswordsigns-列表">Lower
+Groupsigns/Wordsigns 列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>點字</strong></th>
+<th style="text-align: center;"><strong>點位</strong></th>
+<th style="text-align: center;"><strong>單獨成字</strong></th>
+<th style="text-align: center;"><strong>字首</strong></th>
+<th style="text-align: center;"><strong>字中</strong></th>
+<th style="text-align: center;"><strong>範例</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="brl">⠆</span></td>
+<td>點 2 3</td>
+<td>be</td>
+<td>be</td>
+<td>bb</td>
+<td><u>be</u>come (變成) <span class="brl">⠆⠉⠕⠍⠑</span><br />
+ra<u>bb</u>it (兔子) <span class="brl">⠗⠁⠆⠊⠞</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠒</span></td>
+<td>點 2 5</td>
+<td></td>
+<td>con</td>
+<td>cc</td>
+<td><p><u>con</u>trol (控制) <span class="brl">⠒⠞⠗⠕⠇</span></p>
+<p>su<u>cc</u>ess (成功) <span class="brl">⠎⠥⠒⠑⠎⠎</span></p></td>
+</tr>
+<tr>
+<td><span class="brl">⠲</span></td>
+<td>點 2 5 6</td>
+<td></td>
+<td>dis</td>
+<td></td>
+<td><u>dis</u>cov<u>er</u> (發現) <span class="brl">⠲⠉⠕⠧⠻</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠂</span></td>
+<td>點 2</td>
+<td></td>
+<td></td>
+<td>ea</td>
+<td>r<u>ea</u>d (閱讀) <span class="brl">⠗⠂⠙</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠢</span></td>
+<td>點 2 6</td>
+<td>enough</td>
+<td>en</td>
+<td>en</td>
+<td><p><u>en</u>t<u>er</u> (進入) <span class="brl">⠢⠞⠻</span></p>
+<p>happ<u>en</u> (發生) <span class="brl">⠓⠁⠏⠏⠢</span></p></td>
+</tr>
+<tr>
+<td><span class="brl">⠖</span></td>
+<td>點 2 3 5</td>
+<td></td>
+<td></td>
+<td>ff</td>
+<td>di<u>ff</u>icult (困難) <span class="brl">⠙⠊⠖⠊⠉⠥⠇⠞</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠶</span></td>
+<td>點 2 3 5 6</td>
+<td>were</td>
+<td></td>
+<td>gg</td>
+<td>bi<u>gger</u> (更大的) <span class="brl">⠃⠊⠶⠻</span></td>
+</tr>
+<tr>
+<td><span class="brl">⠦</span></td>
+<td>點 2 3 6</td>
+<td>his</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠔</span></td>
+<td>點 3 5</td>
+<td>in</td>
+<td>in</td>
+<td>in</td>
+<td><p><u>in</u>to (進入) <span class="brl">⠔⠞⠕</span></p>
+<p>with<u>in</u> (之內) <span class="brl">⠾⠔</span></p></td>
+</tr>
+<tr>
+<td><span class="brl">⠴</span></td>
+<td>點 3 5 6</td>
+<td>was</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><br />
+</strong></p>
+<h4 id="相關-shortform">相關 Shortform</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>完整單字</strong></th>
+<th style="text-align: center;"><strong>Shortform</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>because</td>
+<td>2(be)c</td>
+<td><span class="brl">⠆⠉</span></td>
+<td>因為</td>
+</tr>
+<tr>
+<td>before</td>
+<td>2(be)f</td>
+<td><span class="brl">⠆⠋</span></td>
+<td>之前</td>
+</tr>
+<tr>
+<td>behind</td>
+<td>2(be)h</td>
+<td><span class="brl">⠆⠓</span></td>
+<td>在...後面</td>
+</tr>
+<tr>
+<td>below</td>
+<td>2(be)l</td>
+<td><span class="brl">⠆⠇</span></td>
+<td>在...下面</td>
+</tr>
+<tr>
+<td>beneath</td>
+<td>2(be)n</td>
+<td><span class="brl">⠆⠝</span></td>
+<td>在...之下</td>
+</tr>
+<tr>
+<td>beside</td>
+<td>2(be)s</td>
+<td><span class="brl">⠆⠎</span></td>
+<td>在...旁邊</td>
+</tr>
+<tr>
+<td>between</td>
+<td>2(be)t</td>
+<td><span class="brl">⠆⠞</span></td>
+<td>在...之間</td>
+</tr>
+<tr>
+<td>beyond</td>
+<td>2(be)y</td>
+<td><span class="brl">⠆⠽</span></td>
+<td>超越</td>
+</tr>
+<tr>
+<td>conceive</td>
+<td>3(con)cv</td>
+<td><span class="brl">⠒⠉⠧</span></td>
+<td>構想</td>
+</tr>
+<tr>
+<td>conceiving</td>
+<td>3(con)cvg</td>
+<td><span class="brl">⠒⠉⠧⠛</span></td>
+<td>正在構想</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="實例句子-4">實例句子</h4>
+<p>使用 Lower Groupsigns 的句子範例：</p>
+<ol type="1">
+<li><p>We <u>were</u> <u>in</u> <u>the</u> <u>con</u>c<u>er</u>t
+hall.<br />
+我們在音樂廳裡。<br />
+<span class="brl">⠠⠺⠑⠀⠶⠀⠔⠀⠮⠀⠒⠉⠻⠞⠀⠓⠁⠇⠇⠲</span></p></li>
+<li><p><u>The</u> <u>en</u>g<u>in</u>e is <u>enough</u> <u>for</u>
+<u>this</u> c<u>ar</u>.<br />
+這台車的引擎已經夠用了。<br />
+<span class="brl">⠠⠮⠀⠢⠛⠔⠑⠀⠊⠎⠀⠢⠀⠿⠀⠹⠀⠉⠜⠲</span></p></li>
+<li><p>We <u>have</u> di<u>fferen</u>t id<u>ea</u>s <u>about</u>
+<u>the</u> plan.<br />
+我們對這個計劃有不同的想法。<br />
+<span class="brl">⠠⠺⠑⠀⠓⠀⠙⠊⠖⠻⠢⠞⠀⠊⠙⠂⠎⠀⠁⠃⠀⠮⠀⠏⠇⠁⠝⠲</span></p></li>
+</ol>
+<h4 id="練習活動-4">練習活動</h4>
+<h5 id="英文轉點字-8">英文轉點字</h5>
+<ol type="1">
+<li><p>He <u>be</u>gan r<u>ea</u>d<u>ing</u> <u>after</u>
+br<u>ea</u>kfa<u>st</u>.<br />
+早餐後他開始閱讀。<br />
+<span class="brl">⠠⠓⠑⠀⠆⠛⠁⠝⠀</span> <span class="brl">⠗⠂⠙⠬⠀⠁⠋⠀⠃⠗⠂⠅⠋⠁⠌⠲</span></p></li>
+<li><p><u>Con</u>nie <u>always</u> <u>con</u>firms <u>the</u>
+s<u>ched</u>ule.<br />
+康妮總是確認行程。<br />
+<span class="brl">⠠⠒⠝⠊⠑⠀⠁⠇⠺⠀⠒⠋⠊⠗⠍⠎⠀⠮⠀⠎⠡⠫⠥⠇⠑⠲</span></p></li>
+<li><p><u>It</u>'s di<u>ff</u>icult to wake up e<u>ar</u>ly <u>in</u>
+w<u>in</u>t<u>er</u>.<br />
+冬天早起很困難。<br />
+<span class="brl">⠠⠭⠄⠎⠀⠙⠊⠖⠊⠉⠥⠇⠞⠀⠞⠕⠀⠺⠁⠅⠑⠀⠥⠏⠀⠑⠜⠇⠽⠀⠔⠀⠺⠔⠞⠻⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-8">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠩⠑⠀⠆⠇⠊⠑⠧⠑⠎⠀⠔⠀⠓⠻⠋⠲</span><br />
+她相信自己。<br />
+<u>Sh</u>e <u>be</u>lieves <u>in</u> <u>herself</u>.</p></li>
+<li><p><span class="brl">⠠⠓⠑⠀⠒⠝⠑⠉⠞⠫⠀⠦⠀⠇⠁⠏⠞⠕⠏⠀⠞⠕⠀⠮⠀⠠⠠⠞⠧⠲</span><br />
+他把筆電連接到電視。<br />
+He <u>con</u>nect<u>ed</u> <u>his</u> laptop to <u>the</u> TV.</p></li>
+<li><p><span class="brl">⠠⠁⠇⠹⠀⠓⠑⠀⠴⠀⠞⠊⠗⠫⠂⠀⠓⠑⠀⠅⠑⠏⠞⠀⠺⠁⠇⠅⠬⠲</span><br />
+雖然他累了，他還是繼續走。<br />
+<u>Although</u> he <u>was</u> tired, he kept walk<u>ing</u>.</p></li>
+</ol>
+<h3 id="initial-letter-contractions">Initial-Letter
+Contractions</h3>
+<h4 id="initial-letter-contractions-介紹">Initial-Letter
+Contractions 介紹</h4>
+<p>Initial-Letter
+Contractions（首字母縮寫）是由特定符號加上單字的第一個字母組成的縮寫。</p>
+<h4 id="initial-letter-contractions-列表">Initial-Letter
+Contractions 列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>代表單字</strong></th>
+<th style="text-align: center;"><strong>縮寫符號</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>中文意思</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>day</td>
+<td>"d</td>
+<td><span class="brl">⠐⠙</span></td>
+<td>日</td>
+</tr>
+<tr>
+<td>ever</td>
+<td>"e</td>
+<td><span class="brl">⠐⠑</span></td>
+<td>曾經</td>
+</tr>
+<tr>
+<td>father</td>
+<td>"f</td>
+<td><span class="brl">⠐⠋</span></td>
+<td>父親</td>
+</tr>
+<tr>
+<td>here</td>
+<td>"h</td>
+<td><span class="brl">⠐⠓</span></td>
+<td>這裡</td>
+</tr>
+<tr>
+<td>know</td>
+<td>"k</td>
+<td><span class="brl">⠐⠅</span></td>
+<td>知道</td>
+</tr>
+<tr>
+<td>lord</td>
+<td>"l</td>
+<td><span class="brl">⠐⠇</span></td>
+<td>主</td>
+</tr>
+<tr>
+<td>mother</td>
+<td>"m</td>
+<td><span class="brl">⠐⠍</span></td>
+<td>母親</td>
+</tr>
+<tr>
+<td>name</td>
+<td>"n</td>
+<td><span class="brl">⠐⠝</span></td>
+<td>名字</td>
+</tr>
+<tr>
+<td>one</td>
+<td>"o</td>
+<td><span class="brl">⠐⠕</span></td>
+<td>一</td>
+</tr>
+<tr>
+<td>part</td>
+<td>"p</td>
+<td><span class="brl">⠐⠏</span></td>
+<td>部分</td>
+</tr>
+<tr>
+<td>question</td>
+<td>"q</td>
+<td><span class="brl">⠐⠟</span></td>
+<td>問題</td>
+</tr>
+<tr>
+<td>right</td>
+<td>"r</td>
+<td><span class="brl">⠐⠗</span></td>
+<td>正確的</td>
+</tr>
+<tr>
+<td>some</td>
+<td>"s</td>
+<td><span class="brl">⠐⠎</span></td>
+<td>一些</td>
+</tr>
+<tr>
+<td>time</td>
+<td>"t</td>
+<td><span class="brl">⠐⠞</span></td>
+<td>時間</td>
+</tr>
+<tr>
+<td>under</td>
+<td>"u</td>
+<td><span class="brl">⠐⠥</span></td>
+<td>在...下面</td>
+</tr>
+<tr>
+<td>young</td>
+<td>"y</td>
+<td><span class="brl">⠐⠽</span></td>
+<td>年輕的</td>
+</tr>
+<tr>
+<td>there</td>
+<td>"! (the)</td>
+<td><span class="brl">⠐⠮</span></td>
+<td>那裡</td>
+</tr>
+<tr>
+<td>character</td>
+<td>"* (ch)</td>
+<td><span class="brl">⠐⠡</span></td>
+<td>角色，字符</td>
+</tr>
+<tr>
+<td>through</td>
+<td>"? (th)</td>
+<td><span class="brl">⠐⠹</span></td>
+<td>穿過</td>
+</tr>
+<tr>
+<td>where</td>
+<td>": (wh)</td>
+<td><span class="brl">⠐⠱</span></td>
+<td>哪裡</td>
+</tr>
+<tr>
+<td>ought</td>
+<td>"| (ou)</td>
+<td><span class="brl">⠐⠳</span></td>
+<td>應該</td>
+</tr>
+<tr>
+<td>work</td>
+<td>"w</td>
+<td><span class="brl">⠐⠺</span></td>
+<td>工作</td>
+</tr>
+<tr>
+<td>upon</td>
+<td>~u</td>
+<td><span class="brl">⠘⠥</span></td>
+<td>在...之上</td>
+</tr>
+<tr>
+<td>these</td>
+<td>~! (the)</td>
+<td><span class="brl">⠘⠮</span></td>
+<td>這些</td>
+</tr>
+<tr>
+<td>those</td>
+<td>~? (th)</td>
+<td><span class="brl">⠘⠹</span></td>
+<td>那些</td>
+</tr>
+<tr>
+<td>whose</td>
+<td>~: (wh)</td>
+<td><span class="brl">⠘⠱</span></td>
+<td>誰的</td>
+</tr>
+<tr>
+<td>word</td>
+<td>~w</td>
+<td><span class="brl">⠘⠺</span></td>
+<td>單字</td>
+</tr>
+<tr>
+<td>cannot</td>
+<td>_c</td>
+<td><span class="brl">⠸⠉</span></td>
+<td>不能</td>
+</tr>
+<tr>
+<td>had</td>
+<td>_h</td>
+<td><span class="brl">⠸⠓</span></td>
+<td>有（過去式）</td>
+</tr>
+<tr>
+<td>many</td>
+<td>_m</td>
+<td><span class="brl">⠸⠍</span></td>
+<td>許多</td>
+</tr>
+<tr>
+<td>spirit</td>
+<td>_s</td>
+<td><span class="brl">⠸⠎</span></td>
+<td>精神</td>
+</tr>
+<tr>
+<td>their</td>
+<td>_! (the)</td>
+<td><span class="brl">⠸⠮</span></td>
+<td>他們的</td>
+</tr>
+<tr>
+<td>world</td>
+<td>_w</td>
+<td><span class="brl">⠸⠺</span></td>
+<td>世界</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="initial-letter-contractions-使用規則">Initial-Letter
+Contractions 使用規則</h4>
+<ol type="1">
+<li><p>Initial-Letter Contractions
+可以作為單字單獨使用，也可以作為複合單字的一部分，例如： <u>some</u>
+<u>time</u> s (有時候) <span class="brl">⠐⠎⠐⠞⠎</span> 。</p></li>
+<li><p>Initial-Letter Contractions 也可用於衍生詞中，如
+"working"、"timed" 等</p></li>
+</ol>
+<h4 id="實例句子-5">實例句子</h4>
+<p>使用 Initial-Letter Contractions 的句子範例：</p>
+<ol type="1">
+<li><p><u>One</u> <u>day</u>, my <u>mother</u> <u>and</u> <u>father</u>
+took me to <u>the</u> p<u>ar</u>k.<br />
+有一天，我的爸爸媽媽帶我去公園。<br />
+<span class="brl">⠠⠐⠕⠀⠐⠙⠂⠀⠍⠽⠀⠐⠍⠀⠯⠀⠐⠋⠀⠞⠕⠕⠅⠀⠍⠑⠀⠞⠕⠀⠮⠀⠏⠜⠅⠲</span></p></li>
+<li><p><u>These</u> <u>young</u> <u>st</u>ud<u>en</u>ts <u>cannot</u>
+answ<u>er</u> <u>every</u> <u>question</u> yet.<br />
+這些年輕學生還無法回答每一個問題。<br />
+<span class="brl">⠠⠘⠮⠀⠐⠽⠀⠌⠥⠙⠢⠞⠎⠀⠸⠉⠀⠁⠝⠎⠺⠻⠀⠑⠀⠐⠟⠀⠽⠑⠞⠲</span></p></li>
+<li><p><u>Sh</u>e ask<u>ed</u> <u>where</u> <u>the</u> <u>word</u>
+<u>first</u> appe<u>ared</u> <u>in</u> <u>the</u> <u>book</u>.<br />
+她問那個字第一次出現在書中的哪裡。<br />
+<span class="brl">⠠⠩⠑⠀⠁⠎⠅⠫⠀⠐⠱⠀⠮⠀⠘⠺⠀⠋⠌⠀⠁⠏⠏⠑⠜⠫⠀⠔⠀⠮⠀⠃⠕⠕⠅⠲</span></p></li>
+</ol>
+<h4 id="練習活動-5">練習活動</h4>
+<h5 id="英文轉點字-9">英文轉點字</h5>
+<ol type="1">
+<li><p>I <u>cannot</u> <u>for</u>get <u>the</u> <u>time</u> <u>when</u>
+<u>father</u> <u>worked</u> <u>day</u> <u>and</u> ni<u>gh</u>t.<br />
+我無法忘記爸爸日以繼夜工作的那段時間。<br />
+<span class="brl">⠠⠊⠀⠸⠉⠀⠿⠛⠑⠞⠀⠮⠀⠐⠞⠀⠱⠢⠀⠐⠋⠀⠐⠺⠫⠀⠐⠙⠀⠯⠀⠝⠊⠣⠞⠲</span></p></li>
+<li><p><u>His</u> <u>mother</u> <u>always</u> spoke k<u>in</u>d
+<u>word</u>s to lift <u>his</u> <u>spirit</u>.<br />
+他的媽媽總是說好話來鼓舞他的精神。<br />
+<span class="brl">⠠⠦⠀⠐⠍⠀⠁⠇⠺⠀⠎⠏⠕⠅⠑⠀⠅⠔⠙⠀⠘⠺⠎⠀⠞⠕⠀⠇⠊⠋⠞⠀⠦⠀⠸⠎⠲</span></p></li>
+<li><p><u>Upon</u> he<u>aring</u> h<u>er</u> <u>name</u>, <u>the</u>
+<u>young</u> <u>child</u> smil<u>ed</u> <u>right</u> away.<br />
+聽到她的名字後，那位小孩立刻微笑了。<br />
+<span class="brl">⠠⠘⠥⠀⠓⠑⠜⠬⠀⠓⠻⠀⠐⠝⠂⠀⠮⠀⠐⠽⠀⠡⠀⠎⠍⠊⠇⠫⠀⠐⠗⠀⠁⠺⠁⠽⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-9">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠘⠱⠀⠃⠁⠛⠀⠊⠎⠀⠐⠥⠀⠮⠀⠞⠁⠃⠇⠑⠦</span><br />
+桌子底下的是誰的包包？<br />
+<u>Whose</u> bag is <u>under</u> <u>the</u> table?</p></li>
+<li><p><span class="brl">⠠⠺⠑⠀⠞⠁⠇⠅⠫⠀⠁⠃⠀⠐⠎⠀⠐⠏⠎⠀⠷⠀⠮⠀⠍⠕⠧⠊⠑⠀⠺⠑⠀⠙⠊⠙⠝⠄⠞⠀⠐⠥⠌⠯⠲</span><br />
+我們討論了一些看不太懂的電影片段。<br />
+We talk<u>ed</u> <u>about</u> <u>some</u> <u>part</u>s <u>of</u>
+<u>the</u> movie we didn't <u>understand</u>.</p></li>
+<li><p><span class="brl">⠠⠮⠀⠅⠊⠙⠎⠀⠗⠁⠝⠀⠐⠹⠀⠮⠀⠏⠜⠅⠀⠯⠀⠏⠇⠁⠽⠫⠀⠁⠇⠇⠀⠁⠋⠝⠲</span><br />
+孩子們穿過公園玩了一整個下午。<br />
+<u>The</u> kids ran <u>through</u> <u>the</u> p<u>ar</u>k <u>and</u>
+play<u>ed</u> all <u>afternoon</u>.</p></li>
+</ol>
+<h3 id="final-letter-groupsigns">Final-Letter
+Groupsigns</h3>
+<h4 id="final-letter-groupsigns-介紹">Final-Letter Groupsigns
+介紹</h4>
+<p>Final-Letter Groupsigns（尾字母群組符號）是由點 4 6 或點 5 6
+加上字根的最後一個字母組成的縮寫。這類縮寫通常出現在單字的末尾。</p>
+<h4 id="final-letter-groupsigns-列表">Final-Letter Groupsigns
+列表</h4>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>代表字母組合</strong></th>
+<th style="text-align: center;"><strong>縮寫符號</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>範例</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ound</td>
+<td>.d</td>
+<td><span class="brl">⠨⠙</span></td>
+<td>f<u>ound</u> (發現) <span class="brl">⠋⠨⠙</span><br />
+s<u>ound</u> (聲音) <span class="brl">⠎⠨⠙</span><br />
+ar<u>ound</u> (周圍) <span class="brl">⠜⠨⠙</span></td>
+</tr>
+<tr>
+<td>ance</td>
+<td>.e</td>
+<td><span class="brl">⠨⠑</span></td>
+<td>d<u>ance</u> (跳舞) <span class="brl">⠙⠨⠑</span><br />
+ch<u>ance</u> (機會) <span class="brl">⠡⠨⠑</span><br />
+dist<u>ance</u> (距離) <span class="brl">⠲⠞⠨⠑</span></td>
+</tr>
+<tr>
+<td>sion</td>
+<td>.n</td>
+<td><span class="brl">⠨⠝</span></td>
+<td>man<u>sion</u> (豪宅) <span class="brl">⠍⠁⠝⠨⠝</span><br />
+ten<u>sion</u> (緊張) <span class="brl">⠞⠢⠨⠝</span><br />
+dimen<u>sion</u> (維度) <span class="brl">⠙⠊⠍⠢⠨⠝</span></td>
+</tr>
+<tr>
+<td>less</td>
+<td>.s</td>
+<td><span class="brl">⠨⠎</span></td>
+<td>un<u>less</u> (除非) <span class="brl">⠥⠝⠨⠎</span><br />
+care<u>less</u> (粗心的) <span class="brl">⠉⠜⠑⠨⠎</span><br />
+hope<u>less</u> (無望的) <span class="brl">⠓⠕⠏⠑⠨⠎</span></td>
+</tr>
+<tr>
+<td>ount</td>
+<td>.t</td>
+<td><span class="brl">⠨⠞</span></td>
+<td>c<u>ount</u> (計算) <span class="brl">⠉⠨⠞</span><br />
+am<u>ount</u> (數量) <span class="brl">⠁⠍⠨⠞</span><br />
+acc<u>ount</u> (帳戶) <span class="brl">⠁⠒⠨⠞</span></td>
+</tr>
+<tr>
+<td>ence</td>
+<td>;e</td>
+<td><span class="brl">⠰⠑</span></td>
+<td>f<u>ence</u> (圍籬) <span class="brl">⠋⠰⠑</span><br />
+h<u>ence</u> (因此) <span class="brl">⠓⠰⠑</span><br />
+differ<u>ence</u> (差異) <span class="brl">⠙⠊⠖⠻⠰⠑</span></td>
+</tr>
+<tr>
+<td>ong</td>
+<td>;g</td>
+<td><span class="brl">⠰⠛</span></td>
+<td>l<u>ong</u> (長的) <span class="brl">⠇⠰⠛</span><br />
+s<u>ong</u> (歌曲) <span class="brl">⠎⠰⠛</span><br />
+al<u>ong</u> (沿著) <span class="brl">⠁⠇⠰⠛</span></td>
+</tr>
+<tr>
+<td>ful</td>
+<td>;l</td>
+<td><span class="brl">⠰⠇</span></td>
+<td>care<u>ful</u> (小心的) <span class="brl">⠉⠜⠑⠰⠇</span><br />
+beauti<u>ful</u> (美麗的) <span class="brl">⠃⠂⠥⠞⠊⠰⠇</span><br />
+help<u>ful</u> (有幫助的) <span class="brl">⠓⠑⠇⠏⠰⠇</span></td>
+</tr>
+<tr>
+<td>tion</td>
+<td>;n</td>
+<td><span class="brl">⠰⠝</span></td>
+<td>sta<u>tion</u> (車站) <span class="brl">⠌⠁⠰⠝</span><br />
+ac<u>tion</u> (行動) <span class="brl">⠁⠉⠰⠝</span><br />
+func<u>tion</u> (功能) <span class="brl">⠋⠥⠝⠉⠰⠝</span></td>
+</tr>
+<tr>
+<td>ness</td>
+<td>;s</td>
+<td><span class="brl">⠰⠎</span></td>
+<td>dark<u>ness</u> (黑暗) <span class="brl">⠙⠜⠅⠰⠎</span><br />
+happi<u>ness</u> (快樂) <span class="brl">⠓⠁⠏⠏⠊⠰⠎</span><br />
+kind<u>ness</u> (善良) <span class="brl">⠅⠔⠙⠰⠎</span></td>
+</tr>
+<tr>
+<td>ment</td>
+<td>;t</td>
+<td><span class="brl">⠰⠞</span></td>
+<td>mo<u>ment</u> (時刻) <span class="brl">⠍⠕⠰⠞</span><br />
+pay<u>ment</u> (付款) <span class="brl">⠏⠁⠽⠰⠞</span><br />
+docu<u>ment</u> (文件) <span class="brl">⠙⠕⠉⠥⠰⠞</span></td>
+</tr>
+<tr>
+<td>ity</td>
+<td>;y</td>
+<td><span class="brl">⠰⠽</span></td>
+<td>c<u>ity</u> (城市) <span class="brl">⠉⠰⠽</span><br />
+qual<u>ity</u> (品質) <span class="brl">⠟⠥⠁⠇⠰⠽</span><br />
+abil<u>ity</u> (能力) <span class="brl">⠁⠃⠊⠇⠰⠽</span></td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="final-letter-groupsigns-使用規則">Final-Letter
+Groupsigns 使用規則</h4>
+<ol type="1">
+<li><p>Final-Letter Groupsigns 通常出現在單字的中間或末尾</p></li>
+<li><p>Final-Letter Groupsigns 不能用在字首(例：ancestor
+lesson)</p></li>
+<li><p>Final-Letter Groupsigns 不能作為單字使用(例：less)</p></li>
+</ol>
+<h4 id="實例句子-6">實例句子</h4>
+<p>使用 Final-Letter Groupsigns 的句子示例：</p>
+<ol type="1">
+<li><p><u>The</u> ann<u>ou</u>nce<u>ment</u> caus<u>ed</u>
+<u>con</u>fu<u>sion</u> dur<u>ing</u> <u>the</u> morn<u>ing</u>
+ru<u>sh</u>.<br />
+那則公告在早晨尖峰時段引起混亂。<br />
+<span class="brl">⠠⠮⠀⠁⠝⠝⠳⠝⠉⠑⠰⠞⠀⠉⠁⠥⠎⠫⠀⠒⠋⠥⠨⠝⠀⠙⠥⠗⠬⠀⠮⠀⠍⠕⠗⠝⠬⠀⠗⠥⠩⠲</span></p></li>
+<li><p><u>Sh</u>e <u>showed</u> <u>great</u> pati<u>ence</u> <u>and</u>
+k<u>in</u>d<u>ness</u> <u>wh</u>ile help<u>ing</u> <u>the</u>
+kids.<br />
+她在幫助孩子時展現了極大的耐心與善良。<br />
+<span class="brl">⠠⠩⠑⠀⠩⠪⠫⠀⠛⠗⠞⠀⠏⠁⠞⠊⠰⠑⠀⠯⠀⠅⠔⠙⠰⠎⠀⠱⠊⠇⠑⠀⠓⠑⠇⠏⠬⠀⠮⠀⠅⠊⠙⠎⠲</span></p></li>
+<li><p>We <u>had</u> a <u>dis</u>cus<u>sion</u> <u>about</u> <u>the</u>
+am<u>ount</u> <u>of</u> home<u>work</u> <u>and</u> <u>it</u>s
+use<u>fulness</u>.<br />
+我們討論了作業的份量以及它的實用性。<br />
+<span class="brl">⠠⠺⠑⠀⠸⠓⠀⠁⠀⠲⠉⠥⠎⠨⠝⠀⠁⠃⠀⠮⠀⠁⠍⠨⠞⠀⠷⠀⠓⠕⠍⠑⠐⠺⠀⠯⠀⠭⠎⠀⠥⠎⠑⠰⠇⠰⠎⠲</span></p></li>
+</ol>
+<h4 id="練習活動-6">練習活動</h4>
+<h5 id="英文轉點字-10">英文轉點字</h5>
+<ol type="1">
+<li><p>Despite <u>the</u> l<u>ong</u> explana<u>tion</u>, I <u>still</u>
+felt <u>some</u> unc<u>er</u>ta<u>in</u>ty.<br />
+儘管有詳細解釋，我仍感到一些不確定性。<br />
+<span class="brl">⠠⠙⠑⠎⠏⠊⠞⠑⠀⠮⠀⠇⠰⠛⠀⠑⠭⠏⠇⠁⠝⠁⠰⠝⠂⠀⠠⠊⠀⠌⠀⠋⠑⠇⠞⠀⠐⠎⠀⠥⠝⠉⠻⠞⠁⠔⠞⠽⠲</span></p></li>
+<li><p>H<u>er</u> excite<u>ment</u> <u>and</u> <u>ener</u>gy gave
+<u>the</u> <u>wh</u>ole ev<u>en</u>t a joy<u>ful</u>
+feel<u>ing</u>.<br />
+她的興奮與活力讓整個活動充滿喜悅氣氛。<br />
+<span class="brl">⠠⠓⠻⠀⠑⠭⠉⠊⠞⠑⠰⠞⠀⠯⠀⠢⠻⠛⠽⠀⠛⠁⠧⠑⠀⠮⠀⠱⠕⠇⠑⠀⠑⠧⠢⠞⠀⠁⠀⠚⠕⠽⠰⠇⠀⠋⠑⠑⠇⠬⠲</span></p></li>
+<li><p><u>Withou</u>t <u>your</u> <u>en</u>c<u>ou</u>rage<u>ment</u>
+<u>and</u> pres<u>ence</u>, I mi<u>gh</u>t <u>have</u> giv<u>en</u>
+up.<br />
+如果沒有你的鼓勵和陪伴，我可能已經放棄了。<br />
+<span class="brl">⠠⠾⠳⠞⠀⠽⠗⠀⠢⠉⠳⠗⠁⠛⠑⠰⠞⠀⠯⠀⠏⠗⠑⠎⠰⠑⠂⠀⠠⠊⠀⠍⠊⠣⠞⠀⠓⠀⠛⠊⠧⠢⠀⠥⠏⠲</span></p></li>
+</ol>
+<h5 id="點字轉英文-10">點字轉英文</h5>
+<ol type="1">
+<li><p><span class="brl">⠠⠓⠑⠀⠓⠯⠇⠫⠀⠮⠀⠎⠊⠞⠥⠁⠰⠝⠀⠾⠀⠒⠋⠊⠙⠰⠑⠀⠯⠀⠉⠁⠇⠍⠰⠎⠲</span><br />
+他以自信與冷靜處理了這個狀況。<br />
+He h<u>and</u>l<u>ed</u> <u>the</u> situa<u>tion</u> <u>with</u>
+<u>con</u>fid<u>ence</u> and calm<u>ness</u>.</p></li>
+<li><p><span class="brl">⠠⠓⠻⠀⠲⠁⠏⠏⠕⠔⠞⠰⠞⠀⠞⠥⠗⠝⠫⠀⠔⠞⠕⠀⠍⠕⠞⠊⠧⠁⠰⠝⠀⠁⠋⠀⠮⠀⠉⠕⠍⠏⠑⠞⠊⠰⠝⠲</span><br />
+比賽之後，她的失望轉化為動力。<br />
+H<u>er</u> <u>dis</u>appo<u>in</u>t<u>ment</u> turn<u>ed</u> <u>in</u>to
+motiva<u>tion</u> <u>after</u> <u>the</u> competi<u>tion</u>.</p></li>
+<li><p><span class="brl">⠠⠐⠮⠄⠎⠀⠁⠀⠌⠗⠰⠛⠀⠒⠝⠑⠉⠰⠝⠀⠆⠞⠀⠗⠑⠎⠏⠕⠝⠎⠊⠃⠊⠇⠰⠽⠀⠯⠀⠎⠥⠒⠑⠎⠎⠲</span><br />
+責任感與成功之間有強烈的關聯。<br />
+<u>There</u>'s a <u>st</u>r<u>ong</u> <u>con</u>nec<u>tion</u>
+<u>between</u> responsibil<u>ity</u> <u>and</u> su<u>cc</u>ess.</p></li>
+</ol>
+<h3 id="letter-縮寫表">Letter 縮寫表</h3>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td rowspan="2" style="text-align: left;">字母</td>
+<td colspan="3" style="text-align: center;">Initial-Letter
+Contractions</td>
+<td colspan="2" style="text-align: center;">Final-Letter Groupsigns</td>
+</tr>
+<tr>
+<td><span class="brl">⠐</span> " (點 5)</td>
+<td><span class="brl">⠘</span> ~ (點 4 5)</td>
+<td><span class="brl">⠸</span> _ (點 4 5 6)</td>
+<td><span class="brl">⠨</span> . (點 4 6)</td>
+<td><span class="brl">⠰</span> ; (點 5 6)</td>
+</tr>
+<tr>
+<td><span class="brl">⠁</span>a</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠃</span>b</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠉</span>c</td>
+<td></td>
+<td></td>
+<td><span class="brl">⠸⠉</span> _c (cannot)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠙</span>d</td>
+<td><span class="brl">⠐⠙</span> "d (day)</td>
+<td></td>
+<td></td>
+<td><span class="brl">⠨⠙</span> .d (ound)</td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠑</span>e</td>
+<td><span class="brl">⠐⠑</span> "e (ever)</td>
+<td></td>
+<td></td>
+<td><span class="brl">⠨⠑</span> .e (ance)</td>
+<td><span class="brl">⠰⠑</span> ;e (ence)</td>
+</tr>
+<tr>
+<td><span class="brl">⠋</span>f</td>
+<td><span class="brl">⠐⠋</span> "f (father)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠛</span>g</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td><span class="brl">⠰⠛</span> ;g (ong)</td>
+</tr>
+<tr>
+<td><span class="brl">⠓</span>h</td>
+<td><span class="brl">⠐⠓</span> "h (here)</td>
+<td></td>
+<td><span class="brl">⠸⠓</span> _h (had)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠊</span>i</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠚</span>j</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠅</span>k</td>
+<td><span class="brl">⠐⠅</span> "k (know)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠇</span>l</td>
+<td><span class="brl">⠐⠇</span> "l (lord)</td>
+<td></td>
+<td></td>
+<td></td>
+<td><span class="brl">⠰⠇</span> ;l (ful)</td>
+</tr>
+<tr>
+<td><span class="brl">⠍</span>m</td>
+<td><span class="brl">⠐⠍</span> "m (mother)</td>
+<td></td>
+<td><span class="brl">⠸⠍</span> _m (many)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠝</span>n</td>
+<td><span class="brl">⠐⠝</span> "n (name)</td>
+<td></td>
+<td></td>
+<td><span class="brl">⠨⠝</span> .n (sion)</td>
+<td><span class="brl">⠰⠝</span> ;n (tion)</td>
+</tr>
+<tr>
+<td><span class="brl">⠕</span>o</td>
+<td><span class="brl">⠐⠕</span> "o (one)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠏</span>p</td>
+<td><span class="brl">⠐⠏</span> "p (part)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠟</span>q</td>
+<td><span class="brl">⠐⠟</span> "q (question)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠗</span>r</td>
+<td><span class="brl">⠐⠗</span> "r (right)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠎</span>s</td>
+<td><span class="brl">⠐⠎</span> "s (some)</td>
+<td></td>
+<td><span class="brl">⠸⠎</span> _s (spirit)</td>
+<td><span class="brl">⠨⠎</span> .s (less)</td>
+<td><span class="brl">⠰⠎</span> ;s (ness)</td>
+</tr>
+<tr>
+<td><span class="brl">⠞</span>t</td>
+<td><span class="brl">⠐⠞</span> "t (time)</td>
+<td></td>
+<td></td>
+<td><span class="brl">⠨⠞</span> .t (ount)</td>
+<td><span class="brl">⠰⠞</span> ;t (ment)</td>
+</tr>
+<tr>
+<td><span class="brl">⠥</span>u</td>
+<td><span class="brl">⠐⠥</span> "u (under)</td>
+<td><span class="brl">⠘⠥</span> ~u (upon)</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠧</span>v</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠺</span>w</td>
+<td><span class="brl">⠐⠺</span> "w (work)</td>
+<td><span class="brl">⠘⠺</span> ~w (word)</td>
+<td><span class="brl">⠸⠺</span> _w (world)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠭</span>x</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠽</span>y</td>
+<td><span class="brl">⠐⠽</span> "y (young)</td>
+<td></td>
+<td></td>
+<td></td>
+<td><span class="brl">⠰⠽</span> ;y (ity)</td>
+</tr>
+<tr>
+<td><span class="brl">⠵</span>z</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠡</span>ch</td>
+<td><span class="brl">⠐⠡</span> "* (character)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠹</span>th</td>
+<td><span class="brl">⠐⠹</span> "? (through)</td>
+<td><span class="brl">⠘⠹</span> ~? (those)</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠱</span>wh</td>
+<td><span class="brl">⠐⠱</span> ": (where)</td>
+<td><span class="brl">⠘⠱</span> ~: (whose)</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠮</span>the</td>
+<td><span class="brl">⠐⠮</span> "! (there)</td>
+<td><span class="brl">⠘⠮</span> ~! (these)</td>
+<td><span class="brl">⠸⠮</span> _! (their)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><span class="brl">⠳</span>ou</td>
+<td><span class="brl">⠐⠳</span> "| (ought)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="標點符號">標點符號</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th style="text-align: center;"><strong>標點符號</strong></th>
+<th style="text-align: center;"><strong>點字符號</strong></th>
+<th style="text-align: center;"><strong>點位</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>逗號 (,)</td>
+<td><span class="brl">⠂</span></td>
+<td>點 2</td>
+</tr>
+<tr>
+<td>句號 (.)</td>
+<td><span class="brl">⠲</span></td>
+<td>點 2 5 6</td>
+</tr>
+<tr>
+<td>冒號 (:)</td>
+<td><span class="brl">⠒</span></td>
+<td>點 2 5</td>
+</tr>
+<tr>
+<td>分號 (;)</td>
+<td><span class="brl">⠆</span></td>
+<td>點 2 3</td>
+</tr>
+<tr>
+<td>驚嘆號 (!)</td>
+<td><span class="brl">⠖</span></td>
+<td>點 2 3 5</td>
+</tr>
+<tr>
+<td>問號 (?)</td>
+<td><span class="brl">⠦</span></td>
+<td>點 2 3 6</td>
+</tr>
+<tr>
+<td>撇號 (')</td>
+<td><span class="brl">⠄</span></td>
+<td>點 3</td>
+</tr>
+<tr>
+<td>前雙引號 (")</td>
+<td><span class="brl">⠦</span></td>
+<td>點 2 3 6</td>
+</tr>
+<tr>
+<td>後雙引號 (")</td>
+<td><span class="brl">⠴</span></td>
+<td>點 3 5 6</td>
+</tr>
+<tr>
+<td>左括號 (</td>
+<td><span class="brl">⠐⠣</span></td>
+<td>點 5 點 1 2 6</td>
+</tr>
+<tr>
+<td>右括號 )</td>
+<td><span class="brl">⠐⠜</span></td>
+<td>點 5 點 3 4 5</td>
+</tr>
+<tr>
+<td>前方括號 [</td>
+<td><span class="brl">⠨⠣</span></td>
+<td>點 4 6 點 1 2 6</td>
+</tr>
+<tr>
+<td>後方括號 ]</td>
+<td><span class="brl">⠨⠜</span></td>
+<td>點 4 6 點 3 4 5</td>
+</tr>
+<tr>
+<td>前大括號 {</td>
+<td><span class="brl">⠸⠣</span></td>
+<td>點 4 5 6 點 1 2 6</td>
+</tr>
+<tr>
+<td>後大括號 }</td>
+<td><span class="brl">⠸⠜</span></td>
+<td>點 4 5 6 點 3 4 5</td>
+</tr>
+<tr>
+<td>連字號 (-)</td>
+<td><span class="brl">⠤</span></td>
+<td>點 3 6</td>
+</tr>
+<tr>
+<td>短破折號 (–)</td>
+<td><span class="brl">⠠⠤</span></td>
+<td>點 6 點 3 6</td>
+</tr>
+<tr>
+<td>長破折號 (—)</td>
+<td><span class="brl">⠐⠠⠤</span></td>
+<td>點 5 點 6 點 3 6</td>
+</tr>
+<tr>
+<td>和號 (&amp;)</td>
+<td><span class="brl">⠈⠯</span></td>
+<td>點 4 點 1 2 3 4 6</td>
+</tr>
+<tr>
+<td>星號 (*)</td>
+<td><span class="brl">⠐⠔</span></td>
+<td>點 5 點 3 5</td>
+</tr>
+<tr>
+<td>小老鼠 (@)</td>
+<td><span class="brl">⠈⠁</span></td>
+<td>點 4 點 1</td>
+</tr>
+<tr>
+<td>項目符號 (●)</td>
+<td><span class="brl">⠸⠲</span></td>
+<td>點 4 5 6 點 2 5 6</td>
+</tr>
+<tr>
+<td>點譯者註釋(開始)</td>
+<td><span class="brl">⠈⠨⠣</span></td>
+<td>點 4 點 4 6 點 1 2 6</td>
+</tr>
+<tr>
+<td>點譯者註釋(結束)</td>
+<td><span class="brl">⠈⠨⠜</span></td>
+<td>點 4 點 4 6 點 3 4 5</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="綜合練習">綜合練習</h2>
+<h3 id="英文轉點字-11">英文轉點字</h3>
+<p>One morning, Kevin woke up earlier than</p>
+<p>usual. He tiptoed into the kitchen and tried to</p>
+<p>make breakfast for his mom. He made scrambled</p>
+<p>eggs, toast, and even poured some juice. When his</p>
+<p>mom came in, surprised and sleepy, Kevin</p>
+<p>smiled and said, “Happy Saturday!” She gave</p>
+<p>him a big hug and said it was the best breakfast ever.</p>
+<p>某天早上，凱文比平常早起。他踮起腳走進廚房，想替媽媽做早餐。他煎了炒蛋、烤了吐司，還倒了果汁。當媽媽一臉驚訝、睡眼惺忪地走進來時，凱文笑著說：「週六快樂！」媽媽給了他一個大大的擁抱，說這是她吃過最棒的早餐。</p>
+<p><span class="brl">⠠⠐⠕</span> <span class="brl">⠍⠕⠗⠝⠬⠂</span> <span class="brl">⠠⠅⠑⠧⠔</span> <span class="brl">⠺⠕⠅⠑</span> <span class="brl">⠥⠏</span> <span class="brl">⠑⠜⠇⠊⠻</span> <span class="brl">⠹⠁⠝</span></p>
+<p><span class="brl">⠥⠎⠥⠁⠇⠲</span> <span class="brl">⠠⠓⠑</span> <span class="brl">⠞⠊⠏⠞⠕⠫</span> <span class="brl">⠔⠞⠕</span> <span class="brl">⠮</span> <span class="brl">⠅⠊⠞⠡⠢</span> <span class="brl">⠯</span> <span class="brl">⠞⠗⠊⠫</span> <span class="brl">⠞⠕</span></p>
+<p><span class="brl">⠍⠁⠅⠑</span> <span class="brl">⠃⠗⠂⠅⠋⠁⠌</span> <span class="brl">⠿</span> <span class="brl">⠦</span> <span class="brl">⠍⠕⠍⠲</span> <span class="brl">⠠⠓⠑</span> <span class="brl">⠍⠁⠙⠑</span> <span class="brl">⠎⠉⠗⠁⠍⠃⠇⠫</span></p>
+<p><span class="brl">⠑⠶⠎⠂</span> <span class="brl">⠞⠕⠁⠌⠂</span> <span class="brl">⠯</span> <span class="brl">⠑⠧⠢</span> <span class="brl">⠏⠳⠗⠫</span> <span class="brl">⠐⠎</span> <span class="brl">⠚⠥⠊⠉⠑⠲</span> <span class="brl">⠠⠱⠢</span> <span class="brl">⠦</span></p>
+<p><span class="brl">⠍⠕⠍</span> <span class="brl">⠉⠁⠍⠑</span> <span class="brl">⠊⠝⠂</span> <span class="brl">⠎⠥⠗⠏⠗⠊⠎⠫</span> <span class="brl">⠯</span> <span class="brl">⠎⠇⠑⠑⠏⠽⠂</span> <span class="brl">⠠⠅⠑⠧⠔</span></p>
+<p><span class="brl">⠎⠍⠊⠇⠫</span> <span class="brl">⠯</span> <span class="brl">⠎⠙⠂</span> <span class="brl">⠦⠠⠓⠁⠏⠏⠽</span> <span class="brl">⠠⠎⠁⠞⠥⠗⠐⠙⠖⠴</span> <span class="brl">⠠⠩⠑</span> <span class="brl">⠛⠁⠧⠑</span></p>
+<p><span class="brl">⠓⠍</span> <span class="brl">⠁</span> <span class="brl">⠃⠊⠛</span> <span class="brl">⠓⠥⠛</span> <span class="brl">⠯</span> <span class="brl">⠎⠙</span> <span class="brl">⠭</span> <span class="brl">⠴</span> <span class="brl">⠮</span> <span class="brl">⠃⠑⠌</span> <span class="brl">⠃⠗⠂⠅⠋⠁⠌</span> <span class="brl">⠐⠑⠲</span></p>
+<h3 id="點字轉英文-11">點字轉英文</h3>
+<p><span class="brl">⠠⠁⠍⠽⠀⠉⠙⠝⠄⠞⠀⠋⠔⠙⠀⠓⠻⠀⠉⠁⠞⠂⠀⠠⠍⠕⠡⠊⠂⠀⠁⠝⠽⠐⠱⠀⠔⠀</span></p>
+<p><span class="brl">⠮⠀⠓⠳⠎⠑⠲⠀⠠⠩⠑⠀⠇⠕⠕⠅⠫⠀⠐⠥⠀⠮⠀⠃⠫⠂⠀⠆⠓⠀⠮⠀⠉⠳⠡⠂⠀⠑⠧⠢⠀</span></p>
+<p><span class="brl">⠔⠀⠮⠀⠇⠁⠥⠝⠙⠗⠽⠀⠃⠁⠎⠅⠑⠞⠲⠀⠠⠚⠀⠱⠢⠀⠩⠑⠀⠴⠀⠁⠃⠀⠞⠕⠀</span></p>
+<p><span class="brl">⠉⠗⠽⠂⠀⠩⠑⠀⠓⠑⠜⠙⠀⠁⠀⠎⠷⠞⠀⠦⠍⠑⠪⠴⠀⠋⠀⠔⠎⠊⠙⠑⠀⠓⠻⠀</span></p>
+<p><span class="brl">⠃⠁⠉⠅⠏⠁⠉⠅⠲⠀⠠⠍⠕⠡⠊⠀⠸⠓⠀⠉⠥⠗⠇⠫⠀⠥⠏⠀⠔⠎⠊⠙⠑⠀⠿⠀⠁⠀</span></p>
+<p><span class="brl">⠝⠁⠏⠖⠀⠠⠁⠍⠽⠀⠇⠁⠥⠣⠫⠀⠯⠀⠛⠁⠧⠑⠀⠓⠻⠀⠁⠀⠛⠢⠞⠇⠑⠀⠏⠁⠞⠲⠀</span></p>
+<p><span class="brl">⠦⠠⠽⠀⠎⠊⠇⠇⠽⠀⠉⠁⠞⠂⠴⠀⠩⠑⠀⠎⠙⠲</span></p>
+<p>艾咪怎麼也找不到她的貓咪麻糬。她找了床底下、沙發後面，甚至連洗衣籃都翻了。正當她快要哭出來時，她聽見書包裡傳來一聲輕輕的「喵～」。原來麻糬縮在裡面睡午覺！艾咪笑了出來，輕輕摸了摸牠：「你這隻傻貓。」</p>
+<p>Amy couldn't find her cat, Mochi, anywhere in</p>
+<p>the house. She looked under the bed, behind the couch, even</p>
+<p>in the laundry basket. Just when she was about to</p>
+<p>cry, she heard a soft “meow” from inside her</p>
+<p>backpack. Mochi had curled up inside for a</p>
+<p>nap! Amy laughed and gave her a gentle pat.</p>
+<p>“You silly cat,” she said.</p>
+<h2 id="ueb-相關輔助科技">UEB 相關輔助科技</h2>
+<h3 id="nvda-螢幕報讀軟體">NVDA 螢幕報讀軟體</h3>
+<p>NVDA(NonVisual Desktop Access) 是開源(open
+source)的螢幕報讀軟體(screen
+reader)，能將電腦焦點所在的文字，轉換成語音，或透過點字顯示器(braille
+display)以點字呈現，供視障者聽或摸讀；透過「點字轉譯表」的設定，可讓英文內容以
+UEB 規則顯示或輸入。</p>
+<h4 id="點字轉譯表的設定">點字轉譯表的設定</h4>
+<h5 id="輸出">輸出</h5>
+<p>開啟 NVDA 後，按 NVDA + N 開啟 NVDA
+功能表，在「偏好」的子功能表中選擇設定，在設定的對話框找到「點字」的類別，在點字內容頁裡找到「輸出轉譯表」的下拉式選單，選取「英文統一二級」，確認後英文內容即以
+UEB 縮寫方式輸出。</p>
+<p>把「將游標所在的文字展開成完整的電腦點字」的核取方塊勾選，即可在游標移至單字時，顯示未縮寫的完整內容</p>
+<h5 id="輸出-1">輸出</h5>
+<p>在點字內容頁裡找到「輸入轉譯表」的下拉式選單，選取「英文統一二級」，確認後搭配六點輸入的附加元件(點字輸入法助手或
+PC Keyboard Braille Input for NVDA)，即可用六點輸入方式搭配 UEB
+縮寫規則輸入。</p>
+<h3 id="練習工具">練習工具</h3>
+<h4
+id="ueb-點字學習測驗httpsclass.kh.edu.tw19061bulletinmsg_view998">UEB
+點字學習測驗(<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/998" target="_blank" rel="noopener">https://class.kh.edu.tw/19061/bulletin/msg_view/998</a>)</h4>
+<p>共有 Level 1 到 6 級與 TOEFL 級的單字與國中小 2000
+字的題庫可選擇，可設定語音提示、唸中文、拼字模式、語音角色、速度和題目字體大小，使用電腦鍵盤六點輸入(1~6
+點分別為 f d s j k l)，可用來熟練 UEB 打字。</p>
+<h3 id="轉譯工具">轉譯工具</h3>
+<p>網路上有許多方便的轉譯工具，能將英文印刷字轉為 UEB 縮寫點字：</p>
+<h4 id="abc-braille-httpsabcbraille.com">ABC Braille
+(<a href="https://abcbraille.com/" target="_blank" rel="noopener">https://abcbraille.com/</a>)</h4>
+<p>ABC Braille 提供印刷字轉點字、點字轉印刷字功能。</p>
+<h4 id="braille-blasterhttpsbrailleblaster.org">Braille
+Blaster(<a href="https://brailleblaster.org/" target="_blank" rel="noopener">https://brailleblaster.org/</a>)</h4>
+<p>Braille Blaster 是一款由美國 APH(American Printing House)
+開發的軟體，專門用來製作點字教科書。</p>
+<h4
+id="中明試卷製作httpsclass.kh.edu.tw19061pageview25">中明試卷製作(<a href="https://class.kh.edu.tw/19061/page/view/25" target="_blank" rel="noopener">https://class.kh.edu.tw/19061/page/view/25</a>)</h4>
+<p>由台中啟明學校鄭明芳老師開發，能同時轉譯注音點字與 UEB。</p>
+<div class="scroll"><table>
+<tbody>
+<tr>
+<td colspan="10"><h2 id="ueb-縮寫快速查詢表">UEB
+縮寫快速查詢表</h2></td>
+</tr>
+<tr>
+<td colspan="2">Alphabetic Wd</td>
+<td colspan="2">Strong G/W</td>
+<td colspan="2">Initial-Letter C</td>
+<td colspan="4">Shortform</td>
+</tr>
+<tr>
+<td>but</td>
+<td><span class="brl">⠃</span></td>
+<td>ch/child</td>
+<td><span class="brl">⠡</span></td>
+<td>upon</td>
+<td><span class="brl">⠘⠥</span></td>
+<td>about</td>
+<td><span class="brl">⠁⠃</span></td>
+<td>herself</td>
+<td><span class="brl">⠓⠻⠋</span></td>
+</tr>
+<tr>
+<td>can</td>
+<td><span class="brl">⠉</span></td>
+<td>gh</td>
+<td><span class="brl">⠣</span></td>
+<td>these</td>
+<td><span class="brl">⠘⠮</span></td>
+<td>above</td>
+<td><span class="brl">⠁⠃⠧</span></td>
+<td>him</td>
+<td><span class="brl">⠓⠍</span></td>
+</tr>
+<tr>
+<td>do</td>
+<td><span class="brl">⠙</span></td>
+<td>sh/shall</td>
+<td><span class="brl">⠩</span></td>
+<td>those</td>
+<td><span class="brl">⠘⠹</span></td>
+<td>according</td>
+<td><span class="brl">⠁⠉</span></td>
+<td>himself</td>
+<td><span class="brl">⠓⠍⠋</span></td>
+</tr>
+<tr>
+<td>every</td>
+<td><span class="brl">⠑</span></td>
+<td>th/this</td>
+<td><span class="brl">⠹</span></td>
+<td>whose</td>
+<td><span class="brl">⠘⠱</span></td>
+<td>across</td>
+<td><span class="brl">⠁⠉⠗</span></td>
+<td>immediate</td>
+<td><span class="brl">⠊⠍⠍</span></td>
+</tr>
+<tr>
+<td>from</td>
+<td><span class="brl">⠋</span></td>
+<td>wh/which</td>
+<td><span class="brl">⠱</span></td>
+<td>word</td>
+<td><span class="brl">⠘⠺</span></td>
+<td>after</td>
+<td><span class="brl">⠁⠋</span></td>
+<td>its</td>
+<td><span class="brl">⠭⠎</span></td>
+</tr>
+<tr>
+<td>go</td>
+<td><span class="brl">⠛</span></td>
+<td>ed</td>
+<td><span class="brl">⠫</span></td>
+<td>cannot</td>
+<td><span class="brl">⠸⠉</span></td>
+<td>afternoon</td>
+<td><span class="brl">⠁⠋⠝</span></td>
+<td>itself</td>
+<td><span class="brl">⠭⠋</span></td>
+</tr>
+<tr>
+<td>have</td>
+<td><span class="brl">⠓</span></td>
+<td>er</td>
+<td><span class="brl">⠻</span></td>
+<td>had</td>
+<td><span class="brl">⠸⠓</span></td>
+<td>afterward</td>
+<td><span class="brl">⠁⠋⠺</span></td>
+<td>letter</td>
+<td><span class="brl">⠇⠗</span></td>
+</tr>
+<tr>
+<td>just</td>
+<td><span class="brl">⠚</span></td>
+<td>ou/out</td>
+<td><span class="brl">⠳</span></td>
+<td>many</td>
+<td><span class="brl">⠸⠍</span></td>
+<td>again</td>
+<td><span class="brl">⠁⠛</span></td>
+<td>little</td>
+<td><span class="brl">⠇⠇</span></td>
+</tr>
+<tr>
+<td>knowledge</td>
+<td><span class="brl">⠅</span></td>
+<td>ow</td>
+<td><span class="brl">⠪</span></td>
+<td>spirit</td>
+<td><span class="brl">⠸⠎</span></td>
+<td>against</td>
+<td><span class="brl">⠁⠛⠌</span></td>
+<td>much</td>
+<td><span class="brl">⠍⠡</span></td>
+</tr>
+<tr>
+<td>like</td>
+<td><span class="brl">⠇</span></td>
+<td>st/still</td>
+<td><span class="brl">⠌</span></td>
+<td>their</td>
+<td><span class="brl">⠸⠮</span></td>
+<td>almost</td>
+<td><span class="brl">⠁⠇⠍</span></td>
+<td>must</td>
+<td><span class="brl">⠍⠌</span></td>
+</tr>
+<tr>
+<td>more</td>
+<td><span class="brl">⠍</span></td>
+<td>ing</td>
+<td><span class="brl">⠬</span></td>
+<td>world</td>
+<td><span class="brl">⠸⠺</span></td>
+<td>already</td>
+<td><span class="brl">⠁⠇⠗</span></td>
+<td>myself</td>
+<td><span class="brl">⠍⠽⠋</span></td>
+</tr>
+<tr>
+<td>not</td>
+<td><span class="brl">⠝</span></td>
+<td>ar</td>
+<td><span class="brl">⠜</span></td>
+<td>day</td>
+<td><span class="brl">⠐⠙</span></td>
+<td>also</td>
+<td><span class="brl">⠁⠇</span></td>
+<td>necessary</td>
+<td><span class="brl">⠝⠑⠉</span></td>
+</tr>
+<tr>
+<td>people</td>
+<td><span class="brl">⠏</span></td>
+<td colspan="2">Lower G/W</td>
+<td>ever</td>
+<td><span class="brl">⠐⠑</span></td>
+<td>although</td>
+<td><span class="brl">⠁⠇⠹</span></td>
+<td>neither</td>
+<td><span class="brl">⠝⠑⠊</span></td>
+</tr>
+<tr>
+<td>quite</td>
+<td><span class="brl">⠟</span></td>
+<td>ea</td>
+<td><span class="brl">⠂</span></td>
+<td>father</td>
+<td><span class="brl">⠐⠋</span></td>
+<td>altogether</td>
+<td><span class="brl">⠁⠇⠞</span></td>
+<td>oneself</td>
+<td><span class="brl">⠐⠕⠋</span></td>
+</tr>
+<tr>
+<td>rather</td>
+<td><span class="brl">⠗</span></td>
+<td>be/bb</td>
+<td><span class="brl">⠆</span></td>
+<td>here</td>
+<td><span class="brl">⠐⠓</span></td>
+<td>always</td>
+<td><span class="brl">⠁⠇⠺</span></td>
+<td>ourselves</td>
+<td><span class="brl">⠳⠗⠧⠎</span></td>
+</tr>
+<tr>
+<td>so</td>
+<td><span class="brl">⠎</span></td>
+<td>con/cc</td>
+<td><span class="brl">⠒</span></td>
+<td>know</td>
+<td><span class="brl">⠐⠅</span></td>
+<td>because</td>
+<td><span class="brl">⠆⠉</span></td>
+<td>paid</td>
+<td><span class="brl">⠏⠙</span></td>
+</tr>
+<tr>
+<td>that</td>
+<td><span class="brl">⠞</span></td>
+<td>ff</td>
+<td><span class="brl">⠖</span></td>
+<td>lord</td>
+<td><span class="brl">⠐⠇</span></td>
+<td>before</td>
+<td><span class="brl">⠆⠋</span></td>
+<td>perceive</td>
+<td><span class="brl">⠏⠻⠉⠧</span></td>
+</tr>
+<tr>
+<td>us</td>
+<td><span class="brl">⠥</span></td>
+<td>gg/were</td>
+<td><span class="brl">⠶</span></td>
+<td>mother</td>
+<td><span class="brl">⠐⠍</span></td>
+<td>behind</td>
+<td><span class="brl">⠆⠓</span></td>
+<td>perceiving</td>
+<td><span class="brl">⠏⠻⠉⠧⠛</span></td>
+</tr>
+<tr>
+<td>very</td>
+<td><span class="brl">⠧</span></td>
+<td>en/enough</td>
+<td><span class="brl">⠢</span></td>
+<td>name</td>
+<td><span class="brl">⠐⠝</span></td>
+<td>below</td>
+<td><span class="brl">⠆⠇</span></td>
+<td>perhaps</td>
+<td><span class="brl">⠏⠻⠓</span></td>
+</tr>
+<tr>
+<td>it</td>
+<td><span class="brl">⠭</span></td>
+<td>in</td>
+<td><span class="brl">⠔</span></td>
+<td>one</td>
+<td><span class="brl">⠐⠕</span></td>
+<td>beneath</td>
+<td><span class="brl">⠆⠝</span></td>
+<td>quick</td>
+<td><span class="brl">⠟⠅</span></td>
+</tr>
+<tr>
+<td>you</td>
+<td><span class="brl">⠽</span></td>
+<td>dis</td>
+<td><span class="brl">⠲</span></td>
+<td>part</td>
+<td><span class="brl">⠐⠏</span></td>
+<td>beside</td>
+<td><span class="brl">⠆⠎</span></td>
+<td>receive</td>
+<td><span class="brl">⠗⠉⠧</span></td>
+</tr>
+<tr>
+<td>as</td>
+<td><span class="brl">⠵</span></td>
+<td>his</td>
+<td><span class="brl">⠦</span></td>
+<td>question</td>
+<td><span class="brl">⠐⠟</span></td>
+<td>between</td>
+<td><span class="brl">⠆⠞</span></td>
+<td>receiving</td>
+<td><span class="brl">⠗⠉⠧⠛</span></td>
+</tr>
+<tr>
+<td>will</td>
+<td><span class="brl">⠺</span></td>
+<td>was</td>
+<td><span class="brl">⠴</span></td>
+<td>right</td>
+<td><span class="brl">⠐⠗</span></td>
+<td>beyond</td>
+<td><span class="brl">⠆⠽</span></td>
+<td>rejoice</td>
+<td><span class="brl">⠗⠚⠉</span></td>
+</tr>
+<tr>
+<td colspan="2">Strong C</td>
+<td colspan="2">Final-Latter C</td>
+<td>some</td>
+<td><span class="brl">⠐⠎</span></td>
+<td>blind</td>
+<td><span class="brl">⠃⠇</span></td>
+<td>rejoicing</td>
+<td><span class="brl">⠗⠚⠉⠛</span></td>
+</tr>
+<tr>
+<td>and</td>
+<td><span class="brl">⠯</span></td>
+<td>ound</td>
+<td><span class="brl">⠨⠙</span></td>
+<td>time</td>
+<td><span class="brl">⠐⠞</span></td>
+<td>braille</td>
+<td><span class="brl">⠃⠗⠇</span></td>
+<td>said</td>
+<td><span class="brl">⠎⠙</span></td>
+</tr>
+<tr>
+<td>for</td>
+<td><span class="brl">⠿</span></td>
+<td>ance</td>
+<td><span class="brl">⠨⠑</span></td>
+<td>under</td>
+<td><span class="brl">⠐⠥</span></td>
+<td>children</td>
+<td><span class="brl">⠡⠝</span></td>
+<td>should</td>
+<td><span class="brl">⠩⠙</span></td>
+</tr>
+<tr>
+<td>of</td>
+<td><span class="brl">⠷</span></td>
+<td>sion</td>
+<td><span class="brl">⠨⠝</span></td>
+<td>young</td>
+<td><span class="brl">⠐⠽</span></td>
+<td>conceive</td>
+<td><span class="brl">⠒⠉⠧</span></td>
+<td>such</td>
+<td><span class="brl">⠎⠡</span></td>
+</tr>
+<tr>
+<td>the</td>
+<td><span class="brl">⠮</span></td>
+<td>less</td>
+<td><span class="brl">⠨⠎</span></td>
+<td>there</td>
+<td><span class="brl">⠐⠮</span></td>
+<td>conceiving</td>
+<td><span class="brl">⠒⠉⠧⠛</span></td>
+<td>themselves</td>
+<td><span class="brl">⠮⠍⠧⠎</span></td>
+</tr>
+<tr>
+<td>with</td>
+<td><span class="brl">⠾</span></td>
+<td>ount</td>
+<td><span class="brl">⠨⠞</span></td>
+<td>character</td>
+<td><span class="brl">⠐⠡</span></td>
+<td>could</td>
+<td><span class="brl">⠉⠙</span></td>
+<td>thyself</td>
+<td><span class="brl">⠹⠽⠋</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ence</td>
+<td><span class="brl">⠰⠑</span></td>
+<td>through</td>
+<td><span class="brl">⠐⠹</span></td>
+<td>declare</td>
+<td><span class="brl">⠙⠉⠇</span></td>
+<td>today</td>
+<td><span class="brl">⠞⠙</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ong</td>
+<td><span class="brl">⠰⠛</span></td>
+<td>where</td>
+<td><span class="brl">⠐⠱</span></td>
+<td>declaring</td>
+<td><span class="brl">⠙⠉⠇⠛</span></td>
+<td>together</td>
+<td><span class="brl">⠞⠛⠗</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ful</td>
+<td><span class="brl">⠰⠇</span></td>
+<td>ought</td>
+<td><span class="brl">⠐⠳</span></td>
+<td>deceive</td>
+<td><span class="brl">⠙⠉⠧</span></td>
+<td>tomorrow</td>
+<td><span class="brl">⠞⠍</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>tion</td>
+<td><span class="brl">⠰⠝</span></td>
+<td>work</td>
+<td><span class="brl">⠐⠺</span></td>
+<td>deceiving</td>
+<td><span class="brl">⠙⠉⠧⠛</span></td>
+<td>tonight</td>
+<td><span class="brl">⠞⠝</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ness</td>
+<td><span class="brl">⠰⠎</span></td>
+<td></td>
+<td></td>
+<td>either</td>
+<td><span class="brl">⠑⠊</span></td>
+<td>would</td>
+<td><span class="brl">⠺⠙</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ment</td>
+<td><span class="brl">⠰⠞</span></td>
+<td></td>
+<td></td>
+<td>first</td>
+<td><span class="brl">⠋⠌</span></td>
+<td>your</td>
+<td><span class="brl">⠽⠗</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ity</td>
+<td><span class="brl">⠰⠽</span></td>
+<td></td>
+<td></td>
+<td>friend</td>
+<td><span class="brl">⠋⠗</span></td>
+<td>yourself</td>
+<td><span class="brl">⠽⠗⠋</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>good</td>
+<td><span class="brl">⠛⠙</span></td>
+<td>yourselves</td>
+<td><span class="brl">⠽⠗⠧⠎</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>great</td>
+<td><span class="brl">⠛⠗⠞</span></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="版權頁">版權頁</h2>
+<p>書　　名：UEB 學習手冊</p>
+<p>作　　者：黃偉豪, 陳英廷</p>
+<p>出　　版：黃偉豪</p>
+<p>出版日期：2025年7月</p>
+<p>ISBN 978-626-01-4470-8 (PDF)</p>
+<p>© 2025 黃偉豪, 陳英廷 版權所有</p>
+<p>All Rights Reserved.</p>
+<p>本書為作者自費出版之電子書，未經著作權人書面授權，不得以任何形式重製、改作、公開發表、轉載、轉售或用於商業用途。</p>
+<p>本書網址： <a href="https://class.kh.edu.tw/19061/bulletin/msg_view/1039" target="_blank" rel="noopener">https://class.kh.edu.tw/19061/bulletin/msg_view/1039</a></p>
+<p>Email：hurt.nzszmr@gmail.com</p>
+
+</main>
+<script>
+// SimBraille：把 Unicode 點字換成北美 ASCII 點字，用 SimBraille 字型顯示（跟 Word 的 ASCII+SimBraille 版一樣）；各教材共用，記在這台電腦
+(function () {
+  const ASC = ' A1B\'K2L@CIF/MSP"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)=';
+  const box = document.getElementById('simbrl'), spans = document.querySelectorAll('.brl');
+  spans.forEach(s => { s.dataset.u = s.textContent; });
+  function apply(on) {
+    document.documentElement.classList.toggle('simbrl', on);
+    spans.forEach(s => { s.textContent = on ? [...s.dataset.u].map(c => ASC[c.codePointAt(0) - 0x2800]).join('') : s.dataset.u; });
+  }
+  let on = false;
+  try { on = localStorage.getItem('vitools-book-simbrl') === '1'; } catch (e) {}
+  box.checked = on; if (on) apply(true);
+  box.addEventListener('change', () => { apply(box.checked); try { localStorage.setItem('vitools-book-simbrl', box.checked ? '1' : '0'); } catch (e) {} });
+})();
+</script>
+</body>
+</html>

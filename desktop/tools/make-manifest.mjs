@@ -32,13 +32,14 @@ export function repoFiles(root) {
   for (const name of readdirSync(root)) {
     const p = join(root, name);
     if (!statSync(p).isFile() || /^reg-/i.test(name)) continue;
-    if (/\.(html|htm|js|json|ttf)$/i.test(name)) list.push(['web/' + name, p]);
+    if (/\.(html|htm|js|json|ttf|jpg)$/i.test(name)) list.push(['web/' + name, p]);
   }
   for (const sub of ['table', 'mathcat']) for (const f of walk(join(root, sub))) list.push([`web/${sub}/${f}`, join(root, sub, f)]);
   for (const f of walk(join(root, 'music'))) {
     if (/^tests\//.test(f) || f === 'README.md' || f === '.gitignore') continue;
     list.push([`web/music/${f}`, join(root, 'music', f)]);
   }
+  for (const f of walk(join(root, 'abacus'))) list.push([`web/abacus/${f}`, join(root, 'abacus', f)]);
   for (const f of walk(join(root, 'desktop', 'desktop-assets'))) list.push([`desktop-assets/${f}`, join(root, 'desktop', 'desktop-assets', f)]);
   return list;
 }

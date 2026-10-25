@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 這個檔案由 tools/build-books.mjs 產生，不要直接改 -->
+<title>點字教材</title>
+<script src="music/js/theme.js"></script>
+<style>
+@font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--brl:#7a3e00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--brl:#f0b070}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.7 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.6rem;margin:8px 0 4px}
+h2{font-size:1.35rem;margin:40px 0 8px;padding-top:12px;border-top:2px solid var(--line)}
+h3{font-size:1.15rem;margin:28px 0 6px}
+h4{font-size:1rem;margin:20px 0 4px}
+.lead{color:var(--muted);margin:0 0 12px}
+.bar{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin:0 0 8px;font-size:.95rem}
+.bar label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.scroll{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;background:var(--card)}
+th,td{border:1px solid var(--line);padding:4px 10px;text-align:left;vertical-align:top}
+.brl{color:var(--brl);font-size:1.15em;letter-spacing:.05em;word-break:break-all}
+td .brl,th .brl{white-space:nowrap;word-break:normal}
+html.simbrl .brl{font-family:'SimBraille';font-size:1.4em;letter-spacing:0}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 16px;margin:12px 0}
+nav.toc>ul{margin:0;padding-left:1.2em}
+nav.toc ul ul{font-size:.92rem;columns:2 14em;margin:2px 0 8px}
+hr{display:none}
+img.cover{display:block;max-width:100%;height:auto;margin:8px 0;border-radius:6px}
+code{font-family:Consolas,monospace}
+</style>
+</head>
+<body>
+<main>
+<h1>點字教材</h1>
+<p class="lead">每本教材的章、節都是標題，NVDA 可以用標題鍵跳讀；點字可以用點顯器摸讀，頁首也可以切換成 SimBraille 字型顯示。</p>
+<h2><a href="zhuyin-braille-rules.html">台灣注音點字規則整理</a></h2>
+<p>國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號。標點符號的名稱、說明引用教育部《重訂標點符號手冊》，點字依教育部《點字符號彙編 國語點字》，彙編沒有定義的符號另外提出建議。原載視覺障礙輔助科技筆記本（<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/75" target="_blank" rel="noopener">聲韻調、拼法</a>、<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/77" target="_blank" rel="noopener">標點符號</a>）。</p>
+<h2><a href="nemeth-book.html">Nemeth 數理點字教材</a></h2>
+<p>依 108 課綱與 Nemeth 2022 規則編寫，國小到高中的數學，加上化學、物理公式。例子的點字都由數學點字工具產生，再跟規則書的範例核對。這份教材也分章發布在<a href="https://class.kh.edu.tw/19061/page/view/17#Nemeth" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>。</p>
+<h2><a href="ueb-book.html">UEB 學習手冊</a></h2>
+<p>給初學者的統一英文點字（UEB）手冊：第一部分是英文字母、數字、大寫、標點符號和簡寫字，第二部分是各類縮寫，最後是綜合練習、相關輔助科技和縮寫快速查詢表。作者黃偉豪、陳英廷，PDF 版見<a href="https://class.kh.edu.tw/19061/bulletin/msg_view/1039" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>。</p>
+<h2><a href="music/rules.html">音樂點字</a></h2>
+<p>點字樂譜規則對照，依 BANA《Music Braille Code, 2015》：音符與時值、音層記號、音程與和弦，到歌曲（歌詞）、多聲部分譜、合奏總譜、人聲伴奏與合唱總譜。每條規則附可以修改的 ABC 例子，點字和五線譜跟著變。</p>
+</main>
+</body>
+</html>
