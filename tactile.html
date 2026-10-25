@@ -77,12 +77,14 @@
   .lb input.manual { border-color: var(--warn); }
   .lb button { padding: 0 6px; }
   details summary { cursor: pointer; color: var(--muted); }
-  #alignOps { position: relative; display: inline-block; }
-  #alignOps summary { list-style: none; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--text); }
-  #alignOps summary::-webkit-details-marker { display: none; }
-  #alignOps.off summary { opacity: .45; cursor: default; }
-  #alignOps .menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: grid; grid-template-columns: repeat(3, auto); gap: 4px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-  #alignOps .menu button { white-space: nowrap; text-align: left; }
+  /* 工具列的下拉選單（翻轉／旋轉、對齊）：點一個就套用並收起 */
+  .dd { position: relative; display: inline-block; }
+  .dd summary { list-style: none; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--text); }
+  .dd summary::-webkit-details-marker { display: none; }
+  .dd.off summary { opacity: .45; cursor: default; }
+  .dd .menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: grid; grid-template-columns: repeat(3, auto); gap: 4px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  #xformOps .menu { grid-template-columns: auto; }
+  .dd .menu button { white-space: nowrap; text-align: left; }
   kbd { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 12px; background: var(--kbd); }
 </style>
 </head>
@@ -168,12 +170,17 @@
       </select>
       <button id="btnUndo" title="Ctrl+Z">復原</button>
       <span id="selOps" hidden>
-        <button id="opFlipH" title="左右翻轉">↔ 翻轉</button>
-        <button id="opFlipV" title="上下翻轉">↕ 翻轉</button>
-        <button id="opRot" title="順時針旋轉 90°">⟳ 90°</button>
+        <details id="xformOps" class="dd" title="框選的範圍或點選的圖形、標籤一起翻轉、旋轉（點字不翻轉，只搬位置）">
+          <summary>翻轉／旋轉 ▾</summary>
+          <div class="menu">
+            <button id="opFlipH">↔ 左右翻轉</button>
+            <button id="opFlipV">↕ 上下翻轉</button>
+            <button id="opRot">⟳ 順時針旋轉 90°</button>
+          </div>
+        </details>
         <button id="opCopy" title="複製（Ctrl+C）">複製</button>
         <button id="opPaste" title="貼上（Ctrl+V）">貼上</button>
-        <details id="alignOps" title="選兩個以上對齊彼此；只選一個時對齊圖形範圍，置中放到頁面正中">
+        <details id="alignOps" class="dd" title="選兩個以上對齊彼此；只選一個時對齊圖形範圍，置中放到頁面正中">
           <summary>對齊 ▾</summary>
           <div class="menu">
             <button data-align="left">⇤ 靠左</button>
@@ -2013,6 +2020,8 @@
       b.disabled = /dist$/.test(b.dataset.align) ? selItems.length < 3 : !selItems.length;
     $('#alignOps').classList.toggle('off', !selItems.length);
     if (!selItems.length) $('#alignOps').open = false;
+    $('#xformOps').classList.toggle('off', !selBox && !selItems.length);
+    if (!selBox && !selItems.length) $('#xformOps').open = false;
     $('#opFlatten').disabled = !selItems.some(it => !isLabelItem(it));
   }
 
@@ -2544,9 +2553,11 @@
     if (!selBox) return;
     editStart(pg); fn(); applyFloat(); drawEditor(); updateThumb();
   };
-  $('#opFlipH').onclick = selOp(() => flipFloat(true), 'h');
-  $('#opFlipV').onclick = selOp(() => flipFloat(false), 'v');
-  $('#opRot').onclick = selOp(rotateFloat, 'r');
+  const closeMenu = id => { $(id).open = false; $(id + ' summary').focus(); };
+  const xform = (fn, kind) => { const op = selOp(fn, kind); return () => { op(); closeMenu('#xformOps'); }; };
+  $('#opFlipH').onclick = xform(() => flipFloat(true), 'h');
+  $('#opFlipV').onclick = xform(() => flipFloat(false), 'v');
+  $('#opRot').onclick = xform(rotateFloat, 'r');
   $('#opCopy').onclick = () => {
     const pg = pages[cur]; if (!pg) return;
     if (selBox) copySelection(pg); else if (selItems.length) copyItems(pg); else return;
@@ -2563,13 +2574,19 @@
   for (const b of document.querySelectorAll('#alignOps [data-align]')) b.onclick = () => {
     const pg = pages[cur]; if (!pg || !selItems.length) return;
     pushUndo(pg); alignItems(selItems, b.dataset.align);
-    $('#alignOps').open = false; $('#alignOps summary').focus();
+    closeMenu('#alignOps');
     itemsChanged();
   };
-  // 對齊選單：沒選東西時不展開；點選單外面或按 Esc 收起
-  $('#alignOps summary').addEventListener('click', e => { if (!selItems.length) e.preventDefault(); });
-  document.addEventListener('pointerdown', e => { if (!e.target.closest('#alignOps')) $('#alignOps').open = false; });
-  $('#alignOps').addEventListener('keydown', e => { if (e.key === 'Escape' && $('#alignOps').open) { e.stopPropagation(); $('#alignOps').open = false; $('#alignOps summary').focus(); } });
+  // 下拉選單：沒選東西時不展開；一次只開一個；點選單外面或按 Esc 收起
+  for (const dd of document.querySelectorAll('details.dd')) {
+    const id = '#' + dd.id;
+    dd.querySelector('summary').addEventListener('click', e => {
+      if (dd.classList.contains('off')) { e.preventDefault(); return; }
+      for (const o of document.querySelectorAll('details.dd')) if (o !== dd) o.open = false;
+    });
+    dd.addEventListener('keydown', e => { if (e.key === 'Escape' && dd.open) { e.stopPropagation(); closeMenu(id); } });
+  }
+  document.addEventListener('pointerdown', e => { for (const dd of document.querySelectorAll('details.dd')) if (!dd.contains(e.target)) dd.open = false; });
   $('#opFlatten').onclick = () => {
     const pg = pages[cur]; if (!pg) return;
     const objs = selItems.filter(it => !isLabelItem(it)); if (!objs.length) return;
