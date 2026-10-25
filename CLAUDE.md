@@ -118,10 +118,8 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 - 內部 codename（bt/b2t/nc/p2a/query）僅保留於 HTML id（`tab-bt`、`frame-bt` 等），不出現在 UI 文字
 - 📄 🔍 為 emoji，字型渲染比 → ← π 略大，使用者確認「維持現狀」
 
-### 導覽列順序（index.html）
-主頁 → →文字轉點字 → ←點字轉文字 → π數學點字 → 📄文件整理 → ♪點字樂譜 → ✋觸摸圖 → 📖說明
-
-次要工具不佔導覽列，只在首頁內容區放卡片（2026-10-23 起）：🔍UEB 查詢（`frame-gq`，`#query`）、🧮珠算練習（`frame-abacus`，`#abacus`）。iframe 沒有對應的分頁，用 `aria-label` 命名；網址 hash 照常可直接開啟
+### 導覽列（index.html）
+兩排頁籤，第一排分組、第二排該組的工具（2026-10-25 起），細節見 `docs/notes/home-groups.md`。新增工具：在分組的 `.subbar` 加頁籤、首頁該組加卡片、`HASH_MAP` 加網址。
 
 ### 說明頁（guide.html）
 - 新增 `guide.html`，以 iframe 嵌入 index.html 的「說明」tab（`frame-guide`，hash `guide`）

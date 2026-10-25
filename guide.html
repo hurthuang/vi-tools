@@ -217,16 +217,22 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#common-speech" class="sub">🔊 報讀（朗讀）</a>
   </div>
   <div class="sidebar-group">
-    <div class="sidebar-heading">各工具說明</div>
+    <div class="sidebar-heading">點字轉換</div>
     <a href="#bt">→ 文字轉點字</a>
     <a href="#b2t">← 點字轉文字</a>
     <a href="#nc">π 數學點字</a>
-    <a href="#p2a">📄 文件整理</a>
-    <a href="#query">🔍 UEB 查詢</a>
     <a href="#music">♪ 點字樂譜</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-heading">教材製作</div>
+    <a href="#p2a">📄 文件整理</a>
     <a href="#tactile">✋ 觸摸圖</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-heading">學習與查詢</div>
+    <a href="#query">🔍 UEB 查詢</a>
     <a href="#abacus">🧮 珠算練習</a>
-    <a href="#books">📘 點字教材</a>
+    <a href="#books">📚 點字教材</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">桌面版</div>
@@ -239,13 +245,16 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <!-- ════════════ 工具總覽 ════════════ -->
 <section id="overview">
   <h2 class="section-title">工具總覽</h2>
-  <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。以下六項工具主要供視障教育教師製作教材使用。</p>
+  <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。</p>
+  <p>工具分成三組。首頁上方第一排頁籤是組別：主頁、點字轉換、教材製作、學習與查詢、說明；選了組別，第二排是這一組的工具。頁籤用左右方向鍵切換，Tab 鍵從第一排移到第二排。每組會記得上次用的工具，再點組別就回到那個工具。首頁也依組別列出各工具的卡片，可以用 NVDA 的標題鍵（H）在組別之間跳。</p>
+  <p>各工具的網址不變，例如 <code>#math</code> 直接開數學點字、<code>#abacus</code> 直接開珠算練習，已經分享出去的連結都可以用。</p>
   <p>另有 <a href="#app">Windows 桌面版</a>，可在沒有網路時使用，並能把朗讀內容存成 MP3 音檔。</p>
   <table class="ov-table">
     <thead>
       <tr><th>工具</th><th>用途</th><th>典型使用情境</th></tr>
     </thead>
     <tbody>
+      <tr><th colspan="3" scope="colgroup">點字轉換</th></tr>
       <tr>
         <td>→ 文字轉點字</td>
         <td>文字 → 點字（UEB／注音）</td>
@@ -262,24 +271,46 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <td>製作數學點字或電子文件</td>
       </tr>
       <tr>
+        <td>♪ 點字樂譜轉換</td>
+        <td>ABC／MusicXML ↔ 音樂點字（BANA）</td>
+        <td>把五線譜轉成點字樂譜、檢查點字樂譜、製作點字對照學習單</td>
+      </tr>
+      <tr><th colspan="3" scope="colgroup">教材製作</th></tr>
+      <tr>
         <td>📄 文件整理</td>
         <td>PDF／文件 → 螢幕報讀用純文字</td>
         <td>整理考試卷 PDF，供視障學生以報讀軟體閱讀</td>
       </tr>
+      <tr>
+        <td>✋ 觸摸圖</td>
+        <td>PDF／Word／截圖 → ViewPlus Tiger 觸摸圖（.prn）</td>
+        <td>把試題的幾何圖形做成觸摸圖，標籤自動轉點字</td>
+      </tr>
+      <tr><th colspan="3" scope="colgroup">學習與查詢</th></tr>
       <tr>
         <td>🔍 UEB 查詢</td>
         <td>UEB G2 縮寫規則查詢</td>
         <td>查詢單一英文詞的 G2 點字及所用規則，供教學參考</td>
       </tr>
       <tr>
-        <td>♪ 點字樂譜</td>
-        <td>ABC／MusicXML ↔ 音樂點字（BANA）</td>
-        <td>把五線譜轉成點字樂譜、檢查點字樂譜、製作點字對照學習單</td>
+        <td>🎼 點字樂譜規則</td>
+        <td>音樂點字規則對照，附可修改的例子</td>
+        <td>備課、教學生認識點字樂譜</td>
       </tr>
       <tr>
-        <td>✋ 觸摸圖</td>
-        <td>PDF／Word／截圖 → ViewPlus Tiger 觸摸圖（.prn）</td>
-        <td>把試題的幾何圖形做成觸摸圖，標籤自動轉點字</td>
+        <td>🎹 點字樂譜練習</td>
+        <td>學生打點字樂譜，邊打邊聽</td>
+        <td>學生練習寫點字樂譜、存檔交作業</td>
+      </tr>
+      <tr>
+        <td>🧮 珠算練習</td>
+        <td>算盤分級練習，點顯器作答</td>
+        <td>盲生用算盤代替直式計算</td>
+      </tr>
+      <tr>
+        <td>📚 點字教材</td>
+        <td>數理點字、注音點字、UEB 三本教材網頁版</td>
+        <td>查點字規則、教學參考</td>
       </tr>
     </tbody>
   </table>
@@ -486,6 +517,110 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 </section>
 
 
+<!-- ════════════ 數學點字 ════════════ -->
+<section id="nc">
+  <h2 class="section-title">數學點字</h2>
+
+  <div class="tool-header" style="--tool-color:#f59e0b">
+    <div class="tool-icon">π</div>
+    <div>
+      <div class="tool-hname">數學點字 <span class="tool-hfile">nemeth_converter.html</span></div>
+      <div class="tool-hdesc">LaTeX 數學式與 Nemeth 點字雙向轉換，支援分數、根號、上下標、矩陣、希臘字母等結構，提供即時 MathJax 預覽，涵蓋台灣 108 課綱數學符號。</div>
+      <div class="tool-tags">
+        <span class="tag">LaTeX → Nemeth</span>
+        <span class="tag">Nemeth → LaTeX</span>
+        <span class="tag">MathJax 預覽</span>
+        <span class="tag">108 課綱符號</span>
+        <span class="tag">數學編輯器</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>LaTeX → Nemeth（正向轉換）</h3>
+  <p>在左側輸入含 LaTeX 數學式的文件，數學式以 <code>\( \)</code> 包住（行中式）或 <code>$$ $$</code>（獨立式）：</p>
+  <pre>設 \(\overline{AB}\perp\overline{CD}\)，則 \(\angle ABC=90^\circ\)。</pre>
+  <ul>
+    <li>右側即時顯示 MathJax 算式預覽（可驗證 LaTeX 語法）。</li>
+    <li>下方的 Nemeth 輸出預設收合，按「▶ 展開」顯示；可選 Unicode 或 ASCII+SimBraille 格式。收合時照樣可以複製、儲存。</li>
+    <li>三個面板可同步捲動（勾選「同步」）。</li>
+    <li>「<b>標示數字</b>」：自動掃描文件，將獨立出現的數字加上 <code>\( \)</code> 標示，免去逐一手動標記。</li>
+    <li>點擊「<b>複製</b>」將 Nemeth 輸出複製到剪貼簿。</li>
+  </ul>
+
+  <h3>Nemeth → LaTeX（反向轉換）</h3>
+  <p>切換到「Nemeth → LaTeX」頁籤，貼入 Unicode Nemeth 點字，即時還原為 LaTeX 語法。可搭配六點鍵盤輸入面板（<kbd>Ctrl</kbd>+<kbd>B</kbd>）逐格輸入。LaTeX 輸出預設收合，按「▶ 展開」顯示。</p>
+
+  <h3>報讀</h3>
+  <p>兩個方向都有「🔊 報讀」，把數學式轉成口語念出來，方便確認算式有沒有打錯，見<a href="#common-speech">報讀（朗讀）</a>。數學式要用 <code>\( \)</code> 或 <code>$ $</code> 包住。</p>
+
+  <h3>數學編輯器</h3>
+  <p>點擊「📝 數學編輯器」開啟獨立視窗，提供圖形化介面輸入分數、根號、矩陣等結構，並支援 MathML 輸出。編輯完成後按「✓ 套用到轉換器」帶入輸入框。</p>
+
+  <h3>108 課綱符號對照表</h3>
+  <p>頁面底部列出台灣 108 課綱高中數學常用符號的 LaTeX 指令與對應 Nemeth 碼對照，可直接作為輸入參考。</p>
+
+  <h3>儲存</h3>
+  <ul>
+    <li><b>存 Nemeth</b>：Nemeth 輸出儲存為 .txt 檔。</li>
+    <li><b>存 LaTeX</b>：LaTeX 文件儲存為 .txt 檔。</li>
+    <li><b>存預覽</b>：MathJax 預覽儲存為 HTML，可在瀏覽器中查閱算式。</li>
+  </ul>
+</section>
+
+
+<!-- ════════════ 點字樂譜 ════════════ -->
+<section id="music">
+  <h2 class="section-title">點字樂譜</h2>
+
+  <div class="tool-header" style="--tool-color:#60a5fa">
+    <div class="tool-icon">♪</div>
+    <div>
+      <div class="tool-hname">點字樂譜 <span class="tool-hfile">music/index.html</span></div>
+      <div class="tool-hdesc">ABC 記譜、MusicXML 與音樂點字雙向轉換，依據 BANA《Music Braille Code, 2015》。同時顯示五線譜，可播放、朗讀，三邊同步標示同一個音。</div>
+      <div class="tool-tags">
+        <span class="tag">ABC ↔ 點字</span>
+        <span class="tag">MusicXML</span>
+        <span class="tag">鋼琴雙手</span>
+        <span class="tag">歌詞（國語點字）</span>
+        <span class="tag">點字對照</span>
+        <span class="tag">規則對照頁</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>輸入與轉換</h3>
+  <ul>
+    <li>左邊輸入 ABC 記譜，右邊自動產生點字樂譜；在右邊輸入或修改點字（Unicode 或 BRF），左邊自動產生 ABC。</li>
+    <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、.mxl）、ABC 與 .brf。</li>
+    <li>點字區可用六點鍵盤輸入，預設開啟（F D S J K L）。</li>
+    <li>單聲部轉成單行格式；兩個聲部視為鋼琴右手、左手，轉成上下對齊（bar-over-bar）格式。點字分行預設跟隨 ABC 換行，每一行是一段，開頭寫小節編號。</li>
+    <li>歌曲的歌詞用國語點字，排成一行歌詞、一行音樂的格式。</li>
+    <li>不支援或可能有誤的內容，會在「轉換訊息」列出。</li>
+  </ul>
+
+  <h3>五線譜預覽與點字對照</h3>
+  <ul>
+    <li>點五線譜上的音，或在任一編輯區移動游標，三邊會同步標示同一個音。</li>
+    <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數。可匯出 SVG、PNG 或列印，適合製作學習單。</li>
+  </ul>
+
+  <h3>播放與報讀</h3>
+  <ul>
+    <li>播放依反覆、房號、D.C.、D.S. 的實際演奏順序；可調整速度。</li>
+    <li>「輸入時播放音符」「移動游標時播放音符」：輸入或逐音檢查時聽到音高，可選只播游標所在聲部或同一時間所有聲部。</li>
+    <li>使用報讀軟體時，在任一編輯區移動游標，會報出該音的小節、時值、音高與點位。「🔊 全曲報讀」把整首曲子轉成文字描述。</li>
+  </ul>
+
+  <h3>快速鍵</h3>
+  <ul>
+    <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>：從游標所在的音開始播放，播放時游標跟著移動；再按一次或按 <kbd>Esc</kbd> 停止。</li>
+  </ul>
+
+  <h3>規則對照與學生練習</h3>
+  <p>「點字樂譜規則」頁依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字。「點字樂譜練習」是學生版，學生打點字樂譜，每打一個音就聽到它，寫好可以播放、存檔、匯出 MusicXML。這兩頁在「學習與查詢」這一組（<code>#music-rules</code>、<code>#music-student</code>），轉換器頁首也有連結。</p>
+</section>
+
+
 <!-- ════════════ 文件整理 ════════════ -->
 <section id="p2a">
   <h2 class="section-title">文件整理</h2>
@@ -558,53 +693,60 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 </section>
 
 
-<!-- ════════════ 數學點字 ════════════ -->
-<section id="nc">
-  <h2 class="section-title">數學點字</h2>
+<section id="tactile">
+  <h2 class="section-title">觸摸圖（測試版）</h2>
 
-  <div class="tool-header" style="--tool-color:#f59e0b">
-    <div class="tool-icon">π</div>
+  <div class="tool-header" style="--tool-color:#34d399">
+    <div class="tool-icon">✋</div>
     <div>
-      <div class="tool-hname">數學點字 <span class="tool-hfile">nemeth_converter.html</span></div>
-      <div class="tool-hdesc">LaTeX 數學式與 Nemeth 點字雙向轉換，支援分數、根號、上下標、矩陣、希臘字母等結構，提供即時 MathJax 預覽，涵蓋台灣 108 課綱數學符號。</div>
+      <div class="tool-hname">觸摸圖 <span class="tool-hfile">tactile.html</span></div>
+      <div class="tool-hdesc">從試題 PDF、Word（.docx）或截圖框選圖形，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn，3D Emboss，20 dpi）。取代「截圖貼到 Word → 用 ViewPlus 驅動程式印成 .prn → 在 Tiger Designer 調線條、加點字」的流程；匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印。</div>
       <div class="tool-tags">
-        <span class="tag">LaTeX → Nemeth</span>
-        <span class="tag">Nemeth → LaTeX</span>
-        <span class="tag">MathJax 預覽</span>
-        <span class="tag">108 課綱符號</span>
-        <span class="tag">數學編輯器</span>
+        <span class="tag">PDF 向量線條</span>
+        <span class="tag">標籤轉點字</span>
+        <span class="tag">網底轉填色</span>
+        <span class="tag">繪圖與紋理填色</span>
+        <span class="tag">描圖</span>
+        <span class="tag">多種紙張</span>
       </div>
     </div>
   </div>
 
-  <h3>LaTeX → Nemeth（正向轉換）</h3>
-  <p>在左側輸入含 LaTeX 數學式的文件，數學式以 <code>\( \)</code> 包住（行中式）或 <code>$$ $$</code>（獨立式）：</p>
-  <pre>設 \(\overline{AB}\perp\overline{CD}\)，則 \(\angle ABC=90^\circ\)。</pre>
+  <p>完整的操作說明與<b>會考圖的處理方式</b>（哪些圖做成觸摸圖、哪些改文字說明，等高線圖、人口金字塔、地層剖面等常見圖形怎麼處理）請看 <a href="tactile-help.html" target="_blank" rel="noopener">觸摸圖說明</a>，在觸摸圖頁面右上角的「❓ 說明」也可以打開。</p>
+
+  <h3>從 PDF 做觸摸圖</h3>
   <ul>
-    <li>右側即時顯示 MathJax 算式預覽（可驗證 LaTeX 語法）。</li>
-    <li>下方的 Nemeth 輸出預設收合，按「▶ 展開」顯示；可選 Unicode 或 ASCII+SimBraille 格式。收合時照樣可以複製、儲存。</li>
-    <li>三個面板可同步捲動（勾選「同步」）。</li>
-    <li>「<b>標示數字</b>」：自動掃描文件，將獨立出現的數字加上 <code>\( \)</code> 標示，免去逐一手動標記。</li>
-    <li>點擊「<b>複製</b>」將 Nemeth 輸出複製到剪貼簿。</li>
+    <li>「開啟」PDF、Word（.docx）、圖片或既有的 .prn，也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
+    <li>Word（.docx）會依文件順序取出裡面的圖片，一張圖當一頁。用 Word 圖案工具畫的圖、EMF／WMF 格式的圖讀不到（會提示數量），請在 Word「另存新檔」成 PDF 再開；存成 PDF 後線條是向量，品質也最好。舊版 .doc 不支援。</li>
+    <li>在左邊框選一張圖（連同 A、B、C 等標籤一起框），按「加入成新的一頁」或 <kbd>Enter</kbd>，每張圖一頁。換頁用 <kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd>、頁碼欄或上方的頁面縮圖；縮放用選單或 <kbd>Ctrl</kbd>+滾輪。</li>
+    <li>PDF 的線條是向量時，直接照原本的線畫，角與交點最準；框選範圍有圖片（掃描、貼上的圖）時改用點陣方式：線條細化成一點寬、拉直並修正尖角，灰色網底依深淺轉成不同的填色、粗的黑色色塊轉成黑色填色，圖片裡的字移除並在每個詞留一個空白標籤讓你填字；看起來是照片時會提醒改用文字描述。可在右邊「圖形轉換」切換方式、調整大小，再按「重新產生圖形」（標籤會保留）。</li>
+    <li>每頁第一行是點字標題，例如「選擇 4. 圖一」，國字照「文字轉點字」的規則轉注音點字（可勾選多音字補充規則）。</li>
   </ul>
 
-  <h3>Nemeth → LaTeX（反向轉換）</h3>
-  <p>切換到「Nemeth → LaTeX」頁籤，貼入 Unicode Nemeth 點字，即時還原為 LaTeX 語法。可搭配六點鍵盤輸入面板（<kbd>Ctrl</kbd>+<kbd>B</kbd>）逐格輸入。LaTeX 輸出預設收合，按「▶ 展開」顯示。</p>
-
-  <h3>報讀</h3>
-  <p>兩個方向都有「🔊 報讀」，把數學式轉成口語念出來，方便確認算式有沒有打錯，見<a href="#common-speech">報讀（朗讀）</a>。數學式要用 <code>\( \)</code> 或 <code>$ $</code> 包住。</p>
-
-  <h3>數學編輯器</h3>
-  <p>點擊「📝 數學編輯器」開啟獨立視窗，提供圖形化介面輸入分數、根號、矩陣等結構，並支援 MathML 輸出。編輯完成後按「✓ 套用到轉換器」帶入輸入框。</p>
-
-  <h3>108 課綱符號對照表</h3>
-  <p>頁面底部列出台灣 108 課綱高中數學常用符號的 LaTeX 指令與對應 Nemeth 碼對照，可直接作為輸入參考。</p>
-
-  <h3>儲存</h3>
+  <h3>標籤</h3>
   <ul>
-    <li><b>存 Nemeth</b>：Nemeth 輸出儲存為 .txt 檔。</li>
-    <li><b>存 LaTeX</b>：LaTeX 文件儲存為 .txt 檔。</li>
-    <li><b>存預覽</b>：MathJax 預覽儲存為 HTML，可在瀏覽器中查閱算式。</li>
+    <li>PDF 裡的 A、B、C、L₁ 等字母、數字（1921、500m、30°N）和短的中文詞（甲、砂岩）自動轉點字（字母加大寫記號，下標用下位數字），放在不壓到線的位置。PDF 裡轉成外框的字抓不到文字，會留空白標籤。</li>
+    <li>數字用下位數字；單獨的數字、以數字開頭的式子、等號或不等號後的數字前面加數字記號，例如 3 → ⠼⠒、2x+1 → ⠼⠆⠭⠬⠂。</li>
+    <li>「標籤」工具：拖曳移動、方向鍵微調、<kbd>Delete</kbd> 刪除；在「新增」欄輸入文字或點字後點圖上的位置加標籤。點字欄可以直接修改（橘框表示手動修改過），也可用六點輸入。</li>
+  </ul>
+
+  <h3>修改圖形</h3>
+  <ul>
+    <li>畫點、直線、箭頭、矩形、橢圓、橡皮擦共用「粗細」；勾「虛線」畫輔助線。直線、箭頭按 <kbd>Shift</kbd> 鎖定 0°／45°／90°，矩形變正方形、橢圓變正圓。</li>
+    <li>「選取」框起一塊後可拖曳搬移、方向鍵微調、<kbd>Delete</kbd> 刪除，框內的標籤一起處理。搬移時下面原有的線不受影響，點框外、換工具或按 <kbd>Esc</kbd> 才放下。</li>
+    <li>選取框四個角可以拖曳縮放（按住 <kbd>Shift</kbd> 維持比例）：線條會重新畫成乾淨的線、粗細不變，點字標籤大小不變、只跟著移動位置。工具列有左右翻轉、上下翻轉、旋轉 90°。</li>
+    <li>選取後 <kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>V</kbd> 複製、剪下、貼上（可以貼到別頁），<kbd>Ctrl</kbd>+<kbd>D</kbd> 原地複製一份。</li>
+    <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色，標籤保留；適合清掉點陣圖裡的字，再在原位置填點字標籤。</li>
+    <li>「填色」點在封閉區域裡：灰（高度較低的凸面）、黑（和線一樣高）、點狀、斜線、格線、白（清除）。紋理和外框線之間會留一點空隙。線有缺口時不會填。</li>
+    <li>勾「描圖」會在編輯區底下半透明顯示原圖，照著描或對照填空白標籤（原圖不會匯出）。</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原。</li>
+  </ul>
+
+  <h3>頁面、紙張與匯出</h3>
+  <ul>
+    <li>右邊的頁面清單可拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。</li>
+    <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
+    <li>「匯出 PRN」把所有頁面存成一個 .prn。這個工具還在測試中，<b>請先用 Tiger Designer 開啟檢查</b>再印。</li>
   </ul>
 </section>
 
@@ -675,117 +817,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 </section>
 
 
-<!-- ════════════ 點字樂譜 ════════════ -->
-<section id="music">
-  <h2 class="section-title">點字樂譜</h2>
-
-  <div class="tool-header" style="--tool-color:#60a5fa">
-    <div class="tool-icon">♪</div>
-    <div>
-      <div class="tool-hname">點字樂譜 <span class="tool-hfile">music/index.html</span></div>
-      <div class="tool-hdesc">ABC 記譜、MusicXML 與音樂點字雙向轉換，依據 BANA《Music Braille Code, 2015》。同時顯示五線譜，可播放、朗讀，三邊同步標示同一個音。</div>
-      <div class="tool-tags">
-        <span class="tag">ABC ↔ 點字</span>
-        <span class="tag">MusicXML</span>
-        <span class="tag">鋼琴雙手</span>
-        <span class="tag">歌詞（國語點字）</span>
-        <span class="tag">點字對照</span>
-        <span class="tag">規則對照頁</span>
-      </div>
-    </div>
-  </div>
-
-  <h3>輸入與轉換</h3>
-  <ul>
-    <li>左邊輸入 ABC 記譜，右邊自動產生點字樂譜；在右邊輸入或修改點字（Unicode 或 BRF），左邊自動產生 ABC。</li>
-    <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、.mxl）、ABC 與 .brf。</li>
-    <li>點字區可用六點鍵盤輸入，預設開啟（F D S J K L）。</li>
-    <li>單聲部轉成單行格式；兩個聲部視為鋼琴右手、左手，轉成上下對齊（bar-over-bar）格式。點字分行預設跟隨 ABC 換行，每一行是一段，開頭寫小節編號。</li>
-    <li>歌曲的歌詞用國語點字，排成一行歌詞、一行音樂的格式。</li>
-    <li>不支援或可能有誤的內容，會在「轉換訊息」列出。</li>
-  </ul>
-
-  <h3>五線譜預覽與點字對照</h3>
-  <ul>
-    <li>點五線譜上的音，或在任一編輯區移動游標，三邊會同步標示同一個音。</li>
-    <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數。可匯出 SVG、PNG 或列印，適合製作學習單。</li>
-  </ul>
-
-  <h3>播放與報讀</h3>
-  <ul>
-    <li>播放依反覆、房號、D.C.、D.S. 的實際演奏順序；可調整速度。</li>
-    <li>「輸入時播放音符」「移動游標時播放音符」：輸入或逐音檢查時聽到音高，可選只播游標所在聲部或同一時間所有聲部。</li>
-    <li>使用報讀軟體時，在任一編輯區移動游標，會報出該音的小節、時值、音高與點位。「🔊 全曲報讀」把整首曲子轉成文字描述。</li>
-  </ul>
-
-  <h3>快速鍵</h3>
-  <ul>
-    <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>：從游標所在的音開始播放，播放時游標跟著移動；再按一次或按 <kbd>Esc</kbd> 停止。</li>
-  </ul>
-
-  <h3>規則對照</h3>
-  <p>工具內的「點字樂譜規則對照」頁，依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字。</p>
-</section>
-
-
-<section id="tactile">
-  <h2 class="section-title">觸摸圖（測試版）</h2>
-
-  <div class="tool-header" style="--tool-color:#34d399">
-    <div class="tool-icon">✋</div>
-    <div>
-      <div class="tool-hname">觸摸圖 <span class="tool-hfile">tactile.html</span></div>
-      <div class="tool-hdesc">從試題 PDF、Word（.docx）或截圖框選圖形，做成 ViewPlus Tiger 點字印表機的觸摸圖（.prn，3D Emboss，20 dpi）。取代「截圖貼到 Word → 用 ViewPlus 驅動程式印成 .prn → 在 Tiger Designer 調線條、加點字」的流程；匯出的 .prn 可以先用 Tiger Designer 開啟檢查再印。</div>
-      <div class="tool-tags">
-        <span class="tag">PDF 向量線條</span>
-        <span class="tag">標籤轉點字</span>
-        <span class="tag">網底轉填色</span>
-        <span class="tag">繪圖與紋理填色</span>
-        <span class="tag">描圖</span>
-        <span class="tag">多種紙張</span>
-      </div>
-    </div>
-  </div>
-
-  <p>完整的操作說明與<b>會考圖的處理方式</b>（哪些圖做成觸摸圖、哪些改文字說明，等高線圖、人口金字塔、地層剖面等常見圖形怎麼處理）請看 <a href="tactile-help.html" target="_blank" rel="noopener">觸摸圖說明</a>，在觸摸圖頁面右上角的「❓ 說明」也可以打開。</p>
-
-  <h3>從 PDF 做觸摸圖</h3>
-  <ul>
-    <li>「開啟」PDF、Word（.docx）、圖片或既有的 .prn，也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
-    <li>Word（.docx）會依文件順序取出裡面的圖片，一張圖當一頁。用 Word 圖案工具畫的圖、EMF／WMF 格式的圖讀不到（會提示數量），請在 Word「另存新檔」成 PDF 再開；存成 PDF 後線條是向量，品質也最好。舊版 .doc 不支援。</li>
-    <li>在左邊框選一張圖（連同 A、B、C 等標籤一起框），按「加入成新的一頁」或 <kbd>Enter</kbd>，每張圖一頁。換頁用 <kbd>PgUp</kbd>／<kbd>PgDn</kbd>、<kbd>Home</kbd>／<kbd>End</kbd>、頁碼欄或上方的頁面縮圖；縮放用選單或 <kbd>Ctrl</kbd>+滾輪。</li>
-    <li>PDF 的線條是向量時，直接照原本的線畫，角與交點最準；框選範圍有圖片（掃描、貼上的圖）時改用點陣方式：線條細化成一點寬、拉直並修正尖角，灰色網底依深淺轉成不同的填色、粗的黑色色塊轉成黑色填色，圖片裡的字移除並在每個詞留一個空白標籤讓你填字；看起來是照片時會提醒改用文字描述。可在右邊「圖形轉換」切換方式、調整大小，再按「重新產生圖形」（標籤會保留）。</li>
-    <li>每頁第一行是點字標題，例如「選擇 4. 圖一」，國字照「文字轉點字」的規則轉注音點字（可勾選多音字補充規則）。</li>
-  </ul>
-
-  <h3>標籤</h3>
-  <ul>
-    <li>PDF 裡的 A、B、C、L₁ 等字母、數字（1921、500m、30°N）和短的中文詞（甲、砂岩）自動轉點字（字母加大寫記號，下標用下位數字），放在不壓到線的位置。PDF 裡轉成外框的字抓不到文字，會留空白標籤。</li>
-    <li>數字用下位數字；單獨的數字、以數字開頭的式子、等號或不等號後的數字前面加數字記號，例如 3 → ⠼⠒、2x+1 → ⠼⠆⠭⠬⠂。</li>
-    <li>「標籤」工具：拖曳移動、方向鍵微調、<kbd>Delete</kbd> 刪除；在「新增」欄輸入文字或點字後點圖上的位置加標籤。點字欄可以直接修改（橘框表示手動修改過），也可用六點輸入。</li>
-  </ul>
-
-  <h3>修改圖形</h3>
-  <ul>
-    <li>畫點、直線、箭頭、矩形、橢圓、橡皮擦共用「粗細」；勾「虛線」畫輔助線。直線、箭頭按 <kbd>Shift</kbd> 鎖定 0°／45°／90°，矩形變正方形、橢圓變正圓。</li>
-    <li>「選取」框起一塊後可拖曳搬移、方向鍵微調、<kbd>Delete</kbd> 刪除，框內的標籤一起處理。搬移時下面原有的線不受影響，點框外、換工具或按 <kbd>Esc</kbd> 才放下。</li>
-    <li>選取框四個角可以拖曳縮放（按住 <kbd>Shift</kbd> 維持比例）：線條會重新畫成乾淨的線、粗細不變，點字標籤大小不變、只跟著移動位置。工具列有左右翻轉、上下翻轉、旋轉 90°。</li>
-    <li>選取後 <kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>V</kbd> 複製、剪下、貼上（可以貼到別頁），<kbd>Ctrl</kbd>+<kbd>D</kbd> 原地複製一份。</li>
-    <li>「框選擦」拉出矩形，放開就清掉框內的線條與填色，標籤保留；適合清掉點陣圖裡的字，再在原位置填點字標籤。</li>
-    <li>「填色」點在封閉區域裡：灰（高度較低的凸面）、黑（和線一樣高）、點狀、斜線、格線、白（清除）。紋理和外框線之間會留一點空隙。線有缺口時不會填。</li>
-    <li>勾「描圖」會在編輯區底下半透明顯示原圖，照著描或對照填空白標籤（原圖不會匯出）。</li>
-    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原。</li>
-  </ul>
-
-  <h3>頁面、紙張與匯出</h3>
-  <ul>
-    <li>右邊的頁面清單可拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。</li>
-    <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
-    <li>「匯出 PRN」把所有頁面存成一個 .prn。這個工具還在測試中，<b>請先用 Tiger Designer 開啟檢查</b>再印。</li>
-  </ul>
-</section>
-
-
 <!-- ════════════ 珠算練習 ════════════ -->
 <section id="abacus">
   <h2 class="section-title">珠算練習</h2>
@@ -794,7 +825,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <div class="tool-icon">🧮</div>
     <div>
       <div class="tool-hname">珠算練習 <span class="tool-hfile">abacus/index.html</span></div>
-      <div class="tool-hdesc">給國小低年級盲生用算盤代替直式的分級練習。題目顯示在點顯器上，學生撥完算盤，用 Nemeth 打答案。首頁沒有分頁，從首頁的卡片進入，或直接開 <code>#abacus</code>。</div>
+      <div class="tool-hdesc">給國小低年級盲生用算盤代替直式的分級練習。題目顯示在點顯器上，學生撥完算盤，用 Nemeth 打答案。在「學習與查詢」這一組，或直接開 <code>#abacus</code>。</div>
       <div class="tool-tags">
         <span class="tag">補數分級</span>
         <span class="tag">點顯器作答</span>
@@ -830,7 +861,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
 <section id="books">
   <h2 class="section-title">點字教材</h2>
-  <p>三本教材的網頁版，從首頁的「點字教材」卡片進入（<code>#books</code>，先看到三本的列表），也可以直接開某一本：<code>#nemeth-book</code>、<code>#zhuyin-rules</code>、<code>#ueb-book</code>。每章、每節都是標題，NVDA 可以用標題鍵跳讀；開頭有目錄。點字是 Unicode，點顯器摸得到；頁首可以改用 SimBraille 字型顯示 ASCII 點字，給明眼老師對照（三本共用這個設定）。</p>
+  <p>三本教材的網頁版，在「學習與查詢」這一組（<code>#books</code>，先看到三本的列表），也可以直接開某一本：<code>#nemeth-book</code>、<code>#zhuyin-rules</code>、<code>#ueb-book</code>。每章、每節都是標題，NVDA 可以用標題鍵跳讀；開頭有目錄。點字是 Unicode，點顯器摸得到；頁首可以改用 SimBraille 字型顯示 ASCII 點字，給明眼老師對照（三本共用這個設定）。</p>
   <ul>
     <li><strong>數理點字教材</strong>（nemeth-book.html）：依 108 課綱與 Nemeth 2022 規則編寫，CH1～CH11 加附錄。算式用 MathJax 顯示，並附給報讀軟體的 MathML。</li>
     <li><strong>台灣注音點字規則整理</strong>（zhuyin-braille-rules.html）：聲韻調、拼法與換行；標點符號每個符號一個小標題，依序是點字、說明、點字規則。</li>
