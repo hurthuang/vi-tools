@@ -49,6 +49,10 @@ function optKey(line) {
     return m[1].length === 1 ? { type: 'circle', n: m[1].charCodeAt(0) - 0x2460 }
                              : { type: 'letter', n: m[1].charCodeAt(1) - 65 };
 }
+// 行首的選項標籤（(A)、①）、小題號 (1) 和內容之間補一個空格
+function spaceAfterOpt(text) {
+    return text.replace(/^(\([A-D]\)|[①-⑳]|\(\d{1,2}\))(?=\S)/gm, '$1 ');
+}
 
 function cleanExamText(text, opts) {
     opts = Object.assign({
@@ -57,16 +61,23 @@ function cleanExamText(text, opts) {
         optNewline:     true,
         sectionNewline: true,
         fixHyphen:      true,
+        paraIndent:     true,    // 段首縮排統一成兩個全形空白（點字段首空兩方）
+        rmSeparator:    true,    // 移除 ----- 分隔線
+        rmPageNum:      true,    // 移除只有頁碼的行
+        rmNotice:       true,    // 移除「(請接續下一張試題)」這類提示
+        rmHeader:       false,   // 移除抬頭（學校考試名稱、班級座號姓名欄）
     }, opts);
 
-    text = fixWordPlainText(text);
+    text = fixWordPlainText(text.replace(/\r\n?/g, '\n'));
 
     // ── 0a. 帶空格的選項括號正規化 ──
     text = text.replace(/[（(]\s*[Ａ]\s*[）)]/g,'(A)').replace(/[（(]\s*[Ｂ]\s*[）)]/g,'(B)')
                .replace(/[（(]\s*[Ｃ]\s*[）)]/g,'(C)').replace(/[（(]\s*[Ｄ]\s*[）)]/g,'(D)');
     text = text.replace(/[（(]\s*A\s*[）)]/g,'(A)').replace(/[（(]\s*B\s*[）)]/g,'(B)')
                .replace(/[（(]\s*C\s*[）)]/g,'(C)').replace(/[（(]\s*D\s*[）)]/g,'(D)');
-    text = text.replace(/（[\s　]{0,4}）\s*/g, '');
+    // 小題號 (１)、( ２) → (1)、(2)
+    text = text.replace(/[（(][ 　]*([0-9０-９]{1,2})[ 　]*[）)]/g,
+        (_, n) => '(' + n.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)) + ')');
 
     // ── 0b. 連字號斷字修復 ──
     if (opts.fixHyphen) {
@@ -80,10 +91,17 @@ function cleanExamText(text, opts) {
         inner.split('|').map(s => s.trim()).filter(Boolean).join('\t')
     );
 
-    // ── 2. 去掉答題括號 ──
-    if (opts.rmAns) {
-        text = text.replace(/（[\s　]{0,4}）\s*/g, '');
-        text = text.replace(/\(\s{0,4}\)\s*/g, '');
+    // ── 2. 作答括號與填空 ──
+    // 題號前後、行首的是作答括號：清除，或統一成「1. ( ) 題目」（題號在前，學生好找）；
+    // 句子中間的是填空（「我會（　　）」「請在（　）中打√」），一律統一成 ( )
+    {
+        const BLANK = '[（(][ \\t　]*[）)]';
+        const QNUM  = '(\\d{1,3}[ 　]*[\\.。、．]|\\(\\d{1,2}\\))';
+        const ans   = opts.rmAns ? '' : '( ) ';
+        text = text.replace(new RegExp(`(^|[ \\t　])${BLANK}[ \\t　]*${QNUM}[ \\t　]*`, 'gm'), (_, pre, q) => `${pre}${q} ${ans}`);
+        text = text.replace(new RegExp(`(^|[ \\t　])${QNUM}[ \\t　]*${BLANK}[ \\t　]*`, 'gm'), (_, pre, q) => `${pre}${q} ${ans}`);
+        text = text.replace(new RegExp(`^[ \\t　]*${BLANK}[ \\t　]*`, 'gm'), ans);
+        text = text.replace(new RegExp(BLANK, 'g'), '( )');
     }
 
     // ── 2b. 孤立題號與後續文字合併 ──
@@ -122,6 +140,18 @@ function cleanExamText(text, opts) {
         text = text.replace(/([^\n～~、和或至到])([①-⑳])(?![～~、和或至到])/g, '$1\n$2');
     }
 
+    // ── 3b. 段首縮排（閱讀測驗的段落）：行首有全形空白或兩個以上空白、夠長的內文，先做記號，最後換成兩個全形空白 ──
+    const PARA = '\u0003';
+    if (opts.paraIndent) {
+        text = text.split('\n').map(l => {
+            const m = /^(?:[ \t]*　[ \t　]*|[ \t]{2,})(\S.*)$/.exec(l);
+            if (!m || m[1].trim().length < 20) return l;
+            const t = m[1];
+            if (OPT_START_RE.test(t) || /^\d{1,3}\s*[\.。、]|^\(\d{1,2}\)|^[一二三四五六七八九十][、．]|^[★※【第]/.test(t)) return l;
+            return PARA + t;
+        }).join('\n');
+    }
+
     // ── 4. Tab、全形空格；行首尾去空白；行內多空格合一 ──
     text = text.replace(/\t/g, ' ').replace(/　/g, ' ');
     text = text.split('\n').map(l => l.trim().replace(/ {2,}/g, ' ')).join('\n');
@@ -129,8 +159,25 @@ function cleanExamText(text, opts) {
     // ── 4b. 題號後補空格 ──
     text = text.replace(/^(\d{1,3}\s*[\.。、])(?=\S)/gm, '$1 ');
 
-    // ── 4c. 選項標籤後補空格 ──
-    text = text.replace(/^(\([A-D]\))(?=\S)/gm, '$1 ');
+    // ── 4c. 選項標籤、小題號後補空格 ──
+    text = spaceAfterOpt(text);
+
+    // ── 4d. 雜項：分隔線、頁碼、「(請接續下一張試題)」、抬頭 ──
+    {
+        const SEP_CH = '\\-－—─━_＿=＝*＊~～';
+        const isSep = l => new RegExp(`^[${SEP_CH} ]*$`).test(l) && new RegExp(`[${SEP_CH}]{3}`).test(l);
+        const isPageNum = l => /^(?:[-－—]\s*)?\d{1,3}(?:\s*[-－—])?$|^\d{1,3}\s*\/\s*\d{1,3}$|^第\s*\d{1,3}\s*頁(?:\s*[,，/]?\s*共\s*\d{1,3}\s*頁)?$/.test(l);
+        const NOTICE = '請接續|請翻|翻面|背面|下一[頁張]|作答結束|試題結束|全卷完|本卷結束';
+        const isNotice = l => new RegExp(`^[(（][^()（）]{0,30}(?:${NOTICE})[^()（）]{0,30}[)）]$|^(?:${NOTICE})[^。]{0,15}[。！!]?$`).test(l);
+        const isHeader = l => l.length < 100 && !/[一二三四五六七八九十][、．]/.test(l) &&
+            ((/學年度/.test(l) && /評量|考|測驗/.test(l)) || /座號|家長簽章/.test(l) || (/姓\s*名/.test(l) && /班|分數/.test(l)) ||
+             // 表格抬頭拆成一格一行：「年級」「三年班」「姓名」「分數」
+             (l.length <= 12 && /[年級班號名分章]/.test(l) &&
+              !l.replace(/家長簽章|簽章|座號|姓\s*名|分數|得分|班級|年級|[年級班號]|[一二三四五六七八九十\d ]/g, '')));
+        text = text.split('\n').filter(l => !(
+            (opts.rmSeparator && isSep(l)) || (opts.rmPageNum && isPageNum(l)) ||
+            (opts.rmNotice && isNotice(l)) || (opts.rmHeader && isHeader(l)))).join('\n');
+    }
 
     // ── 5. 全形括號 → 半形 ──
     text = text.replace(/（/g, '(').replace(/）/g, ')');
@@ -239,7 +286,7 @@ function cleanExamText(text, opts) {
             }
             i++;
         }
-        return noSplitOut.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        return finish(noSplitOut);
     }
 
     const out = [];
@@ -253,7 +300,13 @@ function cleanExamText(text, opts) {
         }
     }
 
-    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return finish(out);
+
+    // 選項拆行後也補空格；段首記號換成兩個全形空白（點字段首空兩方）
+    function finish(lines) {
+        return spaceAfterOpt(lines.join('\n')).replace(/\n{3,}/g, '\n\n').trim()
+            .replace(new RegExp(PARA + ' ?', 'g'), '　　');
+    }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1156,6 +1209,12 @@ function initPanelResizer(opts) {
         .btn-ftb-wrap.active { background: #3949ab !important; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
         #fmt-tools-bar .btn-fmt-run { background: #546e7a !important; }
         #fmt-tools-bar .btn-fmt-run:hover { background: #37474f !important; }
+        #fmt-clean-opts { padding: 6px 16px; background: #fafafa; border-bottom: 1px solid #e0e0e0; font-size: 0.85em; flex-shrink: 0; }
+        #fmt-clean-opts summary { cursor: pointer; }
+        #fmt-clean-opts .fco-list { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 4px; }
+        #fmt-clean-opts label { cursor: pointer; }
+        html[data-theme="dark"] #fmt-clean-opts,
+        html:not([data-theme]) #fmt-clean-opts { background: #1f2235; border-color: #363a52; color: #eef2f9; }
         #fmt-tools-bar .btn-fmt-apply { background: #388e3c !important; }
         #fmt-tools-bar .btn-fmt-apply:hover { background: #2e7d32 !important; }
         #fmt-tools-bar .btn-fmt-cancel { background: #90a4ae !important; }
@@ -1433,6 +1492,17 @@ function initPanelResizer(opts) {
                 <button class="btn-ftb btn-fmt-apply" onclick="fmtApplyAndClose()" title="套用內容並關閉">✔ 套用</button>
                 <button class="btn-ftb btn-fmt-cancel" onclick="closeFmtModal()" title="捨棄變更並關閉">✕ 取消</button>
             </div>
+            <details id="fmt-clean-opts">
+                <summary>✨ 自動調整選項</summary>
+                <div class="fco-list">
+                    <label><input type="checkbox" data-opt="rmAns" checked> 清除題號旁的作答括號（不勾：統一成「1. ( ) 題目」）</label>
+                    <label><input type="checkbox" data-opt="paraIndent" checked> 段首空兩方（閱讀測驗的段落）</label>
+                    <label><input type="checkbox" data-opt="rmSeparator" checked> 移除分隔線（-----）</label>
+                    <label><input type="checkbox" data-opt="rmPageNum" checked> 移除頁碼</label>
+                    <label><input type="checkbox" data-opt="rmNotice" checked> 移除「(請接續下一張試題)」這類提示</label>
+                    <label><input type="checkbox" data-opt="rmHeader"> 移除抬頭（學校考試名稱、班級座號姓名欄）</label>
+                </div>
+            </details>
             <div id="ftb-findbar">
                 <input type="text" id="ftb-find" placeholder="搜尋…" aria-label="搜尋文字">
                 <span class="ftb-arrow">→</span>
@@ -1570,6 +1640,28 @@ function initPanelResizer(opts) {
     var _targetTA = null;     // 目前開啟 modal 對應的 textarea id
     var _onApply  = null;     // 套用後 callback
     var _getOpts  = null;     // opts getter
+
+    // 自動調整選項（視窗裡的勾選框），記在這台電腦的瀏覽器
+    var FCO_KEY = 'vi-fmt-clean-opts';
+    function fmtCleanOpts() {
+        var opts = {};
+        document.querySelectorAll('#fmt-clean-opts input[data-opt]').forEach(function(cb) {
+            opts[cb.dataset.opt] = cb.checked;
+        });
+        return opts;
+    }
+    function fmtCleanOptsInit() {
+        if (fmtCleanOptsInit.done) return;
+        fmtCleanOptsInit.done = true;
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(FCO_KEY) || 'null'); } catch(e) {}
+        document.querySelectorAll('#fmt-clean-opts input[data-opt]').forEach(function(cb) {
+            if (saved && typeof saved[cb.dataset.opt] === 'boolean') cb.checked = saved[cb.dataset.opt];
+            cb.addEventListener('change', function() {
+                try { localStorage.setItem(FCO_KEY, JSON.stringify(fmtCleanOpts())); } catch(e) {}
+            });
+        });
+    }
 
     function pushUndo() {
         var ta = document.getElementById('fmt-textarea');
@@ -1795,6 +1887,7 @@ function initPanelResizer(opts) {
         var src = (document.getElementById(_targetTA) || {}).value || '';
         var fmtTA = document.getElementById('fmt-textarea');
         if (!fmtTA) return;
+        fmtCleanOptsInit();
         fmtTA.value = src;
         _origSnapshot = src;
         _applied = false;
@@ -1838,7 +1931,8 @@ function initPanelResizer(opts) {
         pushUndo();
         var ta = document.getElementById('fmt-textarea');
         if (!ta) return;
-        var opts = (typeof _getOpts === 'function') ? _getOpts() : null;
+        var opts = fmtCleanOpts();
+        if (typeof _getOpts === 'function') Object.assign(opts, _getOpts());
         ta.value = cleanExamText(ta.value, opts);
         showFtbMsg('自動調整完成');
     };
