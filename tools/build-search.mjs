@@ -26,7 +26,9 @@ const ENT = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", helli
 const decode = s => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) =>
   e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : ENT[e.toLowerCase()] ?? m);
 // HTML → 純文字：區塊標籤換行，其他標籤拿掉
+//   換行先統一成 \n：Windows 的工作目錄是 CRLF、GitHub Actions 是 LF，不統一兩邊產生的索引會不一樣
 const toText = html => decode(html
+  .replace(/\r\n?/g, '\n')
   .replace(/<!--[\s\S]*?-->/g, '')
   .replace(/<(script|style)[\s\S]*?<\/\1>/gi, '')
   .replace(/<br\s*\/?>|<\/(p|div|h[1-6]|li|tr|table|pre|blockquote)>/gi, '\n')
