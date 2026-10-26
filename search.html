@@ -36,7 +36,7 @@ mark{background:var(--mark);color:inherit}
 <body>
 <main>
 <h1>搜尋</h1>
-<p class="lead">一次搜尋這個工具集的工具與說明，以及<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>的文章。可以輸入好幾個關鍵字，中間空一格，會找出同時有這些字的結果。每筆結果都是標題，可以用標題鍵跳讀。</p>
+<p class="lead">一次搜尋這個工具集的工具與說明，以及<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>的文章。</p>
 <form role="search" id="form">
   <label for="q">關鍵字</label>
   <input type="search" id="q" name="q" autocomplete="off" enterkeyhint="search">
@@ -174,8 +174,7 @@ mark{background:var(--mark);color:inherit}
   const load = u => fetch(u).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   load('search-index.json').catch(() => load(ONLINE)).catch(() => { throw new Error('搜尋需要連上網路：連線後重新開啟這一頁'); }).then(d => {
     idx = d; items = prepare(d);
-    const built = new Date(d.built);
-    $('#status').textContent = `已收錄工具與說明 ${d.tools.length} 筆、筆記本文章 ${d.notes.length.toLocaleString()} 篇，筆記本更新到 ${built.getMonth() + 1} 月 ${built.getDate()} 日。`;
+    $('#status').textContent = '';
     if ($('#q').value) run(); else $('#q').focus();
   }).catch(e => { $('#status').textContent = e.message; });
 })();
