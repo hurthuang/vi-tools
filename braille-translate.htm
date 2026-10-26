@@ -680,7 +680,8 @@
         <div class="input-area">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                 <label for="input-text" style="margin:0;">輸入文字：</label>
-                <button onclick="openFormatModal('input-text', render)" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
+                <button onclick="btOpenFormatModal()" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
+                <button onclick="btLayoutQuestions()" title="題號統一成「1. 」；語詞題去掉「。」、依每行方數排在同一行，一題不拆兩行；排版後中文字的點字保持不變" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🔢 題號排版</button>
                 <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
@@ -2965,6 +2966,211 @@ function btLoadSessionData(data) {
     if (Array.isArray(data.zhEdits)) data.zhEdits.forEach(([k, v]) => _btZhEdits.set(k, v));
     _btZhEditsVersion++;
     render();
+}
+
+// ════════════════════════════════════════════════════════════
+//  排版後保住中文點字、題號排版（2026-10-27）
+//  手動修正的 ctxKey（前兩字|本字|後一字，只看同一行）和自動判斷的讀音都看前後文，
+//  所以加題號、換行、刪字這類排版會讓手動修正對不上、自動讀音也可能變（風調雨順的「調」）。
+//  做法：排版前記下每個中文字的點字，排版後逐字對齊比對，不一樣的用新的 ctxKey 補一筆修正
+// ════════════════════════════════════════════════════════════
+
+// 整份文字的中文字點字序列（跟 render() 一樣的前處理與斷詞）
+function _btZhSeq(raw) {
+    let input = raw.replace(LINE_SEP_RE, '\n');
+    const lgVal = document.getElementById('low-grade-mode').value;
+    if (lgVal !== 'off') input = _lgPreprocess(input, _lgSpaceSet, lgVal === 'full').text;
+    const modeKey = _getLineModeKey();
+    const seq = [];
+    for (const line of input.split('\n'))
+        for (const t of _getLineTokens(line, modeKey))
+            if (t.isZhChar) seq.push({ ch: t.text, b: t.braille, key: t.ctxKey });
+    return seq;
+}
+
+// 排版前後的中文字對齊：大多數字一樣，排版可能刪掉幾行（抬頭、提示）或補幾個字
+function _btAlignZh(A, B) {
+    const same = (i, j) => { for (let k = 0; k < 3; k++) {
+        if (i + k >= A.length || j + k >= B.length) return true;
+        if (A[i + k].ch !== B[j + k].ch) return false; } return true; };
+    const pairs = [];
+    let i = 0, j = 0;
+    while (i < A.length && j < B.length) {
+        if (A[i].ch === B[j].ch) { pairs.push([i, j]); i++; j++; continue; }
+        let di = 0, dj = 0;
+        for (let k = 1; k <= 300 && !di && !dj; k++) {
+            if (i + k < A.length && same(i + k, j)) di = k;
+            else if (j + k < B.length && same(i, j + k)) dj = k;
+        }
+        if (di) i += di; else if (dj) j += dj; else { i++; j++; }
+    }
+    return pairs;
+}
+
+// 文字換成 newText 後，讓中文字點字跟 before（排版前的 _btZhSeq）一樣；回傳補了幾筆、補不回來的字
+function btKeepZhBraille(before, newText) {
+    let after = _btZhSeq(newText);
+    const pairs = _btAlignZh(before, after);
+    const ctxOf = (seq, j) => seq.slice(Math.max(0, j - 3), j + 4).map(t => t.ch).join('');
+    const fixes = new Map();   // key → { ch, ctx, kept：排版前的點字, auto：排版後原本會變成的點字 }
+    for (const [i, j] of pairs) {
+        const a = before[i], b = after[j];
+        if (a.b !== b.b && !fixes.has(b.key)) fixes.set(b.key, { key: b.key, ch: b.ch, ctx: ctxOf(after, j), kept: a.b, auto: b.b });
+    }
+    fixes.forEach((f, k) => _btZhEdits.set(k, f.kept));
+    if (fixes.size) { _btZhEditsVersion++; after = _btZhSeq(newText); }
+    // 同一個前後文（ctxKey 相同）排版前在不同位置讀音不同，只能統一成一種，列給使用者看
+    const unresolved = pairs.filter(([i, j]) => before[i].b !== after[j].b)
+        .map(([i, j]) => ({ ch: after[j].ch, ctx: ctxOf(after, j), want: before[i].b, got: after[j].b }));
+    // 對不上任何字的手動修正（排版前就沒作用，或排版後失效）
+    const used = new Set(after.map(t => t.key));
+    const stale = [..._btZhEdits.keys()].filter(k => !used.has(k));
+    return { fixes: [...fixes.values()], unresolved, stale };
+}
+
+// 格式調整視窗：套用時保住中文點字
+function btOpenFormatModal() {
+    const ta = document.getElementById('input-text');
+    const oldText = ta.value, oldEdits = new Map(_btZhEdits), before = _btZhSeq(oldText);
+    openFormatModal('input-text', function() {
+        if (ta.value === oldText) { render(); return; }
+        const r = btKeepZhBraille(before, ta.value);
+        render();
+        btSaveSessionDebounced();
+        _btShowLayoutReport('格式調整', r, [], oldText, oldEdits);
+    });
+}
+
+// 題號排版：題號統一成「N. 」；一段（空行隔開）裡的題目都是語詞時，去掉題目後的「。」，
+// 依序往同一行排，超過每行方數就整題換行（一題不拆兩行）。標題行、句子題只改題號
+const BT_QNUM_RE = /^([ \t　]*)(\d{1,3})(?:[.．、][ \t　]*|[ \t　]*(?=[㐀-鿿]))/;
+function btLayoutQuestions() {
+    const ta = document.getElementById('input-text');
+    const oldText = ta.value;
+    if (!oldText.trim()) return;
+    const oldEdits = new Map(_btZhEdits), before = _btZhSeq(oldText);
+    const max = parseInt(document.getElementById('cell-limit').value) || 40;
+    const modeKey = _getLineModeKey();
+    const lgVal = document.getElementById('low-grade-mode').value;
+    const cells = line => {
+        const s = lgVal === 'full' ? _lgPreprocess(line, new Set(), true).text : line;
+        return _getLineTokens(s, modeKey).reduce((n, t) => n + Array.from(t.braille || '').length, 0);
+    };
+    const NOT_WORD = /[\s，。、！？；：「」『』｢｣()（）,.!?;:…—]/;
+
+    const lines = oldText.replace(LINE_SEP_RE, '\n').split('\n');
+    const out = [], words = [];   // words：排過的語詞題，報告同詞不同讀音用
+    let i = 0;
+    while (i < lines.length) {
+        if (!BT_QNUM_RE.test(lines[i])) { out.push(lines[i]); i++; continue; }
+        // 連續的題號行
+        const run = [];
+        while (i < lines.length && BT_QNUM_RE.test(lines[i])) run.push(lines[i++]);
+        // 依序找題號（下一題的號碼要剛好接上，題目裡的數字不會誤判）
+        const s = run.map(l => l.trim()).join(' ');
+        const items = [];
+        let expect = +BT_QNUM_RE.exec(run[0])[2], cur = null;
+        const re = /(\d{1,3})(?:[.．、][ \t　]*|[ \t　]*(?=[㐀-鿿]))/g;
+        let m, last = 0;
+        while ((m = re.exec(s))) {
+            if (+m[1] !== expect || (m.index > 0 && /\d/.test(s[m.index - 1]))) continue;
+            if (cur) cur.text = s.slice(last, m.index).trim();
+            cur = { n: expect++, text: '' }; items.push(cur);
+            last = m.index + m[0].length;
+        }
+        cur.text = s.slice(last).trim();
+        const isWord = it => !NOT_WORD.test(it.text.replace(/[。．.、，,；;]+$/, '')) && it.text !== '';
+        if (!items.every(isWord)) {
+            // 句子題：只把行首題號改成「N. 」
+            run.forEach(l => out.push(l.replace(BT_QNUM_RE, (_, sp, n) => `${sp}${n}. `)));
+            continue;
+        }
+        let line = '';
+        for (const it of items) {
+            it.text = it.text.replace(/[。．.、，,；;]+$/, '');
+            const piece = `${it.n}. ${it.text}`;
+            if (line && cells(line + ' ' + piece) <= max) line += ' ' + piece;
+            else { if (line) out.push(line); line = piece; }
+            words.push(it);
+        }
+        out.push(line);
+    }
+    const newText = out.join('\n');
+    if (newText === oldText) { _btShowLayoutReport('題號排版', null, [], oldText, oldEdits); return; }
+    ta.value = newText;
+    const r = btKeepZhBraille(before, newText);
+
+    // 同一個語詞在不同地方點字不一樣（例：「掙脫」的掙一處 ㄓㄥˋ、一處 ㄓㄥ），工具判斷不了對錯，列出來
+    const seq = _btZhSeq(newText);
+    const zhBefore = [];   // 每個語詞在整份中文字序列裡的起點
+    let pos = 0, zi = 0;
+    for (const it of words) {
+        const at = newText.indexOf(`${it.n}. ${it.text}`, pos);
+        for (; pos < at; pos++) if (_isZhChar(newText[pos])) zi++;
+        const n = Array.from(it.text).filter(_isZhChar).length;
+        zhBefore.push({ text: it.text, b: seq.slice(zi, zi + n).map(t => t.b) });
+    }
+    const byWord = new Map();
+    zhBefore.forEach(w => {
+        if (!byWord.has(w.text)) byWord.set(w.text, new Map());
+        byWord.get(w.text).set(w.b.join('|'), w.b);
+    });
+    const mixed = [...byWord].filter(([, m]) => m.size > 1).map(([text, m]) => ({ text, readings: [...m.values()] }));
+
+    render();
+    btSaveSessionDebounced();
+    _btShowLayoutReport('題號排版', r, mixed, oldText, oldEdits);
+}
+
+function _btShowLayoutReport(title, r, mixed, oldText, oldEdits) {
+    let box = document.getElementById('bt-layout-report');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'bt-layout-report';
+        box.setAttribute('role', 'status');
+        box.style.cssText = 'padding:8px 14px;background:#fff8e1;color:#1b1f2d;border:1px solid #ffcc80;border-radius:6px;margin-bottom:10px;font-size:0.9em;line-height:1.6;';
+        const container = document.querySelector('.parallel-container');
+        container.parentNode.insertBefore(box, container);
+    }
+    const li = s => `<li>${s}</li>`;
+    // 點字後面附注音（例：⠕⠭⠐ ㄅㄤˋ）
+    const zy = b => { const z = _zhBrailleToBpmf(b); return escHtml(b) + (z ? ' ' + escHtml(z) : ''); };
+    const at = (ctx, ch) => `「${escHtml(ctx)}」的「${escHtml(ch)}」`;
+    let html = `<strong>${escHtml(title)}</strong>：`;
+    if (!r) {
+        html += '沒有要改的地方。';
+    } else {
+        html += r.unresolved.length ? '除了下面列的字，中文字的點字都和排版前一樣。' : '中文字的點字和排版前一樣。';
+        if (r.unresolved.length) html += `<div>⚠ 這些字前後文相同，排版前卻在不同地方讀音不同，排版後只能統一成一種，請確認：</div><ul>`
+            + r.unresolved.map(u => li(`${at(u.ctx, u.ch)}：原本 ${zy(u.want)}，現在 ${zy(u.got)}`)).join('') + '</ul>';
+        if (mixed.length) html += `<div>⚠ 同一個語詞點字不一樣，請確認哪個對（點下方點字的字可以修正）：</div><ul>`
+            + mixed.map(w => li(`「${escHtml(w.text)}」：${w.readings.map(rd => rd.map(zy).join(' ')).join('／')}`)).join('') + '</ul>';
+        if (r.fixes.length) html += `<details><summary>排版後前後文變了，有 ${r.fixes.length} 個字的讀音會跟著變，已補修正保留排版前的讀音（可能排版前才是錯的，請看一下）</summary><ul>`
+            + r.fixes.map((f, n) => li(`${at(f.ctx, f.ch)}：保留排版前 ${zy(f.kept)}；排版後自動判斷是 ${zy(f.auto)}
+                <button type="button" data-fix="${n}">改用排版後的</button>`)).join('') + '</ul></details>';
+        if (r.stale.length) html += `<div>這些手動修正對不上任何字（排版前就沒作用，或文字改掉了）：${r.stale.map(k => at(k.replace(/\|/g, ''), k.split('|')[1])).join('、')}
+            <button type="button" id="bt-layout-rm-stale">刪除這些修正</button></div>`;
+    }
+    html += `<div class="bt-layout-acts"><button type="button" id="bt-layout-undo">↩ 復原排版</button>
+        <button type="button" id="bt-layout-close">關閉</button></div>`;
+    box.innerHTML = html;
+    document.getElementById('bt-layout-close').onclick = () => box.remove();
+    document.getElementById('bt-layout-undo').onclick = () => {
+        document.getElementById('input-text').value = oldText;
+        _btZhEdits.clear(); oldEdits.forEach((v, k) => _btZhEdits.set(k, v)); _btZhEditsVersion++;
+        render(); btSaveSessionDebounced(); box.remove();
+    };
+    box.querySelectorAll('button[data-fix]').forEach(btn => btn.onclick = () => {
+        const f = r.fixes[+btn.dataset.fix];
+        _btZhEdits.set(f.key, f.auto); _btZhEditsVersion++;
+        render(); btSaveSessionDebounced();
+        btn.replaceWith('已改用排版後的');
+    });
+    const rm = document.getElementById('bt-layout-rm-stale');
+    if (rm) rm.onclick = () => {
+        r.stale.forEach(k => _btZhEdits.delete(k)); _btZhEditsVersion++;
+        render(); btSaveSessionDebounced(); rm.parentNode.remove();
+    };
 }
 
 function btExportSession() {
