@@ -1216,7 +1216,7 @@ function initPanelResizer(opts) {
         #fmt-clean-opts .fco-list { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 4px; }
         #fmt-clean-opts label { cursor: pointer; display: block; margin: 0; font-weight: normal; color: inherit !important; }
         html[data-theme="dark"] #fmt-clean-opts,
-        html:not([data-theme]) #fmt-clean-opts { background: #1f2235; border-color: #363a52; color: #eef2f9; }
+        html.fmt-page-dark #fmt-clean-opts { background: #1f2235; border-color: #363a52; color: #eef2f9; }
         #fmt-tools-bar .btn-fmt-apply { background: #388e3c !important; }
         #fmt-tools-bar .btn-fmt-apply:hover { background: #2e7d32 !important; }
         #fmt-tools-bar .btn-fmt-cancel { background: #90a4ae !important; }
@@ -1394,51 +1394,51 @@ function initPanelResizer(opts) {
         .shared-bt-only { display: none !important; }
         /* Dark theme support for modal */
         html[data-theme="dark"] #fmt-modal,
-        html:not([data-theme]) #fmt-modal {
+        html.fmt-page-dark #fmt-modal {
             background: #1e2130;
         }
         html[data-theme="dark"] #fmt-modal-header,
-        html:not([data-theme]) #fmt-modal-header {
+        html.fmt-page-dark #fmt-modal-header {
             background: #2c3145;
         }
         html[data-theme="dark"] #fmt-tools-bar,
         html[data-theme="dark"] #ftb-findbar,
-        html:not([data-theme]) #fmt-tools-bar,
-        html:not([data-theme]) #ftb-findbar {
+        html.fmt-page-dark #fmt-tools-bar,
+        html.fmt-page-dark #ftb-findbar {
             background: #252839;
             border-color: #363a52;
         }
         html[data-theme="dark"] #fmt-textarea,
-        html:not([data-theme]) #fmt-textarea {
+        html.fmt-page-dark #fmt-textarea {
             background: #1a1d2e;
             border-color: #363a52;
             color: #eef2f9;
         }
         html[data-theme="dark"] #fmt-wrap-panel,
-        html:not([data-theme]) #fmt-wrap-panel {
+        html.fmt-page-dark #fmt-wrap-panel {
             background: #1e2130;
             border-color: #363a52;
         }
         html[data-theme="dark"] #fmt-wrap-header,
         html[data-theme="dark"] #fmt-wrap-legend,
-        html:not([data-theme]) #fmt-wrap-header,
-        html:not([data-theme]) #fmt-wrap-legend {
+        html.fmt-page-dark #fmt-wrap-header,
+        html.fmt-page-dark #fmt-wrap-legend {
             background: #252839;
             border-color: #363a52;
         }
         html[data-theme="dark"] #adv-replace-modal,
-        html:not([data-theme]) #adv-replace-modal {
+        html.fmt-page-dark #adv-replace-modal {
             background: #1e2130;
         }
         html[data-theme="dark"] #adv-replace-footer,
         html[data-theme="dark"] #adv-tabs,
-        html:not([data-theme]) #adv-replace-footer,
-        html:not([data-theme]) #adv-tabs {
+        html.fmt-page-dark #adv-replace-footer,
+        html.fmt-page-dark #adv-tabs {
             background: #252839;
             border-color: #363a52;
         }
         html[data-theme="dark"] .adv-field input[type="text"],
-        html:not([data-theme]) .adv-field input[type="text"] {
+        html.fmt-page-dark .adv-field input[type="text"] {
             background: #1a1d2e;
             border-color: #363a52;
             color: #eef2f9;
@@ -1446,19 +1446,19 @@ function initPanelResizer(opts) {
         html[data-theme="dark"] .adv-field label,
         html[data-theme="dark"] .adv-desc,
         html[data-theme="dark"] .fmt-edit-label,
-        html:not([data-theme]) .adv-field label,
-        html:not([data-theme]) .adv-desc,
-        html:not([data-theme]) .fmt-edit-label {
+        html.fmt-page-dark .adv-field label,
+        html.fmt-page-dark .adv-desc,
+        html.fmt-page-dark .fmt-edit-label {
             color: #a9b3c9;
         }
         html[data-theme="dark"] #ftb-findbar input[type="text"],
-        html:not([data-theme]) #ftb-findbar input[type="text"] {
+        html.fmt-page-dark #ftb-findbar input[type="text"] {
             background: #1a1d2e;
             border-color: #363a52;
             color: #eef2f9;
         }
         html[data-theme="dark"] #fmt-wrap-preview,
-        html:not([data-theme]) #fmt-wrap-preview {
+        html.fmt-page-dark #fmt-wrap-preview {
             background: #1a1d2e;
             color: #eef2f9;
         }
@@ -1642,6 +1642,17 @@ function initPanelResizer(opts) {
     var _targetTA = null;     // 目前開啟 modal 對應的 textarea id
     var _onApply  = null;     // 套用後 callback
     var _getOpts  = null;     // opts getter
+
+    // 視窗深淺色跟著頁面：各頁沒設 data-theme 時的預設不同（點字數學是深色、其他頁是淺色），
+    // 所以沒設時看頁面背景實際的亮度
+    function syncFmtTheme() {
+        var root = document.documentElement, t = root.getAttribute('data-theme'), dark = t === 'dark';
+        if (!t) {
+            var m = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
+            dark = !!m && (m.length < 4 || +m[3] > 0) && (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) < 128;
+        }
+        root.classList.toggle('fmt-page-dark', dark);
+    }
 
     // 自動調整選項（視窗裡的勾選框），記在這台電腦的瀏覽器
     var FCO_KEY = 'vi-fmt-clean-opts';
@@ -1890,6 +1901,7 @@ function initPanelResizer(opts) {
         var fmtTA = document.getElementById('fmt-textarea');
         if (!fmtTA) return;
         fmtCleanOptsInit();
+        syncFmtTheme();
         fmtTA.value = src;
         _origSnapshot = src;
         _applied = false;
