@@ -63,7 +63,8 @@ async function embedOf(src) {
     const u = new URL(src);
     if (/(^|\.)hurthuang\.github\.io$/.test(u.hostname) && u.pathname.startsWith('/vi-tools')) return null;
     if (/youtube\.com$|youtu\.be$/.test(u.hostname)) {
-      const id = (u.pathname.match(/\/embed\/([\w-]+)/) || [])[1] || u.searchParams.get('v');
+      // embed/ID；也有人貼成 embed/youtu.be/ID
+      const id = (u.pathname.match(/\/embed\/(?:youtu\.be\/)?([\w-]{11})(?:$|[/?])/) || [])[1] || u.searchParams.get('v');
       if (!id) return null;
       const j = JSON.parse(await get(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${id}`));
       return { k: '影片', u: `https://www.youtube.com/watch?v=${id}`, t: j.title, x: '' };
@@ -93,7 +94,8 @@ async function embedOf(src) {
     return { k, u: src, t: title, x: toText(body).slice(0, 30000) };
   } catch (e) {
     console.warn(`\n  內嵌頁面抓不到：${src}（${e.message}）`);
-    return { k: '失敗', u: src, t: '', x: '' };   // 記下來，下次抓筆記本時重試
+    if (/HTTP 4\d\d|Invalid URL/.test(e.message)) return null;   // 影片刪了、不公開、網址錯：不用再試
+    return { k: '失敗', u: src, t: '', x: '' };   // 連線問題：記下來，下次抓筆記本時重試
   }
 }
 
