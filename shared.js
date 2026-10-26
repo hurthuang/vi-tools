@@ -166,9 +166,11 @@ function cleanExamText(text, opts) {
     {
         const SEP_CH = '\\-－—─━_＿=＝*＊~～';
         const isSep = l => new RegExp(`^[${SEP_CH} ]*$`).test(l) && new RegExp(`[${SEP_CH}]{3}`).test(l);
-        const isPageNum = l => /^(?:[-－—]\s*)?\d{1,3}(?:\s*[-－—])?$|^\d{1,3}\s*\/\s*\d{1,3}$|^第\s*\d{1,3}\s*頁(?:\s*[,，/]?\s*共\s*\d{1,3}\s*頁)?$/.test(l);
-        const NOTICE = '請接續|請翻|翻面|背面|下一[頁張]|作答結束|試題結束|全卷完|本卷結束';
-        const isNotice = l => new RegExp(`^[(（][^()（）]{0,30}(?:${NOTICE})[^()（）]{0,30}[)）]$|^(?:${NOTICE})[^。]{0,15}[。！!]?$`).test(l);
+        // 「===== 請繼續作答公民科 =====」「----- 第 2 頁 -----」這種前後夾分隔符號的，先拿掉符號再判斷
+        const core = l => l.replace(new RegExp(`^[${SEP_CH} ]{2,}|[${SEP_CH} ]{2,}$`, 'g'), '');
+        const isPageNum = l => /^(?:[-－—]\s*)?\d{1,3}(?:\s*[-－—])?$|^\d{1,3}\s*\/\s*\d{1,3}$|^第\s*\d{1,3}\s*頁(?:\s*[,，/]?\s*共\s*\d{1,3}\s*頁)?$/.test(core(l));
+        const NOTICE = '請接續|請繼續|請翻|翻面|背面|下一[頁張]|作答結束|試題結束|全卷完|本卷結束';
+        const isNotice = l => new RegExp(`^[(（][^()（）]{0,30}(?:${NOTICE})[^()（）]{0,30}[)）]$|^(?:${NOTICE})[^。]{0,15}[。！!]?$`).test(core(l));
         const isHeader = l => l.length < 100 && !/[一二三四五六七八九十][、．]/.test(l) &&
             ((/學年度/.test(l) && /評量|考|測驗/.test(l)) || /座號|家長簽章/.test(l) || (/姓\s*名/.test(l) && /班|分數/.test(l)) ||
              // 表格抬頭拆成一格一行：「年級」「三年班」「姓名」「分數」
@@ -1209,10 +1211,10 @@ function initPanelResizer(opts) {
         .btn-ftb-wrap.active { background: #3949ab !important; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
         #fmt-tools-bar .btn-fmt-run { background: #546e7a !important; }
         #fmt-tools-bar .btn-fmt-run:hover { background: #37474f !important; }
-        #fmt-clean-opts { padding: 6px 16px; background: #fafafa; border-bottom: 1px solid #e0e0e0; font-size: 0.85em; flex-shrink: 0; }
+        #fmt-clean-opts { padding: 6px 16px; background: #fafafa; color: #333; border-bottom: 1px solid #e0e0e0; font-size: 0.85em; flex-shrink: 0; }
         #fmt-clean-opts summary { cursor: pointer; }
         #fmt-clean-opts .fco-list { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 4px; }
-        #fmt-clean-opts label { cursor: pointer; }
+        #fmt-clean-opts label { cursor: pointer; display: block; margin: 0; font-weight: normal; color: inherit !important; }
         html[data-theme="dark"] #fmt-clean-opts,
         html:not([data-theme]) #fmt-clean-opts { background: #1f2235; border-color: #363a52; color: #eef2f9; }
         #fmt-tools-bar .btn-fmt-apply { background: #388e3c !important; }
