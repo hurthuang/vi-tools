@@ -49,6 +49,8 @@ function cleanExamText(text, opts) {
         fixHyphen:      true,
     }, opts);
 
+    text = fixWordPlainText(text);
+
     // ── 0a. 帶空格的選項括號正規化 ──
     text = text.replace(/[（(]\s*[Ａ]\s*[）)]/g,'(A)').replace(/[（(]\s*[Ｂ]\s*[）)]/g,'(B)')
                .replace(/[（(]\s*[Ｃ]\s*[）)]/g,'(C)').replace(/[（(]\s*[Ｄ]\s*[）)]/g,'(D)');
@@ -246,6 +248,281 @@ function cleanExamText(text, opts) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  Word 考卷文字（2026-10-26）
+//  國小考卷常整份加注音：docx 的注音標示（w:ruby）、舊式注音欄位（EQ \o(\s\up(注音),字)），
+//  選項 ① 常是圈號欄位（EQ \o\ac(○,1)），題號常是自動編號
+// ════════════════════════════════════════════════════════════
+const BOPOMOFO_SYL = '˙?[ㄅ-ㄯㆠ-ㆿ]{1,4}[ˊˇˋ˙]?';
+// 從 Word 複製或另存純文字：注音標示變成「在(ㄗㄞˋ)同(ㄊㄨㄥˊ)」，圈號欄位變成「○1」
+const PASTED_RUBY_RE = new RegExp(`([\\u3400-\\u9FFF\\uF900-\\uFAFF])[（(](?:${BOPOMOFO_SYL})+[）)]`, 'g');
+function fixWordPlainText(text) {
+    text = text.replace(/[○◯](1\d|20|[1-9])(?!\d)/g, (_, n) => String.fromCharCode(0x245F + +n));
+    // 出現 5 次以上才當成整份加注音；零星的「字(注音)」可能是考題本身（例：寫出國字）
+    const m = text.match(PASTED_RUBY_RE);
+    if (m && m.length >= 5) text = text.replace(PASTED_RUBY_RE, '$1');
+    return text;
+}
+
+// EQ 欄位碼 → 文字：\o 疊字（注音取國字、○ 疊數字取圈號）、\s 上下標、\f 分數、\r 根號，其餘取內容
+function evalWordEq(instr) {
+    const s = instr.replace(/^\s*eq\b/i, '').replace(/\\\*\s*("[^"]*"|\S+)/g, '');
+    const UP = '\u0001', UP_END = '\u0002';   // 上標內容的記號：\o 裡是注音，丟掉；其他地方保留
+    let i = 0;
+    function seq(stops) {
+        let out = '';
+        while (i < s.length) {
+            const c = s[i];
+            if (stops.includes(c)) break;
+            if (c === '\\') {
+                if (/[a-zA-Z]/.test(s[i + 1] || '')) { out += cmd(); continue; }
+                out += s[i + 1] || ''; i += 2; continue;   // \, \( \) 等跳脫字元
+            }
+            if (c === '(') { i++; out += '(' + seq(')') + ')'; i++; continue; }
+            out += c; i++;
+        }
+        return out;
+    }
+    function cmd() {
+        const name = /^\\([a-zA-Z]+)/.exec(s.slice(i));
+        i += name[0].length;
+        const opts = [];
+        let om;
+        while ((om = /^\s*\\([a-zA-Z]+)\s*(-?\d+)?/.exec(s.slice(i)))) { opts.push(om[1].toLowerCase()); i += om[0].length; }
+        while (s[i] === ' ') i++;
+        const args = [];
+        if (s[i] === '(') {
+            i++;
+            for (;;) {
+                args.push(seq(',)'));
+                if (s[i] === ',') { i++; continue; }
+                i++; break;
+            }
+        }
+        switch (name[1].toLowerCase()) {
+            case 'o': {
+                const plain = args.map(a => a.replace(new RegExp(UP + '[^' + UP_END + ']*' + UP_END, 'g'), '').trim()).filter(Boolean);
+                const shape = plain.findIndex(a => /^[○◯]$/.test(a));
+                const num = plain.length === 2 && shape >= 0 ? +plain[1 - shape] : 0;
+                if (num >= 1 && num <= 20 && /^\d+$/.test(plain[1 - shape])) return String.fromCharCode(0x245F + num);
+                return plain.join('');
+            }
+            case 's': return opts.includes('up') ? UP + args.join('') + UP_END : args.join('');
+            case 'f': return args.length === 2 ? args[0] + '/' + args[1] : args.join('');
+            case 'r': return args.length === 2 ? args[0] + '√' + args[1] : '√' + args.join('');
+            default:  return args.join('');
+        }
+    }
+    return seq('').replace(/[\u0001\u0002]/g, '').trim();
+}
+
+// 自動編號：照 numbering.xml 的格式算出每段的編號文字（同一個 abstractNum 共用計數）
+function makeDocxNumberer(numberingXml, stylesXml) {
+    const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const parse = x => x ? new DOMParser().parseFromString(x, 'application/xml') : null;
+    const kids = (el, name) => el ? Array.from(el.childNodes).filter(n => n.localName === name) : [];
+    const kid = (el, name) => kids(el, name)[0] || null;
+    const val = el => el ? el.getAttributeNS(W, 'val') : null;
+
+    const abstracts = new Map(), nums = new Map(), styles = new Map();
+    const numDoc = parse(numberingXml);
+    if (numDoc) {
+        for (const a of numDoc.getElementsByTagNameNS(W, 'abstractNum')) {
+            const lvls = [];
+            for (const l of kids(a, 'lvl')) {
+                const restart = val(kid(l, 'lvlRestart'));
+                lvls[+l.getAttributeNS(W, 'ilvl')] = {
+                    start:   +(val(kid(l, 'start')) || 0),
+                    fmt:     val(kid(l, 'numFmt')) || 'decimal',
+                    text:    val(kid(l, 'lvlText')) || '',
+                    suff:    val(kid(l, 'suff')) || 'tab',
+                    restart: restart == null ? null : +restart,
+                };
+            }
+            abstracts.set(a.getAttributeNS(W, 'abstractNumId'), lvls);
+        }
+        for (const n of numDoc.getElementsByTagNameNS(W, 'num')) {
+            const overrides = new Map();
+            for (const o of kids(n, 'lvlOverride')) {
+                const so = val(kid(o, 'startOverride'));
+                if (so != null) overrides.set(+o.getAttributeNS(W, 'ilvl'), +so);
+            }
+            nums.set(n.getAttributeNS(W, 'numId'), { abs: val(kid(n, 'abstractNumId')), overrides });
+        }
+    }
+    const styDoc = parse(stylesXml);
+    if (styDoc) {
+        for (const st of styDoc.getElementsByTagNameNS(W, 'style')) {
+            const numPr = kid(kid(st, 'pPr'), 'numPr');
+            styles.set(st.getAttributeNS(W, 'styleId'), {
+                basedOn: val(kid(st, 'basedOn')),
+                numId:   val(kid(numPr, 'numId')),
+                ilvl:    val(kid(numPr, 'ilvl')),
+            });
+        }
+    }
+
+    const ZH = '〇一二三四五六七八九';
+    const zhNum = n => n <= 10 ? (n === 10 ? '十' : ZH[n])
+        : n < 20 ? '十' + ZH[n % 10]
+        : n < 100 ? ZH[Math.floor(n / 10)] + '十' + (n % 10 ? ZH[n % 10] : '') : String(n);
+    const letters = (n, base) => String.fromCharCode(base + (n - 1) % 26).repeat(Math.floor((n - 1) / 26) + 1);
+    const roman = n => [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]
+        .reduce((out, [v, r]) => { while (n >= v) { out += r; n -= v; } return out; }, '');
+    function fmtNum(n, fmt) {
+        switch (fmt) {
+            case 'decimalZero':                return n < 10 ? '0' + n : String(n);
+            case 'decimalFullWidth':
+            case 'decimalFullWidth2':          return String(n).replace(/\d/g, d => String.fromCharCode(0xFF10 + +d));
+            case 'decimalEnclosedCircle':
+            case 'decimalEnclosedCircleChinese': return n >= 1 && n <= 20 ? String.fromCharCode(0x245F + n) : String(n);
+            case 'decimalEnclosedParen':       return n >= 1 && n <= 20 ? String.fromCharCode(0x2473 + n) : '(' + n + ')';
+            case 'decimalEnclosedFullstop':    return n >= 1 && n <= 20 ? String.fromCharCode(0x2487 + n) : n + '.';
+            case 'upperLetter':                return letters(n, 65);
+            case 'lowerLetter':                return letters(n, 97);
+            case 'upperRoman':                 return roman(n);
+            case 'lowerRoman':                 return roman(n).toLowerCase();
+            case 'ideographTraditional':       return '甲乙丙丁戊己庚辛壬癸'[n - 1] || String(n);
+            case 'ideographZodiac':            return '子丑寅卯辰巳午未申酉戌亥'[n - 1] || String(n);
+            case 'taiwaneseCounting':
+            case 'taiwaneseCountingThousand':
+            case 'chineseCounting':
+            case 'chineseCountingThousand':
+            case 'ideographLegalTraditional':  return zhNum(n);
+            case 'taiwaneseDigital':
+            case 'ideographDigital':           return String(n).replace(/\d/g, d => ZH[d]);
+            case 'none':                       return '';
+            default:                           return String(n);
+        }
+    }
+
+    const counters = new Map(), usedNums = new Set();
+    return function label(pPr) {
+        const numPr = kid(pPr, 'numPr');
+        let numId = val(kid(numPr, 'numId')), ilvl = val(kid(numPr, 'ilvl'));
+        for (let sid = val(kid(pPr, 'pStyle')), guard = 0; sid && guard < 20; guard++) {
+            const st = styles.get(sid);
+            if (!st) break;
+            if (numId == null) numId = st.numId;
+            if (ilvl == null) ilvl = st.ilvl;
+            sid = st.basedOn;
+        }
+        if (!numId || numId === '0') return '';
+        const num = nums.get(numId);
+        const lvls = num && abstracts.get(num.abs);
+        const k = +(ilvl || 0);
+        const lvl = lvls && lvls[k];
+        if (!lvl || lvl.fmt === 'bullet') return '';
+        if (!counters.has(num.abs)) counters.set(num.abs, []);
+        const c = counters.get(num.abs);
+        if (!usedNums.has(numId)) {
+            usedNums.add(numId);
+            for (const [l, start] of num.overrides) c[l] = start - 1;
+        }
+        c[k] = c[k] == null ? lvl.start : c[k] + 1;
+        for (let d = k + 1; d < 9; d++) {
+            const r = lvls[d] ? lvls[d].restart : null;
+            if (r === 0) continue;
+            if (r == null || k < r) c[d] = null;
+        }
+        const text = lvl.text.replace(/%([1-9])/g, (_, d) => {
+            const l = lvls[d - 1] || { start: 1, fmt: 'decimal' };
+            return fmtNum(c[d - 1] == null ? l.start : c[d - 1], l.fmt);
+        });
+        return text + (lvl.suff === 'nothing' ? '' : ' ');
+    };
+}
+
+// 一段的文字：注音標示只取國字、EQ 欄位換成文字、AlternateContent 只取一份
+function docxParagraphText(p) {
+    const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const isEq = instr => /^\s*eq\b/i.test(instr);
+    let out = '';
+    const fields = [];   // 巢狀欄位 { instr, state: 'instr' | 'result', eq }
+    function emit(s) {
+        if (fields.some(f => f.state === 'result' && f.eq)) return;   // EQ 欄位的舊顯示結果不要
+        const top = fields[fields.length - 1];
+        if (top && top.state === 'instr') { top.instr += s; return; }
+        out += s;
+    }
+    function emitOutside(f, s) { fields.pop(); emit(s); fields.push(f); }
+    function walk(node) {
+        for (const el of node.childNodes) {
+            if (el.nodeType !== 1) continue;
+            switch (el.localName) {
+                case 't':         emit(el.textContent); break;
+                case 'tab':       emit('\t'); break;
+                case 'br': case 'cr': emit('\n'); break;   // 段落內換行（勾選題、選項常這樣分行）
+                case 'rt':        break;   // 注音標示上面的注音
+                case 'pPr': case 'rPr': case 'Fallback': break;
+                case 'instrText': if (fields.length) fields[fields.length - 1].instr += el.textContent; break;
+                case 'fldChar': {
+                    const type = el.getAttributeNS(W, 'fldCharType');
+                    const top = fields[fields.length - 1];
+                    if (type === 'begin') fields.push({ instr: '', state: 'instr', eq: false });
+                    else if (top && type === 'separate') {
+                        top.state = 'result';
+                        top.eq = isEq(top.instr);
+                        if (top.eq) emitOutside(top, evalWordEq(top.instr));
+                    } else if (top && type === 'end') {
+                        if (top.state === 'instr' && isEq(top.instr)) emitOutside(top, evalWordEq(top.instr));
+                        fields.pop();
+                    }
+                    break;
+                }
+                case 'fldSimple': {
+                    const instr = el.getAttributeNS(W, 'instr') || '';
+                    if (isEq(instr)) emit(evalWordEq(instr)); else walk(el);
+                    break;
+                }
+                default: walk(el);
+            }
+        }
+    }
+    walk(p);
+    return out;
+}
+
+function docxXmlToText(documentXml, numberingXml, stylesXml) {
+    const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const doc = new DOMParser().parseFromString(documentXml, 'application/xml');
+    const label = makeDocxNumberer(numberingXml, stylesXml);
+    const pPrOf = p => Array.from(p.childNodes).find(n => n.localName === 'pPr') || null;
+    const paraText = p => label(pPrOf(p)) + docxParagraphText(p);
+
+    const lines = [];
+    function block(parent) {
+        for (const node of parent.childNodes) {
+            const local = node.localName;
+            if (local === 'p') {
+                lines.push(paraText(node));
+            } else if (local === 'sdt') {
+                const content = Array.from(node.childNodes).find(n => n.localName === 'sdtContent');
+                if (content) block(content);
+            } else if (local === 'tbl') {
+                const rows = node.getElementsByTagNameNS(W, 'tr');
+                for (const tr of rows) {
+                    const cells = tr.getElementsByTagNameNS(W, 'tc');
+                    const cellTexts = [];
+                    for (const tc of cells) {
+                        const ps = tc.getElementsByTagNameNS(W, 'p');
+                        const cellLines = [];
+                        for (const p of ps) {
+                            const t = paraText(p).replace(/\s*\n\s*/g, ' ');
+                            if (t.trim()) cellLines.push(t.trim());
+                        }
+                        cellTexts.push(cellLines.join(' '));
+                    }
+                    lines.push(cellTexts.join('\t'));
+                }
+                lines.push('');
+            }
+        }
+    }
+    block(doc.getElementsByTagNameNS(W, 'body')[0]);
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// ════════════════════════════════════════════════════════════
 //  handleOpenFile — 開啟檔案（txt/brl/brf/docx/odt/rtf/pdf；brl 是臺灣點字檔、brf 是英文點字檔，都是純文字）
 //  taId:    目標 textarea 的 id
 //  onLoad:  載入後 callback（可為 null）
@@ -276,50 +553,10 @@ async function handleOpenFile(event, taId, onLoad) {
         const arrayBuffer = await file.arrayBuffer();
         try {
             const zip = await JSZip.loadAsync(arrayBuffer);
-            const xmlFile = zip.file('word/document.xml');
-            if (!xmlFile) throw new Error('找不到 word/document.xml');
-            const xmlText = await xmlFile.async('string');
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(xmlText, 'application/xml');
-            const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-
-            function extractParagraphText(p) {
-                const runs = Array.from(p.getElementsByTagName('*'))
-                    .filter(el => el.localName === 't');
-                let text = '';
-                for (const r of runs) text += r.textContent;
-                return text;
-            }
-
-            const body = doc.getElementsByTagNameNS(ns, 'body')[0];
-            const lines = [];
-            for (const node of body.childNodes) {
-                const local = node.localName;
-                if (local === 'p') {
-                    lines.push(extractParagraphText(node));
-                } else if (local === 'tbl') {
-                    const rows = node.getElementsByTagNameNS(ns, 'tr');
-                    for (const tr of rows) {
-                        const cells = tr.getElementsByTagNameNS(ns, 'tc');
-                        const cellTexts = [];
-                        for (const tc of cells) {
-                            const ps = tc.getElementsByTagNameNS(ns, 'p');
-                            const cellLines = [];
-                            for (const p of ps) {
-                                const t = extractParagraphText(p);
-                                if (t.trim()) cellLines.push(t.trim());
-                            }
-                            cellTexts.push(cellLines.join(' '));
-                        }
-                        lines.push(cellTexts.join('\t'));
-                    }
-                    lines.push('');
-                }
-            }
-            done(lines.join('\n').replace(/\n{3,}/g, '\n\n').trim());
-            setTimeout(() => {
-                alert('如果文件有自動編號，建議改用複製貼上：\n在 Word 中 Ctrl+A 全選 → Ctrl+C 複製，再到輸入框 Ctrl+V 貼上。');
-            }, 100);
+            const read = async name => { const f = zip.file(name); return f ? f.async('string') : ''; };
+            const xmlText = await read('word/document.xml');
+            if (!xmlText) throw new Error('找不到 word/document.xml');
+            done(docxXmlToText(xmlText, await read('word/numbering.xml'), await read('word/styles.xml')));
         } catch(err) {
             alert('DOCX 讀取失敗：' + err.message);
         }
