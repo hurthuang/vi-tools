@@ -5,6 +5,9 @@
 # 用自己的一份 repo（%LOCALAPPDATA%\vi-tools-search\repo），不動 E:\Project 底下開發用的資料夾
 # 需要：git（已登入 GitHub，可以推 hurthuang/vi-tools）、Node.js 18 以上
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8   # node、git 的輸出是 UTF-8
+# 外部指令的輸出（含錯誤訊息）也寫進紀錄；$LASTEXITCODE 照樣是那個指令的結果
+function Run([string]$c) { cmd /c "$c 2>&1" | ForEach-Object { Write-Output "  $_" } }
 $base = Join-Path $env:LOCALAPPDATA 'vi-tools-search'
 $repo = Join-Path $base 'repo'
 $log = Join-Path $base 'update.log'
@@ -13,14 +16,14 @@ Start-Transcript -Path $log -Append | Out-Null
 try {
   Write-Output "=== $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
   if (-not (Test-Path (Join-Path $repo '.git'))) {
-    git clone --depth 1 --branch master https://github.com/hurthuang/vi-tools.git $repo
+    Run "git clone --depth 1 --branch master https://github.com/hurthuang/vi-tools.git ""$repo"""
     if ($LASTEXITCODE) { throw 'git clone 失敗' }
   }
   Set-Location $repo
-  git fetch --depth 1 origin master; if ($LASTEXITCODE) { throw 'git fetch 失敗' }
+  Run 'git fetch --depth 1 origin master'; if ($LASTEXITCODE) { throw 'git fetch 失敗' }
   git reset --hard origin/master | Out-Null
 
-  node tools/build-search.mjs --crawl
+  Run 'node tools/build-search.mjs --crawl'
   if ($LASTEXITCODE) { throw '抓筆記本失敗' }
 
   git add data/notes.json search-index.json
@@ -29,7 +32,7 @@ try {
   git commit -q -m 'chore: 更新站內搜尋索引（筆記本）'
   $keep = Join-Path $base 'notes.json'
   for ($i = 1; $i -le 3; $i++) {
-    git push origin HEAD:master
+    Run 'git push origin HEAD:master'
     if (-not $LASTEXITCODE) { Write-Output '已推上 GitHub，網站幾分鐘後更新'; return }
     # master 在這段時間有別的更新：留著抓好的 notes.json，換成最新的 master 再重建一次
     Copy-Item data/notes.json $keep -Force
