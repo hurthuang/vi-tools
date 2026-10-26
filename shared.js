@@ -40,6 +40,16 @@ function loadScript(src) {
 // ════════════════════════════════════════════════════════════
 //  cleanExamText — 共用核心（opts 參數化）
 // ════════════════════════════════════════════════════════════
+// 選項標記：(A)～(D)、圈號 ①～⑳（國小考卷常用）
+const OPT_START_RE = /^(\([A-D]\)|[①-⑳])/;
+// 選項的種類與序號，用來判斷下一行是不是同一組的下一個選項
+function optKey(line) {
+    const m = OPT_START_RE.exec(line.trim());
+    if (!m) return null;
+    return m[1].length === 1 ? { type: 'circle', n: m[1].charCodeAt(0) - 0x2460 }
+                             : { type: 'letter', n: m[1].charCodeAt(1) - 65 };
+}
+
 function cleanExamText(text, opts) {
     opts = Object.assign({
         cjkSpace:       true,
@@ -79,7 +89,7 @@ function cleanExamText(text, opts) {
     // ── 2b. 孤立題號與後續文字合併 ──
     {
         const LONE_QNUM = /^\d{1,3}\s*[\.。、]\s*$/;
-        const isOptLine  = l => /^\([A-D]\)/.test(l.trim());
+        const isOptLine  = l => OPT_START_RE.test(l.trim());
         const isSectLine = l => /^[一二三四五六七八九十][、．]/.test(l.trim()) ||
                                 /^[★※【第]/.test(l.trim());
         const lines2b = text.split('\n');
@@ -108,6 +118,8 @@ function cleanExamText(text, opts) {
         text = text.replace(/([^\n])([一二三四五六七八九十][、．])/g, '$1\n\n$2');
         text = text.replace(/([^\n\d])(\d{1,3}\s*[\.。、]\s*)(?=[^\d])/g, '$1\n$2');
         text = text.replace(/([^\n])(\([A-D]\))/g, '$1\n$2');
+        // 圈號前換行；「①和③」「①～④」這類題幹裡提到選項的不拆
+        text = text.replace(/([^\n～~、和或至到])([①-⑳])(?![～~、和或至到])/g, '$1\n$2');
     }
 
     // ── 4. Tab、全形空格；行首尾去空白；行內多空格合一 ──
@@ -158,7 +170,7 @@ function cleanExamText(text, opts) {
     }
 
     // ── 8. 逐行整理（選項版面）──
-    const isOpt        = l => /^\([A-D]\)/.test(l);
+    const isOpt        = l => OPT_START_RE.test(l);
     const isBlank      = l => l.trim() === '';
     const isSectionOrQ = l =>
         /^[一二三四五六七八九十][、．]/.test(l) ||
@@ -170,7 +182,7 @@ function cleanExamText(text, opts) {
         if (isSectionOrQ(t)) return true;
         if (/[。？！!?：:]\s*$/.test(t)) return true;
         if (t.length >= 15) return true;
-        if (nextLine && isOpt(nextLine.trim()) && /^\(A\)/.test(nextLine.trim())) return true;
+        if (nextLine && isOpt(nextLine.trim()) && optKey(nextLine).n === 0) return true;
         if (nextLine && isSectionOrQ(nextLine.trim())) return true;
         return false;
     };
@@ -235,12 +247,9 @@ function cleanExamText(text, opts) {
         const line = split[i];
         out.push(line);
         if (isOpt(line)) {
-            const letter = line.match(/^\(([A-D])\)/)[1];
-            const next = split[i+1];
-            const nextIsOpt = next && isOpt(next);
-            const nextLetter = nextIsOpt ? next.match(/^\(([A-D])\)/)[1] : null;
-            const expectedNext = { A:'B', B:'C', C:'D' }[letter];
-            if (!nextIsOpt || nextLetter !== expectedNext) out.push('');
+            const key = optKey(line);
+            const next = split[i+1] && optKey(split[i+1]);
+            if (!next || next.type !== key.type || next.n !== key.n + 1) out.push('');
         }
     }
 
