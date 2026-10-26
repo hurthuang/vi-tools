@@ -1369,6 +1369,8 @@ function initPanelResizer(opts) {
             font-size: 14px; line-height: 1.7; white-space: pre-wrap;
             font-family: inherit;
         }
+        /* 標籤底色固定是淺色，字也固定深色，深色視窗裡才看得見 */
+        .fwp-newline-keep, .fwp-newline-merge, .fwp-newline-merge-len { color: #1b1f2d; }
         .fwp-newline-keep {
             display: inline-block; background: #e8f5e9; border: 1px solid #4caf50;
             border-radius: 3px; padding: 0 3px; margin: 1px; cursor: pointer;
@@ -1425,7 +1427,10 @@ function initPanelResizer(opts) {
         html.fmt-page-dark #fmt-wrap-legend {
             background: #252839;
             border-color: #363a52;
+            color: #c5cde0;
         }
+        html.fmt-page-dark .fwp-ctrl-label,
+        html.fmt-page-dark .fwl-hint { color: #a9b3c9; }
         html[data-theme="dark"] #adv-replace-modal,
         html.fmt-page-dark #adv-replace-modal {
             background: #1e2130;
