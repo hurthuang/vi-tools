@@ -4,7 +4,7 @@
 
 ## 首頁入口（2026-10-25）
 
-- 首頁改成兩排分組頁籤後（見 docs/notes/home-groups.md），縮點對照放在「學習與查詢」第二排 UEB 查詢後面（`#zh-tw-short`、`frame-zhshort`，`data-src` 第一次打開才載入），首頁卡片在學習與查詢那一組；不再放在附加元件區。
+- 首頁改成兩排分組頁籤後（見 docs/notes/home-groups.md），縮點對照頁（頁籤與卡片名稱 2026-10-26 改成「縮點（實驗性質）」）放在「學習與查詢」第二排 UEB 查詢後面（`#zh-tw-short`、`frame-zhshort`，`data-src` 第一次打開才載入），首頁卡片在學習與查詢那一組；不再放在附加元件區。
 - 頁面在首頁框架裡：隱藏「← vi-tools 首頁」、接收 `{type:'setTheme'}` 切換深淺色、外部連結（GitHub、文章、FontStruct）一律 `target="_blank"`。直接開 zh-tw-short.html 時照舊顯示回首頁連結。
 - guide.html（側欄、工具總覽、`#zhshort` 一節）與 README 的分組說明、工具表都有縮點對照。
 

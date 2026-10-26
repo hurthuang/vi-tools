@@ -378,7 +378,7 @@
   </div>
   <div class="tab" role="tab" id="tab-zhshort" data-target="frame-zhshort"
        tabindex="-1" aria-selected="false" aria-controls="frame-zhshort">
-    <span class="icon" aria-hidden="true">⣿</span> 縮點對照
+    <span class="icon" aria-hidden="true">⣿</span> 縮點（實驗性質）
   </div>
 </div>
 
@@ -587,16 +587,15 @@
         </div>
 
         <div class="tool-card" style="--card-accent:#2dd4bf" onclick="switchTo('frame-zhshort')"
-             role="button" tabindex="0" aria-label="開啟縮點對照" aria-describedby="desc-zhshort"
+             role="button" tabindex="0" aria-label="開啟縮點（實驗性質）" aria-describedby="desc-zhshort"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-zhshort')}">
           <div class="tool-icon" aria-hidden="true">⣿</div>
           <div class="tool-info">
             <div class="tool-name">
-              縮點對照
-              <span class="tool-badge" style="background:#2dd4bf">實驗</span>
+              縮點（實驗性質）
             </div>
             <div class="tool-desc" id="desc-zhshort">
-              注音點字的調號併入第七、八點，每個字少寫一方；輸入文字對照國語點字和縮點，附讀寫規則與範例。只適用八點點字顯示器。
+              注音點字的調號併入第七、八點，每個字少寫一方；輸入文字對照國語點字和縮點，附讀寫規則與範例。只適用八點點字顯示器；摸讀要搭配 brailleTableSwitcher 1.3.0 以上，打字要搭配豪點輸入法 1.7 以上。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -689,7 +688,7 @@
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq" title="UEB 查詢"></iframe>
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="音樂點字"></iframe>
   <iframe id="frame-mstudent" class="panel" data-src="music/student.html" role="tabpanel" aria-labelledby="tab-mstudent" title="點字樂譜練習"></iframe>
-  <iframe id="frame-zhshort" class="panel" data-src="zh-tw-short.html" role="tabpanel" aria-labelledby="tab-zhshort" title="縮點對照"></iframe>
+  <iframe id="frame-zhshort" class="panel" data-src="zh-tw-short.html" role="tabpanel" aria-labelledby="tab-zhshort" title="縮點（實驗性質）"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸摸圖"></iframe>
   <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-labelledby="tab-abacus" title="珠算練習"></iframe>
   <!-- 點字教材：第一次打開才載入（data-src），不拖慢首頁 -->
