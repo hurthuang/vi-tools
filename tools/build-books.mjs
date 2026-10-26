@@ -99,6 +99,8 @@ function build(book) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- 這個檔案由 tools/build-books.mjs 從 ${book.src} 產生，不要直接改 -->
 <title>${title}</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="music/js/theme.js"></script>
 ${book.math ? MATHJAX : ''}<style>
 @font-face{font-family:'SimBraille';src:url('SIMBRL.TTF') format('truetype')}
@@ -181,6 +183,8 @@ function listPage(pages) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- 這個檔案由 tools/build-books.mjs 產生，不要直接改 -->
 <title>點字教材</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="music/js/theme.js"></script>
 <style>${css}</style>
 </head>

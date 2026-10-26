@@ -28,6 +28,7 @@ public class MainForm : Form
         _webRoot = webRoot;
         _preferOnline = preferOnline;
         Text = $"視障輔助工具集 v{AppVersion}";
+        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }   // 標題列、工作列用 exe 的圖示（app.ico）
         Width = 1280;
         Height = 860;
         StartPosition = FormStartPosition.CenterScreen;

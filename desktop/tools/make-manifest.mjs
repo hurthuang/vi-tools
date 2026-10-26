@@ -32,7 +32,7 @@ export function repoFiles(root) {
   for (const name of readdirSync(root)) {
     const p = join(root, name);
     if (!statSync(p).isFile() || /^reg-/i.test(name) || name === 'search-index.json') continue;   // 搜尋索引（含筆記本全文）不放進桌面版，搜尋頁改讀線上的
-    if (/\.(html|htm|js|json|ttf|jpg)$/i.test(name)) list.push(['web/' + name, p]);
+    if (/\.(html|htm|js|json|ttf|jpg|svg)$/i.test(name)) list.push(['web/' + name, p]);
   }
   for (const sub of ['table', 'mathcat']) for (const f of walk(join(root, sub))) list.push([`web/${sub}/${f}`, join(root, sub, f)]);
   for (const f of walk(join(root, 'music'))) {

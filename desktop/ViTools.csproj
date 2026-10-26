@@ -11,6 +11,8 @@
     <!-- app 版本：發佈 Release（標籤 desktop-v*）時更新；網頁從 window.vitoolsDesktop.appVersion 讀取 -->
     <Version>0.4.0</Version>
     <RootNamespace>ViTools</RootNamespace>
+    <!-- exe 與視窗的圖示：由上層 logo.svg、logo-small.svg 產生（node tools/build-icons.mjs） -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,7 +31,7 @@
   </PropertyGroup>
   <Target Name="BundleWebAndZip" AfterTargets="Publish" Condition="'$(PublishProfile)' == 'Portable'">
     <ItemGroup>
-      <WebRootFiles Include="$(WebSource)\*.html;$(WebSource)\*.htm;$(WebSource)\*.js;$(WebSource)\*.json;$(WebSource)\*.TTF;$(WebSource)\*.jpg"
+      <WebRootFiles Include="$(WebSource)\*.html;$(WebSource)\*.htm;$(WebSource)\*.js;$(WebSource)\*.json;$(WebSource)\*.TTF;$(WebSource)\*.jpg;$(WebSource)\*.svg"
                     Exclude="$(WebSource)\reg-*;$(WebSource)\search-index.json" />
       <WebTableFiles Include="$(WebSource)\table\**" />
       <WebMathcatFiles Include="$(WebSource)\mathcat\**" />

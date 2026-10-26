@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>視障輔助工具</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -108,7 +110,11 @@
     font-weight: 700;
     color: var(--text);
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
+  .home-logo { width: 56px; height: 56px; flex: none; }
   .home-subtitle {
     font-size: 0.9rem;
     color: var(--muted);
@@ -388,7 +394,7 @@
 
   <div id="home-panel" class="active" role="tabpanel" aria-labelledby="tab-home" tabindex="0">
     <div class="home-inner">
-      <h1 class="home-title">視障輔助工具集</h1>
+      <h1 class="home-title"><img class="home-logo" src="logo.svg" alt="">視障輔助工具集</h1>
       <p class="home-subtitle">
         為視覺障礙教育設計的點字轉換、教材製作與學習工具，分成四組。<br>
         上方第一排選組別，第二排選該組的工具；也可以直接點下面的卡片。
