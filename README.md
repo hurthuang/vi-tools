@@ -8,7 +8,7 @@
 
 ## 工具
 
-主頁的工具分成四組：點字轉換（文字轉點字、點字轉文字、數學點字、音樂點字）、教材製作（文件整理、觸摸圖）、學習與查詢（點字教材：注音點字、數理點字、UEB、音樂點字四本；珠算練習、點字樂譜練習、UEB 查詢、縮點）、附加元件（NVDA 附加元件連結）。上方第一排頁籤選組別，第二排選工具；各工具的網址（如 `#math`、`#abacus`）不變。
+主頁的工具分成四組：點字轉換（文字轉點字、點字轉文字、數學點字、音樂點字）、教材製作（文件整理、觸圖製作）、學習與查詢（點字教材：注音點字、數理點字、UEB、音樂點字四本；珠算練習、點字樂譜練習、UEB 查詢、縮點）、附加元件（NVDA 附加元件連結）。上方第一排頁籤選組別，第二排選工具；各工具的網址（如 `#math`、`#abacus`）不變。
 
 | 工具 | 連結 | 說明 |
 |------|------|------|
@@ -20,7 +20,7 @@
 | 縮點（實驗性質） | [zh-tw-short.html](https://hurthuang.github.io/vi-tools/zh-tw-short.html) | 注音點字的調號併入第七、八點（縮點）；輸入文字逐行對照國語點字與縮點，附讀寫規則（讀打一致）、進階打法與範例；八點點字字型（空點畫成小點）；只適用八點點字顯示器 |
 | 點字輸入 | [braille-input.html](https://hurthuang.github.io/vi-tools/braille-input.html) | 整合四種點字輸入方式：常駐六點鍵盤（觸控／滑鼠／實體鍵盤同時按鍵組合，Ctrl+B 切換一般輸入）、點陣點選浮動面板、Unicode 64 點字符鍵盤；輸出可切換 Unicode／ASCII／ASCII+SimBraille 字型顯示 |
 | 點字樂譜 | [music/](https://hurthuang.github.io/vi-tools/music/) | ABC 記譜／MusicXML 與點字樂譜（BANA Music Braille Code 2015）雙向轉換，支援單音、鋼琴雙手、和弦、歌詞（國語點字）與和弦名稱；五線譜預覽、點字對照學習單與 SVG／PNG／PDF 匯出；從游標處播放；逐音中文報讀；六點輸入；規則對照頁 |
-| 觸摸圖（測試版） | [tactile.html](https://hurthuang.github.io/vi-tools/tactile.html) | 從試題 PDF、Word（.docx，取出內嵌圖片）或截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn 觸摸圖：PDF 向量線條直接取用、點陣圖細化拉直並把網底轉成填色；A、B、C 等標籤自動轉點字（數學點字的下位數字與數字記號）並避開線條；每頁點字標題（國字依 zh-tw.ctb）；畫點、直線、箭頭、矩形、橢圓、選取搬移、灰／黑／點狀／斜線／格線填色、描圖模式；多種紙張尺寸；另有[說明頁](https://hurthuang.github.io/vi-tools/tactile-help.html)（含會考圖的處理方式）；可開啟既有 .prn 修改 |
+| 觸圖製作（測試版） | [tactile.html](https://hurthuang.github.io/vi-tools/tactile.html) | 從試題 PDF、Word（.docx，取出內嵌圖片）或截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn 觸摸圖：PDF 向量線條直接取用、點陣圖細化拉直並把網底轉成填色；A、B、C 等標籤自動轉點字（數學點字的下位數字與數字記號）並避開線條；每頁點字標題（國字依 zh-tw.ctb）；畫點、直線、箭頭、矩形、橢圓、選取搬移、灰／黑／點狀／斜線／格線填色、描圖模式；多種紙張尺寸；另有[說明頁](https://hurthuang.github.io/vi-tools/tactile-help.html)（含會考圖的處理方式）；可開啟既有 .prn 修改 |
 | 珠算練習 | [abacus/](https://hurthuang.github.io/vi-tools/abacus/) | 盲生用算盤代替直式的分級練習：依補數分級出題（加、減、乘一位數、兩位數 × 兩位數、除以一位數、兩位數），點顯器摸讀題目、以 Nemeth 作答，六點輸入；老師預覽並匯出 .brl 題目；練習紀錄 CSV；附各級撥珠教法與教學法筆記 |
 | 數理點字教材 | [nemeth-book.html](https://hurthuang.github.io/vi-tools/nemeth-book.html) | 依 108 課綱編寫的 Nemeth 數理點字教材（CH1～CH11、附錄）：國小到高中數學、化學式、物理公式；例子點字由數學點字工具產生並與規則書核對；可切換 SimBraille 顯示 |
 | 台灣注音點字規則整理 | [zhuyin-braille-rules.html](https://hurthuang.github.io/vi-tools/zhuyin-braille-rules.html) | 國語點字的聲母、韻母、結合韻、聲調、拼法與換行，以及標點符號的點字與點寫規則 |

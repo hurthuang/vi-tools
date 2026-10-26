@@ -1,6 +1,6 @@
-// 觸摸圖（tactile.html），模擬斷線：中文點字表（table/zh-tw.ctb）讀得到、六點輸入面板、紙張、一開始的空白頁畫矩形、匯出 .prn 的標頭與內容、存編輯檔
+// 觸圖製作（tactile.html），模擬斷線：中文點字表（table/zh-tw.ctb）讀得到、六點輸入面板、紙張、一開始的空白頁畫矩形、匯出 .prn 的標頭與內容、存編輯檔
 export default {
-  name: '觸摸圖斷線可用（點字表、紙張、繪圖、匯出 PRN）',
+  name: '觸圖製作斷線可用（點字表、紙張、繪圖、匯出 PRN）',
   needsApp: true,
   env: { VITOOLS_SIMULATE_OFFLINE: '1' },
   async run({ cdp, check, win, doc, waitFor }) {

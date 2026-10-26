@@ -1083,7 +1083,7 @@ some/time/name/here/there/where/one）確認只有 than 誤判、其餉都正常
 wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正確，沒有 b2t 專屬
 的其他新問題。
 
-## 觸摸圖（tactile.html，測試版，2026-10-04 併入）
+## 觸圖製作（tactile.html，測試版，2026-10-04 併入；2026-10-26 由「觸摸圖」改名，內文的「觸摸圖」指做出來的圖）
 
 從試題 PDF／截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn（3D Emboss，20 dpi）。原本在 `E:\Project\pic-maker` 獨立開發，分支 `pic-maker`（worktree `E:\Project\tool-pic`）。
 
