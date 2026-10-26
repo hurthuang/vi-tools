@@ -319,6 +319,10 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-guide">
     <span class="icon" aria-hidden="true">📖</span> 說明
   </div>
+  <div class="tab" role="tab" id="tab-search" data-target="frame-search"
+       tabindex="-1" aria-selected="false" aria-controls="frame-search">
+    <span class="icon" aria-hidden="true">🔍</span> 搜尋
+  </div>
 </div>
   <button id="theme-btn" onclick="toggleTheme()" style="
     background:none;border:1px solid var(--border);color:var(--muted);
@@ -691,6 +695,7 @@
   <!-- 點字教材：第一次打開才載入（data-src），不拖慢首頁 -->
   <iframe id="frame-books" class="panel" data-src="books.html" role="tabpanel" aria-labelledby="tab-books" title="點字教材"></iframe>
   <iframe id="frame-guide" class="panel" src="guide.html"              role="tabpanel" aria-labelledby="tab-guide" title="說明"></iframe>
+  <iframe id="frame-search" class="panel" data-src="search.html"     role="tabpanel" aria-labelledby="tab-search" title="搜尋"></iframe>
 
 </main>
 
@@ -746,7 +751,7 @@
     'frame-music': 'music', 'frame-mstudent': 'music-student', 'addons-panel': 'addons',
     'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
     'frame-books': 'books', 'frame-zhshort': 'zh-tw-short',
-    'frame-guide': 'guide'
+    'frame-guide': 'guide', 'frame-search': 'search'
   };
   const HASH_TO_TARGET = {};
   for (const [id, h] of Object.entries(HASH_MAP)) HASH_TO_TARGET[h] = id;
@@ -838,7 +843,23 @@
       const u = new URL(a.href), page = rel(u);
       if (page === null || u.pathname === frame.contentWindow.location.pathname) return;  // 同一頁的錨點照常
       if (BOOK_SET.has(page)) { e.preventDefault(); switchTo('frame-books', page + u.hash); }
-      else if (PAGE_FRAME[page] && PAGE_FRAME[page] !== 'frame-books') { e.preventDefault(); switchTo(PAGE_FRAME[page]); }
+      else if (PAGE_FRAME[page] && PAGE_FRAME[page] !== 'frame-books') {
+        e.preventDefault();
+        const f = document.getElementById(PAGE_FRAME[page]);
+        if (u.hash && !f.getAttribute('src')) f.dataset.src = page + u.hash;   // 還沒載入：載入時就帶錨點
+        switchTo(PAGE_FRAME[page]);
+        if (u.hash && f.getAttribute('src')) jumpTo(f, u.hash);
+      }
+    }
+    // 連到框架裡的錨點（例：搜尋結果的說明頁段落）：捲過去，焦點移到那個標題，報讀軟體從那裡開始讀
+    function jumpTo(f, hash) {
+      try {
+        const el = f.contentDocument.getElementById(decodeURIComponent(hash.slice(1)));
+        if (!el) return;
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+        el.scrollIntoView();
+        el.focus();
+      } catch (ex) {}
     }
     function hook(f) {
       try {

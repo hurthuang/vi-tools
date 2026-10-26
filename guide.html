@@ -247,7 +247,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <section id="overview">
   <h2 class="section-title">工具總覽</h2>
   <p>本工具集為純前端應用，所有運算在瀏覽器本地執行，不需安裝軟體、不上傳資料。</p>
-  <p>工具分成四組。首頁上方第一排頁籤是組別：主頁、點字轉換、教材製作、學習與查詢、附加元件、說明；選了組別，第二排是這一組的工具（附加元件只有一頁，沒有第二排）。頁籤用左右方向鍵切換，Tab 鍵從第一排移到第二排。點組別會打開這一組上次用的工具，還沒用過就是第一項。工具頁裡連到別的工具或教材的連結，會直接切到對應的頁籤。</p>
+  <p>工具分成四組。首頁上方第一排頁籤是組別：主頁、點字轉換、教材製作、學習與查詢、附加元件、說明、搜尋；選了組別，第二排是這一組的工具（附加元件只有一頁，沒有第二排）。頁籤用左右方向鍵切換，Tab 鍵從第一排移到第二排。點組別會打開這一組上次用的工具，還沒用過就是第一項。工具頁裡連到別的工具或教材的連結，會直接切到對應的頁籤。</p>
   <p>用 NVDA 時，兩排頁籤在「工具導覽」地標裡，工具的內容在「主要」地標裡，按 D 可以在兩者之間跳。首頁依組別列出各工具的卡片，每一組是一個區域，可以用 D 或標題鍵（H）在組別之間跳。</p>
   <p>各工具的網址不變，例如 <code>#math</code> 直接開數學點字、<code>#abacus</code> 直接開珠算練習，已經分享出去的連結都可以用。</p>
   <p>另有 <a href="#app">Windows 桌面版</a>，可在沒有網路時使用，並能把朗讀內容存成 MP3 音檔。</p>
@@ -405,7 +405,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>英文點字模式</h3>
+  <h3 id="bt-英文點字模式">英文點字模式</h3>
   <p>控制列「英文點字」下拉選單可選擇四種模式：</p>
   <div class="feat">
     <div class="feat-title">UEB Grade 1（不縮寫）</div>
@@ -432,10 +432,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <p>每個 ASCII 字元對應固定的八點點字格，用於程式碼或特殊符號文件。</p>
   </div>
 
-  <h3>Nemeth 數學模式</h3>
+  <h3 id="bt-Nemeth數學模式">Nemeth 數學模式</h3>
   <p>勾選控制列的「⟨N⟩ Nemeth 數學」後，數字與數學符號改用 Nemeth 碼，其餘文字仍以 UEB 處理。適合理化科目中英數混排的教材。</p>
 
-  <h3>多音字修正</h3>
+  <h3 id="bt-多音字修正">多音字修正</h3>
   <p>雙視校對區的中文字預設顯示「國字／點字／注音」三列。若某個多音字讀音判斷有誤，可直接點擊：</p>
   <ul>
     <li><b>點字格</b>：開啟六點點陣編輯器，直接調整該字點字內容。</li>
@@ -443,7 +443,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <p>修正過的字在點字輸出中會以橘色標示；按「還原原始」可清除修正、恢復自動判斷的讀音。</p>
 
-  <h3>低年級模式</h3>
+  <h3 id="bt-低年級模式">低年級模式</h3>
   <p>控制列的「低年級模式」下拉選單提供三種設定，自動在輸出中加入額外間距，方便剛入門的學生以手指摸讀：</p>
   <ul>
     <li><b>關閉</b>：不做任何調整，維持一般輸出。</li>
@@ -457,14 +457,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <p>兩種模式都會在每行點字之後自動插入空行（不同段落之間上限兩行，避免版面過度鬆散）。此模式不修改輸入區文字，選回「關閉」即恢復原始輸出。每行方數可搭配現有設定一起調整。</p>
 
-  <h3>排版控制</h3>
+  <h3 id="bt-排版控制">排版控制</h3>
   <ul>
     <li><b>每行方數</b>：設定點字輸出每行格數（預設 40 格），超過時自動換行。</li>
     <li><b>字體大小</b>：調整輸出區顯示字型大小（16–48px）。</li>
     <li><b>格式：Unicode／ASCII</b>：Unicode（⠁⠃…）為通用格式；ASCII 搭配 SimBraille 字型，適合點字字型印刷用途。</li>
   </ul>
 
-  <h3>自訂點字規則</h3>
+  <h3 id="bt-自訂點字規則">自訂點字規則</h3>
   <p>展開「⚙ 自定義點字規則」區塊，可新增自訂的文字→點字對應：</p>
   <ul>
     <li>左欄輸入印刷字，右欄以六點鍵盤或點陣格輸入自訂點字，按「✚ 新增規則」加入。</li>
@@ -472,14 +472,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>自訂規則優先於內建規則套用。</li>
   </ul>
 
-  <h3>輸出</h3>
+  <h3 id="bt-輸出">輸出</h3>
   <ul>
     <li><b>儲存原文</b>：輸入區文字儲存為 .txt 檔。</li>
     <li><b>儲存點字</b>：輸出區點字儲存為 .txt 檔。</li>
     <li><b>匯出雙視 HTML</b>：印刷字與對應點字上下交互排列的 HTML，供教師校對或附於教材。</li>
   </ul>
 
-  <h3>報讀</h3>
+  <h3 id="bt-報讀">報讀</h3>
   <p>可朗讀原文，或選「點字讀音」聽點字實際的念法來校對，見<a href="#common-speech">報讀（朗讀）</a>。</p>
 </section>
 
@@ -503,16 +503,16 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>輸入說明</h3>
+  <h3 id="b2t-輸入說明">輸入說明</h3>
   <p>在左側輸入框貼入 Unicode 點字（⠀–⣿），或使用六點鍵盤輸入。工具自動識別 UEB（英文）與注音點字（中文）並分段處理，兩種點字可同段混排，中間以空格分隔。</p>
 
-  <h3>翻譯引擎</h3>
+  <h3 id="b2t-翻譯引擎">翻譯引擎</h3>
   <ul>
     <li><b>UEB 英文</b>：使用 liblouis（en-ueb-g2.ctb）反向翻譯。</li>
     <li><b>注音點字</b>：使用 McBopomofoWeb 引擎，根據台灣慣用注音點字規則還原漢字。</li>
   </ul>
 
-  <h3>逐格對照視圖</h3>
+  <h3 id="b2t-逐格對照視圖">逐格對照視圖</h3>
   <p>轉換完成後，頁面下方顯示逐格對照區：</p>
   <ul>
     <li>英文詞段顯示為綠底，注音詞段顯示為藍底。</li>
@@ -520,7 +520,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <div class="note">McBopomofoWeb 引擎內含語言模型，注音轉換通常正確；少數同音詞可在對照視圖手動修正。</div>
 
-  <h3>報讀</h3>
+  <h3 id="b2t-報讀">報讀</h3>
   <p>可朗讀轉出的文字，或選「點字讀音」照點字實際的念法念，英文點字會依目前的點字表念回英文，見<a href="#common-speech">報讀（朗讀）</a>。</p>
 </section>
 
@@ -544,7 +544,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>LaTeX → Nemeth（正向轉換）</h3>
+  <h3 id="nc-LaTeXNemeth正向轉換">LaTeX → Nemeth（正向轉換）</h3>
   <p>在左側輸入含 LaTeX 數學式的文件，數學式以 <code>\( \)</code> 包住（行中式）或 <code>$$ $$</code>（獨立式）：</p>
   <pre>設 \(\overline{AB}\perp\overline{CD}\)，則 \(\angle ABC=90^\circ\)。</pre>
   <ul>
@@ -555,19 +555,19 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>點擊「<b>複製</b>」將 Nemeth 輸出複製到剪貼簿。</li>
   </ul>
 
-  <h3>Nemeth → LaTeX（反向轉換）</h3>
+  <h3 id="nc-NemethLaTeX反向轉換">Nemeth → LaTeX（反向轉換）</h3>
   <p>切換到「Nemeth → LaTeX」頁籤，貼入 Unicode Nemeth 點字，即時還原為 LaTeX 語法。可搭配六點鍵盤輸入面板（<kbd>Ctrl</kbd>+<kbd>B</kbd>）逐格輸入。LaTeX 輸出預設收合，按「▶ 展開」顯示。</p>
 
-  <h3>報讀</h3>
+  <h3 id="nc-報讀">報讀</h3>
   <p>兩個方向都有「🔊 報讀」，把數學式轉成口語念出來，方便確認算式有沒有打錯，見<a href="#common-speech">報讀（朗讀）</a>。數學式要用 <code>\( \)</code> 或 <code>$ $</code> 包住。</p>
 
-  <h3>數學編輯器</h3>
+  <h3 id="nc-數學編輯器">數學編輯器</h3>
   <p>點擊「📝 數學編輯器」開啟獨立視窗，提供圖形化介面輸入分數、根號、矩陣等結構，並支援 MathML 輸出。編輯完成後按「✓ 套用到轉換器」帶入輸入框。</p>
 
-  <h3>108 課綱符號對照表</h3>
+  <h3 id="nc-108課綱符號對照表">108 課綱符號對照表</h3>
   <p>頁面底部列出台灣 108 課綱高中數學常用符號的 LaTeX 指令與對應 Nemeth 碼對照，可直接作為輸入參考。</p>
 
-  <h3>儲存</h3>
+  <h3 id="nc-儲存">儲存</h3>
   <ul>
     <li><b>存 Nemeth</b>：Nemeth 輸出儲存為 .txt 檔。</li>
     <li><b>存 LaTeX</b>：LaTeX 文件儲存為 .txt 檔。</li>
@@ -596,7 +596,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>輸入與轉換</h3>
+  <h3 id="music-輸入與轉換">輸入與轉換</h3>
   <ul>
     <li>左邊輸入 ABC 記譜，右邊自動產生點字樂譜；在右邊輸入或修改點字（Unicode 或 BRF），左邊自動產生 ABC。</li>
     <li>「開啟檔案」可讀入 MuseScore、BME 等軟體匯出的 MusicXML（.musicxml、.xml、.mxl）、ABC 與 .brf。</li>
@@ -606,25 +606,25 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>不支援或可能有誤的內容，會在「轉換訊息」列出。</li>
   </ul>
 
-  <h3>五線譜預覽與點字對照</h3>
+  <h3 id="music-五線譜預覽與點字對照">五線譜預覽與點字對照</h3>
   <ul>
     <li>點五線譜上的音，或在任一編輯區移動游標，三邊會同步標示同一個音。</li>
     <li>「點字對照」：在五線譜每個音下方標示點字，以及音名、唱名或簡譜，可設定每行小節數。可匯出 SVG、PNG 或列印，適合製作學習單。</li>
   </ul>
 
-  <h3>播放與報讀</h3>
+  <h3 id="music-播放與報讀">播放與報讀</h3>
   <ul>
     <li>播放依反覆、房號、D.C.、D.S. 的實際演奏順序；可調整速度。</li>
     <li>「輸入時播放音符」「移動游標時播放音符」：輸入或逐音檢查時聽到音高，可選只播游標所在聲部或同一時間所有聲部。</li>
     <li>使用報讀軟體時，在任一編輯區移動游標，會報出該音的小節、時值、音高與點位。「🔊 全曲報讀」把整首曲子轉成文字描述。</li>
   </ul>
 
-  <h3>快速鍵</h3>
+  <h3 id="music-快速鍵">快速鍵</h3>
   <ul>
     <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>：從游標所在的音開始播放，播放時游標跟著移動；再按一次或按 <kbd>Esc</kbd> 停止。</li>
   </ul>
 
-  <h3>規則對照與學生練習</h3>
+  <h3 id="music-規則對照與學生練習">規則對照與學生練習</h3>
   <p>首頁「點字轉換」組的「音樂點字」就是這個轉換器（<code>#music</code>）。</p>
   <p>「點字樂譜規則對照」依主題說明音符、音層記號、音程、反覆、表情記號、歌詞等點字規則，每條附可修改的 ABC 例子與點字，放在「點字教材」裡，名稱是「音樂點字」（<code>#music-rules</code>）。「點字樂譜練習」是學生版，學生打點字樂譜，每打一個音就聽到它，寫好可以播放、存檔、匯出 MusicXML，在「學習與查詢」這一組（<code>#music-student</code>）。轉換器頁首也有這兩頁的連結。</p>
 </section>
@@ -650,10 +650,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>開啟與輸入</h3>
+  <h3 id="p2a-開啟與輸入">開啟與輸入</h3>
   <p>將檔案拖曳至左側區域，或點擊拖曳區開啟。支援 <b>PDF、TXT、DOCX、RTF</b>。開啟後文字顯示於右側編輯區，可直接編輯。</p>
 
-  <h3>自動調整</h3>
+  <h3 id="p2a-自動調整">自動調整</h3>
   <p>點擊「✨ 自動調整」，以下選項可個別開關（預設全開）：</p>
   <ul>
     <li><b>中英文間加空格</b>：在中文與英文／數字之間插入空格，提升報讀流暢度。</li>
@@ -663,20 +663,20 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li><b>修復連字號斷字</b>：合併因 PDF 排版被連字號切斷的英文詞。</li>
   </ul>
 
-  <h3>斷行整理</h3>
+  <h3 id="p2a-斷行整理">斷行整理</h3>
   <p>點擊工具列「↵ 斷行整理」開啟面板，以顏色預覽每行的合併建議（綠色保留、橘色合併、黃色合併）。可切換四種模式（保守／標準／積極／全部合併），並設定「行長≥N 字」閾值，支援逐行手動切換。</p>
 
-  <h3>雜訊清理</h3>
+  <h3 id="p2a-雜訊清理">雜訊清理</h3>
   <p>點擊「🔍 偵測頁首頁尾」，工具自動識別重複出現的頁首頁尾文字，確認後一鍵全部移除。</p>
 
-  <h3>編輯工具</h3>
+  <h3 id="p2a-編輯工具">編輯工具</h3>
   <ul>
     <li><b>復原</b>（<kbd>Ctrl</kbd>+<kbd>Z</kbd>）：還原上一步操作。</li>
     <li><b>取代</b>：全文搜尋取代。</li>
     <li><b>進階取代</b>：支援正規表示式（RegEx）及多組規則批次取代，適合反覆出現的排版問題。</li>
   </ul>
 
-  <h3>右側面板：編輯／預覽／朗讀</h3>
+  <h3 id="p2a-右側面板編輯預覽朗讀">右側面板：編輯／預覽／朗讀</h3>
   <ul>
     <li><b>編輯</b>：直接修改文字的原始編輯區。</li>
     <li><b>預覽</b>：以格式化方式顯示，方便確認排版。</li>
@@ -694,10 +694,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li><b>中英語音設定</b>：英文用英文語音念，用法同<a href="#common-speech">報讀（朗讀）</a>的「中英夾雜」。</li>
   </ul>
 
-  <h3>顯示設定</h3>
+  <h3 id="p2a-顯示設定">顯示設定</h3>
   <p>左側可調整字級（14–32px）、行距，以及選擇主題：淺色、深色、高對比、黃底黑字。</p>
 
-  <h3>匯出</h3>
+  <h3 id="p2a-匯出">匯出</h3>
   <p>整理完成後可匯出為 <b>TXT</b>（純文字）或 <b>HTML</b>（保留換行格式）。</p>
 </section>
 
@@ -725,7 +725,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
   <p>完整的操作說明與<b>會考圖的處理方式</b>（哪些圖做成觸摸圖、哪些改文字說明，等高線圖、人口金字塔、地層剖面等常見圖形怎麼處理）請看 <a href="tactile-help.html" target="_blank" rel="noopener">觸摸圖說明</a>，在觸摸圖頁面右上角的「❓ 說明」也可以打開。</p>
 
-  <h3>從 PDF 做觸摸圖</h3>
+  <h3 id="tactile-從PDF做觸摸圖">從 PDF 做觸摸圖</h3>
   <ul>
     <li>「開啟檔案」選 PDF、Word（.docx）、圖片、既有的 .prn 或編輯檔（.tactile），也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上截圖。</li>
     <li>Word（.docx）會依文件順序取出裡面的圖片，一張圖當一頁。用 Word 圖案工具畫的圖、EMF／WMF 格式的圖讀不到（會提示數量），請在 Word「另存新檔」成 PDF 再開；存成 PDF 後線條是向量，品質也最好。舊版 .doc 不支援。</li>
@@ -734,14 +734,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>每頁第一行是點字標題，例如「選擇 4. 圖一」，國字照「文字轉點字」的規則轉注音點字（可勾選多音字補充規則）。</li>
   </ul>
 
-  <h3>標籤</h3>
+  <h3 id="tactile-標籤">標籤</h3>
   <ul>
     <li>PDF 裡的 A、B、C、L₁ 等字母、數字（1921、500m、30°N）和短的中文詞（甲、砂岩）自動轉點字（字母加大寫記號，下標用下位數字），放在不壓到線的位置。PDF 裡轉成外框的字抓不到文字，會留空白標籤。</li>
     <li>數字用下位數字；單獨的數字、以數字開頭的式子、等號或不等號後的數字前面加數字記號，例如 3 → ⠼⠒、2x+1 → ⠼⠆⠭⠬⠂。</li>
     <li>「標籤」工具：拖曳移動、方向鍵微調、<kbd>Delete</kbd> 刪除；在「新增」欄輸入文字或點字後點圖上的位置加標籤。點字欄可以直接修改（橘框表示手動修改過），也可用六點輸入。</li>
   </ul>
 
-  <h3>修改圖形</h3>
+  <h3 id="tactile-修改圖形">修改圖形</h3>
   <ul>
     <li>工具列是圖示（滑鼠移上去顯示名稱）；粗細、虛線、填色種類只在用得到的工具出現。</li>
     <li>畫點、直線、箭頭、矩形、橢圓、橡皮擦共用「粗細」；勾「虛線」畫輔助線。直線、箭頭按 <kbd>Shift</kbd> 鎖定 0°／45°／90°，矩形變正方形、橢圓變正圓。</li>
@@ -757,7 +757,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原。</li>
   </ul>
 
-  <h3>頁面、紙張與匯出</h3>
+  <h3 id="tactile-頁面紙張與匯出">頁面、紙張與匯出</h3>
   <ul>
     <li>右邊的頁面清單可拖曳排序，或用 <kbd>Alt</kbd>+<kbd>↑</kbd>／<kbd>↓</kbd> 移動目前這頁；「＋ 空白頁」加一張空白頁自己畫。一開始就有一張空白頁可以直接畫；這張空白頁沒動過時，開啟檔案或加入框選的圖會取代它，畫過了就把新的頁面加在後面。</li>
     <li>「紙張」整份文件共用（12 × 11、11 × 11.5、Letter、A4 等，或自訂寬高，寬最多 12.7 吋）；開啟 .prn 時會用它的紙張。</li>
@@ -787,7 +787,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>出題</h3>
+  <h3 id="abacus-出題">出題</h3>
   <ul>
     <li>級別依撥珠時要用的補數區分：1 級直接撥、2 級小補數（5）、3a／3b 級大補數（10）、4 級大小補數一起用、5 級連續進退位與十位相撞、6 級乘一位數、7 級兩位數 × 兩位數、8 級除法（除數是一位數，商和餘數分兩格作答）、9 級除數是兩位數（心裡試乘估商）。</li>
     <li>每一級可再選題型：20 以內、兩位數加減一位數、兩位數加減兩位數。</li>
@@ -795,7 +795,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>「預覽題目」讓老師先看這一組題目，可匯出文字檔（含答案）或 .brl 點字檔（題號用上位數字，每頁 25 行）。</li>
   </ul>
 
-  <h3>作答</h3>
+  <h3 id="abacus-作答">作答</h3>
   <ul>
     <li>進入題目時焦點直接在作答區，題目和學生打的答案顯示在同一行。</li>
     <li>點顯器的點字鍵直接輸入；也可用六點鍵盤（F D S J K L，Ctrl+B 切換），A（點 7）倒退、;（點 8）送出。</li>
@@ -803,7 +803,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>結果頁可「再練錯的題目」，或下載 CSV 紀錄。</li>
   </ul>
 
-  <h3>相關頁面</h3>
+  <h3 id="abacus-相關頁面">相關頁面</h3>
   <ul>
     <li><a href="abacus/complement.html">各級撥珠教法</a></li>
     <li><a href="abacus/notes.html">盲生珠算教學法筆記</a>（分級依據、文獻）</li>
@@ -840,7 +840,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     </div>
   </div>
 
-  <h3>英文 → 點字（正向查詢）</h3>
+  <h3 id="query-英文點字正向查詢">英文 → 點字（正向查詢）</h3>
   <p>在「英文 → 點字」頁籤輸入英文單字或詞組，即時顯示：</p>
   <ul>
     <li>完整的 G2 點字結果。</li>
@@ -848,7 +848,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>liblouis 的對照翻譯；兩者相同則顯示「一致」，不同則並排比對。</li>
   </ul>
 
-  <h3>點字 → 英文（反向查詢）</h3>
+  <h3 id="query-點字英文反向查詢">點字 → 英文（反向查詢）</h3>
   <p>切換到「點字 → 英文」頁籤，可選擇兩種輸入方式：</p>
   <ul>
     <li><b>六鍵點字</b>：<kbd>F</kbd>=點1　<kbd>D</kbd>=點2　<kbd>S</kbd>=點3　<kbd>J</kbd>=點4　<kbd>K</kbd>=點5　<kbd>L</kbd>=點6，同時按住多鍵再放開輸入一格；<kbd>Space</kbd>=空格；<kbd>Esc</kbd>=清除。</li>
@@ -856,7 +856,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <p>也可用頁面上的六點點陣格逐格點選後按「加入此格」。</p>
 
-  <h3>縮寫規則色碼</h3>
+  <h3 id="query-縮寫規則色碼">縮寫規則色碼</h3>
   <table class="rule-table">
     <tbody>
       <tr>
@@ -900,6 +900,21 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <p>相關工具頁也有連結：數學點字連到數理點字教材，文字轉點字連到注音點字規則與 UEB 學習手冊，UEB 查詢連到 UEB 學習手冊。</p>
 </section>
 
+<!-- ════════════ 搜尋 ════════════ -->
+<section id="search">
+  <h2 class="section-title">搜尋</h2>
+  <p>第一排頁籤最後的「搜尋」（網址 <code>#search</code>）一次搜尋這個工具集的工具、這份說明的各段，以及<a href="https://class.kh.edu.tw/19061" target="_blank" rel="noopener">視覺障礙輔助科技筆記本</a>的文章。</p>
+  <ul>
+    <li>多個關鍵字用空白分開，要全部符合；英文不分大小寫，也可以直接搜點字（例如 ⠠⠥⠑⠃）。</li>
+    <li>範圍可以選全部、只搜工具與說明，或只搜筆記本。</li>
+    <li>先報讀找到幾筆；每筆結果是一個標題，NVDA 按 H 跳下一筆，標題下面是類別、分類、更新日期與關鍵字前後的摘要。</li>
+    <li>工具的結果直接切到那個工具；說明的結果切到說明頁那一段；筆記本的文章另開新分頁到原文。</li>
+    <li>筆記本文章裡內嵌的 Google 簡報（各頁標題）、Google 試算表、YouTube 影片標題、網頁內容與附件檔名也搜得到；PDF 只搜得到檔名，設了密碼的文章不收。</li>
+    <li>筆記本的新文章每週更新一次索引，所以剛發的文章可能要幾天後才搜得到。找不到時，結果下方有「用 Google 搜尋」。</li>
+    <li>桌面版沒有內附筆記本的索引，要連上網路才能搜尋。</li>
+  </ul>
+</section>
+
 <!-- ════════════ 桌面版 ════════════ -->
 <section id="app">
   <h2 class="section-title">Windows 桌面版</h2>
@@ -910,7 +925,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <p>只需要在網頁上朗讀、不需要離線或音檔的話，用網頁版就可以了。</p>
 
-  <h3>下載與開啟</h3>
+  <h3 id="app-下載與開啟">下載與開啟</h3>
   <ol>
     <li>到 <a href="https://github.com/hurthuang/vi-tools/releases/latest" target="_blank" rel="noopener">下載頁面</a>，下載 <b>ViTools-版本-portable.zip</b>。</li>
     <li>解壓縮到任一資料夾（例如「文件」或隨身碟），不需要安裝。</li>
@@ -918,7 +933,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ol>
   <div class="note">第一次執行時，Windows 可能顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。適用 Windows 10、11。</div>
 
-  <h3>存成音檔</h3>
+  <h3 id="app-存成音檔">存成音檔</h3>
   <ul>
     <li><b>文字轉點字、點字轉文字、數學點字</b>：展開「🔊 報讀」，按「💾 匯出音檔…」。</li>
     <li><b>文件整理</b>：在「朗讀」分頁按「💾 匯出音檔…」。有點選某一句時，從那一句存到結尾。</li>
@@ -937,11 +952,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   </ul>
   <div class="note">電腦沒有臺灣中文語音時，程式會提示安裝方法：Windows「設定 → 時間與語言 → 語音 → 新增語音 → 中文(台灣)」。要讓英文用英文語音念，另外加裝 English (United States)。</div>
 
-  <h3>更新</h3>
+  <h3 id="app-更新">更新</h3>
   <p>程式每天會自動檢查一次有沒有新版（也可以按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> 立即檢查）。有新版時會<b>自動下載有變動的檔案</b>，不用再下載整個 zip，完成後詢問是否重新啟動。網頁上的工具有改進時，桌面版連上網路就會直接用到；同時也會在背景把離線用的網頁更新到最新，沒有網路時也能用到新功能。目前的版本號顯示在視窗標題，例如「視障輔助工具集 v0.2.2」。</p>
   <p>如果程式放在不能寫入的資料夾（例如 Program Files），或下載失敗，會改成詢問是否開啟下載頁面，下載 zip 後解壓縮覆蓋原本的資料夾即可。</p>
 
-  <h3>快速鍵</h3>
+  <h3 id="app-快速鍵">快速鍵</h3>
   <ul>
     <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>：報讀／匯出音檔。</li>
     <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd>：立即檢查更新。</li>

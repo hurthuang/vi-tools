@@ -30,7 +30,7 @@
   <Target Name="BundleWebAndZip" AfterTargets="Publish" Condition="'$(PublishProfile)' == 'Portable'">
     <ItemGroup>
       <WebRootFiles Include="$(WebSource)\*.html;$(WebSource)\*.htm;$(WebSource)\*.js;$(WebSource)\*.json;$(WebSource)\*.TTF;$(WebSource)\*.jpg"
-                    Exclude="$(WebSource)\reg-*" />
+                    Exclude="$(WebSource)\reg-*;$(WebSource)\search-index.json" />
       <WebTableFiles Include="$(WebSource)\table\**" />
       <WebMathcatFiles Include="$(WebSource)\mathcat\**" />
       <!-- 點字樂譜：只帶執行時用得到的檔案（不含 tests 與說明） -->

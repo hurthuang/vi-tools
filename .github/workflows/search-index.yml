@@ -1,0 +1,37 @@
+# 站內搜尋的索引（search-index.json）：首頁、說明頁改了就重建「工具與說明」的部分
+# 筆記本（class.kh.edu.tw/19061）擋國外連線，GitHub 抓不到，改在使用者的電腦上每週抓（tools/update-search.ps1），
+# 抓完推 data/notes.json 與 search-index.json；這裡只用 repo 裡現有的 data/notes.json
+# 有變動才 commit 推回 master（GITHUB_TOKEN 推的 commit 不會再觸發其他工作流程，桌面版也不打包這兩個檔）
+name: 站內搜尋索引
+
+on:
+  push:
+    branches: [master]
+    paths: [index.html, guide.html, tools/build-search.mjs]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: search-index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 重建索引
+        run: node tools/build-search.mjs
+
+      - name: 有變動就推回 master
+        run: |
+          git add search-index.json
+          if git diff --cached --quiet; then echo "沒有變動"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: 更新站內搜尋索引（工具與說明）"
+          for i in 1 2 3; do git pull --rebase origin master && git push origin HEAD:master && exit 0; sleep 10; done
+          exit 1

@@ -67,8 +67,9 @@ mark{background:var(--mark);color:inherit}
   // 每一筆整理成：標題、分類、要搜的文字（各欄位分開，計分用）
   function prepare(d) {
     const out = [];
+    // 單獨開時：工具開首頁的分頁，說明直接開說明頁的那一段
     for (const t of d.tools) out.push({ kind: t.k === 'tool' ? '工具' : '說明', group: 'tools', t: t.t, c: t.c,
-      href: inFrame ? t.p : 'index.html' + t.url, ext: false, date: '', x: t.x, sub: [], fields: { t: norm(t.t), c: norm(t.c.join(' ')), h: '', x: norm(t.x) } });
+      href: inFrame || t.k === 'guide' ? t.p : 'index.html' + t.url, ext: false, date: '', x: t.x, sub: [], fields: { t: norm(t.t), c: norm(t.c.join(' ')), h: '', x: norm(t.x) } });
     for (const n of d.notes) {
       const sub = (n.e || []).map(e => ({ label: `內嵌${e.k}${e.t ? '「' + e.t + '」' : ''}`, x: [e.t, e.x].filter(Boolean).join('\n') }));
       if (n.f) sub.push({ label: '附件', x: n.f.join('\n') });
@@ -91,7 +92,7 @@ mark{background:var(--mark);color:inherit}
       for (const term of terms) {
         const t = count(f.t, term), c = count(f.c, term), h = count(f.h, term), x = count(f.x, term), s = count(f.s || '', term);
         if (!(t || c || h || x || s)) { ok = false; break; }
-        score += t * 30 + c * 10 + h * 8 + Math.min(x, 10) * 2 + Math.min(s, 10);
+        score += (t ? 30 : 0) + (c ? 10 : 0) + Math.min(h, 3) * 8 + Math.min(x, 10) * 2 + Math.min(s, 10);   // 標題、分類有出現就好，不算次數
       }
       if (!ok) continue;
       if (f.t === terms.join(' ')) score += 50;   // 標題完全相同
@@ -168,12 +169,15 @@ mark{background:var(--mark);color:inherit}
   $('#q').value = p.get('q') || '';
   const k = document.querySelector(`input[name=kind][value="${p.get('in')}"]`); if (k) k.checked = true;
 
-  fetch('search-index.json').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => {
+  // 桌面版沒有內附索引（筆記本全文太大），讀不到就改讀線上的
+  const ONLINE = 'https://hurthuang.github.io/vi-tools/search-index.json';
+  const load = u => fetch(u).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  load('search-index.json').catch(() => load(ONLINE)).catch(() => { throw new Error('搜尋需要連上網路：連線後重新開啟這一頁'); }).then(d => {
     idx = d; items = prepare(d);
     const built = new Date(d.built);
     $('#status').textContent = `可以搜尋了：工具與說明 ${d.tools.length} 筆、筆記 ${d.notes.length} 篇（筆記更新到 ${built.getMonth() + 1}/${built.getDate()}）`;
     if ($('#q').value) run(); else $('#q').focus();
-  }).catch(e => { $('#status').textContent = '索引載入失敗：' + e.message; });
+  }).catch(e => { $('#status').textContent = e.message; });
 })();
 </script>
 </body>
