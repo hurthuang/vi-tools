@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>珠算家長版</title>
+<link rel="icon" href="../favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script src="../music/js/theme.js"></script>
+<script src="abacus-dir.js"></script>
+<script src="abacus-levels.js"></script>
+<script src="abacus-core.js"></script>
+<script src="abacus-picker.js"></script>
+<script src="abacus-anim.js"></script>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.6 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.lead{color:var(--muted);margin:0 0 16px}
+fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:0 0 16px;padding:12px 16px;min-width:0}
+legend{font-weight:700;padding:0 6px}
+label{display:inline-flex;gap:8px;align-items:baseline;margin:4px 16px 4px 0;cursor:pointer}
+input[type=text],input[type=number]{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;margin:4px 8px 4px 0}
+/* 深色主題的 --accent 是淺藍，白字看不清楚：實心按鈕固定用深藍 */
+button:not(.secondary){background:#1f5fa8;border-color:#1f5fa8}
+button.secondary{background:transparent;color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.hint{color:var(--muted);font-size:.95rem}
+.feedback.bad{color:var(--bad)}
+/* 設定：級數是一顆一顆的按鈕，其他設定收在「更多設定」 */
+.lv-group{margin:0 0 10px}
+.lv-group h2{font-size:.95rem;font-weight:400;color:var(--muted);margin:0 0 4px}
+.lv-btns{display:grid;grid-template-columns:repeat(5,minmax(0,4.6em));gap:6px}
+.lv-btns button{margin:0;padding:10px 2px;font-size:1.05rem;white-space:nowrap;background:var(--card);color:var(--fg);border:1px solid var(--line)}
+/* 選了的按鈕：深藍底白字加 ✓（深色主題的 --accent 是淺藍，白字看不清楚，固定用深藍） */
+.lv-btns button[aria-pressed=true]{background:#1f5fa8;border-color:#1f5fa8;color:#fff}
+.lv-btns button[aria-pressed=true]::before{content:'✓ '}
+.picked{min-height:1.6em;margin:4px 0 12px}
+button.big{width:100%;font-size:1.3rem;padding:14px}
+.more{margin:20px 0 0;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px 16px}
+.more summary{cursor:pointer;padding:6px 0;color:var(--muted)}
+.more[open] summary{margin-bottom:8px}
+label.stack,p.stack{display:block;margin:0 0 12px}
+label.stack input{display:block;width:100%;margin-top:4px}
+#forms label{display:block;margin:0 0 12px}
+#forms select{display:block;width:100%;margin-top:4px;font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+[hidden]{display:none!important}
+/* 練習：題目在左、按鈕在旁邊；手機上按鈕排到題目下面 */
+.q-row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin:8px 0}
+.problem{flex:1 1 16rem;font-size:2.8rem;font-weight:600;text-align:center;padding:20px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-variant-numeric:tabular-nums}
+.q-tools{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.q-tools button{margin:0;min-width:8.5em}
+.answer{font-size:1.6rem;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0}
+/* 操作列：貼在畫面最下面，捲到動畫時也按得到。每題都是「答對／答錯」→「下一題」 */
+.bar{position:sticky;bottom:0;margin:16px -16px 0;padding:8px 16px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -4px 12px rgba(0,0,0,.12)}
+.bar-status{margin:0 0 6px;font-weight:600}
+.bar-status .ok{color:var(--ok)}
+.bar-status .bad{color:var(--bad)}
+.bar-btns{display:flex;gap:12px}
+.bar-btns button{flex:1;font-size:1.2rem;padding:12px;margin:0}
+.bar-btns button.secondary{flex:0 1 auto;font-size:1rem}
+/* 深色主題的 --ok、--bad 是淺色，白字看不清楚，按鈕固定用深色 */
+.bar .ok-btn{background:#1e7a3c;border-color:#1e7a3c}
+.bar .bad-btn{background:#b3261e;border-color:#b3261e}
+.lv-note{margin:12px 0 0;padding:8px 12px;border-left:4px solid var(--accent);background:var(--card)}
+@media (max-width:600px){.q-tools{flex-direction:row;flex:1 1 100%}.q-tools button{flex:1;min-width:0}}
+/* 結果：一個手機畫面截得下 */
+#result h1{font-size:1.3rem}
+.meta{margin:0;color:var(--muted);font-size:.95rem}
+.summary{font-size:1.15rem;font-weight:600;margin:8px 0}
+#detail{margin:8px 0;padding:8px 8px 8px 2.6em;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:1rem;line-height:1.5;font-variant-numeric:tabular-nums}
+#detail .lv{color:var(--muted);font-size:.85rem}
+#detail .ok{color:var(--ok);font-weight:700}
+#detail .bad{color:var(--bad);font-weight:700}
+@media (min-width:601px){#detail{columns:2;column-gap:2em}#detail li{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ===== 設定 ===== -->
+<section id="setup" aria-labelledby="setup-title">
+  <h1 id="setup-title">珠算家長版</h1>
+  <p class="lead">點老師說的級數，按「開始」。</p>
+
+  <div class="lv-pick" id="lv-grid" role="group" aria-label="級數（可以選好幾個）"></div>
+  <p class="picked" id="picked" aria-live="polite"></p>
+
+  <fieldset id="op-box">
+    <legend>加減法的題目</legend>
+    <label><input type="radio" name="op" value="+"> 加法</label>
+    <label><input type="radio" name="op" value="-"> 減法</label>
+    <label><input type="radio" name="op" value="both"> 加減都有</label>
+  </fieldset>
+
+  <p id="setup-error" class="feedback bad" role="alert"></p>
+  <button type="button" id="start" class="big">開始</button>
+
+  <details class="more">
+    <summary>更多設定：名字、題數、題目大小、撥珠方向</summary>
+    <label class="stack">孩子的名字（寫在練習紀錄上，可不填）<input type="text" id="student" autocomplete="off"></label>
+    <label class="stack">一次練幾題<input type="number" id="count" min="1" max="30" value="10" inputmode="numeric"></label>
+    <div id="forms"></div>
+    <p class="stack" id="dir-switch"></p>
+    <p class="hint">題目大小、撥珠方向請跟老師用的一樣。</p>
+  </details>
+</section>
+
+<!-- ===== 練習 ===== -->
+<section id="practice" hidden aria-label="練習">
+  <div class="q-row">
+    <div id="problem" class="problem" tabindex="-1"></div>
+    <div class="q-tools">
+      <button type="button" class="secondary" id="show-ans" aria-expanded="false" aria-controls="answer">看答案</button>
+      <button type="button" class="secondary" id="show-how" aria-expanded="false" aria-controls="how">看怎麼撥</button>
+    </div>
+  </div>
+  <p id="answer" class="answer" hidden></p>
+  <div id="how" hidden>
+    <p class="lv-note" id="lv-note"></p>
+    <p class="hint" id="jin-tui">說明裡的「進」是珠子往中間的橫木（梁）靠，數就加上去；「退」是珠子離開梁，數就減掉。</p>
+    <div id="demo-box"></div>
+  </div>
+  <p><button type="button" class="secondary" id="quit">結束練習</button></p>
+  <div class="bar" role="group" aria-label="這一題的結果">
+    <p class="bar-status" id="bar-status" aria-live="polite"></p>
+    <div class="bar-btns" id="judge">
+      <button type="button" class="ok-btn" id="mark-ok">✓ 答對</button>
+      <button type="button" class="bad-btn" id="mark-bad">✗ 答錯</button>
+    </div>
+    <div class="bar-btns" id="after" hidden>
+      <button type="button" class="secondary" id="flip"></button>
+      <button type="button" id="next"></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 紀錄 ===== -->
+<section id="result" hidden aria-labelledby="result-title">
+  <h1 id="result-title" tabindex="-1">珠算練習紀錄</h1>
+  <p class="meta" id="meta"></p>
+  <p class="summary" id="summary"></p>
+  <ol id="detail"></ol>
+  <p class="hint">可以把這個畫面截圖傳給老師。</p>
+  <p>
+    <button type="button" id="retry-wrong">再練答錯的題目</button>
+    <button type="button" class="secondary" id="again">同樣級數再練一次</button>
+    <button type="button" class="secondary" id="back">回到設定</button>
+  </p>
+</section>
+
+</main>
+<script>
+const $ = id => document.getElementById(id);
+// 家長的手機通常只給一個孩子用：選過的級數、加減法、名字、題數、題目大小記下來，下次打開不用重選
+const KEY = 'abacus-parent';
+const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })();
+// 舊版存的是 picks（例：['2|+', '3a|-']），換成級數和加減法
+if (saved.picks && !saved.levels) {
+  saved.levels = [...new Set(saved.picks.map(v => v.split('|')[0]))];
+  const ops = new Set(saved.picks.map(v => v.split('|')[1]));
+  saved.op = ops.has('+') && ops.has('-') ? 'both' : ops.has('-') ? '-' : '+';
+}
+const chosen = new Set(saved.levels || []);
+// 題目大小：第 1～4 級（F）、第 5 級從最高位開始（G）、第 8 級（D）、第 9 級（E），預設跟出題練習一樣
+const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
+const forms = Object.fromEntries(FORM_GROUPS.map(([k, , def]) => [k, (saved.forms || {})[k] || def]));
+const formKey = id => id[0] === '8' ? 'D' : id[0] === '9' ? 'E' : id[0] === '5' ? 'G' : 'F';
+function remember() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ levels: [...chosen], op: opChoice(), forms, student: $('student').value.trim(), count: $('count').value }));
+  } catch (e) { /* 存不了就算了 */ }
+}
+
+const LEVELS_ = AbacusLevels.LEVELS;
+const lvOf = id => LEVELS_.find(l => l.id === id);
+// 從最高位開始沒有 5c
+const shown = () => LEVELS_.filter(l => !(AbacusPicker.dirHigh() && l.id.startsWith('5c')));
+function renderGrid() {
+  $('lv-grid').innerHTML = AbacusLevels.GROUPS.map(gr => {
+    const lvs = shown().filter(l => AbacusLevels.groupOf(l.id) === gr.key);
+    return `<div class="lv-group" role="group" aria-labelledby="lvg-${gr.key}"><h2 id="lvg-${gr.key}">${gr.title}</h2><div class="lv-btns">` +
+      lvs.map(l => `<button type="button" data-lv="${l.id}" aria-pressed="${chosen.has(l.id)}" aria-label="${l.id} 級，${l.name}">${l.id}</button>`).join('') +
+      '</div></div>';
+  }).join('');
+  renderPicked();
+}
+// 選了哪幾級寫出名稱，家長可以跟老師說的對一下
+function renderPicked() {
+  const list = shown().filter(l => chosen.has(l.id));
+  $('picked').textContent = list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。';
+  $('op-box').hidden = list.length > 0 && !list.some(l => l.add || l.sub);
+}
+$('lv-grid').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lv]');
+  if (!b) return;
+  const id = b.dataset.lv, on = !chosen.has(id);
+  on ? chosen.add(id) : chosen.delete(id);
+  b.setAttribute('aria-pressed', on);
+  renderPicked();
+});
+const opChoice = () => (document.querySelector('input[name=op]:checked') || {}).value || '+';
+document.querySelector(`input[name=op][value="${saved.op || '+'}"]`).checked = true;
+
+function renderForms() {
+  $('forms').innerHTML = FORM_GROUPS.filter(([k]) => k !== 'G' || AbacusPicker.dirHigh()).map(([k, title]) =>
+    `<label>${title}<select data-k="${k}">${AbacusPicker.CHOICES[k].map(([v, t]) => `<option value="${v}"${v === forms[k] ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`).join('');
+}
+$('forms').addEventListener('change', e => { forms[e.target.dataset.k] = e.target.value; });
+const pool = (op, lv) => {
+  const list = AbacusPicker.bank()[op][lv] || [];
+  return AbacusPicker.hasForm(lv) ? list.filter(it => forms[formKey(lv)].split(' ').includes(it[2])) : list;
+};
+// 選的級數換成出題用的「級別|運算」：加減法照上面選的，乘法、除法固定
+function picks() {
+  const ops = { '+': ['+'], '-': ['-'], both: ['+', '-'] }[opChoice()];
+  return shown().filter(l => chosen.has(l.id)).flatMap(l =>
+    l.mul ? [l.id + '|×'] : l.div ? [l.id + '|÷'] : ops.filter(op => l[op === '+' ? 'add' : 'sub']).map(op => l.id + '|' + op));
+}
+
+AbacusDir.mount($('dir-switch'));
+window.addEventListener('abacusdirchange', () => { renderGrid(); renderForms(); });
+renderGrid(); renderForms();
+$('student').value = saved.student || '';
+if (saved.count) $('count').value = saved.count;
+
+let session = null, demo = null;
+// 念給孩子聽的算式；除法的答案寫成「商 餘 餘數」
+const exprOf = p => `${p.x} ${sym(p.op)} ${p.y} =`;
+
+function start(problems) {
+  session = { student: $('student').value.trim(), dir: AbacusPicker.dirHigh() ? '從最高位開始' : '從個位開始', started: new Date(),
+    problems: problems.map(p => ({ ...p, ok: null, how: false })), idx: 0 };
+  $('setup').hidden = true; $('result').hidden = true; $('practice').hidden = false;
+  show();
+}
+$('start').onclick = () => {
+  const ps = picks();
+  const count = Math.max(1, Math.min(30, parseInt($('count').value, 10) || 10));
+  const problems = makeProblems(ps, count, pool);
+  if (!problems.length) {
+    $('setup-error').textContent = ps.length ? '選的級數在目前的題目大小下沒有題目，請到「更多設定」改題目大小，或多選幾級。' : '請先點老師說的級數。';
+    return;
+  }
+  $('setup-error').textContent = '';
+  remember();
+  start(problems);
+};
+
+function show() {
+  const p = session.problems[session.idx];
+  $('problem').textContent = exprOf(p);
+  $('answer').textContent = `答案：${ansText(p)}`;
+  setOpen('show-ans', 'answer', false);
+  setOpen('show-how', 'how', false);
+  if (demo) demo.stop();
+  renderBar();
+  window.scrollTo(0, 0);
+  $('problem').focus();
+}
+// 操作列：還沒判斷時是「答對／答錯」；判斷完顯示結果、「改成答錯（答對）」和「下一題」
+function renderBar() {
+  const p = session.problems[session.idx], n = session.problems.length, no = `第 ${session.idx + 1} 題`;
+  const judged = p.ok !== null;
+  $('judge').hidden = judged; $('after').hidden = !judged;
+  if (!judged) { $('bar-status').textContent = `${no}／共 ${n} 題`; return; }
+  $('bar-status').innerHTML = p.ok ? `${no}：<span class="ok">答對 ✓</span>`
+    : `${no}：<span class="bad">答錯 ✗</span>　正確答案 ${ansText(p)}`;
+  $('flip').textContent = p.ok ? '改成答錯' : '改成答對';
+  $('next').textContent = session.idx < n - 1 ? '下一題 →' : '看練習紀錄';
+}
+function setOpen(btnId, boxId, on) {
+  $(btnId).setAttribute('aria-expanded', on);
+  $(boxId).hidden = !on;
+}
+$('show-ans').onclick = () => setOpen('show-ans', 'answer', $('answer').hidden);
+// 看怎麼撥：各級撥珠教法的同一個動畫和說明，上面加這一級的說明
+$('show-how').onclick = () => {
+  const open = $('how').hidden;
+  setOpen('show-how', 'how', open);
+  if (!open) { if (demo) demo.stop(); return; }
+  const p = session.problems[session.idx], lv = lvOf(p.lv);
+  p.how = true;
+  $('lv-note').textContent = `${p.lv} 級：${lv.name}。${lv.desc}。`;
+  $('jin-tui').hidden = p.op === '+' || p.op === '-';
+  // 1～4 級小補數分兩步撥，第 5 級以後上珠和下珠一起撥（跟各級撥珠教法一樣）
+  const merge = p.lv[0] >= '5';
+  if (!demo) demo = AbacusDemo.mount($('demo-box'), { x: p.x, y: p.y, op: p.op, merge, speak: true, autoSay: true, plain: true });
+  else demo.show(p.x, p.y, p.op, AbacusDir.get(), merge);
+  demo.focus();
+  demo.sayIfAuto();
+  $('how').scrollIntoView({ block: 'start', behavior: 'smooth' });
+};
+
+function next() {
+  if (session.idx < session.problems.length - 1) { session.idx++; show(); }
+  else showResult();
+}
+// 答對、答錯都只記下來，一律再按「下一題」才換題；換題前按錯了可以改。
+// 答錯時操作列寫出正確答案，可以先看怎麼撥、帶孩子再撥一次
+function judge(ok) {
+  session.problems[session.idx].ok = ok;
+  renderBar();
+  $('next').focus();
+}
+$('mark-ok').onclick = () => judge(true);
+$('mark-bad').onclick = () => judge(false);
+$('flip').onclick = () => judge(!session.problems[session.idx].ok);
+$('next').onclick = next;
+$('quit').onclick = () => showResult();
+
+// ---- 紀錄：一個手機畫面截得下 ----
+function showResult() {
+  if (demo) demo.stop();
+  const done = session.problems.filter(p => p.ok !== null);
+  const right = done.filter(p => p.ok).length, how = done.filter(p => p.how).length;
+  const lvs = [...new Set(done.map(p => `${p.lv} ${{ '+': '加法', '-': '減法', '×': '乘法', '÷': '除法' }[p.op]}`))];
+  const d = session.started;
+  $('meta').textContent = [session.student, d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+    '加減法' + session.dir].filter(Boolean).join('　');
+  $('summary').textContent = done.length ? `做了 ${done.length} 題，答對 ${right} 題` + (how ? `，看了撥法 ${how} 題` : '') + `（${lvs.join('、')}）` : '還沒有做題目。';
+  $('detail').innerHTML = done.map(p => `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}　` +
+    (p.ok ? '<span class="ok">✓ 對</span>' : '<span class="bad">✗ 錯</span>') + (p.how ? '（看了撥法）' : '') +
+    ` <span class="lv">${p.lv} 級</span></li>`).join('');
+  $('detail').hidden = !done.length;
+  $('retry-wrong').hidden = !done.some(p => !p.ok);
+  $('practice').hidden = true; $('result').hidden = false;
+  window.scrollTo(0, 0);
+  $('result-title').focus();
+}
+const strip = ps => ps.map(({ x, y, op, lv, form }) => ({ x, y, op, lv, form }));
+$('retry-wrong').onclick = () => {
+  const again = session.problems.filter(p => p.ok === false);
+  if (again.length) start(strip(again));
+};
+$('again').onclick = () => $('start').click();
+$('back').onclick = () => { $('result').hidden = true; $('setup').hidden = false; $('start').focus(); };
+</script>
+</body>
+</html>

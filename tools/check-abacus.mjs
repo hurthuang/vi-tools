@@ -12,8 +12,7 @@ const root = new URL('../abacus/', import.meta.url);
 const AL = require(new URL('abacus-levels.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 globalThis.AbacusLevels = AL;
 
-const html = readFileSync(new URL('index.html', root), 'utf8');
-const core = html.match(/<script id="core">([\s\S]*?)<\/script>/)[1];
+const core = readFileSync(new URL('abacus-core.js', root), 'utf8');
 const C = new Function(core.replace("if (typeof module !== 'undefined')", 'if (false)') +
   ';return { classify, classifyMul, classifyDiv, buildBank, inRange };')();
 const { abacusSteps } = require(new URL('abacus-anim.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));

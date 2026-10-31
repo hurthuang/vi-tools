@@ -6,17 +6,22 @@
  * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列）；乘回來扣的時候照 dir，跟減法一樣。
  * 乘法只從個位開始。dir 沒給時用全站設定（abacus-dir.js），沒有全站設定時從最高位開始。
  * 除數兩位數：商在心裡估好、試乘確認後，除數一位一位乘、一位一位扣（156 ÷ 26 商 6：先扣 2 × 6 = 12，再扣 6 × 6 = 36）。
- * merge：小補數的上下珠一步撥完（第 5 級以後的預設）；沒給時分兩步（1～4 級學小補數時）。
- * abacusSteps(x, y, op, dir, merge) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
+ * 撥珠動作一律寫「哪一顆珠＋進／退」：下珠進 2 顆（加）、上珠退（減）。不用「撥上下珠」，上下會跟珠的名稱混在一起（使用者 2026-10-29）。
+ * merge：小補數的上珠和下珠一步撥完（第 5 級以後的預設）；沒給時分兩步（1～4 級學小補數時）。
+ * plain：加減法用家長版的口語短句（使用者 2026-11-01）：第一步先念題目「9 + 2 等於多少？先撥 9。」「個位不夠加 2，十位加 1。」「加太多了，扣掉 2 的大朋友 8。答案為 11。」
+ *   小補數叫小朋友、大補數叫大朋友；珠子的動作跟完整說明一樣，只換文字。乘除法不受影響。
+ * abacusSteps(x, y, op, dir, merge, plain) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
 (function (g) {
   'use strict';
   const PLACE = ['個位', '十位', '百位', '千位', '萬位', '十萬位'];
 
-  function abacusSteps(x, y, op, dir, merge) {
+  function abacusSteps(x, y, op, dir, merge, plain) {
+    plain = !!plain && (op === '+' || op === '-');
+    const multi = x >= 10 || y >= 10;   // plain：多位數才在修正的句子前面說是哪一位
     const d = String(op === '×' ? 0 : x).split('').reverse().map(Number);
     while (d.length < 6) d.push(0);
-    const steps = [{ d: d.slice(), moved: [], text: `算盤上撥好 ${x}。` }];
+    const steps = [{ d: d.slice(), moved: [], text: plain ? `${x} ${op === '+' ? '+' : '−'} ${y} 等於多少？先撥 ${x}。` : `算盤上撥好 ${x}。` }];
     let pending = '', qs = '', mark = -1;   // qs、mark 只有除法用
     const push = (moved, text) => {
       steps.push(op === '÷' ? { d: d.slice(), moved, text: pending + text, q: qs, mark } : { d: d.slice(), moved, text: pending + text });
@@ -24,46 +29,74 @@
     };
 
     // 這一檔直接加 v（保證加完不超過 9），下珠不夠就用小補數
-    function addDirect(k, v) {
+    function addDirect(k, v, head) {
       const a = d[k], low = a % 5, R = PLACE[k];
+      if (plain) {
+        const P = multi ? R : '';
+        if (v >= 5 || low + v <= 4) { d[k] += v; push([k], head ? head + '。' : `${R}加 ${v}。`); return; }
+        const why = (head ? head + '：' : P) + `下珠不夠加 ${v}`;
+        if (merge) { d[k] += v; push([k], `${why}：加上珠 5，扣掉 ${v} 的小朋友 ${5 - v}。`); return; }
+        d[k] += 5; push([k], `${why}，先加上珠 5。`);
+        d[k] -= 5 - v; push([k], `加太多了，${P}扣掉 ${v} 的小朋友 ${5 - v}。`);
+        return;
+      }
       if (v >= 5) {
-        d[k] += v; push([k], `${R}撥下上珠${v > 5 ? `，再撥上下珠 ${v - 5} 顆` : ''}（加 ${v}）。`);
+        d[k] += v; push([k], `${R}上珠進${v > 5 ? `，下珠進 ${v - 5} 顆` : ''}（加 ${v}）。`);
       } else if (low + v <= 4) {
-        d[k] += v; push([k], `${R}撥上下珠 ${v} 顆。`);
+        d[k] += v; push([k], `${R}下珠進 ${v} 顆。`);
       } else {
-        const why = `${R}${low === 4 ? '下珠已經全部撥上去了' : `下珠只剩 ${4 - low} 顆空著`}，不夠加 ${v}`;
-        if (merge) { d[k] += v; push([k], `${why}，用小補數：撥下上珠，同時拿掉下珠 ${5 - v} 顆（加 5、減 ${5 - v}）。`); return; }
-        d[k] += 5; push([k], `${why}，先撥下上珠（加 5）。`);
-        d[k] -= 5 - v; push([k], `5 比 ${v} 多了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以拿掉下珠 ${5 - v} 顆。`);
+        const why = `${R}${low === 4 ? '下珠已經全部進了' : `下珠只剩 ${4 - low} 顆可以進`}，不夠加 ${v}`;
+        if (merge) { d[k] += v; push([k], `${why}，用小補數：上珠進，同時下珠退 ${5 - v} 顆（加 5、減 ${5 - v}）。`); return; }
+        d[k] += 5; push([k], `${why}，上珠先進（加 5）。`);
+        d[k] -= 5 - v; push([k], `5 比 ${v} 多了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以下珠退 ${5 - v} 顆。`);
       }
     }
     // 這一檔直接減 v（保證夠減），下珠不夠就用小補數
-    function subDirect(k, v) {
+    function subDirect(k, v, head) {
       const a = d[k], low = a % 5, R = PLACE[k];
+      if (plain) {
+        const P = multi ? R : '';
+        if (v >= 5 || low >= v) { d[k] -= v; push([k], head ? head + '。' : `${R}減 ${v}。`); return; }
+        const why = (head ? head + '：' : P) + `下珠不夠減 ${v}`;
+        if (merge) { d[k] -= v; push([k], `${why}：減上珠 5，加回 ${v} 的小朋友 ${5 - v}。`); return; }
+        d[k] -= 5; push([k], `${why}，先減上珠 5。`);
+        d[k] += 5 - v; push([k], `減太多了，${P}加回 ${v} 的小朋友 ${5 - v}。`);
+        return;
+      }
       if (v >= 5) {
-        d[k] -= v; push([k], `${R}拿掉上珠${v > 5 ? `和下珠 ${v - 5} 顆` : ''}（減 ${v}）。`);
+        d[k] -= v; push([k], `${R}上珠退${v > 5 ? `，下珠退 ${v - 5} 顆` : ''}（減 ${v}）。`);
       } else if (low >= v) {
-        d[k] -= v; push([k], `${R}拿掉下珠 ${v} 顆。`);
+        d[k] -= v; push([k], `${R}下珠退 ${v} 顆。`);
       } else {
-        const why = `${R}${low ? `下珠只有 ${low} 顆` : '沒有撥上的下珠'}，不夠拿掉 ${v}`;
-        if (merge) { d[k] -= v; push([k], `${why}，用小補數：拿掉上珠，同時撥上下珠 ${5 - v} 顆（減 5、加 ${5 - v}）。`); return; }
-        d[k] -= 5; push([k], `${why}，先拿掉上珠（減 5）。`);
-        d[k] += 5 - v; push([k], `5 比 ${v} 多減了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以撥上下珠 ${5 - v} 顆。`);
+        const why = `${R}${low ? `下珠只進了 ${low} 顆` : '下珠一顆都沒有進'}，不夠減 ${v}`;
+        if (merge) { d[k] -= v; push([k], `${why}，用小補數：上珠退，同時下珠進 ${5 - v} 顆（減 5、加 ${5 - v}）。`); return; }
+        d[k] -= 5; push([k], `${why}，上珠先退（減 5）。`);
+        d[k] += 5 - v; push([k], `5 比 ${v} 多減了 ${5 - v}，${5 - v} 是 ${v} 的小補數，所以下珠進 ${5 - v} 顆。`);
       }
     }
     function add(k, v) {
       const a = d[k], R = PLACE[k];
       if (a + v <= 9) return addDirect(k, v);
       const c = 10 - v;
+      if (plain) {
+        pending += `${R}不夠加 ${v}，`;
+        add(k + 1, 1);
+        return subDirect(k, c, `加太多了，${multi ? R : ''}扣掉 ${v} 的大朋友 ${c}`);
+      }
       pending += `${R}是 ${a}，加 ${v} 會超過 9，這一檔不夠加。先在${PLACE[k + 1]}加 1（就是${R}加 10）：`;
       add(k + 1, 1);
-      pending += `10 比 ${v} 多了 ${c}，${c} 是 ${v} 的大補數，所以${R}拿掉 ${c}：`;
+      pending += `10 比 ${v} 多了 ${c}，${c} 是 ${v} 的大補數，所以${R}減 ${c}：`;
       subDirect(k, c);
     }
     function sub(k, v) {
       const a = d[k], R = PLACE[k];
       if (a >= v) return subDirect(k, v);
       const c = 10 - v;
+      if (plain) {
+        pending += `${R}不夠減 ${v}，`;
+        sub(k + 1, 1);
+        return addDirect(k, c, `減太多了，${multi ? R : ''}加回 ${v} 的大朋友 ${c}`);
+      }
       pending += `${R}是 ${a}，不夠減 ${v}。先在${PLACE[k + 1]}減 1（就是${R}減 10）：`;
       sub(k + 1, 1);
       pending += `10 比 ${v} 多減了 ${c}，${c} 是 ${v} 的大補數，所以${R}加回 ${c}：`;
@@ -75,7 +108,7 @@
     function apply(n, shift, f, verb, label = true, highFirst = false) {
       const ns = String(n).split('').reverse().map((v, j) => [shift + j, +v]).filter(([, v]) => v);
       if (highFirst) ns.reverse();
-      const many = label && ns.length > 1;
+      const many = label && ns.length > 1 && !plain;
       ns.forEach(([k, v]) => {
         if (many) pending += `${PLACE[k]}${verb} ${v}。`;
         f(k, v);
@@ -168,11 +201,11 @@
       last.text += r ? `除完了，算盤上剩下 ${r}，比 ${y} 小，就是餘數。答案 ${qs} 餘 ${r}。` : `除完了，算盤上清空，沒有餘數。答案 ${qs}。`;
       return steps;
     } else {
-      if (y >= 10) steps[0].text += dir === 'high' ? '從最高位開始撥。' : '從個位開始撥。';
+      if (y >= 10) steps[0].text += dir === 'high' ? (plain ? '從最高位開始。' : '從最高位開始撥。') : (plain ? '從個位開始。' : '從個位開始撥。');
       apply(y, 0, op === '+' ? add : sub, op === '+' ? '加' : '減', true, dir === 'high');
     }
     const ans = op === '+' ? x + y : op === '-' ? x - y : x * y;
-    steps[steps.length - 1].text += `答案 ${ans}。`;
+    steps[steps.length - 1].text += plain ? `答案為 ${ans}。` : `答案 ${ans}。`;
     return steps;
   }
 
@@ -194,6 +227,17 @@
 .abd-labels span.cur b{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:3px}
 .abd-text{min-height:3.4em;margin:8px 0 4px;font-size:1.05rem}
 .abd-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.abd-row{display:contents}
+/* 手機：上一步、下一步一排大按鈕；自動播放、念、重來一排三個一樣寬；最後是自動念和步數 */
+@media (max-width:600px){
+  .abd-text{min-height:1.6em}
+  .abd-bar{display:block}
+  .abd-row{display:flex;gap:8px;align-items:center;margin:0 0 8px}
+  .abd-nav button,.abd-more button{flex:1 1 0;min-width:0}
+  .abd .abd-nav button{font-size:1.1rem;padding:10px 4px}
+  .abd .abd-more button{padding:6px 2px}
+  .abd-foot{flex-wrap:wrap;justify-content:space-between}
+}
 .abd button{font:inherit;font-size:.95rem;padding:4px 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
 .abd button:disabled{opacity:.45;cursor:default}
 .abd-count{color:var(--muted);font-size:.9rem}
@@ -217,7 +261,16 @@
 `;
   const ROD = 64, UP_OFF = 6, UP_ON = 55, LOW_ON = 89, LOW_OFF = 152, BEAD = 24;
 
+  // 念指導語（opts.speak）：用瀏覽器的語音念這一步的說明，算式符號換成念法
+  const SAY = [[/\+/g, ' 加 '], [/[−-]/g, ' 減 '], [/×/g, ' 乘 '], [/÷/g, ' 除以 '], [/=/g, ' 等於 ']];
+  const spoken = t => SAY.reduce((s, [re, w]) => s.replace(re, w), t);
+  function zhVoice() {
+    const vs = g.speechSynthesis.getVoices();
+    return vs.find(v => /^zh[-_]TW/i.test(v.lang)) || vs.find(v => /^(zh|cmn)[-_](Hant|HK|MO)/i.test(v.lang)) || null;
+  }
+
   function mount(box, opts) {
+    const speak = !!opts.speak && 'speechSynthesis' in g;
     if (!document.getElementById('abd-css')) {
       const st = document.createElement('style'); st.id = 'abd-css'; st.textContent = CSS;
       document.head.appendChild(st);
@@ -233,29 +286,51 @@
           <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label>
           <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label>
           <span class="abd-dir-note"></span></span>
-        <label class="abd-merge"><input type="checkbox" name="abd-merge"> 小補數上下珠一起撥（第 5 級以後）</label>
+        <label class="abd-merge"><input type="checkbox" name="abd-merge"> 小補數上珠和下珠一起撥（第 5 級以後）</label>
+        <span class="abd-dir" role="radiogroup" aria-label="加減法的說明">加減法的說明：
+          <label><input type="radio" name="abd-plain" value="" checked> 完整</label>
+          <label><input type="radio" name="abd-plain" value="1"> 家長版（跟孩子說的話）</label></span>
         <span class="abd-err" role="alert"></span></form>` : ''}
       <div class="abd-frame" aria-hidden="true"><div class="abd-beam"></div></div>
       <div class="abd-labels" aria-hidden="true"></div>
       <p class="abd-quo" aria-hidden="true" hidden></p>
       <p class="abd-text" aria-live="polite"></p>
       <div class="abd-bar">
-        <button type="button" data-a="prev">上一步</button>
-        <button type="button" data-a="next">下一步</button>
-        <button type="button" data-a="play">自動播放</button>
-        <button type="button" data-a="reset">重來</button>
-        <span class="abd-count"></span>
+        <div class="abd-row abd-nav"><button type="button" data-a="prev">上一步</button>
+        <button type="button" data-a="next">下一步</button></div>
+        <div class="abd-row abd-more"><button type="button" data-a="play">自動播放</button>
+        ${speak ? '<button type="button" data-a="say">🔊 念這一步</button>' : ''}
+        <button type="button" data-a="reset">重來</button></div>
+        <div class="abd-row abd-foot">${speak ? `<label class="abd-merge"><input type="checkbox" name="abd-autosay"${opts.autoSay ? ' checked' : ''}> 換步驟時自動念</label>` : ''}
+        <span class="abd-count"></span></div>
       </div>
       <ol></ol>`;
     const frame = box.querySelector('.abd-frame'), labels = box.querySelector('.abd-labels');
     const quo = box.querySelector('.abd-quo'), text = box.querySelector('.abd-text'), count = box.querySelector('.abd-count'), list = box.querySelector('ol');
     const btn = a => box.querySelector(`[data-a="${a}"]`);
     let steps = [], i = 0, rods = 0, beads = [], timer = null, divisor = 0;
+    // 自動播放又勾了自動念時，要等這一步念完才換下一步；utt 是正在念的那一句，被取消的那句結束的事件不算
+    let playing = false, utt = null;
+    const autoBox = box.querySelector('input[name=abd-autosay]');
+    const autoSay = () => !!autoBox && autoBox.checked;
+    function say(done) {
+      if (!speak) return;
+      g.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(spoken(steps[i].text));
+      const v = zhVoice(); if (v) u.voice = v;
+      u.lang = v ? v.lang : 'zh-TW'; u.rate = 0.95;
+      u.onend = u.onerror = () => { if (utt === u) { utt = null; if (done) done(); } };
+      utt = u;
+      g.speechSynthesis.speak(u);
+    }
+    function hush() { utt = null; if (speak) g.speechSynthesis.cancel(); }
+    // 換步驟（上一步、下一步、重來、點清單）：有勾自動念就念
+    function step(n) { stop(); go(n); if (autoSay()) say(); }
 
     function load(x, y, op, dir) {
       stop();
       cur = [x, y, op];
-      steps = abacusSteps(x, y, op, dir, curMerge());
+      steps = abacusSteps(x, y, op, dir, curMerge(), curPlain());
       divisor = op === '÷' ? y : 0;
       quo.hidden = !divisor;
       const top = Math.max(x, op === '+' ? x + y : op === '×' ? x * y : x);
@@ -303,18 +378,27 @@
       [...list.children].forEach((li, j) => li.classList.toggle('on', j === i));
       btn('prev').disabled = i === 0; btn('next').disabled = i === steps.length - 1;
     }
-    function stop() { clearInterval(timer); timer = null; btn('play').textContent = '自動播放'; }
+    function stop() { clearTimeout(timer); timer = null; playing = false; hush(); btn('play').textContent = '自動播放'; }
 
-    btn('prev').onclick = () => { stop(); go(i - 1); };
-    btn('next').onclick = () => { stop(); go(i + 1); };
-    btn('reset').onclick = () => { stop(); go(0); };
+    btn('prev').onclick = () => step(i - 1);
+    btn('next').onclick = () => step(i + 1);
+    btn('reset').onclick = () => step(0);
+    if (speak) btn('say').onclick = () => { stop(); say(); };
+    // 自動播放：每 2.2 秒換一步；勾了自動念時，念完這一步停一下再換
     btn('play').onclick = () => {
-      if (timer) return stop();
+      if (playing) return stop();
       if (i === steps.length - 1) go(0);
+      playing = true;
       btn('play').textContent = '暫停';
-      timer = setInterval(() => { if (i >= steps.length - 1) stop(); else go(i + 1); }, 2200);
+      const next = () => {
+        if (!playing) return;
+        if (i >= steps.length - 1) { playing = false; btn('play').textContent = '自動播放'; return; }
+        go(i + 1); tick();
+      };
+      const tick = () => { if (autoSay()) say(() => { timer = setTimeout(next, 700); }); else timer = setTimeout(next, 2200); };
+      tick();
     };
-    list.onclick = e => { const li = e.target.closest('li'); if (li) { stop(); go([...list.children].indexOf(li)); } };
+    list.onclick = e => { const li = e.target.closest('li'); if (li) step([...list.children].indexOf(li)); };
 
     const form = box.querySelector('.abd-own');
     const globalDir = () => (g.AbacusDir ? g.AbacusDir.get() : 'high');
@@ -324,6 +408,8 @@
     let mergeOpt = !!opts.merge;
     function curMerge() { return mergeBox ? mergeBox.checked : mergeOpt; }
     function setMerge(v) { mergeOpt = !!v; if (mergeBox) mergeBox.checked = !!v; }
+    // 加減法的說明：完整（老師看）或家長版口語；自己出題的面板可以切換，其他照 opts.plain
+    function curPlain() { const r = form && form.querySelector('input[name=abd-plain]:checked'); return r ? !!r.value : !!opts.plain; }
     let fixDir = () => {};
     if (form) {
       const [ix, iy] = form.querySelectorAll('input[type=number]'), sel = form.querySelector('select'), err = form.querySelector('.abd-err');
@@ -341,6 +427,7 @@
       sel.addEventListener('change', e => { if (e.isTrusted && (sel.value === '×' || sel.value === '÷')) setMerge(true); });
       dirRow.addEventListener('change', () => form.requestSubmit());
       mergeBox.addEventListener('change', () => form.requestSubmit());
+      form.querySelectorAll('input[name=abd-plain]').forEach(r => r.addEventListener('change', () => form.requestSubmit()));
       form.onsubmit = e => {
         e.preventDefault();
         const x = +ix.value, y = +iy.value, op = sel.value;
@@ -373,6 +460,8 @@
       },
       focus() { (btn('next').disabled ? btn('reset') : btn('next')).focus({ preventScroll: true }); },
       stop,
+      // 有勾自動念就念目前這一步（家長版打開「看怎麼撥」時先念題目）
+      sayIfAuto() { if (autoSay()) say(); },
     };
   }
 
