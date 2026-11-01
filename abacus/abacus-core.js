@@ -50,8 +50,11 @@ function trace(x, y, op, high) {
 // 回傳級數代號；不屬於任何一級回傳 null。
 // 1～4 級只看撥珠時最難的動作，數字有幾位另外設定。
 // 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5b）、
-// 進位撞上這一檔自己要加的數（5c）、兩步以上都難（5d）。
-const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3, '4': 4 };
+// 進位撞上這一檔自己要加的數（5c）、兩步以上都難（5d，只有從最高位開始）。
+// 3b 排在 3a 後面教，題目裡有 3b 的步驟就算 3b（2026-11-01 agy 獨立核對後改；原本 3a、3b 一樣難，51 + 59 會被算成 3a）
+const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3.5, '4': 4 };
+// 第 5 級（5a、5b）由易到難
+const FIVE = ['5a-1', '5a-2', '5b-1', '5b-2', '5b-3'];
 function classify(x, y, op, high) {
   if (y < 10) return classifyOne(x, y, op);
   if (!high) {
@@ -63,10 +66,12 @@ function classify(x, y, op, high) {
       const has4 = st.some(s => s.L === '4');
       if (nC >= 2) return has4 ? '5c-5' : '5c-4';
       if (has4) return '5c-3';
-      return st.slice(1).every(s => s.L === '1') ? '5c-1' : '5c-2';
+      // 5c-2：被進位撞上的那一檔（加進位或撥自己的數時）要用小補數；別的檔的小補數不算（3417 + 2524 是 5c-1）
+      const hit = new Set(carries.filter(s => ys[s.k]).map(s => s.k));
+      return st.some(s => hit.has(s.k) && s.L !== '1') ? '5c-2' : '5c-1';
     }
   }
-  return combineSteps(digitSteps(x, y, op, high));
+  return combineSteps(digitSteps(x, y, op, high), high);
 }
 // 加減數是一位數：看個位那一步和它引起的進退位
 function classifyOne(x, y, op) {
@@ -99,15 +104,16 @@ function digitSteps(x, y, op, high) {
   });
 }
 // 每一步都是 1～4 級 → 取最難的（一樣難時算個位那一步）。
-// 只有一步是第 5 級，其他步不比它難（5a-1、5b-1 配 3 級以下；5a-2、5b-2、5b-3 配 4 級以下）→ 那一級。
-// 其他（兩步都是第 5 級，或第 5 級配上更難的一步）→ 5d。
-function combineSteps(st) {
+// 只有一步是第 5 級，其他步不比它難（5a-1、5b-1 配 3b 以下；5a-2、5b-2、5b-3 本身含複合題，配 4 級以下）→ 那一級。
+// 其他（兩步都是第 5 級，或 5a-1、5b-1 配上 4 級）：從最高位開始 → 5d；
+// 從個位開始（進位沒有撞上要加的數）→ 取最難的那一個第 5 級（使用者 2026-11-01 照 agy：從個位開始不列 5d，這些題目也要出得到）。
+function combineSteps(st, high) {
   if (st.some(s => !s.L)) return null;
   const five = st.filter(s => !RANK[s.L]).map(s => s.L);
   const top = st.filter(s => RANK[s.L]).sort((a, b) => RANK[b.L] - RANK[a.L] || a.k - b.k).map(s => s.L)[0] || '1';
   if (!five.length) return top;
-  if (five.length === 1 && RANK[top] <= (/-2$/.test(five[0]) || five[0] === '5b-3' ? 4 : 3)) return five[0];
-  return '5d';
+  if (five.length === 1 && RANK[top] <= (/-2$/.test(five[0]) || five[0] === '5b-3' ? 4 : 3.5)) return five[0];
+  return high ? '5d' : five.sort((a, b) => FIVE.indexOf(b) - FIVE.indexOf(a))[0];
 }
 
 // 乘法：照直式，乘數從個位開始一位一位乘（76 × 58 先算 76 × 8，再算 76 × 5），

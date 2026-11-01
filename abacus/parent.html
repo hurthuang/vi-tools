@@ -515,7 +515,6 @@ function explain(x, y, op, high) {
     r.lv = classify(x, y, op, high);
     if (!r.lv) r.notes.push('這一題的撥法組合不在分級裡，可以看下面的撥法。');
     if (op === '-' && x === y) r.notes.push('答案是 0，練習題裡不會出這種題目。');
-    if (r.lv === '5d' && !high) r.notes.push('從個位開始時，練習頁不列 5d（這種題目很少）。');
     if (y % 10 === 0 && y >= 10) r.notes.push('個位不用撥，只撥十位以上。');
     const f = sizeOf(x, y, op);
     if (f) r.notes.push('題目大小：' + AbacusPicker.formName(f) + '。');

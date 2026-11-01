@@ -17,7 +17,7 @@
 
   const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
   const fixedForm = id => (LEVELS.find(l => l.id === id) || {}).form || '';
-  // 從最高位開始沒有 5c；從個位開始不列 5d（這種題大多歸 5c，剩下的很少）
+  // 從最高位開始沒有 5c；從個位開始沒有 5d
   const shownLevel = id => dirHigh() ? !id.startsWith('5c') : id !== '5d';
 
   // ---- 設定畫面 ----
