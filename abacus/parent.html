@@ -98,7 +98,7 @@ label.stack input{display:block;width:100%;margin-top:4px}
 #guide-ov h2{font-size:1.05rem;margin:0}
 #guide-ov button{margin:0}
 #guide-ov iframe{flex:1;width:100%;border:0;background:var(--bg)}
-button.guide-link{font-size:.95rem;padding:4px 12px;margin:6px 0 0;display:block}
+button.guide-link{font-size:.95rem;padding:4px 12px;margin:6px 0 0;display:block;min-height:44px}
 /* 結果：一個手機畫面截得下 */
 #result h1{font-size:1.3rem}
 .meta{margin:0;color:var(--muted);font-size:.95rem}
@@ -305,7 +305,7 @@ function dropCode() {
 }
 function applyCode(raw) {
   const d = AbacusCode.decode(raw);
-  if (d.error) { $('code-msg').textContent = d.error; return; }
+  if (d.error) { $('code-msg').textContent = d.error; return false; }
   AbacusDir.set(d.high ? 'high' : 'low');
   sizes.set(d.sizes);
   chosen.clear();
@@ -323,9 +323,12 @@ function applyCode(raw) {
   if (codeSeed && AbacusCode.fingerprint(d.picks, pool) !== d.fp) note += '網站在老師給代號後更新過，題目可能跟老師的不一樣。';
   $('code-msg').textContent = '已套用老師的設定：' + AbacusCode.describe(d) + '。' + note + '按「開始」就可以練習。';
   remember();
+  return true;
 }
-$('code-apply').onclick = () => applyCode($('code-in').value);
-$('code-in').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCode($('code-in').value); } });
+// 家長自己套用代號後，焦點直接到「開始」（不用 Tab 經過所有級數）；套用的結果 code-msg 是 role=status，報讀軟體一樣會念
+const applyAndGo = raw => { if (applyCode(raw)) $('start').focus(); };
+$('code-apply').onclick = () => applyAndGo($('code-in').value);
+$('code-in').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyAndGo($('code-in').value); } });
 
 AbacusDir.mount($('dir-switch'));
 window.addEventListener('abacusdirchange', renderGrid);
@@ -334,6 +337,13 @@ $('student').value = saved.student || '';
 if (saved.count) $('count').value = saved.count;
 // 從連結打開（parent.html#代號）：直接套用
 if (AbacusCode.fromHash()) { $('code-in').value = AbacusCode.fromHash(); applyCode(AbacusCode.fromHash()); }
+// 頁面開著時又點了另一個代號連結（只有 # 後面不同，瀏覽器不會重新載入）；練習中不打斷
+window.addEventListener('hashchange', () => {
+  const c = AbacusCode.fromHash();
+  if (!c || !$('practice').hidden) return;
+  $('result').hidden = true; $('custom').hidden = true; $('setup').hidden = false;
+  $('code-in').value = c; applyAndGo(c);
+});
 
 let session = null, demo = null;
 // 念給孩子聽的算式；除法的答案寫成「商 餘 餘數」
