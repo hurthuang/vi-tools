@@ -50,50 +50,64 @@ function trace(x, y, op, high) {
 // 回傳級數代號；不屬於任何一級回傳 null。
 // 1～4 級只看撥珠時最難的動作，數字有幾位另外設定。
 // 第 5 級是一位數碰不到的情況：左邊一檔進退位時要用小補數（5a）、連續進退位（5b）、
-// 進位撞上這一檔自己要加的數（5c）。
+// 進位撞上這一檔自己要加的數（5c）、兩步以上都難（5d）。
 const RANK = { '1': 1, '2': 2, '3a': 3, '3b': 3, '4': 4 };
 function classify(x, y, op, high) {
-  if (y % 10 === 0) return null;            // 個位一定要撥
-  if (high && y >= 10) return classifyHigh(x, y, op);
+  if (y < 10) return classifyOne(x, y, op);
+  if (!high) {
+    // 從個位開始：進位撞上那一檔自己要加的數 → 5c
+    const st = trace(x, y, op);
+    const carries = st.filter(s => s.carry), nC = carries.length;
+    const ys = String(y).split('').reverse().map(Number);
+    if (carries.some(s => ys[s.k])) {
+      const has4 = st.some(s => s.L === '4');
+      if (nC >= 2) return has4 ? '5c-5' : '5c-4';
+      if (has4) return '5c-3';
+      return st.slice(1).every(s => s.L === '1') ? '5c-1' : '5c-2';
+    }
+  }
+  return combineSteps(digitSteps(x, y, op, high));
+}
+// 加減數是一位數：看個位那一步和它引起的進退位
+function classifyOne(x, y, op) {
   const st = trace(x, y, op);
   const ones = st[0];
   const carries = st.filter(s => s.carry);
   const nC = carries.length;
-  const ys = String(y).split('').reverse().map(Number);
-  if (y < 10) {
-    if (nC === 0) return ones.L;                              // 1、2
-    if (nC === 1) {
-      if (carries[0].L === '1') return ones.L;                // 3a、3b、4
-      if (carries[0].L === '2') return '5a' + (ones.L === '4' ? '-2' : '-1');
-      return null;
-    }
-    if (carries.some(s => s.k >= 2 && s.L === '2')) return '5b-3';
-    if (carries.some(s => s.L === '2')) return null;          // 十位用小補數又連續進位：不歸類
-    return ones.L === '4' ? '5b-2' : '5b-1';
+  if (nC === 0) return ones.L;                              // 1、2
+  if (nC === 1) {
+    if (carries[0].L === '1') return ones.L;                // 3a、3b、4
+    if (carries[0].L === '2') return '5a' + (ones.L === '4' ? '-2' : '-1');
+    return null;
   }
-  // 多位數：進位沒有撞上那一檔自己要加的數 → 跟一位數一樣，看最難的那一步
-  const collide = carries.some(s => ys[s.k]);
-  if (!collide) {
-    if (carries.some(s => s.L !== '1')) return null;
-    return st.filter(s => !s.carry).reduce((a, s) => RANK[s.L] > RANK[a] ? s.L : a, '1');
-  }
-  const has4 = st.some(s => s.L === '4');
-  if (nC >= 2) return has4 ? '5c-5' : '5c-4';
-  if (has4) return '5c-3';
-  return st.slice(1).every(s => s.L === '1') ? '5c-1' : '5c-2';
+  if (carries.some(s => s.k >= 2 && s.L === '2')) return '5b-3';
+  if (carries.some(s => s.L === '2')) return null;          // 十位用小補數又連續進位：不歸類
+  return ones.L === '4' ? '5b-2' : '5b-1';
 }
-
-// 從最高位開始（聽題目的學生）：十位先撥完，個位那一步就是「兩位數 ± 一位數」，
-// 照 1～4、5a、5b 的分法；進位不會撞上還沒撥的十位，所以沒有 5c。
-// 十位那一步比個位那一步難時：1～4 級取比較難的；第 5 級不歸類。
-function classifyHigh(x, y, op) {
-  const tens = y - y % 10, x2 = op === '+' ? x + tens : x - tens;
-  const st = trace(x, tens, op);
-  if (st.some(s => s.carry && s.L !== '1')) return null;
-  const Lt = st[0].L, c = classify(x2, y % 10, op);
-  if (!c) return null;
-  if (RANK[c]) return RANK[Lt] > RANK[c] ? Lt : c;
-  return RANK[Lt] <= (/-2$/.test(c) || c === '5b-3' ? 4 : 3) ? c : null;
+// 多位數一位一位撥（從最高位開始，或從個位開始而進位沒有撞上要加的數）：
+// 撥 d 在第 k 位只會動到第 k 位和更左邊，所以每一步就是「左邊的部分 ± 一位數」，照 1～4、5a、5b 分。
+// 例：從最高位開始 146 − 98，十位那一步是 14 − 9（4 級），個位那一步是 56 − 8（5a）。
+function digitSteps(x, y, op, high) {
+  const ys = String(y).split('').reverse().map(Number);
+  const ks = ys.map((v, k) => k).filter(k => ys[k]);
+  if (high) ks.reverse();
+  let cur = x;
+  return ks.map(k => {
+    const p = 10 ** k, L = classifyOne(Math.floor(cur / p), ys[k], op);
+    cur += (op === '+' ? 1 : -1) * ys[k] * p;
+    return { k, L };
+  });
+}
+// 每一步都是 1～4 級 → 取最難的（一樣難時算個位那一步）。
+// 只有一步是第 5 級，其他步不比它難（5a-1、5b-1 配 3 級以下；5a-2、5b-2、5b-3 配 4 級以下）→ 那一級。
+// 其他（兩步都是第 5 級，或第 5 級配上更難的一步）→ 5d。
+function combineSteps(st) {
+  if (st.some(s => !s.L)) return null;
+  const five = st.filter(s => !RANK[s.L]).map(s => s.L);
+  const top = st.filter(s => RANK[s.L]).sort((a, b) => RANK[b.L] - RANK[a.L] || a.k - b.k).map(s => s.L)[0] || '1';
+  if (!five.length) return top;
+  if (five.length === 1 && RANK[top] <= (/-2$/.test(five[0]) || five[0] === '5b-3' ? 4 : 3)) return five[0];
+  return '5d';
 }
 
 // 乘法：照直式，乘數從個位開始一位一位乘（76 × 58 先算 76 × 8，再算 76 × 5），
@@ -161,6 +175,8 @@ const FORMS = [
   { id: 'F1', name: '20 以內', ex: '3+4、12+5、12−8' },
   { id: 'F2', name: '兩位數 ± 一位數', ex: '23+4、15+7、41−7' },
   { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
+  { id: 'F4', name: '三位數加減', ex: '104+8、268+535、772−598' },
+  { id: 'F5', name: '四位數加減', ex: '5631+280、4253−2697' },
   { id: 'G1', name: '加減一位數' },
   { id: 'G2', name: '加減兩位數' },
   { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
@@ -172,8 +188,10 @@ const FORMS = [
 // 三位數 ÷ 兩位數再看商有幾位：百位、十位連同比除數小就是商一位
 const divForm = (x, y) => y >= 10 ? (x < 100 ? 'E2' : x < y * 10 ? 'E3' : 'E4') : (x >= 100 ? 'D3' : 'D2');
 // 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
+// 一位數 + 兩位數（3 + 26，小的數在前面）算「兩位數 ± 一位數」（MEXT〈珠算編〉有專門一小節）。
 function formOf(x, y, op) {
   const r = op === '+' ? x + y : x - y;
+  if (y >= 10 && x < 10 && op === '+' && y <= 99) return r <= 20 ? 'F1' : 'F2';
   if (y >= 10) return x >= 10 && (op === '+' ? x <= 99 : r <= 99) ? 'F3' : null;
   if (x <= 20 && r <= 20) return 'F1';
   return x <= 99 ? 'F2' : null;
@@ -186,18 +204,26 @@ function inRange(lv, x, y, op, high) {
   if (lv.startsWith('9')) return y >= 11 && y <= 99 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
   const one = y < 10;
-  // 從最高位開始時，兩位數 ± 兩位數的進退位歸 5a、5b，範圍跟 5c 一樣
-  if (high && !one && /^5[ab]/.test(lv)) return x >= 10 && x <= (op === '+' ? 99 : 199) && y <= 99;
-  if (lv.startsWith('5a')) return one && x >= 10 && x <= 99;
-  if (lv.startsWith('5b')) return one && x >= 10 && x <= 999;
-  // 5c
-  if (op === '+') return x >= 10 && x <= 99 && y >= 10 && y <= 99;
-  return x >= 10 && x <= 199 && y >= 10 && y <= 99;
+  // 加減兩位數（G2）：兩位數 ± 兩位數，小的數可以在前面（3 + 97）；
+  // 從最高位開始時進退位歸 5a、5b、5d，從個位開始時歸 5c
+  if (!one) return x <= (op === '+' ? 99 : 199) && y <= 99;
+  if (lv.startsWith('5a')) return x >= 10 && x <= 99;
+  if (lv.startsWith('5b')) return x >= 10 && x <= 999;
+  return false;
+}
+// 這一題在這一級是哪個題型：在上面的範圍裡照原本的分法；超出範圍的加減法看最大的數有幾位，
+// 三位數是 F4、四位數是 F5（第 1～5 級都有）。其他回傳 null（不出）。
+function formFor(lv, x, y, op, high) {
+  if (inRange(lv, x, y, op, high)) return lvForm(lv, x, y, op);
+  if ((op !== '+' && op !== '-') || !(RANK[lv] || lv[0] === '5')) return null;
+  const d = String(Math.max(x, y)).length;
+  return d <= 3 ? 'F4' : d === 4 ? 'F5' : null;
 }
 
 // 建立題庫：bank[op][level] = [[x, y, 題型], ...]；乘法放在 bank['×']，除法放在 bank['÷']。
-// 題型：1～4 級 F1～F3；5a、5b（5b-3 除外）看加數幾位 G1、G2（從最高位開始時兩種都有）；第 8、9 級 D、E；其他是 null。
-const lvForm = (lv, x, y, op) => RANK[lv] ? formOf(x, y, op) : /^5[ab]-[12]$/.test(lv) ? (y < 10 ? 'G1' : 'G2') : null;
+// 題型：1～4 級 F1～F3；第 5 級看加減數幾位 G1、G2；第 8、9 級 D、E；其他是 null。
+// 三位數、四位數加減（F4、F5）題目太多，不放在這裡，用 sampleBank 抽題。
+const lvForm = (lv, x, y, op) => RANK[lv] ? formOf(x, y, op) : lv[0] === '5' ? (y < 10 ? 'G1' : 'G2') : null;
 function buildBank(high) {
   const bank = { '+': {}, '-': {}, '×': {}, '÷': {} };
   for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
@@ -220,6 +246,45 @@ function buildBank(high) {
     if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, divForm(x, y)]);
   }
   return bank;
+}
+
+// 三位數、四位數加減（F4、F5）：用固定的亂數種子抽 SAMPLE_TRIES 題，分級後每一級最多留 SAMPLE_MAX 題。
+// 種子固定，所以每次打開抽到的一樣（檢查腳本也能比對快照）。加數、被加數位數各種組合都有（3 + 268、104 + 8）。
+const SAMPLE_TRIES = 40000, SAMPLE_MAX = 300, sampled = {};
+function seeded(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function sampleBank(op, form, high) {
+  const key = `${high ? 'high' : 'low'} ${op} ${form}`;
+  if (sampled[key]) return sampled[key];
+  const D = form === 'F4' ? 3 : 4, rand = seeded(D * 4 + (op === '+' ? 0 : 2) + (high ? 1 : 0));
+  const int = (a, b) => a + Math.floor(rand() * (b - a + 1));
+  const num = d => int(d === 1 ? 1 : 10 ** (d - 1), 10 ** d - 1);
+  const out = {}, seen = new Set();
+  for (let i = 0; i < SAMPLE_TRIES; i++) {
+    let x, y;
+    if (op === '+') { const dx = int(1, D); x = num(dx); y = num(dx === D ? int(1, D) : D); }
+    else { x = num(D); y = num(int(1, D)); if (y >= x) continue; }
+    const k = x + op + y;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const lv = classify(x, y, op, high);
+    if (!lv || formFor(lv, x, y, op, high) !== form) continue;
+    const list = out[lv] || (out[lv] = []);
+    if (list.length < SAMPLE_MAX) list.push([x, y, form]);
+  }
+  return sampled[key] = out;
+}
+// 一級、一種運算可以出的題目：forms 是選的題型（null 表示不篩選），F4、F5 從 sampleBank 取
+function poolOf(bank, op, lv, forms, high) {
+  const list = (bank[op][lv] || []).filter(it => !forms || forms.includes(it[2]));
+  if (!forms || (op !== '+' && op !== '-')) return list;
+  return list.concat(...forms.filter(f => f === 'F4' || f === 'F5').map(f => sampleBank(op, f, high)[lv] || []));
 }
 
 // 讀學生答案：接受 #15、＃１５、點字 ⠼⠂⠢。
@@ -300,4 +365,4 @@ const remOf = p => p.op === '÷' ? p.x % p.y : 0;
 const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 const sym = op => ({ '+': '+', '-': '−', '×': '×', '÷': '÷' })[op];
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyHigh, classifyMul, classifyDiv, classifyDiv2, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, formFor, sampleBank, poolOf, classifyMul, classifyDiv, classifyDiv2, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };

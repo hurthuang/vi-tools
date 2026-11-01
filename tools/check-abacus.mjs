@@ -2,7 +2,8 @@
 // 1. abacus-levels.js 的每個代表例題，用出題核心分級後要落在自己那一級
 // 2. 各級撥珠教法（complement.html）的小標題「6a 級：名稱（例：…）」要跟 abacus-levels.js 的名稱一致，例題要在那一級的代表例題裡
 // 3. 1～4、6～9 級每一級在各級撥珠教法都有小標題
-// 4. 題庫：每一題分級後落在自己那一級；兩種撥珠方向的題庫跟快照（fixtures/abacus-bank.json）一樣
+// 4. 題庫：每一題分級後落在自己那一級；兩種撥珠方向的題庫跟快照（fixtures/abacus-bank.json）一樣；
+//    三位數、四位數加減（抽題）也一樣，而且題型對
 // 5. 撥珠動畫：加減乘除、兩種方向、小補數分兩步或一起撥，最後算盤上的數（除法是餘數）和點顯器上的商都對，每一步只動到說明裡的檔
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,20 +15,20 @@ globalThis.AbacusLevels = AL;
 
 const core = readFileSync(new URL('abacus-core.js', root), 'utf8');
 const C = new Function(core.replace("if (typeof module !== 'undefined')", 'if (false)') +
-  ';return { classify, classifyMul, classifyDiv, buildBank, inRange };')();
+  ';return { classify, classifyMul, classifyDiv, buildBank, inRange, sampleBank, formFor };')();
 const { abacusSteps } = require(new URL('abacus-anim.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 
 let bad = 0;
 const fail = msg => { bad++; console.log('✗ ' + msg); };
 const norm = e => e.replace(/\s/g, '').replace(/[−-]/g, '−');
 
-// 1. 代表例題分到自己那一級（加減法用從個位開始；5a、5b 是一位數加數，兩種方向一樣）
+// 1. 代表例題分到自己那一級（加減法用從個位開始；5a、5b 是一位數加數，兩種方向一樣；5d 用從最高位開始）
 const OPS = [['add', '+'], ['sub', '-'], ['mul', '×'], ['div', '÷']];
 for (const l of AL.LEVELS) for (const [key, op] of OPS) {
   if (!l[key]) continue;
   for (const e of l[key].split('、')) {
     const [x, y] = e.split(/[+−×÷]/).map(Number);
-    const got = op === '×' ? C.classifyMul(x, y) : op === '÷' ? C.classifyDiv(x, y) : C.classify(x, y, op);
+    const got = op === '×' ? C.classifyMul(x, y) : op === '÷' ? C.classifyDiv(x, y) : C.classify(x, y, op, l.id === '5d');
     if (got !== l.id) fail(`例題 ${e} 標在 ${l.id}，分級結果是 ${got}`);
   }
 }
@@ -75,6 +76,16 @@ for (const high of [false, true]) {
     snap[`${dir} ${op} ${lv}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
+for (const high of [false, true]) for (const op of ['+', '-']) for (const form of ['F4', 'F5']) {
+  const dir = high ? 'high' : 'low', set = C.sampleBank(op, form, high);
+  for (const [lv, items] of Object.entries(set)) {
+    for (const [x, y, f] of items) {
+      const got = C.classify(x, y, op, high);
+      if (got !== lv || f !== form || C.formFor(lv, x, y, op, high) !== form) { fail(`抽題 ${dir} ${x}${op}${y} 放在 ${lv} ${f}，分級是 ${got}`); break; }
+    }
+    snap[`${dir} ${op} ${lv} ${form}`] = `${items.length} ${hash(JSON.stringify(items))}`;
+  }
+}
 // 第 9 級每一級三種題型都有題目
 for (const lv of ['9a', '9b', '9c', '9d']) for (const f of ['E2', 'E3', 'E4']) {
   const n = C.buildBank(true)['÷'][lv].filter(it => it[2] === f).length;
@@ -109,6 +120,9 @@ for (const dir of ['low', 'high']) {
 }
 for (let x = 1; x <= 999; x++) for (let y = 1; y <= 9; y++) animCheck(x, y, '×', 'low');
 for (let x = 1; x <= 99; x++) for (let y = 10; y <= 99; y++) animCheck(x, y, '×', 'low');
+// 三位數、四位數加減：抽到的題目全部跑一次
+for (const high of [false, true]) for (const op of ['+', '-']) for (const form of ['F4', 'F5'])
+  for (const items of Object.values(C.sampleBank(op, form, high))) for (const [x, y] of items) animCheck(x, y, op, high ? 'high' : 'low');
 
 console.log(bad ? `${bad} 個問題` : `珠算檢查通過：代表例題、各級撥珠教法的標題和例題、題庫（${Object.keys(snap).length} 組）、撥珠動畫（${anim} 題）`);
 process.exit(bad ? 1 : 0);

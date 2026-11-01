@@ -167,8 +167,8 @@ if (saved.picks && !saved.levels) {
   saved.op = ops.has('+') && ops.has('-') ? 'both' : ops.has('-') ? '-' : '+';
 }
 const chosen = new Set(saved.levels || []);
-// 題目大小：第 1～4 級（F）、第 5 級從最高位開始（G）、第 8 級（D）、第 9 級（E），預設跟出題練習一樣
-const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
+// 題目大小：第 1～4 級（F）、第 5 級（G）、第 8 級（D）、第 9 級（E）
+const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1 G2'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
 const forms = Object.fromEntries(FORM_GROUPS.map(([k, , def]) => [k, (saved.forms || {})[k] || def]));
 const formKey = id => id[0] === '8' ? 'D' : id[0] === '9' ? 'E' : id[0] === '5' ? 'G' : 'F';
 function remember() {
@@ -179,8 +179,7 @@ function remember() {
 
 const LEVELS_ = AbacusLevels.LEVELS;
 const lvOf = id => LEVELS_.find(l => l.id === id);
-// 從最高位開始沒有 5c
-const shown = () => LEVELS_.filter(l => !(AbacusPicker.dirHigh() && l.id.startsWith('5c')));
+const shown = () => LEVELS_.filter(l => AbacusPicker.shownLevel(l.id));
 function renderGrid() {
   $('lv-grid').innerHTML = AbacusLevels.GROUPS.map(gr => {
     const lvs = shown().filter(l => AbacusLevels.groupOf(l.id) === gr.key);
@@ -207,15 +206,15 @@ $('lv-grid').addEventListener('click', e => {
 const opChoice = () => (document.querySelector('input[name=op]:checked') || {}).value || '+';
 document.querySelector(`input[name=op][value="${saved.op || '+'}"]`).checked = true;
 
+// 第 5 級從個位開始時 5a、5b 只有加減一位數、5c 只有加減兩位數，不給單選一種
+const choicesOf = k => AbacusPicker.CHOICES[k].filter(([v]) => !(k === 'G' && !AbacusPicker.dirHigh() && (v === 'G1' || v === 'G2')));
 function renderForms() {
-  $('forms').innerHTML = FORM_GROUPS.filter(([k]) => k !== 'G' || AbacusPicker.dirHigh()).map(([k, title]) =>
-    `<label>${title}<select data-k="${k}">${AbacusPicker.CHOICES[k].map(([v, t]) => `<option value="${v}"${v === forms[k] ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`).join('');
+  for (const [k, , def] of FORM_GROUPS) if (!choicesOf(k).some(([v]) => v === forms[k])) forms[k] = def;
+  $('forms').innerHTML = FORM_GROUPS.map(([k, title]) =>
+    `<label>${title}<select data-k="${k}">${choicesOf(k).map(([v, t]) => `<option value="${v}"${v === forms[k] ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`).join('');
 }
 $('forms').addEventListener('change', e => { forms[e.target.dataset.k] = e.target.value; });
-const pool = (op, lv) => {
-  const list = AbacusPicker.bank()[op][lv] || [];
-  return AbacusPicker.hasForm(lv) ? list.filter(it => forms[formKey(lv)].split(' ').includes(it[2])) : list;
-};
+const pool = (op, lv) => poolOf(AbacusPicker.bank(), op, lv, AbacusPicker.hasForm(lv) ? forms[formKey(lv)].split(' ') : null, AbacusPicker.dirHigh());
 // 選的級數換成出題用的「級別|運算」：加減法照上面選的，乘法、除法固定
 function picks() {
   const ops = { '+': ['+'], '-': ['-'], both: ['+', '-'] }[opChoice()];

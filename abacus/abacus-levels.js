@@ -3,7 +3,7 @@
  * 每一級：id、名稱（難在哪）、怎麼判斷、題型（固定的才寫）、代表例題（add／sub／mul／div）。
  * 1～4 級的例題依題型排：20 以內、兩位數 ± 一位數、兩位數 ± 兩位數。
  * part：同一組裡再分表（第 5 級分 5a、5b 和 5c 兩張表）。
- * 第 5c 級只有從個位開始撥才會出現。node 也能用（tools/check-abacus.mjs）。
+ * 第 5c 級只有從個位開始撥才會出現；5d 只在從最高位開始時列出（從個位開始時這種題大多歸 5c）。node 也能用（tools/check-abacus.mjs）。
  */
 (function (g) {
   'use strict';
@@ -17,6 +17,7 @@
   ];
   const P5AB = '5a、5b：十位用小補數、連續進位借位';
   const P5C = '5c：多位數，進位撞上十位要加的數（只有從個位開始才有）';
+  const P5D = '5d：兩步都難（從最高位開始）';
   const LEVELS = [
     { id: '1', name: '不動補數', desc: '珠子夠，直接撥', add: '5+3、21+3、32+15', sub: '9−4、37−5、47−21' },
     { id: '2', name: '小補數', desc: '下珠不夠，要動上珠', add: '3+4、23+4、12+33', sub: '8−4、26−3、56−21' },
@@ -33,6 +34,7 @@
     { id: '5c-3', part: P5C, name: '一次進退位，含複合題', desc: '進退位的那一位是 4 級（個位或十位）', form: '兩位數 ± 兩位數', add: '17+16、36+27', sub: '42−17、33−16' },
     { id: '5c-4', part: P5C, name: '兩次進退位', desc: '個位、十位都進位（或都借位）', form: '兩位數 ± 兩位數', add: '88+27', sub: '121−58' },
     { id: '5c-5', part: P5C, name: '兩次進退位，含複合題', desc: '其中一位是 4 級', form: '兩位數 ± 兩位數', add: '57+68、75+48', sub: '132−47、143−67' },
+    { id: '5d', part: P5D, name: '兩步都難', desc: '一步是複合題（4 級），另一步又要進退位延伸（5a、5b）；或兩步都要進退位延伸', form: '兩位數 ± 兩位數', add: '51+99、82+68', sub: '146−98、113−69' },
     { id: '6a', name: '九九乘法的答案', desc: '九九乘法的答案直接撥上去，練習撥在哪兩檔', form: '一位數 × 一位數', mul: '2×3、7×6' },
     { id: '6b', name: '十位乘積直接撥', desc: '加十位乘積時珠子夠，不用補數', form: '兩位數 × 一位數', mul: '21×4、34×2、20×3' },
     { id: '6c', name: '加十位乘積要用小補數', desc: '加十位乘積時下珠不夠，要動上珠', form: '兩位數 × 一位數', mul: '16×4、18×3' },
@@ -64,7 +66,7 @@
       if (last && last.cap === cap) last.lvs.push(l); else parts.push({ cap, lvs: [l] });
     }
     return parts.map(({ cap, lvs: ls }) => {
-      const low = ls.every(l => l.id.startsWith('5c'));
+      const low = ls.every(l => l.id.startsWith('5c')), high = ls.every(l => l.id === '5d');
       const head = addsub
         ? '<th scope="col">等級</th><th scope="col">名稱</th><th scope="col">怎麼判斷</th><th scope="col">加法例題</th><th scope="col">減法例題</th>'
         : '<th scope="col">等級</th><th scope="col">名稱</th><th scope="col">怎麼判斷</th><th scope="col">題型</th><th scope="col">例題</th>';
@@ -72,7 +74,7 @@
         (addsub ? `<td>${l.add || '—'}</td><td>${l.sub || '—'}</td>` : `<td>${l.form || ''}</td><td>${l.mul || l.div || ''}</td>`) + '</tr>').join('');
       // 表格標題跟上面的組名一樣時只給報讀軟體（畫面上不重複）
       const capCls = cap === groupTitle(key) ? ' class="lv-cap-hidden"' : '';
-      return `<div class="scroll"${low ? ' data-show="low"' : ''}><table class="lv"><caption${capCls}>${cap}</caption><tr>${head}</tr>${rows}</table></div>`;
+      return `<div class="scroll"${low ? ' data-show="low"' : high ? ' data-show="high"' : ''}><table class="lv"><caption${capCls}>${cap}</caption><tr>${head}</tr>${rows}</table></div>`;
     }).join('');
   }
   if (typeof document !== 'undefined' && document.head) {

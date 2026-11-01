@@ -18,14 +18,27 @@
     ['F2', '兩位數 ± 一位數'],
     ['F1 F2', '20 以內＋兩位數 ± 一位數'],
     ['F3', '兩位數 ± 兩位數'],
-    ['F1 F2 F3', '全部'],
+    ['F1 F2 F3', '兩位數以內全部'],
+    ['F4', '三位數加減'],
+    ['F5', '四位數加減'],
+    ['F1 F2 F3 F4 F5', '全部'],
   ];
-  // 從最高位開始時 5a、5b 的題型選單：加數幾位（從個位開始時只有一位數加數，不用選）
+  // 第 5 級的題型選單：加減數幾位（兩位數以內），或三位數、四位數加減。
+  // 每一級只列題庫裡有的：從個位開始時 5a、5b 只有加減一位數，5c 只有加減兩位數。
   const LV5_CHOICES = [
     ['G1', '加減一位數'],
     ['G2', '加減兩位數'],
-    ['G1 G2', '全部'],
+    ['G1 G2', '兩位數以內全部'],
+    ['F4', '三位數加減'],
+    ['F5', '四位數加減'],
+    ['G1 G2 F4 F5', '全部'],
   ];
+  function lv5Choices(lv) {
+    const b = getBank(), has = f => ['+', '-'].some(op => (b[op][lv] || []).some(it => it[2] === f));
+    const base = ['G1', 'G2'].filter(has), pick = v => LV5_CHOICES.find(c => c[0] === v);
+    return [...base.map(pick), ...(base.length > 1 ? [pick('G1 G2')] : []), pick('F4'), pick('F5'),
+      [[...base, 'F4', 'F5'].join(' '), '全部']];
+  }
   // 第 8 級（除法）的題型選單：被除數幾位
   const DIV_CHOICES = [
     ['D2', '兩位數以內 ÷ 一位數'],
@@ -40,13 +53,12 @@
     ['E4', '三位數 ÷ 兩位數，商兩位'],
     ['E2 E3 E4', '全部'],
   ];
-  const hasForm = id => !!RANK[id] || id.startsWith('8') || id.startsWith('9') || (dirHigh() && /^5[ab]-[12]$/.test(id));
+  const hasForm = id => !!RANK[id] || /^[589]/.test(id);
   const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
-  // 第 5、6、7 級的題型是固定的，表格上直接寫出來
-  function fixedForm(id) {
-    if (dirHigh() && /^5[ab]-/.test(id) && id !== '5b-3') return '兩位數 ± 一位數、兩位數';
-    return (LEVELS.find(l => l.id === id) || {}).form || '';
-  }
+  // 第 6、7 級的題型是固定的，表格上直接寫出來
+  const fixedForm = id => (LEVELS.find(l => l.id === id) || {}).form || '';
+  // 從最高位開始沒有 5c；從個位開始不列 5d（這種題大多歸 5c，剩下的很少）
+  const shownLevel = id => dirHigh() ? !id.startsWith('5c') : id !== '5d';
 
   // ---- 設定畫面 ----
   // 每一列是一個級別，欄是加法、減法（第 6、7 級是乘法，第 8、9 級是除法）。勾選框的值是「級別|運算」，例如 2|+。
@@ -91,7 +103,7 @@
       const sel = root.querySelector(`select[data-lv="${lv}"]`);
       return sel ? sel.value.split(' ') : null;
     }
-    const pool = (op, lv) => { const f = formsFor(lv); return getBank()[op][lv].filter(it => !f || f.includes(it[2])); };
+    const pool = (op, lv) => poolOf(getBank(), op, lv, formsFor(lv), dirHigh());
 
     function renderLevels() {
       const prev = new Set([...root.querySelectorAll('.lv-table input:checked')].map(i => i.value));
@@ -102,7 +114,7 @@
       const FOLD = Object.fromEntries(AbacusLevels.GROUPS.filter(gr => gr.key !== '1').map(gr => [gr.key, gr.title]));
       const groups = [];
       for (const lv of LEVELS) {
-        if (dirHigh() && lv.id.startsWith('5c')) continue;    // 從最高位開始沒有 5c
+        if (!shownLevel(lv.id)) continue;
         const g = groups[groups.length - 1];
         const cap = lv.part || AbacusLevels.groupTitle(AbacusLevels.groupOf(lv.id));
         if (g && g.name === cap) g.levels.push(lv);
@@ -129,8 +141,10 @@
         for (const lv of g.levels) {
           html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
           if (hasForm(lv.id)) {
-            const g5 = lv.id[0] === '5', g8 = lv.id[0] === '8', g9 = lv.id[0] === '9', cur = prevForm[lv.id] || (g9 ? 'E2' : g8 ? 'D2' : g5 ? 'G1' : 'F1');
-            html += `<td data-label="題型"><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${(g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? LV5_CHOICES : FORM_CHOICES).map(([v, t]) =>
+            const g5 = lv.id[0] === '5', g8 = lv.id[0] === '8', g9 = lv.id[0] === '9';
+            const choices = g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? lv5Choices(lv.id) : FORM_CHOICES;
+            const cur = choices.some(([v]) => v === prevForm[lv.id]) ? prevForm[lv.id] : choices[0][0];
+            html += `<td data-label="題型"><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${choices.map(([v, t]) =>
               `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
           } else html += `<td data-label="題型">${fixedForm(lv.id)}</td>`;
           for (const [op, name, key] of ops) {
@@ -197,5 +211,5 @@
 
   // 家長版不用表格，自己排按鈕，但題庫、題型選單跟這裡共用
   const CHOICES = { F: FORM_CHOICES, G: LV5_CHOICES, D: DIV_CHOICES, E: DIV2_CHOICES };
-  g.AbacusPicker = { mount, formName, fixedForm, dirHigh, bank: getBank, hasForm, CHOICES };
+  g.AbacusPicker = { mount, formName, fixedForm, dirHigh, bank: getBank, hasForm, shownLevel, CHOICES };
 })(window);
