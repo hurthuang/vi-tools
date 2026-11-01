@@ -307,35 +307,36 @@ function parseAnswer(raw) {
 }
 
 // ---- 出題 ----
-function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// rnd：亂數來源，預設 Math.random；練習代號的「同一組題目」用 seeded(種子)，同一個種子出一樣的題目
+function shuffle(a, rnd = Math.random) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 // 第 9 級的商自然分布偏小（兩位數 ÷ 兩位數大多商 1），照商分堆輪流取，商一位看商、商兩位看商的十位
-function quotOrder(items) {
+function quotOrder(items, rnd) {
   const heaps = new Map();
-  for (const it of shuffle(items.slice())) {
+  for (const it of shuffle(items.slice(), rnd)) {
     const q = Math.floor(it[0] / it[1]), k = q < 10 ? 'q' + q : 't' + Math.floor(q / 10);
     if (!heaps.has(k)) heaps.set(k, []);
     heaps.get(k).push(it);
   }
   const out = [];
-  while (heaps.size) for (const k of shuffle([...heaps.keys()])) {
+  while (heaps.size) for (const k of shuffle([...heaps.keys()], rnd)) {
     const h = heaps.get(k);
     out.push(h.pop());
     if (!h.length) heaps.delete(k);
   }
   return out;
 }
-const order = (lv, items) => lv[0] === '9' ? quotOrder(items) : shuffle(items);
+const order = (lv, items, rnd) => lv[0] === '9' ? quotOrder(items, rnd) : shuffle(items, rnd);
 
 // picks：勾選的「級別|運算」，例如 ['2|+', '2|-', '6b|×', '8a|÷']；pool(op, lv) 回傳這一項可以出的題目
-function makeProblems(picks, count, pool) {
+function makeProblems(picks, count, pool, rnd = Math.random) {
   const pools = [];
   for (const [lv, op] of picks.map(v => v.split('|'))) {
     const list = pool(op, lv);
-    if (list.length) pools.push({ op, lv, items: order(lv, list.slice()), i: 0 });
+    if (list.length) pools.push({ op, lv, items: order(lv, list.slice(), rnd), i: 0 });
   }
   if (!pools.length) return [];
   // 題數平均分給各級，同一級再平均分給加、減；除不盡的餘數隨機給
-  const split = (n, k) => { const a = Array(k).fill(Math.floor(n / k)); shuffle([...a.keys()]).slice(0, n % k).forEach(i => a[i]++); return a; };
+  const split = (n, k) => { const a = Array(k).fill(Math.floor(n / k)); shuffle([...a.keys()], rnd).slice(0, n % k).forEach(i => a[i]++); return a; };
   const levels = [...new Set(pools.map(p => p.lv))];
   split(count, levels.length).forEach((n, li) => {
     const ps = pools.filter(p => p.lv === levels[li]);
@@ -345,16 +346,16 @@ function makeProblems(picks, count, pool) {
   // 某一種剩太多（超過一半）時先出它，免得最後擠在一起
   const seq = [];
   for (let rest = count; rest > 0; rest--) {
-    const last = Math.random() < 0.5 ? null : seq[seq.length - 1];
+    const last = rnd() < 0.5 ? null : seq[seq.length - 1];
     let cand = pools.filter(p => p.left > rest / 2);
     if (!cand.length) cand = pools.filter(p => p.left && p !== last);
     if (!cand.length) cand = pools.filter(p => p.left);
-    let r = Math.random() * cand.reduce((s, p) => s + p.left, 0);
+    let r = rnd() * cand.reduce((s, p) => s + p.left, 0);
     const p = cand.find(c => (r -= c.left) < 0) || cand[cand.length - 1];
     p.left--; seq.push(p);
   }
   return seq.map(p => {
-    if (p.i >= p.items.length) { p.items = order(p.lv, p.items); p.i = 0; }
+    if (p.i >= p.items.length) { p.items = order(p.lv, p.items, rnd); p.i = 0; }
     const [x, y, form] = p.items[p.i++];
     return { x, y, op: p.op, lv: p.lv, form };
   });
@@ -374,4 +375,4 @@ const remOf = p => p.op === '÷' ? p.x % p.y : 0;
 const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 const sym = op => ({ '+': '+', '-': '−', '×': '×', '÷': '÷' })[op];
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, sizeOf, sampleBank, poolOf, SIZE_GROUPS, DEFAULT_SIZES, classifyMul, classifyDiv, classifyDiv2, divForm, mulForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, sizeOf, sampleBank, poolOf, seeded, SIZE_GROUPS, DEFAULT_SIZES, classifyMul, classifyDiv, classifyDiv2, divForm, mulForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };

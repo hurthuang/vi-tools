@@ -87,10 +87,12 @@
     el.addEventListener('change', keepOne);
     return {
       get: () => [...el.querySelectorAll('.abp-sizes input:checked')].map(i => i.value),
-      set: list => el.querySelectorAll('.abp-sizes input').forEach(i => { i.checked = list.includes(i.value); }),
+      set: list => { const next = mergeSizes([...el.querySelectorAll('.abp-sizes input:checked')].map(i => i.value), list); el.querySelectorAll('.abp-sizes input').forEach(i => { i.checked = next.includes(i.value); }); },
     };
   }
   const poolFor = (op, lv, sizes) => poolOf(getBank(), op, lv, sizes, dirHigh());
+  // 套用代號的題目大小：代號只記有選到的運算，沒記的那一行維持原本的勾選（每一行至少一個）
+  const mergeSizes = (cur, list) => SIZE_GROUPS.flatMap(([, ids]) => { const got = ids.filter(id => list.includes(id)); return got.length ? got : ids.filter(id => cur.includes(id)); });
 
   function mount(root, opts = {}) {
     addCss();
@@ -107,9 +109,10 @@
     function renderLevels() {
       const prev = new Set([...box.querySelectorAll('.lv-table input:checked')].map(i => i.value));
       const first = !box.querySelector('.lv-table input');
-      const open = new Set([...box.querySelectorAll('button.fold[aria-expanded=true]')].map(b => b.dataset.group));
-      // 第 5～9 級各收在一個可以展開的標題下，預設收合；組名和表格標題跟另外兩頁一樣（abacus-levels.js）
-      const FOLD = Object.fromEntries(AbacusLevels.GROUPS.filter(gr => gr.key !== '1').map(gr => [gr.key, gr.title]));
+      // 每一組都可以收合；第一次打開時第 1～4 級展開，其他收合
+      const open = first ? new Set(['1']) : new Set([...box.querySelectorAll('button.fold[aria-expanded=true]')].map(b => b.dataset.group));
+      // 組名和表格標題跟另外兩頁一樣（abacus-levels.js）
+      const FOLD = Object.fromEntries(AbacusLevels.GROUPS.map(gr => [gr.key, gr.title]));
       const groups = [];
       for (const lv of LEVELS) {
         if (!shownLevel(lv.id)) continue;
@@ -202,7 +205,23 @@
     const picks = () => [...box.querySelectorAll('.lv-table input:checked')].map(i => i.value);
     window.addEventListener('abacusdirchange', renderLevels);
     renderLevels();
-    return { render: renderLevels, picks, setAll, pool };
+    // 練習代號套用：勾選照代號，有勾的組展開
+    function setPicks(list) {
+      const on = new Set(list);
+      box.querySelectorAll('.lv-table input').forEach(i => { i.checked = on.has(i.value); });
+      for (const b of box.querySelectorAll('button.fold')) {
+        if (!box.querySelector(`#grp-${b.dataset.group} .lv-table input:checked`)) continue;
+        b.setAttribute('aria-expanded', true);
+        box.querySelector('#grp-' + b.dataset.group).hidden = false;
+      }
+      countLv5();
+    }
+    function setSizes(list) {
+      const next = mergeSizes([...sizeOn], list);
+      sizeOn.clear(); next.forEach(v => sizeOn.add(v));
+      renderLevels();
+    }
+    return { render: renderLevels, picks, setAll, pool, setPicks, setSizes, sizes: sizes.get };
   }
 
   // 家長版不用表格，自己排按鈕，但題庫、題目大小跟這裡共用

@@ -4,6 +4,7 @@
 // 3. 1～4、6～9 級每一級在各級撥珠教法都有小標題，九九乘法有一段
 // 4. 題庫：每一題分級後落在自己那一級；兩種撥珠方向的題庫跟快照（fixtures/abacus-bank.json）一樣；
 //    三位數、四位數加減（抽題）也一樣，而且題型對
+// 6. 練習代號：設定往返不變、抄錯一個字或對調相鄰兩個字會被發現、同一個種子出一樣的題目
 // 5. 撥珠動畫：加減乘除、兩種方向、小補數分兩步或一起撥，最後算盤上的數（除法是餘數）和點顯器上的商都對，每一步只動到說明裡的檔
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -15,7 +16,7 @@ globalThis.AbacusLevels = AL;
 
 const core = readFileSync(new URL('abacus-core.js', root), 'utf8');
 const C = new Function(core.replace("if (typeof module !== 'undefined')", 'if (false)') +
-  ';return { classify, classifyMul, classifyDiv, buildBank, inRange, sampleBank, sizeOf };')();
+  ';return { classify, classifyMul, classifyDiv, buildBank, inRange, sampleBank, sizeOf, makeProblems, seeded, poolOf, FORMS };')();
 const { abacusSteps } = require(new URL('abacus-anim.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 
 let bad = 0;
@@ -127,5 +128,32 @@ for (const items of Object.values(C.sampleBank('÷', false))) for (const [x, y] 
 for (const high of [false, true]) for (const op of ['+', '-'])
   for (const items of Object.values(C.sampleBank(op, high))) for (const [x, y] of items) animCheck(x, y, op, high ? 'high' : 'low');
 
-console.log(bad ? `${bad} 個問題` : `珠算檢查通過：代表例題、各級撥珠教法的標題和例題、題庫（${Object.keys(snap).length} 組）、撥珠動畫（${anim} 題）`);
+// 6. 練習代號
+Object.assign(globalThis, { makeProblems: C.makeProblems, seeded: C.seeded, FORMS: C.FORMS });
+const K = require(new URL('abacus-code.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+let codes = 0;
+const SZ = ['F1', 'F2', 'F3', 'F4', 'M2', 'M3', 'D2', 'D3', 'D4'];
+let r = 1; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+for (let t = 0; t < 2000; t++) {
+  const mode = t % 3, picks = K.CODE_LEVELS.filter(() => rnd() < 0.15).flatMap(lv => /^[1-5]/.test(lv)
+    ? (mode === 2 ? [lv + '|+', lv + '|-'] : [lv + '|' + '+-'[(mode + (rnd() < 0.3 ? 1 : 0)) % 2]]) : [lv + (/^[89]/.test(lv) ? '|÷' : '|×')]);
+  const st = { picks, sizes: SZ.filter(() => rnd() < 0.5), count: 1 + Math.floor(rnd() * 100), high: rnd() < 0.5 };
+  if (t % 4 === 0) { st.seed = Math.floor(rnd() * 1024); st.fp = Math.floor(rnd() * 16); }
+  const code = K.encode(st), d = K.decode(code);
+  const want = st.sizes.filter(id => picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^[89]/ })[id[0]].test(p)));
+  codes++;
+  if (d.error || JSON.stringify(d.picks) !== JSON.stringify(K.canonical(picks)) || d.count !== st.count || d.high !== st.high ||
+    JSON.stringify(d.sizes) !== JSON.stringify(want) || d.seed !== st.seed || d.fp !== st.fp) { fail(`練習代號 ${code} 讀回來不一樣`); break; }
+  const A = '0123456789ABCDEFGHJKMNPQRSTVWXYZ', i = t % code.length, c = A[(A.indexOf(code[i]) + 1 + t % 31) % 32];
+  if (!K.decode(code.slice(0, i) + c + code.slice(i + 1)).error) { fail(`練習代號 ${code} 第 ${i + 1} 個字抄錯沒發現`); break; }
+  if (i + 1 < code.length && code[i] !== code[i + 1] && !K.decode(code.slice(0, i) + code[i + 1] + code[i] + code.slice(i + 2)).error) { fail(`練習代號 ${code} 對調沒發現`); break; }
+}
+{
+  const bank = C.buildBank(true), pool = (op, lv) => C.poolOf(bank, op, lv, ['F1', 'F2', 'F3', 'M2', 'D2'], true);
+  const d = { picks: ['2|+', '3a|-', '6a|×'], seed: 321, count: 10 };
+  const a = JSON.stringify(K.problemsOf(d, pool)), b = JSON.stringify(K.problemsOf({ ...d, picks: ['6a|×', '3a|-', '2|+'] }, pool));
+  if (a !== b) fail('同一個種子、同樣的級數，出的題目不一樣');
+}
+
+console.log(bad ? `${bad} 個問題` : `珠算檢查通過：代表例題、各級撥珠教法的標題和例題、題庫（${Object.keys(snap).length} 組）、撥珠動畫（${anim} 題）、練習代號（${codes} 組）`);
 process.exit(bad ? 1 : 0);

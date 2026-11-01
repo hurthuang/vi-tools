@@ -12,6 +12,7 @@
 <script src="abacus-levels.js"></script>
 <script src="abacus-core.js"></script>
 <script src="abacus-picker.js"></script>
+<script src="abacus-code.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ecebe6;--muted:#a8a69e;--line:#3b3a36;--card:#1f1f1d;--accent:#7fb0f0;--ok:#6fcf8f;--bad:#f08a80;}}
@@ -26,6 +27,9 @@ fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);m
 legend{font-weight:700;padding:0 6px}
 .more{margin:0 0 16px}
 .more summary{cursor:pointer;padding:8px 0;font-weight:700}
+.code-big{font-size:2rem;font-weight:700;letter-spacing:.12em;font-family:ui-monospace,Consolas,monospace;margin:4px 0}
+#code-box{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 16px;margin:12px 0}
+#code-link{word-break:break-all}
 label{display:inline-flex;gap:8px;align-items:baseline;margin:4px 16px 4px 0;cursor:pointer}
 #preview ol{background:var(--card);border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 8px 8px 3em}
 #preview li{margin:2px 0}
@@ -58,6 +62,10 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   <nav class="abacus-top" aria-label="珠算頁面"><a href="complement.html">各級撥珠教法</a><a href="notes.html">教學法筆記</a><a href="parent.html">家長版</a><span id="dir-switch"></span></nav>
   <h1 id="setup-title">珠算分級練習</h1>
   <p class="lead">老師先勾選級數、選好題目大小，再按「開始練習」。題目照「盲生珠算教學法筆記」的難度分級出題。</p>
+
+  <p><label>練習代號（讀取別的老師給的設定，可不填）<input type="text" id="code-in" autocomplete="off" spellcheck="false" autocapitalize="characters" style="width:10em"></label>
+    <button type="button" class="secondary" id="code-read">讀取</button></p>
+  <p class="hint" id="code-read-msg" role="status"></p>
 
   <fieldset id="levels">
     <legend>級數、運算與題目大小（可複選）</legend>
@@ -104,7 +112,21 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 
   <p id="setup-error" class="feedback bad" role="alert"></p>
   <button type="button" class="secondary" id="preview-btn">先看題目</button>
+  <button type="button" class="secondary" id="code-make">產生練習代號（給家長）</button>
   <button type="button" id="start">開始練習</button>
+
+  <div id="code-box" hidden>
+    <h2 id="code-title" tabindex="-1">練習代號</h2>
+    <p class="code-big" id="code-out"></p>
+    <p id="code-desc"></p>
+    <p>連結：<a id="code-link" target="_blank" rel="noopener"></a></p>
+    <p><button type="button" class="secondary" id="code-copy">複製代號</button>
+      <button type="button" class="secondary" id="code-copy-link">複製連結</button>
+      <button type="button" class="secondary" id="code-share" hidden>分享連結</button>
+      <span id="code-copy-msg" role="status"></span></p>
+    <p class="hint">寫在聯絡簿：家長打開「家長版」，在「老師給的練習代號」輸入，按「套用」。傳 LINE：傳連結，家長點開就設定好了。代號裡沒有學生姓名。</p>
+    <p class="hint" id="code-seed-hint"></p>
+  </div>
 
   <div id="preview" hidden>
     <h2 id="preview-title" tabindex="-1">題目預覽</h2>
@@ -193,19 +215,22 @@ function startSession(problems) {
 }
 
 // ---- 題目預覽 ----
-let previewProblems = null;
-function clearPreview() { previewProblems = null; $('preview').hidden = true; }
-function showPreview() {
-  const problems = newProblems();
+// previewSeed：預覽用的種子，產生練習代號時一起放進去，家長就會拿到同一組題目
+let previewProblems = null, previewSeed = null;
+function clearPreview() { previewProblems = null; previewSeed = null; $('preview').hidden = true; $('code-box').hidden = true; }
+function showPreview(seed) {
+  if (typeof seed !== 'number') seed = AbacusCode.newSeed();
+  const problems = newProblems(seeded(seed + 1), true);
   if (!problems) return;
-  previewProblems = problems;
+  previewProblems = problems; previewSeed = seed;
+  $('code-box').hidden = true;
   $('preview-list').innerHTML = problems.map(p =>
     `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${AbacusLevels.lvTag(p.lv)}）</li>`).join('');
   $('preview').hidden = false;
   $('preview-title').focus();
 }
-$('preview-btn').onclick = showPreview;
-$('preview-again').onclick = showPreview;
+$('preview-btn').onclick = () => showPreview();
+$('preview-again').onclick = () => showPreview();
 $('preview-start').onclick = () => $('start').click();
 // 會影響出題的設定改了，預覽就作廢
 $('setup').addEventListener('change', e => {
@@ -219,10 +244,11 @@ $('start').onclick = () => {
   if (problems) startSession(problems);
 };
 
-function newProblems() {
-  const picks = picker.picks();
+// canon：照練習代號的順序排，跟家長用同一個種子出題時一樣
+function newProblems(rnd, canon) {
+  const picks = canon ? AbacusCode.canonical(picker.picks()) : picker.picks();
   const count = Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10));
-  const problems = makeProblems(picks, count, picker.pool);
+  const problems = makeProblems(picks, count, picker.pool, rnd);
   if (!problems.length) {
     $('setup-error').textContent = picks.length ? '勾選的項目在目前的題目大小沒有題目，請改題目大小或多勾幾項。' : '請至少勾選一項。';
     return null;
@@ -230,6 +256,55 @@ function newProblems() {
   $('setup-error').textContent = '';
   return problems;
 }
+
+// ---- 練習代號（abacus-code.js）：老師給家長，或老師之間分享設定 ----
+const codeSettings = () => ({
+  picks: picker.picks(), sizes: picker.sizes(), high: dirHigh(),
+  count: Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10)),
+});
+$('code-make').onclick = () => {
+  const st = codeSettings();
+  if (!st.picks.length) { $('setup-error').textContent = '請至少勾選一項。'; return; }
+  // 有預覽時，代號帶著預覽的種子：家長會拿到同一組題目
+  if (previewProblems) { st.seed = previewSeed; st.fp = AbacusCode.fingerprint(st.picks, picker.pool); }
+  const code = AbacusCode.encode(st), link = AbacusCode.linkOf(code, 'parent.html');
+  $('code-out').textContent = AbacusCode.format(code);
+  $('code-desc').textContent = AbacusCode.describe(AbacusCode.decode(code));
+  $('code-link').textContent = $('code-link').href = link;
+  $('code-seed-hint').textContent = previewProblems ? '這個代號包含上面預覽的這一組題目（同樣的題目、同樣的順序）；家長做完再練一次會出新的題目。'
+    : '每次都出新的題目。想讓家長做同一組題目，先按「先看題目」再產生代號。';
+  $('code-copy-msg').textContent = '';
+  $('code-share').hidden = !navigator.share;
+  $('code-box').hidden = false;
+  $('code-title').focus();
+};
+async function copyText(text, what) {
+  try { await navigator.clipboard.writeText(text); $('code-copy-msg').textContent = `已複製${what}`; }
+  catch (e) { $('code-copy-msg').textContent = '沒辦法自動複製，請自己選取複製'; }
+}
+$('code-copy').onclick = () => copyText($('code-out').textContent, '代號');
+$('code-copy-link').onclick = () => copyText($('code-link').href, '連結');
+$('code-share').onclick = () => navigator.share({ title: '珠算練習', text: '珠算練習代號 ' + $('code-out').textContent, url: $('code-link').href }).catch(() => {});
+
+// 讀代號：撥珠方向、級數、題目大小、題數照代號設好；有種子就直接顯示那一組題目的預覽
+function readCode(raw) {
+  const d = AbacusCode.decode(raw);
+  if (d.error) { $('code-read-msg').textContent = d.error; return; }
+  AbacusDir.set(d.high ? 'high' : 'low');
+  picker.setSizes(d.sizes);
+  picker.setPicks(d.picks);
+  $('count').value = d.count;
+  clearPreview();
+  let note = '';
+  if (d.seed != null) {
+    showPreview(d.seed);
+    if (AbacusCode.fingerprint(d.picks, picker.pool) !== d.fp) note = '網站在代號產生後更新過，題目可能跟原本的不一樣。';
+  }
+  $('code-read-msg').textContent = '已讀取：' + AbacusCode.describe(d) + '。' + note;
+}
+$('code-read').onclick = () => readCode($('code-in').value);
+$('code-in').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); readCode($('code-in').value); } });
+if (AbacusCode.fromHash()) { $('code-in').value = AbacusCode.fromHash(); readCode(AbacusCode.fromHash()); }
 
 // ---- 練習畫面 ----
 function exprMath(p, withAnswer) {

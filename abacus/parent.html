@@ -11,6 +11,7 @@
 <script src="abacus-levels.js"></script>
 <script src="abacus-core.js"></script>
 <script src="abacus-picker.js"></script>
+<script src="abacus-code.js"></script>
 <script src="abacus-anim.js"></script>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5d5d58;--line:#d6d4cc;--card:#fff;--accent:#1f5fa8;--ok:#1e7a3c;--bad:#b3261e;}
@@ -44,6 +45,9 @@ button.secondary{background:transparent;color:var(--accent)}
 button.big{width:100%;font-size:1.3rem;padding:14px}
 .more{margin:20px 0 0;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px 16px}
 .more summary{cursor:pointer;padding:6px 0;color:var(--muted)}
+.code-row label{display:block;margin:0 0 4px}
+.code-ctl{display:flex;gap:8px}
+.code-ctl input{flex:1 1 auto;min-width:0;font:inherit;font-size:1.2rem;letter-spacing:.08em;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
 .more[open] summary{margin-bottom:8px}
 label.stack,p.stack{display:block;margin:0 0 12px}
 label.stack input{display:block;width:100%;margin-top:4px}
@@ -85,6 +89,10 @@ label.stack input{display:block;width:100%;margin-top:4px}
 <section id="setup" aria-labelledby="setup-title">
   <h1 id="setup-title">珠算家長版</h1>
   <p class="lead">點老師說的級數，按「開始」。</p>
+  <p class="code-row"><label for="code-in">老師給的練習代號（沒有就不用填）</label>
+    <span class="code-ctl"><input type="text" id="code-in" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="例：C0G8-NWR">
+    <button type="button" class="secondary" id="code-apply">套用</button></span></p>
+  <p class="hint" id="code-msg" role="status"></p>
 
   <div class="lv-pick" id="lv-grid" role="group" aria-label="級數（可以選好幾個）"></div>
   <p class="picked" id="picked" aria-live="polite"></p>
@@ -194,11 +202,13 @@ function renderPicked() {
   const empty = list.filter(l => !levelPicks(l).some(v => { const [lv, op] = v.split('|'); return pool(op, lv).length; }));
   $('picked').textContent = (list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。') +
     (empty.length ? `（${empty.map(l => AbacusLevels.lvTag(l.id)).join('、')}在目前的題目大小沒有題目，請到「更多設定」改題目大小。）` : '');
-  $('op-box').hidden = list.length > 0 && !list.some(l => l.add || l.sub);
+  // 代號裡每一級的加減法不一樣時，照代號出題，不顯示「加減法的題目」
+  $('op-box').hidden = !!codePicks || (list.length > 0 && !list.some(l => l.add || l.sub));
 }
 $('lv-grid').addEventListener('click', e => {
   const b = e.target.closest('button[data-lv]');
   if (!b) return;
+  dropCode();
   const id = b.dataset.lv, on = !chosen.has(id);
   on ? chosen.add(id) : chosen.delete(id);
   b.setAttribute('aria-pressed', on);
@@ -207,21 +217,57 @@ $('lv-grid').addEventListener('click', e => {
 const opChoice = () => (document.querySelector('input[name=op]:checked') || {}).value || '+';
 document.querySelector(`input[name=op][value="${saved.op || '+'}"]`).checked = true;
 
-$('forms').addEventListener('change', renderPicked);
-$('op-box').addEventListener('change', renderPicked);
+$('forms').addEventListener('change', () => { dropCode(); renderPicked(); });
+$('op-box').addEventListener('change', () => { dropCode(); renderPicked(); });
 const pool = (op, lv) => AbacusPicker.pool(op, lv, sizes.get());
 // 選的級數換成出題用的「級別|運算」：加減法照上面選的，乘法、除法固定
 function levelPicks(l) {
   const ops = { '+': ['+'], '-': ['-'], both: ['+', '-'] }[opChoice()];
   return l.mul ? [l.id + '|×'] : l.div ? [l.id + '|÷'] : ops.filter(op => l[op === '+' ? 'add' : 'sub']).map(op => l.id + '|' + op);
 }
-const picks = () => shown().filter(l => chosen.has(l.id)).flatMap(levelPicks);
+const picks = () => codePicks || shown().filter(l => chosen.has(l.id)).flatMap(levelPicks);
+
+// ---- 老師給的練習代號（abacus-code.js）----
+// codePicks：代號裡每一級的加減法不一樣時，照代號出題（上面的「加減法的題目」用不到）；
+// codeSeed：代號有「同一組題目」時，第一次開始用它出題，之後再練就出新的。家長自己改了級數或設定就不用了。
+let codePicks = null, codeSeed = null;
+function dropCode() {
+  if (!codePicks && !codeSeed) return;
+  codePicks = codeSeed = null;
+  $('code-msg').textContent = '';
+  renderPicked();
+}
+function applyCode(raw) {
+  const d = AbacusCode.decode(raw);
+  if (d.error) { $('code-msg').textContent = d.error; return; }
+  AbacusDir.set(d.high ? 'high' : 'low');
+  sizes.set(d.sizes);
+  chosen.clear();
+  d.picks.forEach(v => chosen.add(v.split('|')[0]));
+  // 每一個加減法級數的運算都一樣，就用上面的「加減法的題目」；不一樣就照代號
+  const opsOf = lv => d.picks.filter(v => v.startsWith(lv + '|') && /[+-]$/.test(v)).map(v => v.split('|')[1]).join('');
+  const addsub = [...chosen].filter(lv => /^[1-5]/.test(lv)).map(opsOf);
+  const same = addsub.every(o => o === addsub[0]);
+  if (addsub.length && same) document.querySelector(`input[name=op][value="${{ '+': '+', '-': '-', '+-': 'both' }[addsub[0]]}"]`).checked = true;
+  codePicks = addsub.length && !same ? d.picks : null;
+  $('count').value = Math.min(30, d.count);
+  codeSeed = d.seed != null ? d : null;
+  renderGrid();
+  let note = d.count > 30 ? '家長版一次最多 30 題。' : '';
+  if (codeSeed && AbacusCode.fingerprint(d.picks, pool) !== d.fp) note += '網站在老師給代號後更新過，題目可能跟老師的不一樣。';
+  $('code-msg').textContent = '已套用老師的設定：' + AbacusCode.describe(d) + '。' + note + '按「開始」就可以練習。';
+  remember();
+}
+$('code-apply').onclick = () => applyCode($('code-in').value);
+$('code-in').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCode($('code-in').value); } });
 
 AbacusDir.mount($('dir-switch'));
 window.addEventListener('abacusdirchange', renderGrid);
 renderGrid();
 $('student').value = saved.student || '';
 if (saved.count) $('count').value = saved.count;
+// 從連結打開（parent.html#代號）：直接套用
+if (AbacusCode.fromHash()) { $('code-in').value = AbacusCode.fromHash(); applyCode(AbacusCode.fromHash()); }
 
 let session = null, demo = null;
 // 念給孩子聽的算式；除法的答案寫成「商 餘 餘數」
@@ -236,7 +282,8 @@ function start(problems) {
 $('start').onclick = () => {
   const ps = picks();
   const count = Math.max(1, Math.min(30, parseInt($('count').value, 10) || 10));
-  const problems = makeProblems(ps, count, pool);
+  const problems = codeSeed ? AbacusCode.problemsOf(codeSeed, pool, count) : makeProblems(ps, count, pool);
+  codeSeed = null;   // 同一組題目只用一次，再練就出新的
   if (!problems.length) {
     $('setup-error').textContent = ps.length ? '選的級數在目前的題目大小沒有題目，請到「更多設定」改題目大小，或多選幾級。' : '請先點老師說的級數。';
     return;
