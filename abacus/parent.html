@@ -52,6 +52,7 @@ button.big{width:100%;font-size:1.3rem;padding:14px}
 label.stack,p.stack{display:block;margin:0 0 12px}
 label.stack input{display:block;width:100%;margin-top:4px}
 [hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* 練習：題目在左、按鈕在旁邊；手機上按鈕排到題目下面 */
 .q-row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin:8px 0}
 .problem{flex:1 1 16rem;font-size:2.8rem;font-weight:600;text-align:center;padding:20px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-variant-numeric:tabular-nums}
@@ -80,6 +81,16 @@ label.stack input{display:block;width:100%;margin-top:4px}
 .bar .bad-btn{background:#b3261e;border-color:#b3261e}
 .lv-note{margin:12px 0 0;padding:8px 12px;border-left:4px solid var(--accent);background:var(--card)}
 @media (max-width:600px){.q-tools{flex-direction:row;flex:1 1 100%}.q-tools button{flex:1;min-width:0}}
+/* 自己出一題：兩個數字、四個運算按鈕 */
+.cu-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.cu-row input{font:inherit;font-size:1.5rem;width:5.5em;padding:6px 10px;font-variant-numeric:tabular-nums}
+.cu-ops{display:flex;gap:6px;border:0;margin:0;padding:0}
+.cu-ops label{margin:0}
+.cu-ops input{position:absolute;opacity:0;width:1px;height:1px}
+.cu-ops span{display:inline-block;min-width:2.4em;text-align:center;font-size:1.4rem;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.cu-ops input:checked+span{background:#1f5fa8;border-color:#1f5fa8;color:#fff}
+.cu-ops input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.cu-result .cu-expr{font-size:2rem;font-weight:600;margin:8px 0;font-variant-numeric:tabular-nums}
 /* 結果：一個手機畫面截得下 */
 #result h1{font-size:1.3rem}
 .meta{margin:0;color:var(--muted);font-size:.95rem}
@@ -115,6 +126,7 @@ label.stack input{display:block;width:100%;margin-top:4px}
 
   <p id="setup-error" class="feedback bad" role="alert"></p>
   <button type="button" id="start" class="big">開始</button>
+  <p><button type="button" class="secondary" id="custom-open">自己出一題（看是第幾級、怎麼撥）</button></p>
 
   <details class="more">
     <summary>更多設定：名字、題數、題目大小、撥珠方向</summary>
@@ -124,6 +136,28 @@ label.stack input{display:block;width:100%;margin-top:4px}
     <p class="stack" id="dir-switch"></p>
     <p class="hint">題目大小、撥珠方向請跟老師用的一樣。</p>
   </details>
+</section>
+
+<!-- ===== 自己出一題 ===== -->
+<section id="custom" hidden aria-labelledby="custom-title">
+  <h1 id="custom-title" tabindex="-1">自己出一題</h1>
+  <p class="lead">輸入題目，看是第幾級、答案和怎麼撥。例如聯絡簿上的作業題。</p>
+  <form id="cu-form" autocomplete="off" novalidate>
+    <div class="cu-row">
+      <input type="text" id="cu-x" inputmode="numeric" aria-label="第一個數" spellcheck="false">
+      <fieldset class="cu-ops"><legend class="sr-only">運算</legend>
+        <label><input type="radio" name="cu-op" value="+" checked><span aria-hidden="true">+</span><span class="sr-only">加</span></label>
+        <label><input type="radio" name="cu-op" value="-"><span aria-hidden="true">−</span><span class="sr-only">減</span></label>
+        <label><input type="radio" name="cu-op" value="×"><span aria-hidden="true">×</span><span class="sr-only">乘</span></label>
+        <label><input type="radio" name="cu-op" value="÷"><span aria-hidden="true">÷</span><span class="sr-only">除以</span></label>
+      </fieldset>
+      <input type="text" id="cu-y" inputmode="numeric" aria-label="第二個數" spellcheck="false">
+    </div>
+    <button type="submit">看撥法</button>
+    <button type="button" class="secondary" id="custom-back">回到設定</button>
+  </form>
+  <div class="cu-result" id="cu-result" aria-live="polite"></div>
+  <div id="cu-demo"></div>
 </section>
 
 <!-- ===== 練習 ===== -->
@@ -420,6 +454,78 @@ $('retry-wrong').onclick = () => {
   if (again.length) start(strip(again));
 };
 $('again').onclick = () => $('start').click();
+
+// ---- 自己出一題：看是第幾級、答案和怎麼撥 ----
+// 判斷照目前的撥珠方向；不屬於任何一級的題目說原因，動畫照樣可以看；算盤做不了的擋下來
+function explain(x, y, op, high) {
+  const r = { lv: null, notes: [] };
+  const big = n => n > 9999;
+  if (op === '-' && y > x) return { block: '答案是負數，算盤上做不了。' };
+  if (op === '÷') {
+    if (y === 0) return { block: '不能除以 0。' };
+    if (x < y) return { block: '被除數比除數小，商是 0，餘數就是被除數，不用撥。' };
+    if (y > 99) return { block: '除數三位數以上的撥法還沒整理。' };
+  }
+  if (op === '×' && !(Math.min(x, y) <= 9 && Math.max(x, y) <= 999 || x <= 999 && y <= 99)) return { block: '乘法目前做到三位數 × 兩位數。' };
+  if (big(x) || big(y)) return { block: '數字最多四位數。' };
+  if (op === '+' || op === '-') {
+    if (y === 0) return { lv: null, notes: [op === '+' ? '加 0，算盤不用動。' : '減 0，算盤不用動。'], nodemo: true };
+    r.lv = classify(x, y, op, high);
+    if (!r.lv) r.notes.push('這一題的撥法組合不在分級裡，可以看下面的撥法。');
+    if (op === '-' && x === y) r.notes.push('答案是 0，練習題裡不會出這種題目。');
+    if (r.lv === '5d' && !high) r.notes.push('從個位開始時，練習頁不列 5d（這種題目很少）。');
+    if (y % 10 === 0 && y >= 10) r.notes.push('個位不用撥，只撥十位以上。');
+    const f = sizeOf(x, y, op);
+    if (f) r.notes.push('題目大小：' + AbacusPicker.formName(f) + '。');
+  } else if (op === '×') {
+    r.lv = classifyMul(x, y);
+    if (r.lv !== '九九' && x < 10 && y >= 10) r.notes.push(`換成 ${y} × ${x} 來撥，答案一樣。`);
+    const [a, b] = x < 10 && y >= 10 ? [y, x] : [x, y];
+    if (r.lv !== '九九' && !inRange(r.lv, a, b, '×')) r.notes.push(b === 1 ? '× 1 只有九九範圍會出。' : '練習題裡不會出這種大小。');
+    else if (r.lv !== '九九') r.notes.push('題目大小：' + AbacusPicker.formName(sizeOf(x, y, op)) + '。');
+  } else {
+    r.lv = classifyDiv(x, y);
+    if (!r.lv) r.notes.push(y === 10 ? '除以 10 不在分級裡，可以看下面的撥法。' : '這一題不在分級裡，可以看下面的撥法。');
+    else if (y === 1) r.notes.push('除以 1 練習題裡不會出。');
+    else r.notes.push('題目大小：' + AbacusPicker.formName(sizeOf(x, y, op)) + '。');
+  }
+  return r;
+}
+let cuDemo = null;
+function showCustom() {
+  $('setup').hidden = true; $('result').hidden = true; $('practice').hidden = true; $('custom').hidden = false;
+  window.scrollTo(0, 0);
+  $('custom-title').focus();
+}
+$('custom-open').onclick = showCustom;
+$('custom-back').onclick = () => {
+  if (cuDemo) cuDemo.stop();
+  $('custom').hidden = true; $('setup').hidden = false; $('custom-open').focus();
+};
+$('cu-form').onsubmit = e => {
+  e.preventDefault();
+  const num = v => { const t = v.normalize('NFKC').replace(/\s/g, ''); return /^\d+$/.test(t) ? +t : null; };
+  const x = num($('cu-x').value), y = num($('cu-y').value), op = document.querySelector('input[name=cu-op]:checked').value;
+  const out = $('cu-result');
+  if (cuDemo) cuDemo.stop();
+  $('cu-demo').hidden = true;
+  if (x === null || y === null) { out.innerHTML = '<p class="feedback bad">請輸入兩個數字。</p>'; return; }
+  const high = AbacusPicker.dirHigh(), r = explain(x, y, op, high);
+  const expr = `${x} ${sym(op)} ${y}`;
+  if (r.block) { out.innerHTML = `<p class="cu-expr">${expr}</p><p class="feedback bad">${r.block}</p>`; return; }
+  const p = { x, y, op };
+  const lv = r.lv && lvOf(r.lv);
+  out.innerHTML = `<p class="cu-expr">${expr} = ${ansText(p)}</p>` +
+    (lv ? `<p class="lv-note"><strong>${AbacusLevels.lvTag(r.lv)}：${lv.name}</strong>。${lv.desc}。` +
+      (op === '+' || op === '-' ? `（加減法${high ? '從最高位開始' : '從個位開始'}）` : '') + '</p>' : '') +
+    r.notes.map(n => `<p class="hint">${n}</p>`).join('');
+  if (r.nodemo) return;
+  $('cu-demo').hidden = false;
+  const merge = !!r.lv && (r.lv[0] >= '5') || op === '×' || op === '÷';
+  if (!cuDemo) cuDemo = AbacusDemo.mount($('cu-demo'), { x, y, op, merge, speak: true, autoSay: true, plain: true });
+  else cuDemo.show(x, y, op, AbacusDir.get(), merge);
+  cuDemo.sayIfAuto();
+};
 $('back').onclick = () => { $('result').hidden = true; $('setup').hidden = false; $('start').focus(); };
 </script>
 </body>
