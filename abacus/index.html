@@ -24,6 +24,8 @@ h2{font-size:1.25rem;margin:28px 0 8px}
 p.lead{color:var(--muted);margin:0 0 16px}
 fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:0 0 16px;padding:12px 16px}
 legend{font-weight:700;padding:0 6px}
+.more{margin:0 0 16px}
+.more summary{cursor:pointer;padding:8px 0;font-weight:700}
 label{display:inline-flex;gap:8px;align-items:baseline;margin:4px 16px 4px 0;cursor:pointer}
 #preview ol{background:var(--card);border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 8px 8px 3em}
 #preview li{margin:2px 0}
@@ -55,15 +57,10 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 <section id="setup" aria-labelledby="setup-title">
   <nav class="abacus-top" aria-label="珠算頁面"><a href="complement.html">各級撥珠教法</a><a href="notes.html">教學法筆記</a><a href="parent.html">家長版</a><span id="dir-switch"></span></nav>
   <h1 id="setup-title">珠算分級練習</h1>
-  <p class="lead">老師先勾選級數、選好題型，再按「開始練習」。題目照「盲生珠算教學法筆記」的難度分級出題。</p>
-
-  <fieldset>
-    <legend>學生</legend>
-    <label>姓名（匯出紀錄用，可不填）<input type="text" id="student" autocomplete="off"></label>
-  </fieldset>
+  <p class="lead">老師先勾選級數、選好題目大小，再按「開始練習」。題目照「盲生珠算教學法筆記」的難度分級出題。</p>
 
   <fieldset id="levels">
-    <legend>級數與運算（可複選）</legend>
+    <legend>級數、運算與題目大小（可複選）</legend>
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
     <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5c。乘法一律從個位開始，除法一律從最高位開始。</p>
     <div id="level-list"></div>
@@ -72,8 +69,19 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   </fieldset>
 
   <fieldset>
-    <legend>題數與作答</legend>
-    <label>題數 <input type="number" id="count" min="1" max="100" value="10" style="width:6em"></label><br>
+    <legend>題數</legend>
+    <label>題數 <input type="number" id="count" min="1" max="100" value="10" style="width:6em"></label>
+  </fieldset>
+
+  <details class="more" id="advanced">
+  <summary>進階設定：學生姓名、作答方式、音效、題目格式</summary>
+  <fieldset>
+    <legend>學生</legend>
+    <label>姓名（匯出紀錄用，可不填）<input type="text" id="student" autocomplete="off"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>作答</legend>
     <label><input type="checkbox" id="need-sign" checked> 答案必須打數字記號（例如 #15）</label><br>
     <label><input type="checkbox" id="six-default" checked> 答案欄一開始就使用六點輸入（F D S＝點 1 2 3，J K L＝點 4 5 6，A＝點 7 倒退刪除，;＝點 8 送出；作答時按 Ctrl+B 切換）</label><br>
     <label><input type="checkbox" id="six-echo"> 六點輸入時念出每一格點字（例如「數字記號」「5」）。打開後，每念一次，點顯器會暫時顯示念的內容，題目會先被蓋掉</label><br>
@@ -92,6 +100,7 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
     <label><input type="radio" name="pre" value="text"> 一般文字（例如 21-6=）</label><br>
     <label><input type="radio" name="pre" value="none"> 不顯示</label>
   </fieldset>
+  </details>
 
   <p id="setup-error" class="feedback bad" role="alert"></p>
   <button type="button" class="secondary" id="preview-btn">先看題目</button>
@@ -99,7 +108,7 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
 
   <div id="preview" hidden>
     <h2 id="preview-title" tabindex="-1">題目預覽</h2>
-    <p class="hint">按「開始練習」就會用這些題目。改了級數、題型或題數，預覽會清掉，要重新出題。</p>
+    <p class="hint">按「開始練習」就會用這些題目。改了級數、題目大小或題數，預覽會清掉，要重新出題。</p>
     <ol id="preview-list"></ol>
     <button type="button" class="secondary" id="preview-again">重新出題</button>
     <button type="button" id="preview-start">用這些題目開始練習</button>
