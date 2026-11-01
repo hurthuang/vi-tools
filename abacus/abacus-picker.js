@@ -51,9 +51,14 @@
     ['E3', '三位數 ÷ 兩位數，商一位'],
     ['E2 E3', '兩位數 ÷ 兩位數＋三位數 ÷ 兩位數，商一位'],
     ['E4', '三位數 ÷ 兩位數，商兩位'],
-    ['E2 E3 E4', '全部'],
+    ['E2 E3 E4', '三位數以內全部'],
+    ['E5', '四位數 ÷ 兩位數'],
+    ['E2 E3 E4 E5', '全部'],
   ];
-  const hasForm = id => !!RANK[id] || /^[589]/.test(id);
+  // 第 6、7 級（乘法）的題型選單：被乘數幾位
+  const MUL1_CHOICES = [['M2', '兩位數 × 一位數'], ['M3', '三位數 × 一位數'], ['M2 M3', '全部']];
+  const MUL2_CHOICES = [['N2', '兩位數 × 兩位數'], ['N3', '三位數 × 兩位數'], ['N2 N3', '全部']];
+  const hasForm = id => !!RANK[id] || /^[5789]/.test(id) || /^6[b-d]$/.test(id);
   const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
   // 第 6、7 級的題型是固定的，表格上直接寫出來
   const fixedForm = id => (LEVELS.find(l => l.id === id) || {}).form || '';
@@ -142,7 +147,7 @@
           html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
           if (hasForm(lv.id)) {
             const g5 = lv.id[0] === '5', g8 = lv.id[0] === '8', g9 = lv.id[0] === '9';
-            const choices = g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? lv5Choices(lv.id) : FORM_CHOICES;
+            const choices = g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? lv5Choices(lv.id) : lv.id[0] === '6' ? MUL1_CHOICES : lv.id[0] === '7' ? MUL2_CHOICES : FORM_CHOICES;
             const cur = choices.some(([v]) => v === prevForm[lv.id]) ? prevForm[lv.id] : choices[0][0];
             html += `<td data-label="題型"><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${choices.map(([v, t]) =>
               `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
@@ -171,10 +176,10 @@
         s.textContent = `（${list.length} 題）`;
         const f = formsFor(lv);
         if (!f) continue;
-        const key = { '+': 'add', '-': 'sub', '÷': 'div' }[op];
+        const key = { '+': 'add', '-': 'sub', '×': 'mul', '÷': 'div' }[op];
         const lvObj = LEVELS.find(l => l.id === lv);
         // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
-        const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−÷]/).map(Number); return (op === '÷' ? divForm(x, y) : lvForm(lv, x, y, op)) === id; })
+        const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−×÷]/).map(Number); return (op === '÷' ? divForm(x, y) : op === '×' ? mulForm(x, y) : lvForm(lv, x, y, op)) === id; })
           || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
         root.querySelector(`.ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
       }
@@ -210,6 +215,6 @@
   }
 
   // 家長版不用表格，自己排按鈕，但題庫、題型選單跟這裡共用
-  const CHOICES = { F: FORM_CHOICES, G: LV5_CHOICES, D: DIV_CHOICES, E: DIV2_CHOICES };
+  const CHOICES = { F: FORM_CHOICES, G: LV5_CHOICES, M: MUL1_CHOICES, N: MUL2_CHOICES, D: DIV_CHOICES, E: DIV2_CHOICES };
   g.AbacusPicker = { mount, formName, fixedForm, dirHigh, bank: getBank, hasForm, shownLevel, CHOICES };
 })(window);

@@ -86,6 +86,10 @@ for (const high of [false, true]) for (const op of ['+', '-']) for (const form o
     snap[`${dir} ${op} ${lv} ${form}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
+for (const [lv, items] of Object.entries(C.sampleBank('÷', 'E5', false))) {
+  for (const [x, y, f] of items) if (C.classifyDiv(x, y) !== lv || f !== 'E5' || x < 1000) { fail(`抽題 ${x}÷${y} 放在 ${lv}`); break; }
+  snap[`÷ ${lv} E5`] = `${items.length} ${hash(JSON.stringify(items))}`;
+}
 // 第 9 級每一級三種題型都有題目
 for (const lv of ['9a', '9b', '9c', '9d']) for (const f of ['E2', 'E3', 'E4']) {
   const n = C.buildBank(true)['÷'][lv].filter(it => it[2] === f).length;
@@ -119,7 +123,8 @@ for (const dir of ['low', 'high']) {
   for (let y = 1; y <= 99; y++) for (let x = y; x <= 999; x++) animCheck(x, y, '÷', dir);
 }
 for (let x = 1; x <= 999; x++) for (let y = 1; y <= 9; y++) animCheck(x, y, '×', 'low');
-for (let x = 1; x <= 99; x++) for (let y = 10; y <= 99; y++) animCheck(x, y, '×', 'low');
+for (let x = 1; x <= 999; x++) for (let y = 10; y <= 99; y++) animCheck(x, y, '×', 'low');
+for (const items of Object.values(C.sampleBank('÷', 'E5', false))) for (const [x, y] of items) for (const dir of ['low', 'high']) animCheck(x, y, '÷', dir);
 // 三位數、四位數加減：抽到的題目全部跑一次
 for (const high of [false, true]) for (const op of ['+', '-']) for (const form of ['F4', 'F5'])
   for (const items of Object.values(C.sampleBank(op, form, high))) for (const [x, y] of items) animCheck(x, y, op, high ? 'high' : 'low');

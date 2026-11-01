@@ -167,10 +167,10 @@ if (saved.picks && !saved.levels) {
   saved.op = ops.has('+') && ops.has('-') ? 'both' : ops.has('-') ? '-' : '+';
 }
 const chosen = new Set(saved.levels || []);
-// 題目大小：第 1～4 級（F）、第 5 級（G）、第 8 級（D）、第 9 級（E）
-const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1 G2'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
+// 題目大小：第 1～4 級（F）、第 5 級（G）、第 6 級（M）、第 7 級（N）、第 8 級（D）、第 9 級（E）
+const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1 G2'], ['M', '第 6 級的題目', 'M2'], ['N', '第 7 級的題目', 'N2'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
 const forms = Object.fromEntries(FORM_GROUPS.map(([k, , def]) => [k, (saved.forms || {})[k] || def]));
-const formKey = id => id[0] === '8' ? 'D' : id[0] === '9' ? 'E' : id[0] === '5' ? 'G' : 'F';
+const formKey = id => ({ 5: 'G', 6: 'M', 7: 'N', 8: 'D', 9: 'E' })[id[0]] || 'F';
 function remember() {
   try {
     localStorage.setItem(KEY, JSON.stringify({ levels: [...chosen], op: opChoice(), forms, student: $('student').value.trim(), count: $('count').value }));

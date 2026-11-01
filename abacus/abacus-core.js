@@ -129,7 +129,9 @@ function mulTrace(x, y) {
 }
 // 第 6 級（× 一位數）與第 7 級（兩位數 × 兩位數）都看撥珠時最難的動作：
 // 直接撥 → 要用小補數 → 要進位（第 7 級再分進位一次、兩次以上）。
+// 一位數 × 多位數（3 × 46）換成 46 × 3 來撥，歸第 6 級（課程手冊 N-4-2：可以用交換律轉換，不宜認定為錯誤）。
 function classifyMul(x, y) {
+  if (x < 10 && y >= 10) return classifyMul(y, x);
   if (y < 10 && x < 10) return '6a';
   const st = mulTrace(x, y), carries = st.filter(s => s.carry).length;
   const g = y < 10 ? '6' : '7';
@@ -177,6 +179,10 @@ const FORMS = [
   { id: 'F3', name: '兩位數 ± 兩位數', ex: '32+15、32+91、115−71' },
   { id: 'F4', name: '三位數加減', ex: '104+8、268+535、772−598' },
   { id: 'F5', name: '四位數加減', ex: '5631+280、4253−2697' },
+  { id: 'M2', name: '兩位數 × 一位數', ex: '34×2、29×4' },
+  { id: 'M3', name: '三位數 × 一位數', ex: '312×3、207×3、275×4' },
+  { id: 'N2', name: '兩位數 × 兩位數', ex: '21×13、76×58' },
+  { id: 'N3', name: '三位數 × 兩位數', ex: '213×21、324×79' },
   { id: 'G1', name: '加減一位數' },
   { id: 'G2', name: '加減兩位數' },
   { id: 'D2', name: '兩位數以內 ÷ 一位數', ex: '28÷7、96÷4' },
@@ -184,9 +190,12 @@ const FORMS = [
   { id: 'E2', name: '兩位數 ÷ 兩位數', ex: '84÷21、81÷27' },
   { id: 'E3', name: '三位數 ÷ 兩位數，商一位', ex: '156÷26、250÷70' },
   { id: 'E4', name: '三位數 ÷ 兩位數，商兩位', ex: '736÷23、875÷25' },
+  { id: 'E5', name: '四位數 ÷ 兩位數', ex: '1032÷24、5481÷63' },
 ];
 // 三位數 ÷ 兩位數再看商有幾位：百位、十位連同比除數小就是商一位
-const divForm = (x, y) => y >= 10 ? (x < 100 ? 'E2' : x < y * 10 ? 'E3' : 'E4') : (x >= 100 ? 'D3' : 'D2');
+const divForm = (x, y) => y >= 10 ? (x < 100 ? 'E2' : x >= 1000 ? 'E5' : x < y * 10 ? 'E3' : 'E4') : (x >= 100 ? 'D3' : 'D2');
+// 乘法看被乘數幾位：第 6 級 M2、M3，第 7 級 N2、N3；一位數 × 一位數（6a）沒有題型
+const mulForm = (x, y) => y < 10 ? (x < 10 ? null : x < 100 ? 'M2' : 'M3') : (x < 100 ? 'N2' : 'N3');
 // 減法兩位數 ± 兩位數時，十位借位的被減數可以是 1xx（例如 115−71），答案仍是兩位數。
 // 一位數 + 兩位數（3 + 26，小的數在前面）算「兩位數 ± 一位數」（MEXT〈珠算編〉有專門一小節）。
 function formOf(x, y, op) {
@@ -197,9 +206,10 @@ function formOf(x, y, op) {
   return x <= 99 ? 'F2' : null;
 }
 function inRange(lv, x, y, op, high) {
-  if (lv.startsWith('6')) return x >= 2 && x <= 99 && y >= 2 && y <= 9;
-  // 第 7 級不出有 0 的數（× 10、× 20 其實是第 6 級的撥法）
-  if (lv.startsWith('7')) return x >= 11 && x <= 99 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
+  // 第 6 級被乘數到三位數（課程手冊 N-3-3，含 207 × 3 這種十位是 0 的）
+  if (lv.startsWith('6')) return x >= 2 && x <= 999 && y >= 2 && y <= 9;
+  // 第 7 級被乘數到三位數（N-4-2）。乘數和被乘數的個位不出 0（× 10、× 20 其實是第 6 級的撥法），三位數的十位可以是 0
+  if (lv.startsWith('7')) return x >= 11 && x <= 999 && y >= 11 && y <= 99 && x % 10 > 0 && y % 10 > 0;
   if (lv.startsWith('8')) return y >= 2 && y <= 9 && x >= y && x <= 999;
   if (lv.startsWith('9')) return y >= 11 && y <= 99 && x >= y && x <= 999;
   if (RANK[lv]) return !!formOf(x, y, op);
@@ -224,9 +234,10 @@ function formFor(lv, x, y, op, high) {
 // 題型：1～4 級 F1～F3；第 5 級看加減數幾位 G1、G2；第 8、9 級 D、E；其他是 null。
 // 三位數、四位數加減（F4、F5）題目太多，不放在這裡，用 sampleBank 抽題。
 const lvForm = (lv, x, y, op) => RANK[lv] ? formOf(x, y, op) : lv[0] === '5' ? (y < 10 ? 'G1' : 'G2') : null;
+let mulDivBank = null;   // 乘除法跟撥珠方向無關，兩個方向共用
 function buildBank(high) {
   const bank = { '+': {}, '-': {}, '×': {}, '÷': {} };
-  for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
+  for (const lv of LEVELS) for (const op of ['+', '-']) bank[op][lv.id] = [];
   for (const op of ['+', '-']) {
     for (let x = 1; x <= 999; x++) {
       for (let y = 1; y <= 99; y++) {
@@ -237,9 +248,16 @@ function buildBank(high) {
       }
     }
   }
-  for (let x = 2; x <= 99; x++) for (let y = 2; y <= 99; y++) {
+  if (!mulDivBank) mulDivBank = buildMulDiv();
+  bank['×'] = mulDivBank['×']; bank['÷'] = mulDivBank['÷'];
+  return bank;
+}
+function buildMulDiv() {
+  const bank = { '×': {}, '÷': {} };
+  for (const lv of LEVELS) for (const op in bank) bank[op][lv.id] = [];
+  for (let x = 2; x <= 999; x++) for (let y = 2; y <= 99; y++) {
     const lv = classifyMul(x, y);
-    if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, null]);
+    if (inRange(lv, x, y, '×')) bank['×'][lv].push([x, y, mulForm(x, y)]);
   }
   for (let x = 2; x <= 999; x++) for (let y = 2; y <= 99 && y <= x; y++) {
     const lv = classifyDiv(x, y);
@@ -248,7 +266,7 @@ function buildBank(high) {
   return bank;
 }
 
-// 三位數、四位數加減（F4、F5）：用固定的亂數種子抽 SAMPLE_TRIES 題，分級後每一級最多留 SAMPLE_MAX 題。
+// 三位數、四位數加減（F4、F5）和四位數 ÷ 兩位數（E5）：用固定的亂數種子抽 SAMPLE_TRIES 題，分級後每一級最多留 SAMPLE_MAX 題。
 // 種子固定，所以每次打開抽到的一樣（檢查腳本也能比對快照）。加數、被加數位數各種組合都有（3 + 268、104 + 8）。
 const SAMPLE_TRIES = 40000, SAMPLE_MAX = 300, sampled = {};
 function seeded(seed) {
@@ -262,12 +280,18 @@ function seeded(seed) {
 function sampleBank(op, form, high) {
   const key = `${high ? 'high' : 'low'} ${op} ${form}`;
   if (sampled[key]) return sampled[key];
-  const D = form === 'F4' ? 3 : 4, rand = seeded(D * 4 + (op === '+' ? 0 : 2) + (high ? 1 : 0));
+  const D = form === 'F4' ? 3 : 4, rand = seeded(op === '÷' ? 99 : D * 4 + (op === '+' ? 0 : 2) + (high ? 1 : 0));
   const int = (a, b) => a + Math.floor(rand() * (b - a + 1));
   const num = d => int(d === 1 ? 1 : 10 ** (d - 1), 10 ** d - 1);
   const out = {}, seen = new Set();
   for (let i = 0; i < SAMPLE_TRIES; i++) {
     let x, y;
+    if (op === '÷') {
+      x = num(4); y = int(11, 99);
+      const lv = classifyDiv(x, y), list = out[lv] || (out[lv] = []);
+      if (lv && list.length < SAMPLE_MAX && !seen.has(x + op + y)) { seen.add(x + op + y); list.push([x, y, 'E5']); }
+      continue;
+    }
     if (op === '+') { const dx = int(1, D); x = num(dx); y = num(dx === D ? int(1, D) : D); }
     else { x = num(D); y = num(int(1, D)); if (y >= x) continue; }
     const k = x + op + y;
@@ -283,8 +307,8 @@ function sampleBank(op, form, high) {
 // 一級、一種運算可以出的題目：forms 是選的題型（null 表示不篩選），F4、F5 從 sampleBank 取
 function poolOf(bank, op, lv, forms, high) {
   const list = (bank[op][lv] || []).filter(it => !forms || forms.includes(it[2]));
-  if (!forms || (op !== '+' && op !== '-')) return list;
-  return list.concat(...forms.filter(f => f === 'F4' || f === 'F5').map(f => sampleBank(op, f, high)[lv] || []));
+  if (!forms) return list;
+  return list.concat(...forms.filter(f => f === 'F4' || f === 'F5' || f === 'E5').map(f => sampleBank(op, f, op === '÷' ? false : high)[lv] || []));
 }
 
 // 讀學生答案：接受 #15、＃１５、點字 ⠼⠂⠢。
@@ -365,4 +389,4 @@ const remOf = p => p.op === '÷' ? p.x % p.y : 0;
 const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 const sym = op => ({ '+': '+', '-': '−', '×': '×', '÷': '÷' })[op];
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, formFor, sampleBank, poolOf, classifyMul, classifyDiv, classifyDiv2, divForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, formFor, sampleBank, poolOf, classifyMul, classifyDiv, classifyDiv2, divForm, mulForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };

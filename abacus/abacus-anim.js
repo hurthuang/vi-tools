@@ -18,6 +18,9 @@
 
   function abacusSteps(x, y, op, dir, merge, plain) {
     plain = !!plain && (op === '+' || op === '-');
+    // 一位數 × 多位數（3 × 46）換成 46 × 3 來撥，跟分級一樣
+    let swap = '';
+    if (op === '×' && x < 10 && y >= 10) { swap = `${x} × ${y} 換成 ${y} × ${x} 來撥，答案一樣。`; [x, y] = [y, x]; }
     const multi = x >= 10 || y >= 10;   // plain：多位數才在修正的句子前面說是哪一位
     const d = String(op === '×' ? 0 : x).split('').reverse().map(Number);
     while (d.length < 6) d.push(0);
@@ -119,7 +122,7 @@
       // 兩位數乘數：照直式一行一行做，76 × 58 先算 76 × 8，再算 76 × 5；每一行從被乘數的個位開始。
       // 九九的乘積撥在「兩個數字的位數相加」那一位起，照唸法先撥高位。算盤上邊乘邊加。
       const xs = String(x).split('').reverse().map(Number), ys = String(y).split('').reverse().map(Number);
-      steps[0].text = `算盤先清空。${x} × ${y}，跟直式一樣：${ys.map(b => `先算 ${x} × ${b}`).join('，再算 ').replace(/，再算 先算/g, '，再算')}。`;
+      steps[0].text = swap + `算盤先清空。${x} × ${y}，跟直式一樣：${ys.map(b => `先算 ${x} × ${b}`).join('，再算 ').replace(/，再算 先算/g, '，再算')}。`;
       const rows = [];
       ys.forEach((b, j) => {
         if (!b) { push([], `乘數的${PLACE[j]}是 0，這一行不用撥。`); rows.push(0); return; }
@@ -137,7 +140,7 @@
       });
     } else if (op === '×') {
       // 照直式從個位開始：每一位乘 y 的乘積，加在同一位（和左邊一位）
-      steps[0].text = `算盤先清空。${x} × ${y}，從個位開始乘。`;
+      steps[0].text = swap + `算盤先清空。${x} × ${y}，從個位開始乘。`;
       String(x).split('').reverse().map(Number).forEach((xi, k) => {
         const p = xi * y, R = PLACE[k];
         if (!p) { push([], `${R} ${xi} × ${y} = 0，不用撥。`); return; }
@@ -434,7 +437,7 @@
         err.textContent = '';
         if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 1 || x > 9999 || y > 9999) { err.textContent = '請輸入 0～9999 的整數'; return; }
         if (op === '-' && y > x) { err.textContent = '減法的第二個數不能比第一個數大'; return; }
-        if (op === '×' && (y > 99 || x > (y > 9 ? 99 : 999))) { err.textContent = '乘法目前做到三位數 × 一位數、兩位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
+        if (op === '×' && !(Math.min(x, y) <= 9 && Math.max(x, y) <= 999 || x <= 999 && y <= 99)) { err.textContent = '乘法目前做到三位數 × 兩位數；乘數三位數以上的撥法還沒整理'; return; }
         if (op === '÷' && y > 99) { err.textContent = '除法目前做到除數是兩位數'; return; }
         if (op === '÷' && x < y) { err.textContent = '被除數不能比除數小'; return; }
         load(x, y, op, curDir());
