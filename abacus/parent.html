@@ -47,8 +47,6 @@ button.big{width:100%;font-size:1.3rem;padding:14px}
 .more[open] summary{margin-bottom:8px}
 label.stack,p.stack{display:block;margin:0 0 12px}
 label.stack input{display:block;width:100%;margin-top:4px}
-#forms label{display:block;margin:0 0 12px}
-#forms select{display:block;width:100%;margin-top:4px;font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
 [hidden]{display:none!important}
 /* 練習：題目在左、按鈕在旁邊；手機上按鈕排到題目下面 */
 .q-row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin:8px 0}
@@ -167,13 +165,11 @@ if (saved.picks && !saved.levels) {
   saved.op = ops.has('+') && ops.has('-') ? 'both' : ops.has('-') ? '-' : '+';
 }
 const chosen = new Set(saved.levels || []);
-// 題目大小：第 1～4 級（F）、第 5 級（G）、第 6 級（M）、第 7 級（N）、第 8 級（D）、第 9 級（E）
-const FORM_GROUPS = [['F', '第 1～4 級的題目', 'F1'], ['G', '第 5 級的題目', 'G1 G2'], ['M', '第 6 級的題目', 'M2'], ['N', '第 7 級的題目', 'N2'], ['D', '第 8 級的題目', 'D2'], ['E', '第 9 級的題目', 'E2']];
-const forms = Object.fromEntries(FORM_GROUPS.map(([k, , def]) => [k, (saved.forms || {})[k] || def]));
-const formKey = id => ({ 5: 'G', 6: 'M', 7: 'N', 8: 'D', 9: 'E' })[id[0]] || 'F';
+// 題目大小（abacus-picker.js 的 sizeBox，跟出題練習一樣），放在「更多設定」；舊版存的 forms 不用了
+const sizes = AbacusPicker.sizeBox($('forms'), saved.sizes);
 function remember() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ levels: [...chosen], op: opChoice(), forms, student: $('student').value.trim(), count: $('count').value }));
+    localStorage.setItem(KEY, JSON.stringify({ levels: [...chosen], op: opChoice(), sizes: sizes.get(), student: $('student').value.trim(), count: $('count').value }));
   } catch (e) { /* 存不了就算了 */ }
 }
 
@@ -192,7 +188,10 @@ function renderGrid() {
 // 選了哪幾級寫出名稱，家長可以跟老師說的對一下
 function renderPicked() {
   const list = shown().filter(l => chosen.has(l.id));
-  $('picked').textContent = list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。';
+  // 在目前的題目大小下出不了題的級數要說出來（例如只勾 20 以內時的 5b）
+  const empty = list.filter(l => !levelPicks(l).some(v => { const [lv, op] = v.split('|'); return pool(op, lv).length; }));
+  $('picked').textContent = (list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。') +
+    (empty.length ? `（${empty.map(l => l.id).join('、')} 級在目前的題目大小沒有題目，請到「更多設定」改題目大小。）` : '');
   $('op-box').hidden = list.length > 0 && !list.some(l => l.add || l.sub);
 }
 $('lv-grid').addEventListener('click', e => {
@@ -206,25 +205,19 @@ $('lv-grid').addEventListener('click', e => {
 const opChoice = () => (document.querySelector('input[name=op]:checked') || {}).value || '+';
 document.querySelector(`input[name=op][value="${saved.op || '+'}"]`).checked = true;
 
-// 第 5 級從個位開始時 5a、5b 只有加減一位數、5c 只有加減兩位數，不給單選一種
-const choicesOf = k => AbacusPicker.CHOICES[k].filter(([v]) => !(k === 'G' && !AbacusPicker.dirHigh() && (v === 'G1' || v === 'G2')));
-function renderForms() {
-  for (const [k, , def] of FORM_GROUPS) if (!choicesOf(k).some(([v]) => v === forms[k])) forms[k] = def;
-  $('forms').innerHTML = FORM_GROUPS.map(([k, title]) =>
-    `<label>${title}<select data-k="${k}">${choicesOf(k).map(([v, t]) => `<option value="${v}"${v === forms[k] ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`).join('');
-}
-$('forms').addEventListener('change', e => { forms[e.target.dataset.k] = e.target.value; });
-const pool = (op, lv) => poolOf(AbacusPicker.bank(), op, lv, AbacusPicker.hasForm(lv) ? forms[formKey(lv)].split(' ') : null, AbacusPicker.dirHigh());
+$('forms').addEventListener('change', renderPicked);
+$('op-box').addEventListener('change', renderPicked);
+const pool = (op, lv) => AbacusPicker.pool(op, lv, sizes.get());
 // 選的級數換成出題用的「級別|運算」：加減法照上面選的，乘法、除法固定
-function picks() {
+function levelPicks(l) {
   const ops = { '+': ['+'], '-': ['-'], both: ['+', '-'] }[opChoice()];
-  return shown().filter(l => chosen.has(l.id)).flatMap(l =>
-    l.mul ? [l.id + '|×'] : l.div ? [l.id + '|÷'] : ops.filter(op => l[op === '+' ? 'add' : 'sub']).map(op => l.id + '|' + op));
+  return l.mul ? [l.id + '|×'] : l.div ? [l.id + '|÷'] : ops.filter(op => l[op === '+' ? 'add' : 'sub']).map(op => l.id + '|' + op);
 }
+const picks = () => shown().filter(l => chosen.has(l.id)).flatMap(levelPicks);
 
 AbacusDir.mount($('dir-switch'));
-window.addEventListener('abacusdirchange', () => { renderGrid(); renderForms(); });
-renderGrid(); renderForms();
+window.addEventListener('abacusdirchange', renderGrid);
+renderGrid();
 $('student').value = saved.student || '';
 if (saved.count) $('count').value = saved.count;
 
@@ -243,7 +236,7 @@ $('start').onclick = () => {
   const count = Math.max(1, Math.min(30, parseInt($('count').value, 10) || 10));
   const problems = makeProblems(ps, count, pool);
   if (!problems.length) {
-    $('setup-error').textContent = ps.length ? '選的級數在目前的題目大小下沒有題目，請到「更多設定」改題目大小，或多選幾級。' : '請先點老師說的級數。';
+    $('setup-error').textContent = ps.length ? '選的級數在目前的題目大小沒有題目，請到「更多設定」改題目大小，或多選幾級。' : '請先點老師說的級數。';
     return;
   }
   $('setup-error').textContent = '';

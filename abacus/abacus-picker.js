@@ -1,10 +1,11 @@
 /*
- * 級數與題型的勾選表：出題練習（index.html）和家長版（parent.html）共用，兩頁的級數、題型、題數完全一樣。
+ * 級數勾選表和題目大小：出題練習（index.html）和家長版（parent.html）共用，兩頁的級數、題目大小、題數完全一樣。
  * 要在 abacus-dir.js、abacus-levels.js、abacus-core.js 之後載入。
  * AbacusPicker.mount(el, { initial: ['1|+', '2|+'] }) 回傳 { render, picks, setAll, pool }。
- * 勾選框的值是「級別|運算」，例如 2|+；改了勾選或題型會在 el 上發出 change 事件。
- * 窄螢幕（手機）每一級排成一張卡片，格子前面寫出「題型」「加法」等欄名。
- * 家長版（parent.html）不用 mount，用 bank、hasForm、CHOICES 自己排級數按鈕。
+ * 勾選框的值是「級別|運算」，例如 2|+；改了勾選或題目大小會在 el 上發出 change 事件。
+ * 題目大小（sizeBox）不分級數，所有選的級數共用：加減法、乘法、除法各一行，可以複選。
+ * 窄螢幕（手機）每一級排成一張卡片，格子前面寫出「加法」等欄名。
+ * 家長版（parent.html）不用 mount，用 sizeBox、pool 和自己排的級數按鈕。
  */
 (function (g) {
   'use strict';
@@ -12,55 +13,7 @@
   const dirHigh = () => AbacusDir.get() === 'high';
   const getBank = () => { const k = dirHigh() ? 'high' : 'low'; return banks[k] || (banks[k] = buildBank(k === 'high')); };
 
-  // 1～4 級每一列的題型選單
-  const FORM_CHOICES = [
-    ['F1', '20 以內'],
-    ['F2', '兩位數 ± 一位數'],
-    ['F1 F2', '20 以內＋兩位數 ± 一位數'],
-    ['F3', '兩位數 ± 兩位數'],
-    ['F1 F2 F3', '兩位數以內全部'],
-    ['F4', '三位數加減'],
-    ['F5', '四位數加減'],
-    ['F1 F2 F3 F4 F5', '全部'],
-  ];
-  // 第 5 級的題型選單：加減數幾位（兩位數以內），或三位數、四位數加減。
-  // 每一級只列題庫裡有的：從個位開始時 5a、5b 只有加減一位數，5c 只有加減兩位數。
-  const LV5_CHOICES = [
-    ['G1', '加減一位數'],
-    ['G2', '加減兩位數'],
-    ['G1 G2', '兩位數以內全部'],
-    ['F4', '三位數加減'],
-    ['F5', '四位數加減'],
-    ['G1 G2 F4 F5', '全部'],
-  ];
-  function lv5Choices(lv) {
-    const b = getBank(), has = f => ['+', '-'].some(op => (b[op][lv] || []).some(it => it[2] === f));
-    const base = ['G1', 'G2'].filter(has), pick = v => LV5_CHOICES.find(c => c[0] === v);
-    return [...base.map(pick), ...(base.length > 1 ? [pick('G1 G2')] : []), pick('F4'), pick('F5'),
-      [[...base, 'F4', 'F5'].join(' '), '全部']];
-  }
-  // 第 8 級（除法）的題型選單：被除數幾位
-  const DIV_CHOICES = [
-    ['D2', '兩位數以內 ÷ 一位數'],
-    ['D3', '三位數 ÷ 一位數'],
-    ['D2 D3', '全部'],
-  ];
-  // 第 9 級（除數兩位數）的題型選單，照難度排
-  const DIV2_CHOICES = [
-    ['E2', '兩位數 ÷ 兩位數'],
-    ['E3', '三位數 ÷ 兩位數，商一位'],
-    ['E2 E3', '兩位數 ÷ 兩位數＋三位數 ÷ 兩位數，商一位'],
-    ['E4', '三位數 ÷ 兩位數，商兩位'],
-    ['E2 E3 E4', '三位數以內全部'],
-    ['E5', '四位數 ÷ 兩位數'],
-    ['E2 E3 E4 E5', '全部'],
-  ];
-  // 第 6、7 級（乘法）的題型選單：被乘數幾位
-  const MUL1_CHOICES = [['M2', '兩位數 × 一位數'], ['M3', '三位數 × 一位數'], ['M2 M3', '全部']];
-  const MUL2_CHOICES = [['N2', '兩位數 × 兩位數'], ['N3', '三位數 × 兩位數'], ['N2 N3', '全部']];
-  const hasForm = id => !!RANK[id] || /^[5789]/.test(id) || /^6[b-d]$/.test(id);
   const formName = id => (FORMS.find(f => f.id === id) || {}).name || '';
-  // 第 6、7 級的題型是固定的，表格上直接寫出來
   const fixedForm = id => (LEVELS.find(l => l.id === id) || {}).form || '';
   // 從最高位開始沒有 5c；從個位開始不列 5d（這種題大多歸 5c，剩下的很少）
   const shownLevel = id => dirHigh() ? !id.startsWith('5c') : id !== '5d';
@@ -76,7 +29,11 @@
 .lv-table th[scope=row]{font-weight:400;min-width:11em}
 .lv-table td{min-width:7em}
 .lv-table td label{margin:0}
-.lv-table select{font:inherit;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);max-width:100%}
+.abp-sizes{border:1px solid var(--line);border-radius:8px;padding:4px 12px 8px;margin:8px 0}
+.abp-sizes legend{font-weight:700;padding:0 4px}
+.abp-size-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;margin:4px 0}
+.abp-size-row .abp-size-name{font-weight:700;min-width:4em}
+.abp-size-row label{margin:2px 0}
 .lv-table .cnt{color:var(--muted);font-size:.9rem;white-space:nowrap}
 /* 每一組的標題列：組名（第 5～9 級是展開按鈕）後面接這一組的全選核取方塊，收合時也能勾 */
 .grp-head{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;margin:12px 0 0;border-top:1px solid var(--line);padding-top:6px}
@@ -94,27 +51,42 @@
   .lv-table tr{border:1px solid var(--line);border-radius:8px;margin:0 0 8px;padding:4px 0}
   .lv-table th,.lv-table td{border:0;padding:4px 10px}
   .lv-table td[data-label]::before{content:attr(data-label) '：';color:var(--muted)}
-  .lv-table input[type=checkbox],.grp-head input[type=checkbox]{width:1.3em;height:1.3em}
+  .lv-table input[type=checkbox],.grp-head input[type=checkbox],.abp-sizes input[type=checkbox]{width:1.3em;height:1.3em}
+  .abp-size-row .abp-size-name{width:100%}
 }`;
 
+  function addCss() {
+    if (document.getElementById('abp-css')) return;
+    const st = document.createElement('style'); st.id = 'abp-css'; st.textContent = CSS;
+    document.head.appendChild(st);
+  }
+  // 題目大小：加減法、乘法、除法各一行核取方塊。回傳 { get, set }，改了會在 el 上發出 change 事件
+  function sizeBox(el, initial) {
+    addCss();
+    const on = new Set(initial && initial.length ? initial : DEFAULT_SIZES);
+    el.innerHTML = '<fieldset class="abp-sizes"><legend>題目大小（可以複選，選的級數都用這個大小）</legend>' +
+      SIZE_GROUPS.map(([title, ids]) => `<div class="abp-size-row" role="group" aria-label="${title}"><span class="abp-size-name" aria-hidden="true">${title}</span>` +
+        ids.map(id => `<label><input type="checkbox" value="${id}"${on.has(id) ? ' checked' : ''}> ${formName(id)}</label>`).join('') + '</div>').join('') +
+      '</fieldset>';
+    return {
+      get: () => [...el.querySelectorAll('.abp-sizes input:checked')].map(i => i.value),
+      set: list => el.querySelectorAll('.abp-sizes input').forEach(i => { i.checked = list.includes(i.value); }),
+    };
+  }
+  const poolFor = (op, lv, sizes) => poolOf(getBank(), op, lv, sizes, dirHigh());
+
   function mount(root, opts = {}) {
-    if (!document.getElementById('abp-css')) {
-      const st = document.createElement('style'); st.id = 'abp-css'; st.textContent = CSS;
-      document.head.appendChild(st);
-    }
+    addCss();
     const initial = new Set(opts.initial || []);
-    // 這一級選的題型；沒有選單（第 5、6、7 級）時回傳 null，表示不篩選
-    function formsFor(lv) {
-      const sel = root.querySelector(`select[data-lv="${lv}"]`);
-      return sel ? sel.value.split(' ') : null;
-    }
-    const pool = (op, lv) => poolOf(getBank(), op, lv, formsFor(lv), dirHigh());
+    root.innerHTML = '<div class="abp-size-box"></div><div class="abp-levels"></div>';
+    const sizes = sizeBox(root.querySelector('.abp-size-box'), opts.sizes);
+    const box = root.querySelector('.abp-levels');
+    const pool = (op, lv) => poolFor(op, lv, sizes.get());
 
     function renderLevels() {
-      const prev = new Set([...root.querySelectorAll('.lv-table input:checked')].map(i => i.value));
-      const prevForm = Object.fromEntries([...root.querySelectorAll('select')].map(s => [s.dataset.lv, s.value]));
-      const first = !root.querySelector('.lv-table input');
-      const open = new Set([...root.querySelectorAll('button.fold[aria-expanded=true]')].map(b => b.dataset.group));
+      const prev = new Set([...box.querySelectorAll('.lv-table input:checked')].map(i => i.value));
+      const first = !box.querySelector('.lv-table input');
+      const open = new Set([...box.querySelectorAll('button.fold[aria-expanded=true]')].map(b => b.dataset.group));
       // 第 5～9 級各收在一個可以展開的標題下，預設收合；組名和表格標題跟另外兩頁一樣（abacus-levels.js）
       const FOLD = Object.fromEntries(AbacusLevels.GROUPS.filter(gr => gr.key !== '1').map(gr => [gr.key, gr.title]));
       const groups = [];
@@ -142,16 +114,9 @@
         }
         const ops = OPS.filter(([, , key]) => g.levels.some(lv => lv[key]));
         html += `<table class="lv-table"><caption${g.name === AbacusLevels.groupTitle(gkey) ? ' class="cap-hidden"' : ''}>${g.name}</caption>
-          <tr><th scope="col">級別</th><th scope="col">題型</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
+          <tr><th scope="col">級別</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
         for (const lv of g.levels) {
           html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
-          if (hasForm(lv.id)) {
-            const g5 = lv.id[0] === '5', g8 = lv.id[0] === '8', g9 = lv.id[0] === '9';
-            const choices = g9 ? DIV2_CHOICES : g8 ? DIV_CHOICES : g5 ? lv5Choices(lv.id) : lv.id[0] === '6' ? MUL1_CHOICES : lv.id[0] === '7' ? MUL2_CHOICES : FORM_CHOICES;
-            const cur = choices.some(([v]) => v === prevForm[lv.id]) ? prevForm[lv.id] : choices[0][0];
-            html += `<td data-label="題型"><select data-lv="${lv.id}" aria-label="${lv.id} 級題型">${choices.map(([v, t]) =>
-              `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`;
-          } else html += `<td data-label="題型">${fixedForm(lv.id)}</td>`;
           for (const [op, name, key] of ops) {
             if (!lv[key]) { html += `<td data-label="${name}">—</td>`; continue; }
             const v = `${lv.id}|${op}`;
@@ -164,33 +129,32 @@
         html += '</table>';
       }
       if (gkey) html += '</div>';
-      root.innerHTML = html;
+      box.innerHTML = html;
       updateCounts();
       countLv5();
     }
-    // 每一格顯示目前題型下有幾題；1～4 級的例題也換成符合題型的
+    // 每一格顯示目前題目大小下有幾題，例題也換成符合大小的
     function updateCounts() {
-      for (const s of root.querySelectorAll('.cnt')) {
+      const sz = sizes.get();
+      for (const s of box.querySelectorAll('.cnt')) {
         const [lv, op] = s.dataset.v.split('|');
         const list = pool(op, lv);
-        s.textContent = `（${list.length} 題）`;
-        const f = formsFor(lv);
-        if (!f) continue;
+        s.textContent = list.length ? `（${list.length} 題）` : '（這個題目大小沒有題目）';
         const key = { '+': 'add', '-': 'sub', '×': 'mul', '÷': 'div' }[op];
-        const lvObj = LEVELS.find(l => l.id === lv);
-        // 先用 LEVELS 裡寫好的例題，不夠的題型從題庫取第一題補上
-        const ex = f.map(id => lvObj[key].split('、').find(e => { const [x, y] = e.split(/[+−×÷]/).map(Number); return (op === '÷' ? divForm(x, y) : op === '×' ? mulForm(x, y) : lvForm(lv, x, y, op)) === id; })
-          || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op)));
-        root.querySelector(`.ex[data-v="${s.dataset.v}"]`).textContent = ex.filter(Boolean).join('、');
+        // 先用 LEVELS 裡寫好的例題，每種大小一題；沒有寫好的從題庫取第一題補上
+        const mine = LEVELS.find(l => l.id === lv)[key].split('、');
+        const ex = sz.map(id => mine.find(e => { const [x, y] = e.split(/[+−×÷]/).map(Number); return sizeOf(x, y, op) === id; })
+          || (list.find(it => it[2] === id) || []).slice(0, 2).join(sym(op))).filter(Boolean);
+        box.querySelector(`.ex[data-v="${s.dataset.v}"]`).textContent = (ex.length ? [...new Set(ex)] : mine).join('、');
       }
     }
     // 收合時也看得出第 5～9 級各勾了幾項
     function countLv5() {
-      for (const box of root.querySelectorAll('.grp-all')) {
-        const all = [...root.querySelectorAll(`#grp-${box.dataset.group} input[type=checkbox]`)], n = all.filter(i => i.checked).length;
-        box.checked = n === all.length;
-        box.indeterminate = n > 0 && n < all.length;
-        root.querySelector(`.grp-count[data-group="${box.dataset.group}"]`).textContent = `已選 ${n} 項，共 ${all.length} 項`;
+      for (const grp of box.querySelectorAll('.grp-all')) {
+        const all = [...box.querySelectorAll(`#grp-${grp.dataset.group} input[type=checkbox]`)], n = all.filter(i => i.checked).length;
+        grp.checked = n === all.length;
+        grp.indeterminate = n > 0 && n < all.length;
+        box.querySelector(`.grp-count[data-group="${grp.dataset.group}"]`).textContent = `已選 ${n} 項，共 ${all.length} 項`;
       }
     }
     root.addEventListener('click', e => {
@@ -198,23 +162,22 @@
       if (!b) return;
       const on = b.getAttribute('aria-expanded') !== 'true';
       b.setAttribute('aria-expanded', on);
-      root.querySelector('#grp-' + b.dataset.group).hidden = !on;
+      box.querySelector('#grp-' + b.dataset.group).hidden = !on;
     });
     root.addEventListener('change', e => {
       if (e.target.classList.contains('grp-all')) {
-        root.querySelectorAll(`#grp-${e.target.dataset.group} input[type=checkbox]`).forEach(i => i.checked = e.target.checked);
+        box.querySelectorAll(`#grp-${e.target.dataset.group} input[type=checkbox]`).forEach(i => i.checked = e.target.checked);
       }
-      if (e.target.tagName === 'SELECT') updateCounts();
+      if (e.target.closest('.abp-sizes')) updateCounts();
       countLv5();
     });
-    function setAll(on) { root.querySelectorAll('.lv-table input').forEach(i => { i.checked = on; }); countLv5(); }
-    const picks = () => [...root.querySelectorAll('.lv-table input:checked')].map(i => i.value);
+    function setAll(on) { box.querySelectorAll('.lv-table input').forEach(i => { i.checked = on; }); countLv5(); }
+    const picks = () => [...box.querySelectorAll('.lv-table input:checked')].map(i => i.value);
     window.addEventListener('abacusdirchange', renderLevels);
     renderLevels();
     return { render: renderLevels, picks, setAll, pool };
   }
 
-  // 家長版不用表格，自己排按鈕，但題庫、題型選單跟這裡共用
-  const CHOICES = { F: FORM_CHOICES, G: LV5_CHOICES, M: MUL1_CHOICES, N: MUL2_CHOICES, D: DIV_CHOICES, E: DIV2_CHOICES };
-  g.AbacusPicker = { mount, formName, fixedForm, dirHigh, bank: getBank, hasForm, shownLevel, CHOICES };
+  // 家長版不用表格，自己排按鈕，但題庫、題目大小跟這裡共用
+  g.AbacusPicker = { mount, sizeBox, pool: poolFor, formName, fixedForm, dirHigh, bank: getBank, shownLevel };
 })(window);

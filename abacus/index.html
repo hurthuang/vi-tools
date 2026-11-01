@@ -215,7 +215,7 @@ function newProblems() {
   const count = Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10));
   const problems = makeProblems(picks, count, picker.pool);
   if (!problems.length) {
-    $('setup-error').textContent = picks.length ? '勾選的項目在目前的題型下沒有題目，請改題型或多勾幾項。' : '請至少勾選一項。';
+    $('setup-error').textContent = picks.length ? '勾選的項目在目前的題目大小沒有題目，請改題目大小或多勾幾項。' : '請至少勾選一項。';
     return null;
   }
   $('setup-error').textContent = '';

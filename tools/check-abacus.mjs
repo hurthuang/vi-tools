@@ -15,7 +15,7 @@ globalThis.AbacusLevels = AL;
 
 const core = readFileSync(new URL('abacus-core.js', root), 'utf8');
 const C = new Function(core.replace("if (typeof module !== 'undefined')", 'if (false)') +
-  ';return { classify, classifyMul, classifyDiv, buildBank, inRange, sampleBank, formFor };')();
+  ';return { classify, classifyMul, classifyDiv, buildBank, inRange, sampleBank, sizeOf };')();
 const { abacusSteps } = require(new URL('abacus-anim.js', root).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 
 let bad = 0;
@@ -71,29 +71,26 @@ for (const high of [false, true]) {
     if (!items.length) continue;
     for (const [x, y] of items) {
       const got = op === '×' ? C.classifyMul(x, y) : op === '÷' ? C.classifyDiv(x, y) : C.classify(x, y, op, high);
-      if (got !== lv || !C.inRange(lv, x, y, op, high)) { fail(`題庫 ${dir} ${x}${op}${y} 放在 ${lv}，分級是 ${got}`); break; }
+      if (got !== lv || !C.inRange(lv, x, y, op)) { fail(`題庫 ${dir} ${x}${op}${y} 放在 ${lv}，分級是 ${got}`); break; }
     }
     snap[`${dir} ${op} ${lv}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
-for (const high of [false, true]) for (const op of ['+', '-']) for (const form of ['F4', 'F5']) {
-  const dir = high ? 'high' : 'low', set = C.sampleBank(op, form, high);
-  for (const [lv, items] of Object.entries(set)) {
+// 抽題：三位數以上的加減（F4）、四位數 ÷ 兩位數（D4）
+for (const [op, high] of [['+', false], ['+', true], ['-', false], ['-', true], ['÷', false]]) {
+  const dir = high ? 'high' : 'low', want = op === '÷' ? 'D4' : 'F4';
+  for (const [lv, items] of Object.entries(C.sampleBank(op, high))) {
     for (const [x, y, f] of items) {
-      const got = C.classify(x, y, op, high);
-      if (got !== lv || f !== form || C.formFor(lv, x, y, op, high) !== form) { fail(`抽題 ${dir} ${x}${op}${y} 放在 ${lv} ${f}，分級是 ${got}`); break; }
+      const got = op === '÷' ? C.classifyDiv(x, y) : C.classify(x, y, op, high);
+      if (got !== lv || f !== want || C.sizeOf(x, y, op) !== want) { fail(`抽題 ${dir} ${x}${op}${y} 放在 ${lv} ${f}，分級是 ${got}`); break; }
     }
-    snap[`${dir} ${op} ${lv} ${form}`] = `${items.length} ${hash(JSON.stringify(items))}`;
+    snap[`${dir} ${op} ${lv} ${want}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
-for (const [lv, items] of Object.entries(C.sampleBank('÷', 'E5', false))) {
-  for (const [x, y, f] of items) if (C.classifyDiv(x, y) !== lv || f !== 'E5' || x < 1000) { fail(`抽題 ${x}÷${y} 放在 ${lv}`); break; }
-  snap[`÷ ${lv} E5`] = `${items.length} ${hash(JSON.stringify(items))}`;
-}
-// 第 9 級每一級三種題型都有題目
-for (const lv of ['9a', '9b', '9c', '9d']) for (const f of ['E2', 'E3', 'E4']) {
+// 第 8、9 級每一級的被除數兩位數、三位數都有題目
+for (const lv of ['8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d']) for (const f of ['D2', 'D3']) {
   const n = C.buildBank(true)['÷'][lv].filter(it => it[2] === f).length;
-  if (!n) fail(`第 ${lv} 級沒有 ${f} 題型的題目`);
+  if (!n) fail(`第 ${lv} 級沒有 ${f} 的題目`);
 }
 if (update) { writeFileSync(snapUrl, JSON.stringify(snap, null, 1) + '\n'); console.log('已更新題庫快照 tools/fixtures/abacus-bank.json'); }
 else {
@@ -122,12 +119,12 @@ for (const dir of ['low', 'high']) {
   for (let x = 0; x <= 999; x++) for (let y = 1; y <= 99; y++) { animCheck(x, y, '+', dir); if (y <= x) animCheck(x, y, '-', dir); }
   for (let y = 1; y <= 99; y++) for (let x = y; x <= 999; x++) animCheck(x, y, '÷', dir);
 }
-for (let x = 1; x <= 999; x++) for (let y = 1; y <= 9; y++) animCheck(x, y, '×', 'low');
-for (let x = 1; x <= 999; x++) for (let y = 10; y <= 99; y++) animCheck(x, y, '×', 'low');
-for (const items of Object.values(C.sampleBank('÷', 'E5', false))) for (const [x, y] of items) for (const dir of ['low', 'high']) animCheck(x, y, '÷', dir);
-// 三位數、四位數加減：抽到的題目全部跑一次
-for (const high of [false, true]) for (const op of ['+', '-']) for (const form of ['F4', 'F5'])
-  for (const items of Object.values(C.sampleBank(op, form, high))) for (const [x, y] of items) animCheck(x, y, op, high ? 'high' : 'low');
+for (let x = 0; x <= 999; x++) for (let y = 0; y <= 9; y++) animCheck(x, y, '×', 'low');
+for (let x = 0; x <= 999; x++) for (let y = 10; y <= 99; y++) animCheck(x, y, '×', 'low');
+for (const items of Object.values(C.sampleBank('÷', false))) for (const [x, y] of items) for (const dir of ['low', 'high']) animCheck(x, y, '÷', dir);
+// 三位數以上的加減：抽到的題目全部跑一次
+for (const high of [false, true]) for (const op of ['+', '-'])
+  for (const items of Object.values(C.sampleBank(op, high))) for (const [x, y] of items) animCheck(x, y, op, high ? 'high' : 'low');
 
 console.log(bad ? `${bad} 個問題` : `珠算檢查通過：代表例題、各級撥珠教法的標題和例題、題庫（${Object.keys(snap).length} 組）、撥珠動畫（${anim} 題）`);
 process.exit(bad ? 1 : 0);
