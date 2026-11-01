@@ -54,6 +54,8 @@ nav ul{columns:2;column-gap:24px}
   #demo-panel{left:0;right:0;bottom:0;height:72vh;border-top-width:1px;border-radius:12px 12px 0 0}
   html.demo-open body{padding-bottom:72vh}
 }
+/* 家長版浮動視窗裡：不顯示頁首導覽 */
+html.embed nav.abacus-top{display:none}
 </style>
 </head>
 <body>
@@ -540,9 +542,18 @@ nav ul{columns:2;column-gap:24px}
 // 撥珠動畫面板：右下角按鈕隨時打開；每個例題標題旁的「看動畫」直接載入那一題。
 (function () {
   const panel = document.getElementById('demo-panel'), fab = document.getElementById('demo-fab');
+  // 家長版的浮動視窗裡（complement.html?embed=1）：不顯示頁首導覽；動畫用家長版說法；Esc 關掉視窗
+  const embed = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+  if (embed) {
+    document.documentElement.classList.add('embed');
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && panel.hidden) window.parent.postMessage({ type: 'abacus-guide-close' }, location.origin);
+    });
+  }
   AbacusDir.mount(document.getElementById('dir-switch'));
   AbacusLevels.renderTables();
   const demo = AbacusDemo.mount(document.getElementById('demo-box'), { x: 7, y: 6, op: '+', custom: true });
+  if (embed) { const r = document.querySelector('input[name=abd-plain][value="1"]'); if (r) r.checked = true; }
   let opener = null;
   function open(from) {
     opener = from;
