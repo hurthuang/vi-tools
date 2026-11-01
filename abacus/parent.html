@@ -82,12 +82,13 @@ label.stack input{display:block;width:100%;margin-top:4px}
 .lv-note{margin:12px 0 0;padding:8px 12px;border-left:4px solid var(--accent);background:var(--card)}
 @media (max-width:600px){.q-tools{flex-direction:row;flex:1 1 100%}.q-tools button{flex:1;min-width:0}}
 /* 自己出一題：兩個數字、四個運算按鈕 */
-.cu-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
-.cu-row input{font:inherit;font-size:1.5rem;width:5.5em;padding:6px 10px;font-variant-numeric:tabular-nums}
-.cu-ops{display:flex;gap:6px;border:0;margin:0;padding:0}
+/* 數字、運算、數字排一行（手機上也是），像一個算式 */
+.cu-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;margin:8px 0;max-width:30rem}
+.cu-row input{font:inherit;font-size:1.4rem;width:100%;min-width:0;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.cu-ops{display:flex;gap:4px;border:0;margin:0;padding:0;min-width:0}
 .cu-ops label{margin:0}
 .cu-ops input{position:absolute;opacity:0;width:1px;height:1px}
-.cu-ops span{display:inline-block;min-width:2.4em;text-align:center;font-size:1.4rem;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.cu-ops span{display:inline-block;min-width:1.9em;text-align:center;font-size:1.3rem;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
 .cu-ops input:checked+span{background:#1f5fa8;border-color:#1f5fa8;color:#fff}
 .cu-ops input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
 .cu-result .cu-expr{font-size:2rem;font-weight:600;margin:8px 0;font-variant-numeric:tabular-nums}
@@ -468,7 +469,7 @@ $('again').onclick = () => $('start').click();
 
 // ---- 看這一級怎麼教：各級撥珠教法蓋在上面（complement.html?embed=1，動畫預設家長版說法） ----
 const guideAnchor = lv => lv === '九九' ? 'kuku' : /^[1-4]/.test(lv) ? 'lv' + lv : lv[0] === '5' ? 'lv' + lv.slice(0, 2) : 'lv' + lv[0];
-const guideBtn = lv => `<button type="button" class="secondary guide-link" data-guide="${lv}">看${AbacusLevels.lvTag(lv)}怎麼教</button>`;
+const guideBtn = lv => `<button type="button" class="secondary guide-link" data-guide="${lv}">${lv === '九九' ? '看九九乘法怎麼教' : `看 ${AbacusLevels.lvTag(lv)}怎麼教`}</button>`;
 let guideOpener = null;
 function openGuide(lv, from) {
   guideOpener = from;
