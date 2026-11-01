@@ -210,7 +210,10 @@ button.guide-link{font-size:.95rem;padding:4px 12px;margin:6px 0 0;display:block
   <p class="meta" id="meta"></p>
   <p class="summary" id="summary"></p>
   <ol id="detail"></ol>
-  <p class="hint">可以把這個畫面截圖傳給老師。</p>
+  <p><button type="button" id="copy-rec">複製紀錄</button>
+    <button type="button" class="secondary" id="share-rec" hidden>分享紀錄</button>
+    <span id="copy-msg" role="status"></span></p>
+  <p class="hint">複製後貼到 LINE 傳給老師；文字紀錄報讀軟體念得出來，截圖念不出來。</p>
   <p>
     <button type="button" id="retry-wrong">再練答錯的題目</button>
     <button type="button" class="secondary" id="again">同樣級數再練一次</button>
@@ -455,11 +458,23 @@ function showResult() {
     (p.ok ? '<span class="ok">✓ 對</span>' : '<span class="bad">✗ 錯</span>') + triedText(p) + (p.how ? '（看了撥法）' : '') +
     ` <span class="lv">${AbacusLevels.lvTag(p.lv)}</span></li>`).join('');
   $('detail').hidden = !done.length;
+  // 文字紀錄（複製、分享用）：跟畫面一樣的內容，一題一行
+  recordText = ['珠算練習紀錄', $('meta').textContent, $('summary').textContent,
+    ...done.map((p, i) => `${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}　${p.ok ? '✓ 對' : '✗ 錯'}${triedText(p)}${p.how ? '（看了撥法）' : ''}　${AbacusLevels.lvTag(p.lv)}`)].join('\n');
+  $('copy-msg').textContent = '';
+  $('copy-rec').hidden = !done.length;
+  $('share-rec').hidden = !done.length || !navigator.share;
   $('retry-wrong').hidden = !done.some(p => !p.ok);
   $('practice').hidden = true; $('result').hidden = false;
   window.scrollTo(0, 0);
   $('result-title').focus();
 }
+let recordText = '';
+$('copy-rec').onclick = async () => {
+  try { await navigator.clipboard.writeText(recordText); $('copy-msg').textContent = '已複製，可以貼到 LINE。'; }
+  catch (e) { $('copy-msg').textContent = '沒辦法自動複製，可以按「分享紀錄」，或截圖。'; }
+};
+$('share-rec').onclick = () => navigator.share({ title: '珠算練習紀錄', text: recordText }).catch(() => {});
 const strip = ps => ps.map(({ x, y, op, lv, form }) => ({ x, y, op, lv, form }));
 $('retry-wrong').onclick = () => {
   const again = session.problems.filter(p => p.ok === false);
