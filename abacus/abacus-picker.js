@@ -4,7 +4,8 @@
  * AbacusPicker.mount(el, { initial: ['1|+', '2|+'] }) 回傳 { render, picks, setAll, pool }。
  * 勾選框的值是「級別|運算」，例如 2|+；改了勾選或題目大小會在 el 上發出 change 事件。
  * 題目大小不分級數，所有選的級數共用：加減法、乘法、除法各一行，可以複選。
- * 出題練習把這三行分別放在第 1、6、8 級的標題上面；家長版用 sizeBox 放在「更多設定」。
+ * 出題練習分成加減法、乘法、除法三段，題目大小放在每段的標題下面、級數上面（乘法放在九九乘法後面，九九不分大小）；
+ * 家長版用 sizeBox 放在「更多設定」。每一行至少要勾一個。
  * 窄螢幕（手機）每一級排成一張卡片，格子前面寫出「加法」等欄名。
  * 家長版（parent.html）不用 mount，用 sizeBox、pool 和自己排的級數按鈕。
  */
@@ -35,6 +36,9 @@
 .abp-size-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;margin:4px 0}
 .abp-size-row .abp-size-name{font-weight:700;min-width:4em}
 .abp-size-row label{margin:2px 0}
+.abp-size-row .abp-size-msg{color:var(--bad,#c62828);font-size:.9rem}
+.abp-op{font-size:1.15rem;margin:18px 0 4px;padding-top:8px;border-top:2px solid var(--line)}
+.abp-op:first-child{margin-top:4px;border-top:0}
 .lv-table .cnt{color:var(--muted);font-size:.9rem;white-space:nowrap}
 /* 每一組的標題列：組名（第 5～9 級是展開按鈕）後面接這一組的全選核取方塊，收合時也能勾 */
 .grp-head{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;margin:12px 0 0;border-top:1px solid var(--line);padding-top:6px}
@@ -63,13 +67,24 @@
   }
   // 一行題目大小核取方塊（加減法、乘法或除法）
   const sizeRow = ([title, ids], on, name = title) => `<div class="abp-size-row" role="group" aria-label="${name}"><span class="abp-size-name" aria-hidden="true">${name}</span>` +
-    ids.map(id => `<label><input type="checkbox" value="${id}"${on.has(id) ? ' checked' : ''}> ${formName(id)}</label>`).join('') + '</div>';
+    ids.map(id => `<label><input type="checkbox" value="${id}"${on.has(id) ? ' checked' : ''}> ${formName(id)}</label>`).join('') +
+    '<span class="abp-size-msg" role="status"></span></div>';
+  // 每一行至少要勾一個：取消最後一個時勾回去並提示；回傳 false 表示擋下來了
+  function keepOne(e) {
+    const row = e.target.closest('.abp-size-row');
+    if (!row) return true;
+    const msg = row.querySelector('.abp-size-msg');
+    if (!row.querySelector('input:checked')) { e.target.checked = true; msg.textContent = '至少要選一種大小'; return false; }
+    msg.textContent = '';
+    return true;
+  }
   // 題目大小：加減法、乘法、除法各一行核取方塊。回傳 { get, set }，改了會在 el 上發出 change 事件
   function sizeBox(el, initial) {
     addCss();
     const on = new Set(initial && initial.length ? initial : DEFAULT_SIZES);
     el.innerHTML = '<fieldset class="abp-sizes"><legend>題目大小（可以複選，選的級數都用這個大小）</legend>' +
       SIZE_GROUPS.map(gr => sizeRow(gr, on)).join('') + '</fieldset>';
+    el.addEventListener('change', keepOne);
     return {
       get: () => [...el.querySelectorAll('.abp-sizes input:checked')].map(i => i.value),
       set: list => el.querySelectorAll('.abp-sizes input').forEach(i => { i.checked = list.includes(i.value); }),
@@ -81,9 +96,11 @@
     addCss();
     const initial = new Set(opts.initial || []);
     const box = root;
-    // 題目大小的三行放在第 1、6、8 級的標題下面、表格上面（收合時也看得到）（加減法、乘法、除法），重畫表格時保留勾選
+    // 題目大小的勾選，重畫表格時保留
     const sizeOn = new Set(opts.sizes && opts.sizes.length ? opts.sizes : DEFAULT_SIZES);
-    const SIZE_AT = { 1: [0, '加減法的題目大小（第 1～5 級，可以複選）'], 6: [1, '乘法的題目大小（第 6、7 級，可以複選）'], 8: [2, '除法的題目大小（第 8、9 級，可以複選）'] };
+    // 每段開頭的組（九九後面才是乘法的題目大小）
+    const OP_AT = { 1: '加減法', 0: '乘法', 8: '除法' };
+    const SIZE_AT = { 1: [0, '題目大小（第 1～5 級，可以複選）'], 6: [1, '題目大小（第 6、7 級，可以複選）'], 8: [2, '題目大小（第 8、9 級，可以複選）'] };
     const sizes = { get: () => [...sizeOn] };
     const pool = (op, lv) => poolFor(op, lv, sizes.get());
 
@@ -108,12 +125,13 @@
         if (key !== gkey) {
           if (gkey) html += '</div>';
           const title = AbacusLevels.groupTitle(key), t = title.split('：')[0], fold = !!FOLD[key];
+          if (OP_AT[key]) html += `<h2 class="abp-op">${OP_AT[key]}</h2>`;
+          if (SIZE_AT[key]) html += sizeRow(SIZE_GROUPS[SIZE_AT[key][0]], sizeOn, SIZE_AT[key][1]);
           html += `<div class="grp-head">` +
             (fold ? `<button type="button" class="fold" data-group="${key}" aria-expanded="${open.has(key)}" aria-controls="grp-${key}">${title}</button>`
                   : `<span class="grp-title">${title}</span>`) +
             `<label><input type="checkbox" class="grp-all" data-group="${key}" aria-label="${t}全選"> 全選</label>` +
             `<span class="grp-count" data-group="${key}"></span></div>` +
-            (SIZE_AT[key] ? sizeRow(SIZE_GROUPS[SIZE_AT[key][0]], sizeOn, SIZE_AT[key][1]) : '') +
             `<div class="grp-body" id="grp-${key}"${fold && !open.has(key) ? ' hidden' : ''}>`;
           gkey = key;
         }
@@ -121,7 +139,7 @@
         html += `<table class="lv-table"><caption${g.name === AbacusLevels.groupTitle(gkey) ? ' class="cap-hidden"' : ''}>${g.name}</caption>
           <tr><th scope="col">級別</th>${ops.map(([, name]) => `<th scope="col">${name}</th>`).join('')}</tr>`;
         for (const lv of g.levels) {
-          html += `<tr><th scope="row"><b>${lv.id} 級</b> ${lv.name}。${lv.desc}。</th>`;
+          html += `<tr><th scope="row"><b>${AbacusLevels.lvTag(lv.id)}</b> ${lv.name}。${lv.desc}。</th>`;
           for (const [op, name, key] of ops) {
             if (!lv[key]) { html += `<td data-label="${name}">—</td>`; continue; }
             const v = `${lv.id}|${op}`;
@@ -174,6 +192,7 @@
         box.querySelectorAll(`#grp-${e.target.dataset.group} input[type=checkbox]`).forEach(i => i.checked = e.target.checked);
       }
       if (e.target.closest('.abp-size-row')) {
+        if (!keepOne(e)) return;
         e.target.checked ? sizeOn.add(e.target.value) : sizeOn.delete(e.target.value);
         updateCounts();
       }

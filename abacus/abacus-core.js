@@ -130,14 +130,14 @@ function mulTrace(x, y) {
 // 第 6 級（× 一位數）與第 7 級（兩位數 × 兩位數）都看撥珠時最難的動作：
 // 直接撥 → 要用小補數 → 要進位（第 7 級再分進位一次、兩次以上）。
 // 一位數 × 多位數（3 × 46）換成 46 × 3 來撥，歸第 6 級（課程手冊 N-4-2：可以用交換律轉換，不宜認定為錯誤）。
-// 十十乘法（0～10 × 0～10，課程手冊 N-2-7）都是 6a，包括 × 0、× 1、× 10。
+// 十十乘法（0～10 × 0～10，課程手冊 N-2-7）都是「九九」，包括 × 0、× 1、× 10；它跟撥珠難度無關，不算第 6 級。
 function classifyMul(x, y) {
-  if (x <= 10 && y <= 10) return '6a';
+  if (x <= 10 && y <= 10) return '九九';
   if (x < 10 && y >= 10) return classifyMul(y, x);
   const st = mulTrace(x, y), carries = st.filter(s => s.carry).length;
   const g = y < 10 ? '6' : '7';
-  if (carries) return g === '6' ? '6d' : carries === 1 ? '7c' : '7d';
-  return g + (st.every(s => s.L === '1') ? (g === '6' ? 'b' : 'a') : (g === '6' ? 'c' : 'b'));
+  if (carries) return g === '6' ? '6c' : carries === 1 ? '7c' : '7d';
+  return g + (st.every(s => s.L === '1') ? 'a' : 'b');
 }
 
 // 除法（除數一位數）：從最高位開始，這一位（連同上一位剩下的）裡有幾個除數，商就寫幾，乘回來扣掉。
@@ -190,7 +190,7 @@ const FORMS = [
 const SIZE_GROUPS = [['加減法', ['F1', 'F2', 'F3', 'F4']], ['乘法', ['M2', 'M3']], ['除法', ['D2', 'D3', 'D4']]];
 const DEFAULT_SIZES = ['F1', 'F2', 'F3', 'M2', 'D2'];
 const divForm = x => x < 100 ? 'D2' : x < 1000 ? 'D3' : 'D4';
-// 十十乘法（6a）不分大小
+// 九九乘法不分大小
 const mulForm = (x, y) => x <= 10 && y <= 10 ? null : Math.max(x, y) < 100 ? 'M2' : 'M3';
 // 減法看答案：答案是兩位數以內就跟加法一樣算，所以被減數可以是 1xx（115 − 71、100 − 1，就是 44 + 71、99 + 1 倒過來）。
 // 一位數 + 兩位數（3 + 26，小的數在前面）算「兩位數 ± 一位數」（MEXT〈珠算編〉有專門一小節）。
@@ -209,7 +209,7 @@ function sizeOf(x, y, op) {
 }
 // 題庫（全列）的範圍：加減法到兩位數 ± 兩位數，三位數以上用 sampleBank 抽題
 function inRange(lv, x, y, op) {
-  if (lv === '6a') return x >= 0 && x <= 10 && y >= 0 && y <= 10;
+  if (lv === '九九') return x >= 0 && x <= 10 && y >= 0 && y <= 10;
   // 第 6 級被乘數到三位數（課程手冊 N-3-3，含 207 × 3 這種十位是 0 的）
   if (lv.startsWith('6')) return x >= 11 && x <= 999 && y >= 2 && y <= 9;
   // 第 7 級被乘數到三位數（N-4-2），可以有 0（30 × 49、16 × 30：乘數個位是 0 時那一行不用撥）
@@ -253,7 +253,7 @@ function buildMulDiv() {
   return bank;
 }
 
-// 三位數以上的加減（F4，三位數、四位數各半）和四位數 ÷ 兩位數（D4）：用固定的亂數種子抽 SAMPLE_TRIES 題，
+// 三位數以上的加減（F4，三位數、四位數各半）和四位數 ÷ 一位數、兩位數（D4）：用固定的亂數種子抽 SAMPLE_TRIES 題，
 // 分級後每一級最多留 SAMPLE_MAX 題。種子固定，所以每次打開抽到的一樣（檢查腳本也能比對快照）。
 // 加數、被加數位數各種組合都有（3 + 268、104 + 8）。
 const SAMPLE_TRIES = 40000, SAMPLE_MAX = 300, sampled = {};
@@ -275,7 +275,7 @@ function sampleBank(op, high) {
   for (let i = 0; i < SAMPLE_TRIES; i++) {
     let x, y;
     const D = int(3, 4);
-    if (op === '÷') { x = num(4); y = int(11, 99); }
+    if (op === '÷') { x = num(4); y = rand() < 0.5 ? int(2, 9) : int(11, 99); }
     else if (op === '+') { const dx = int(1, D); x = num(dx); y = num(dx === D ? int(1, D) : D); }
     else { x = num(D); y = num(int(1, D)); if (y >= x) continue; }
     const k = x + op + y;

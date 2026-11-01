@@ -164,12 +164,14 @@ if (saved.picks && !saved.levels) {
   const ops = new Set(saved.picks.map(v => v.split('|')[1]));
   saved.op = ops.has('+') && ops.has('-') ? 'both' : ops.has('-') ? '-' : '+';
 }
+// 2026-11-01 九九乘法獨立出來，第 6 級重新編號（舊 6a 九九、6b～6d 變成 6a～6c）
+if (saved.levels && !saved.v) saved.levels = saved.levels.map(id => ({ '6a': '九九', '6b': '6a', '6c': '6b', '6d': '6c' })[id] || id);
 const chosen = new Set(saved.levels || []);
 // 題目大小（abacus-picker.js 的 sizeBox，跟出題練習一樣），放在「更多設定」；舊版存的 forms 不用了
 const sizes = AbacusPicker.sizeBox($('forms'), saved.sizes);
 function remember() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ levels: [...chosen], op: opChoice(), sizes: sizes.get(), student: $('student').value.trim(), count: $('count').value }));
+    localStorage.setItem(KEY, JSON.stringify({ v: 2, levels: [...chosen], op: opChoice(), sizes: sizes.get(), student: $('student').value.trim(), count: $('count').value }));
   } catch (e) { /* 存不了就算了 */ }
 }
 
@@ -180,7 +182,7 @@ function renderGrid() {
   $('lv-grid').innerHTML = AbacusLevels.GROUPS.map(gr => {
     const lvs = shown().filter(l => AbacusLevels.groupOf(l.id) === gr.key);
     return `<div class="lv-group" role="group" aria-labelledby="lvg-${gr.key}"><h2 id="lvg-${gr.key}">${gr.title}</h2><div class="lv-btns">` +
-      lvs.map(l => `<button type="button" data-lv="${l.id}" aria-pressed="${chosen.has(l.id)}" aria-label="${l.id} 級，${l.name}">${l.id}</button>`).join('') +
+      lvs.map(l => `<button type="button" data-lv="${l.id}" aria-pressed="${chosen.has(l.id)}" aria-label="${AbacusLevels.lvTag(l.id)}，${l.name}">${l.id}</button>`).join('') +
       '</div></div>';
   }).join('');
   renderPicked();
@@ -191,7 +193,7 @@ function renderPicked() {
   // 在目前的題目大小下出不了題的級數要說出來（例如只勾 20 以內時的 5b）
   const empty = list.filter(l => !levelPicks(l).some(v => { const [lv, op] = v.split('|'); return pool(op, lv).length; }));
   $('picked').textContent = (list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。') +
-    (empty.length ? `（${empty.map(l => l.id).join('、')} 級在目前的題目大小沒有題目，請到「更多設定」改題目大小。）` : '');
+    (empty.length ? `（${empty.map(l => AbacusLevels.lvTag(l.id)).join('、')}在目前的題目大小沒有題目，請到「更多設定」改題目大小。）` : '');
   $('op-box').hidden = list.length > 0 && !list.some(l => l.add || l.sub);
 }
 $('lv-grid').addEventListener('click', e => {
@@ -278,7 +280,7 @@ $('show-how').onclick = () => {
   if (!open) { if (demo) demo.stop(); return; }
   const p = session.problems[session.idx], lv = lvOf(p.lv);
   p.how = true;
-  $('lv-note').textContent = `${p.lv} 級：${lv.name}。${lv.desc}。`;
+  $('lv-note').textContent = `${AbacusLevels.lvTag(p.lv)}：${lv.name}。${lv.desc}。`;
   $('jin-tui').hidden = p.op === '+' || p.op === '-';
   // 1～4 級小補數分兩步撥，第 5 級以後上珠和下珠一起撥（跟各級撥珠教法一樣）
   const merge = p.lv[0] >= '5';
@@ -318,7 +320,7 @@ function showResult() {
   $('summary').textContent = done.length ? `做了 ${done.length} 題，答對 ${right} 題` + (how ? `，看了撥法 ${how} 題` : '') + `（${lvs.join('、')}）` : '還沒有做題目。';
   $('detail').innerHTML = done.map(p => `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}　` +
     (p.ok ? '<span class="ok">✓ 對</span>' : '<span class="bad">✗ 錯</span>') + (p.how ? '（看了撥法）' : '') +
-    ` <span class="lv">${p.lv} 級</span></li>`).join('');
+    ` <span class="lv">${AbacusLevels.lvTag(p.lv)}</span></li>`).join('');
   $('detail').hidden = !done.length;
   $('retry-wrong').hidden = !done.some(p => !p.ok);
   $('practice').hidden = true; $('result').hidden = false;

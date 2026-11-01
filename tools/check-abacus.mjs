@@ -1,7 +1,7 @@
 // 珠算檢查：node tools/check-abacus.mjs（分級規則有意改變時加 --update 重新產生題庫快照）
 // 1. abacus-levels.js 的每個代表例題，用出題核心分級後要落在自己那一級
 // 2. 各級撥珠教法（complement.html）的小標題「6a 級：名稱（例：…）」要跟 abacus-levels.js 的名稱一致，例題要在那一級的代表例題裡
-// 3. 1～4、6～9 級每一級在各級撥珠教法都有小標題
+// 3. 1～4、6～9 級每一級在各級撥珠教法都有小標題，九九乘法有一段
 // 4. 題庫：每一題分級後落在自己那一級；兩種撥珠方向的題庫跟快照（fixtures/abacus-bank.json）一樣；
 //    三位數、四位數加減（抽題）也一樣，而且題型對
 // 5. 撥珠動畫：加減乘除、兩種方向、小補數分兩步或一起撥，最後算盤上的數（除法是餘數）和點顯器上的商都對，每一步只動到說明裡的檔
@@ -49,7 +49,8 @@ for (const m of comp.matchAll(/<h3[^>]*>(\w+) 級：(.+?)<\/h3>/g)) {
     if (!all.includes(norm(ex[1]))) fail(`各級撥珠教法 ${id} 的例題 ${ex[1]} 不在代表例題（${all.join('、')}）裡`);
   }
 }
-for (const l of AL.LEVELS) if (!/^5/.test(l.id) && !seen.has(l.id)) fail(`各級撥珠教法沒有 ${l.id} 級的小標題`);
+for (const l of AL.LEVELS) if (!/^5|九九/.test(l.id) && !seen.has(l.id)) fail(`各級撥珠教法沒有 ${l.id} 級的小標題`);
+if (!comp.includes('<h2 id="kuku">')) fail('各級撥珠教法沒有九九乘法的段落');
 
 // 1～4 級的例題放在 h4「例：5 + 3 = 8」，要在那一級的代表例題裡
 const lv14 = comp.slice(comp.indexOf('<h2 id="lv1-4">'), comp.indexOf('<h3 id="digits">'));
@@ -87,9 +88,9 @@ for (const [op, high] of [['+', false], ['+', true], ['-', false], ['-', true], 
     snap[`${dir} ${op} ${lv} ${want}`] = `${items.length} ${hash(JSON.stringify(items))}`;
   }
 }
-// 第 8、9 級每一級的被除數兩位數、三位數都有題目
-for (const lv of ['8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d']) for (const f of ['D2', 'D3']) {
-  const n = C.buildBank(true)['÷'][lv].filter(it => it[2] === f).length;
+// 第 8、9 級每一級的被除數兩位數、三位數、四位數都有題目
+for (const lv of ['8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d']) for (const f of ['D2', 'D3', 'D4']) {
+  const n = (f === 'D4' ? C.sampleBank('÷', false)[lv] || [] : C.buildBank(true)['÷'][lv].filter(it => it[2] === f)).length;
   if (!n) fail(`第 ${lv} 級沒有 ${f} 的題目`);
 }
 if (update) { writeFileSync(snapUrl, JSON.stringify(snap, null, 1) + '\n'); console.log('已更新題庫快照 tools/fixtures/abacus-bank.json'); }

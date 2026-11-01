@@ -200,7 +200,7 @@ function showPreview() {
   if (!problems) return;
   previewProblems = problems;
   $('preview-list').innerHTML = problems.map(p =>
-    `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${p.lv} 級）</li>`).join('');
+    `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${AbacusLevels.lvTag(p.lv)}）</li>`).join('');
   $('preview').hidden = false;
   $('preview-title').focus();
 }
@@ -450,7 +450,7 @@ $('export-txt').onclick = () => {
   const lines = ['珠算練習題目' + (student ? `（${student}）` : ''), new Date().toLocaleString('zh-TW'), '', '題目'];
   ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} =`));
   lines.push('', '答案');
-  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${p.lv} 級，${formName(p.form) || fixedForm(p.lv)}）`));
+  ps.forEach((p, i) => lines.push(`${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}（${AbacusLevels.lvTag(p.lv)}，${formName(p.form) || fixedForm(p.lv)}）`));
   saveFile(`珠算題目_${student || '練習'}_${stampOf(new Date())}.txt`, '﻿' + lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8');
 };
 // .brl：每行一題。題號照慣用寫法用上位數字加點 256，例如 1. 是 ⠼⠁⠲。每頁 25 行，換頁用 form feed。
