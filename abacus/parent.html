@@ -213,6 +213,7 @@ button.guide-link{font-size:.95rem;padding:4px 12px;margin:6px 0 0;display:block
   <p><button type="button" id="copy-rec">複製紀錄</button>
     <button type="button" class="secondary" id="share-rec" hidden>分享紀錄</button>
     <span id="copy-msg" role="status"></span></p>
+  <p id="rec-box" hidden><label class="stack">練習紀錄（自動複製不了時，在這裡全選、複製）<textarea id="rec-text" readonly rows="8" style="width:100%;font:inherit;font-size:1rem"></textarea></label></p>
   <p class="hint">複製後貼到 LINE 傳給老師；文字紀錄報讀軟體念得出來，截圖念不出來。</p>
   <p>
     <button type="button" id="retry-wrong">再練答錯的題目</button>
@@ -462,6 +463,7 @@ function showResult() {
   recordText = ['珠算練習紀錄', $('meta').textContent, $('summary').textContent,
     ...done.map((p, i) => `${i + 1}. ${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}　${p.ok ? '✓ 對' : '✗ 錯'}${triedText(p)}${p.how ? '（看了撥法）' : ''}　${AbacusLevels.lvTag(p.lv)}`)].join('\n');
   $('copy-msg').textContent = '';
+  $('rec-box').hidden = true;
   $('copy-rec').hidden = !done.length;
   $('share-rec').hidden = !done.length || !navigator.share;
   $('retry-wrong').hidden = !done.some(p => !p.ok);
@@ -471,8 +473,12 @@ function showResult() {
 }
 let recordText = '';
 $('copy-rec').onclick = async () => {
-  try { await navigator.clipboard.writeText(recordText); $('copy-msg').textContent = '已複製，可以貼到 LINE。'; }
-  catch (e) { $('copy-msg').textContent = '沒辦法自動複製，可以按「分享紀錄」，或截圖。'; }
+  if (await AbacusPicker.copyText(recordText)) { $('copy-msg').textContent = '已複製，可以貼到 LINE。'; $('rec-box').hidden = true; return; }
+  // 複製不了：把紀錄放在文字框裡選好，讓家長自己複製
+  $('copy-msg').textContent = '沒辦法自動複製，紀錄放在下面的文字框，請全選後複製。';
+  $('rec-text').value = recordText;
+  $('rec-box').hidden = false;
+  $('rec-text').focus(); $('rec-text').select();
 };
 $('share-rec').onclick = () => navigator.share({ title: '珠算練習紀錄', text: recordText }).catch(() => {});
 const strip = ps => ps.map(({ x, y, op, lv, form }) => ({ x, y, op, lv, form }));

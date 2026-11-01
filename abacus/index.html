@@ -279,8 +279,7 @@ $('code-make').onclick = () => {
   $('code-title').focus();
 };
 async function copyText(text, what) {
-  try { await navigator.clipboard.writeText(text); $('code-copy-msg').textContent = `已複製${what}`; }
-  catch (e) { $('code-copy-msg').textContent = '沒辦法自動複製，請自己選取複製'; }
+  $('code-copy-msg').textContent = await AbacusPicker.copyText(text) ? `已複製${what}` : `沒辦法自動複製，請自己選取上面的${what}複製`;
 }
 $('code-copy').onclick = () => copyText($('code-out').textContent, '代號');
 $('code-copy-link').onclick = () => copyText($('code-link').href, '連結');

@@ -224,6 +224,24 @@
     return { render: renderLevels, picks, setAll, pool, setPicks, setSizes, sizes: sizes.get };
   }
 
+  // 複製文字（練習代號、練習紀錄）：navigator.clipboard 只在 https 或本機才有，http（例如區域網路測試）和舊瀏覽器
+  // 改用暫時的文字框加 execCommand('copy')。回傳有沒有複製成功；失敗時頁面要把文字顯示出來讓人自己複製
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* 改用下面的方法 */ }
+    const back = document.activeElement, ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.setAttribute('aria-hidden', 'true');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    if (back && back.focus) back.focus();
+    return ok;
+  }
+
   // 家長版不用表格，自己排按鈕，但題庫、題目大小跟這裡共用
-  g.AbacusPicker = { mount, sizeBox, pool: poolFor, formName, fixedForm, dirHigh, bank: getBank, shownLevel };
+  g.AbacusPicker = { mount, sizeBox, pool: poolFor, formName, fixedForm, dirHigh, bank: getBank, shownLevel, copyText };
 })(window);
