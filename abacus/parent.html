@@ -57,6 +57,15 @@ label.stack input{display:block;width:100%;margin-top:4px}
 .problem{flex:1 1 16rem;font-size:2.8rem;font-weight:600;text-align:center;padding:20px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-variant-numeric:tabular-nums}
 .q-tools{display:flex;flex-direction:column;gap:8px;justify-content:center}
 .q-tools button{margin:0;min-width:8.5em}
+/* 孩子的答案（選填）：數字鍵盤，除法多一格餘數 */
+.ans-row{margin:8px 0}
+.ans-row label{display:block;margin:0 0 4px}
+.ans-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ans-ctl input{font:inherit;font-size:1.4rem;width:6.5em;padding:6px 10px;font-variant-numeric:tabular-nums}
+.ans-ctl button{margin:0}
+.ans-msg{margin:6px 0 0;min-height:1.4em}
+.ans-msg.bad{color:var(--bad)}
+.ans-msg.ok{color:var(--ok)}
 .answer{font-size:1.6rem;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0}
 /* 操作列：貼在畫面最下面，捲到動畫時也按得到。每題都是「答對／答錯」→「下一題」 */
 .bar{position:sticky;bottom:0;margin:16px -16px 0;padding:8px 16px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -4px 12px rgba(0,0,0,.12)}
@@ -126,6 +135,13 @@ label.stack input{display:block;width:100%;margin-top:4px}
       <button type="button" class="secondary" id="show-how" aria-expanded="false" aria-controls="how">看怎麼撥</button>
     </div>
   </div>
+  <form class="ans-row" id="ans-form" autocomplete="off" novalidate>
+    <label for="ans-q">孩子的答案（可以不填，直接用下面的「答對」「答錯」）</label>
+    <span class="ans-ctl"><input type="text" id="ans-q" inputmode="numeric" spellcheck="false">
+      <span id="rem-wrap">餘 <input type="text" id="ans-r" inputmode="numeric" spellcheck="false" aria-label="餘數（沒有餘數就空著）" style="width:4.5em"></span>
+      <button type="submit">對答案</button></span>
+    <p class="ans-msg" id="ans-msg" role="status"></p>
+  </form>
   <p id="answer" class="answer" hidden></p>
   <div id="how" hidden>
     <p class="lv-note" id="lv-note"></p>
@@ -275,7 +291,7 @@ const exprOf = p => `${p.x} ${sym(p.op)} ${p.y} =`;
 
 function start(problems) {
   session = { student: $('student').value.trim(), dir: AbacusPicker.dirHigh() ? '從最高位開始' : '從個位開始', started: new Date(),
-    problems: problems.map(p => ({ ...p, ok: null, how: false })), idx: 0 };
+    problems: problems.map(p => ({ ...p, ok: null, how: false, tries: [] })), idx: 0 };
   $('setup').hidden = true; $('result').hidden = true; $('practice').hidden = false;
   show();
 }
@@ -300,6 +316,9 @@ function show() {
   setOpen('show-ans', 'answer', false);
   setOpen('show-how', 'how', false);
   if (demo) demo.stop();
+  $('ans-q').value = $('ans-r').value = '';
+  $('ans-msg').textContent = ''; $('ans-msg').className = 'ans-msg';
+  $('rem-wrap').hidden = p.op !== '÷';
   renderBar();
   window.scrollTo(0, 0);
   $('problem').focus();
@@ -309,6 +328,7 @@ function renderBar() {
   const p = session.problems[session.idx], n = session.problems.length, no = `第 ${session.idx + 1} 題`;
   const judged = p.ok !== null;
   $('judge').hidden = judged; $('after').hidden = !judged;
+  $('ans-form').hidden = judged;
   if (!judged) { $('bar-status').textContent = `${no}／共 ${n} 題`; return; }
   $('bar-status').innerHTML = p.ok ? `${no}：<span class="ok">答對 ✓</span>`
     : `${no}：<span class="bad">答錯 ✗</span>　正確答案 ${ansText(p)}`;
@@ -349,6 +369,21 @@ function judge(ok) {
   renderBar();
   $('next').focus();
 }
+// 對答案：孩子的答案記下來（紀錄裡寫出答過哪些數）。答對就算答對；答錯不說正確答案，可以再撥一次再填，
+// 或按「答錯」放棄（這時操作列才寫出正確答案）
+const digits = v => v.normalize('NFKC').replace(/\s/g, '');
+$('ans-form').onsubmit = e => {
+  e.preventDefault();
+  const p = session.problems[session.idx], q = digits($('ans-q').value), r = digits($('ans-r').value);
+  const msg = $('ans-msg');
+  if (!/^\d+$/.test(q) || (r && !/^\d+$/.test(r))) { msg.className = 'ans-msg bad'; msg.textContent = '請輸入數字'; $('ans-q').focus(); return; }
+  const said = p.op === '÷' && +r ? `${+q} 餘 ${+r}` : String(+q);
+  p.tries.push(said);
+  if (+q === calc(p) && (+r || 0) === remOf(p)) { judge(true); return; }
+  msg.className = 'ans-msg bad';
+  msg.textContent = `${said} 不對。可以請孩子再撥一次，再填一次；或按「看怎麼撥」。`;
+  $('ans-q').select();
+};
 $('mark-ok').onclick = () => judge(true);
 $('mark-bad').onclick = () => judge(false);
 $('flip').onclick = () => judge(!session.problems[session.idx].ok);
@@ -365,8 +400,13 @@ function showResult() {
   $('meta').textContent = [session.student, d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
     '加減法' + session.dir].filter(Boolean).join('　');
   $('summary').textContent = done.length ? `做了 ${done.length} 題，答對 ${right} 題` + (how ? `，看了撥法 ${how} 題` : '') + `（${lvs.join('、')}）` : '還沒有做題目。';
+  // 孩子答錯過的數字寫出來，老師看得出錯在哪一步（例如差 10 是進退位）
+  const triedText = p => {
+    const wrong = p.tries.filter(t => t !== ansText(p));
+    return wrong.length ? (p.ok ? `（先答 ${wrong.join('、')}）` : `（答 ${wrong.join('、')}）`) : '';
+  };
   $('detail').innerHTML = done.map(p => `<li>${p.x} ${sym(p.op)} ${p.y} = ${ansText(p)}　` +
-    (p.ok ? '<span class="ok">✓ 對</span>' : '<span class="bad">✗ 錯</span>') + (p.how ? '（看了撥法）' : '') +
+    (p.ok ? '<span class="ok">✓ 對</span>' : '<span class="bad">✗ 錯</span>') + triedText(p) + (p.how ? '（看了撥法）' : '') +
     ` <span class="lv">${AbacusLevels.lvTag(p.lv)}</span></li>`).join('');
   $('detail').hidden = !done.length;
   $('retry-wrong').hidden = !done.some(p => !p.ok);
