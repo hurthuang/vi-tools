@@ -1118,7 +1118,9 @@ async function readPdf(file) {
     const pct = 20 + Math.round(78 * i / pageCount);
     setProgress(pct, `提取文字：第 ${i} / ${pageCount} 頁`);
     const page = await pdf.getPage(i);
-    const content = await page.getTextContent({ includeMarkedContent: false });
+    let content = await page.getTextContent({ includeMarkedContent: false });
+    // 符號字型的圈號（Wingdings 2 的 ①②③④）換回一般字元（shared.js）
+    if (window.vitoolsFixPdfSymbols) content = await window.vitoolsFixPdfSymbols(page, content);
     const vp = page.getViewport({ scale: 1 });
     const pageH = vp.height;
 

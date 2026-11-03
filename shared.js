@@ -26,6 +26,31 @@ function normalizeSpaces(text) {
 // ════════════════════════════════════════════════════════════
 //  loadScript（lazy CDN 載入）
 // ════════════════════════════════════════════════════════════
+/**
+ * PDF 裡符號字型的字（pdf.js 抽出來是私用區 U+F020–U+F0FF）換回一般字元。
+ * 目前只有 Wingdings 2 的圈號：Word 插入的 ①②③④ 常用這個字型（115 學年音樂班術科試題的選項就是），
+ * U+F075–U+F078 對照解答確認是 ①–④，U+F079–U+F07E 照同一個順序當作 ⑤–⑩。
+ * 用法：const content = await page.getTextContent(); await vitoolsFixPdfSymbols(page, content);
+ */
+const PDF_SYMBOL_MAPS = [
+    { font: /wingdings\s*-?2/i, map: { 0x75: '①', 0x76: '②', 0x77: '③', 0x78: '④', 0x79: '⑤', 0x7a: '⑥', 0x7b: '⑦', 0x7c: '⑧', 0x7d: '⑨', 0x7e: '⑩' } },
+];
+async function vitoolsFixPdfSymbols(page, content) {
+    const PUA = /[\uF020-\uF0FF]/;
+    if (!content || !content.items.some(it => it.str && PUA.test(it.str))) return content;
+    try { await page.getOperatorList(); } catch (e) { return content; } // 字型載入後才查得到名稱
+    for (const it of content.items) {
+        if (!it.str || !PUA.test(it.str)) continue;
+        let name = '';
+        try { name = (page.commonObjs.get(it.fontName) || {}).name || ''; } catch (e) { continue; }
+        const m = PDF_SYMBOL_MAPS.find(x => x.font.test(name));
+        if (!m) continue;
+        it.str = it.str.replace(/[\uF020-\uF0FF]/g, ch => m.map[ch.charCodeAt(0) & 0xff] || ch);
+    }
+    return content;
+}
+window.vitoolsFixPdfSymbols = vitoolsFixPdfSymbols;
+
 function loadScript(src) {
     return new Promise((resolve, reject) => {
         if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
@@ -637,7 +662,7 @@ async function handleOpenFile(event, taId, onLoad) {
             let allLines = [];
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
-                const content = await page.getTextContent({ includeMarkedContent: false });
+                const content = await vitoolsFixPdfSymbols(page, await page.getTextContent({ includeMarkedContent: false }));
                 let line = '';
                 for (const item of content.items) {
                     if (typeof item.str === 'undefined') continue;
