@@ -29,6 +29,9 @@
     return '第 ' + (k + 1) + ' 拍中間';
   }
 
+  // 弱起小節的編號是 0
+  const barText = (n) => (n === 0 ? '弱起小節' : '第 ' + n + ' 小節');
+
   /** 回傳 [{label, text}]，依方框開始的順序。 */
   function describe(score) {
     const out = [];
@@ -50,10 +53,10 @@
             if (!o) continue;
             delete open[l];
             const a = o.start;
-            const startText = '第 ' + a.num + ' 小節' + beatText(a.at, M.meterAt(part, a.mi));
+            const startText = barText(a.num) + beatText(a.at, M.meterAt(part, a.mi));
             // 結束：最後一個音延續到的那一拍
             const lastTick = t + M.eventTicks(ev) - 1;
-            const endText = (mi === a.mi ? '' : '第 ' + numbers[mi] + ' 小節') + '第 ' + (Math.floor(lastTick / (M.TPW / meter.den)) + 1) + ' 拍';
+            const endText = (mi === a.mi ? '' : barText(numbers[mi])) + '第 ' + (Math.floor(lastTick / (M.TPW / meter.den)) + 1) + ' 拍';
             // 同一拍內（例如一拍裡的三十二分音符）只寫一次拍子
             const sameBeat = mi === a.mi && Math.floor(a.at / (M.TPW / meter.den)) === Math.floor(lastTick / (M.TPW / meter.den));
             const span = o.events.length === 1 || sameBeat ? startText + (o.events.length > 1 && sameBeat ? '（同一拍內）' : '') : startText + '到' + endText;
