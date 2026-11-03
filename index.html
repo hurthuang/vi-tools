@@ -378,6 +378,10 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-mstudent">
     <span class="icon" aria-hidden="true">🎹</span> 點字樂譜練習
   </div>
+  <div class="tab" role="tab" id="tab-mtheory" data-target="frame-mtheory"
+       tabindex="-1" aria-selected="false" aria-controls="frame-mtheory">
+    <span class="icon" aria-hidden="true">🎼</span> 樂理練習
+  </div>
   <div class="tab" role="tab" id="tab-gq" data-target="frame-gq"
        tabindex="-1" aria-selected="false" aria-controls="frame-gq">
     <span class="icon" aria-hidden="true">🔍</span> UEB 查詢
@@ -575,6 +579,19 @@
           <div class="tool-arrow" aria-hidden="true">›</div>
         </div>
 
+        <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-mtheory')"
+             role="button" tabindex="0" aria-label="開啟樂理練習" aria-describedby="desc-mtheory"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-mtheory')}">
+          <div class="tool-icon" aria-hidden="true">🎼</div>
+          <div class="tool-info">
+            <div class="tool-name">樂理練習</div>
+            <div class="tool-desc" id="desc-mtheory">
+              音程、和弦、級數、音階、調號、移調樂器四選一，答完馬上看解說，譜例有點字樂譜；另有四部和聲檢查（平行五八度、導音解決、數字低音）。
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
         <div class="tool-card" style="--card-accent:#f472b6" onclick="switchTo('frame-gq')"
              role="button" tabindex="0" aria-label="開啟 UEB 查詢工具" aria-describedby="desc-gq"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-gq')}">
@@ -694,6 +711,7 @@
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq" title="UEB 查詢"></iframe>
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="音樂點字"></iframe>
   <iframe id="frame-mstudent" class="panel" data-src="music/student.html" role="tabpanel" aria-labelledby="tab-mstudent" title="點字樂譜練習"></iframe>
+  <iframe id="frame-mtheory" class="panel" data-src="music/theory.html" role="tabpanel" aria-labelledby="tab-mtheory" title="樂理練習"></iframe>
   <iframe id="frame-zhshort" class="panel" data-src="zh-tw-short.html" role="tabpanel" aria-labelledby="tab-zhshort" title="縮點（實驗性質）"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸圖製作"></iframe>
   <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-labelledby="tab-abacus" title="珠算練習"></iframe>
@@ -753,7 +771,7 @@
   const HASH_MAP = {
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
-    'frame-music': 'music', 'frame-mstudent': 'music-student', 'addons-panel': 'addons',
+    'frame-music': 'music', 'frame-mstudent': 'music-student', 'frame-mtheory': 'music-theory', 'addons-panel': 'addons',
     'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
     'frame-books': 'books', 'frame-zhshort': 'zh-tw-short',
     'frame-guide': 'guide', 'frame-search': 'search'
