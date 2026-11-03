@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>四部和聲檢查</title>
+  <link rel="icon" href="../favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script src="js/theme.js?v=63"></script>
+  <link rel="stylesheet" href="css/style.css?v=63">
+  <style>
+    .hm-main { max-width: 1000px; margin: 0 auto; }
+    .hm-input textarea { width: 100%; min-height: 10em; box-sizing: border-box; font-family: var(--mono); font-size: 1.25rem; line-height: 1.6; padding: 10px 12px; background: var(--panel); color: var(--ink); border: 2px solid var(--control); border-radius: 8px; resize: vertical; }
+    .hm-input textarea:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .hm-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 10px 0; }
+    .hm-summary { font-size: 1.2rem; font-weight: bold; }
+    .hm-issues li { margin-bottom: 8px; line-height: 1.6; }
+    .hm-issues li.error::marker { content: '✗ '; color: var(--warn); }
+    .hm-issues li.warn::marker { content: '△ '; }
+    .hm-issues li.info::marker { content: 'ⓘ '; }
+    .hm-issues li:focus { outline: 3px solid var(--focus); }
+    .hm-brl { font-family: var(--braille); font-size: 28px; line-height: 1.5; white-space: pre; overflow-x: auto; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+    .hm-brl.brf { font-family: var(--mono); font-size: 22px; }
+    .hm-table { border-collapse: collapse; }
+    .hm-table th, .hm-table td { border: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>四部和聲檢查</h1>
+    <p class="subtitle">寫好四部和聲，檢查平行五八度、聲部交錯、導音與七音的解決、數字低音和級數・<a href="theory.html">樂理練習</a>・<a href="index.html">點字樂譜轉換器</a></p>
+  </header>
+
+  <main class="hm-main">
+    <section class="pane hm-input" aria-labelledby="h-in">
+      <h2 id="h-in">四部和聲</h2>
+      <div class="hm-bar">
+        <label>調
+          <select id="s-key"></select>
+        </label>
+        <button type="button" id="btn-sample">放入範例</button>
+      </div>
+      <textarea id="src" spellcheck="false" autocomplete="off" aria-label="四部和聲，一行一個和弦" aria-describedby="fmt"></textarea>
+      <p class="hint" id="fmt">一行一個和弦，依序寫高音部、中音部、次中音部、低音部四個音（中央 C 是 C4，升記號 #、降記號 b），例如「C5 G4 E4 C3」。後面可以加數字低音（方括號，例如 [6] [6/4] [#]）和自己標的級數（例如 I6、V65、vii°7、V7/V）。Ctrl+Enter 檢查，Alt+N 播放游標所在的和弦。</p>
+      <div class="hm-bar">
+        <button type="button" id="btn-check" class="primary" aria-keyshortcuts="Control+Enter">檢查（Ctrl+Enter）</button>
+        <button type="button" id="btn-play">▶ 播放全部</button>
+        <button type="button" id="btn-stop">■ 停止</button>
+        <label>速度 <input type="number" id="s-tempo" min="30" max="160" step="10" value="60" style="width:5em"> 每分鐘和弦數</label>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="h-result">
+      <h2 id="h-result">檢查結果</h2>
+      <p class="hm-summary" id="summary" aria-live="polite"></p>
+      <div class="hm-bar">
+        <label><input type="checkbox" id="s-warn" checked> 顯示「注意」</label>
+        <label><input type="checkbox" id="s-info"> 顯示「建議」（重複音的習慣寫法）</label>
+        <label><input type="checkbox" id="s-analysis"> 顯示每個和弦的級數（會直接看到答案）</label>
+      </div>
+      <ol class="hm-issues" id="issues"></ol>
+      <div id="analysis-wrap" hidden>
+        <h3>和弦分析</h3>
+        <table class="hm-table">
+          <thead><tr><th scope="col">第幾個</th><th scope="col">音（高到低）</th><th scope="col">和弦</th><th scope="col">級數</th></tr></thead>
+          <tbody id="analysis"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="h-brl">
+      <div class="pane-head">
+        <h2 id="h-brl">點字樂譜（合唱格式）</h2>
+        <div class="pane-tools">
+          <label>顯示
+            <select id="s-brl">
+              <option value="unicode" selected>Unicode 點字</option>
+              <option value="brf">ASCII（BRF）</option>
+            </select>
+          </label>
+          <button type="button" id="btn-brf">下載 BRF</button>
+          <button type="button" id="btn-open">在轉換器開啟</button>
+        </div>
+      </div>
+      <p class="hint">照 BANA Music Braille Code 2015 Sec. 37 合唱總譜：S、A 的音程由上往下讀，T、B 由下往上讀。每 4 個和弦一小節。</p>
+      <div class="hm-brl" id="brl" tabindex="0" role="textbox" aria-readonly="true" aria-multiline="true" aria-label="點字樂譜"></div>
+      <div id="paper" class="paper" aria-hidden="true"></div>
+    </section>
+
+    <details class="pane help">
+      <summary>檢查哪些規則</summary>
+      <div class="help-body">
+        <h3>錯誤（✗）</h3>
+        <ul>
+          <li>平行五度、平行八度（含同度）；反向五度、反向八度</li>
+          <li>聲部交錯（下面的聲部比上面高）；高音部與中音部、中音部與次中音部相距超過八度</li>
+          <li>不是三和弦或七和弦（例如少了三音）；七音重複；屬和弦的導音重複</li>
+          <li>外聲部（高音部、低音部）的導音在屬和弦到主和弦（或六級）時沒有上行解決</li>
+          <li>七音沒有下行級進解決（保留在同一個音也可以）</li>
+          <li>增音程的旋律進行（例如小調的增二度）；跳進超過八度</li>
+          <li>和數字低音不合，或自己標的級數不對</li>
+        </ul>
+        <h3>注意（△）</h3>
+        <ul>
+          <li>隱伏五度、八度：外聲部同向進入完全五度或八度，而且高音部跳進</li>
+          <li>減五度進行到完全五度（和低音部之間）；聲部超越；七度跳進</li>
+          <li>內聲部的導音沒有上行（屬到主和弦時課本允許下行到五音）；超出常用音域；省略五音；四六和弦沒有重複低音</li>
+        </ul>
+        <h3>級數的寫法</h3>
+        <ul>
+          <li>大三、增三和弦用大寫，小三、減三和弦用小寫；° 減、ø 半減、+ 增。轉位寫 6、64、7、65、43、42（V6/5、V⁶₅、V2 也認得）。小調依和聲小音階。</li>
+          <li>副屬和弦寫 V/V、V7/ii、vii°7/V。</li>
+        </ul>
+        <p>規則照一般和聲學教本（四部、共通慣例時期）。不同老師的要求可能不同，「注意」和「建議」請依老師的說法判斷。</p>
+      </div>
+    </details>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
+  <script src="js/brf.js?v=63"></script>
+  <script src="js/model.js?v=63"></script>
+  <script src="js/durations.js?v=63"></script>
+  <script src="js/abc-parse.js?v=63"></script>
+  <script src="js/braille-write.js?v=63"></script>
+  <script src="js/theory.js?v=63"></script>
+  <script src="js/harmony-check.js?v=63"></script>
+  <script src="js/harmony-page.js?v=63"></script>
+</body>
+</html>

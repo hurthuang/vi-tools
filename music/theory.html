@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>樂理練習</title>
+  <link rel="icon" href="../favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script src="js/theme.js?v=63"></script>
+  <link rel="stylesheet" href="css/style.css?v=63">
+  <style>
+    .tq-main { max-width: 960px; margin: 0 auto; }
+    .tq-prompt { font-size: 1.3rem; line-height: 1.6; margin: 4px 0 12px; }
+    .tq-brl { font-family: var(--braille); font-size: 32px; line-height: 1.5; margin: 8px 0; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; }
+    .tq-brl.brf { font-family: var(--mono); font-size: 24px; }
+    .tq-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 14px 0; }
+    .tq-opts button { font-size: 1.2rem; padding: 12px; text-align: left; min-height: 3em; }
+    .tq-opts button.right { background: var(--play); color: var(--ink); border-color: var(--play); }
+    .tq-opts button.wrong { background: var(--warn-bg); color: var(--warn); }
+    .tq-feedback { font-size: 1.15rem; line-height: 1.6; min-height: 1.6em; }
+    .tq-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+    .tq-types { display: flex; flex-wrap: wrap; gap: 6px 18px; border: 0; padding: 0; margin: 0 0 10px; }
+    .tq-score { font-size: 1.1rem; }
+    .tq-review li { margin-bottom: 10px; line-height: 1.6; }
+    #paper { min-height: 0; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>樂理練習</h1>
+    <p class="subtitle">音程、和弦、級數、音階、調號、移調樂器……四選一，答完馬上看解說・<a href="harmony.html">四部和聲檢查</a>・<a href="index.html">點字樂譜轉換器</a></p>
+  </header>
+
+  <main class="tq-main">
+    <section class="pane" aria-labelledby="h-q">
+      <div class="pane-head">
+        <h2 id="h-q">第 1 題</h2>
+        <p class="tq-score" id="score" aria-live="off"></p>
+      </div>
+      <p class="tq-prompt" id="prompt"></p>
+      <div id="brl-wrap">
+        <p class="sr-only" id="brl-label">譜例點字</p>
+        <div class="tq-brl" id="brl" role="img" aria-labelledby="brl-label"></div>
+      </div>
+      <div id="paper" class="paper" aria-hidden="true"></div>
+      <div class="tq-bar">
+        <button type="button" id="btn-play" aria-keyshortcuts="P">▶ 播放譜例（P）</button>
+      </div>
+      <div class="tq-opts" id="opts" role="group" aria-label="選項，按 1 到 4 作答"></div>
+      <p class="tq-feedback" id="feedback" aria-live="assertive" aria-atomic="true"></p>
+      <div class="tq-bar">
+        <button type="button" id="btn-next" class="primary" aria-keyshortcuts="N">下一題（N）</button>
+        <button type="button" id="btn-restart">重新開始</button>
+      </div>
+    </section>
+
+    <section class="pane" id="review-pane" aria-labelledby="h-review" hidden>
+      <h2 id="h-review">答錯的題目</h2>
+      <ol class="tq-review" id="review"></ol>
+      <button type="button" id="btn-copy">複製紀錄</button>
+    </section>
+
+    <details class="pane settings" id="settings" open>
+      <summary>題型與設定</summary>
+      <fieldset class="tq-types" id="types">
+        <legend>題型（可以多選）</legend>
+      </fieldset>
+      <div class="settings-grid">
+        <label>難度
+          <select id="s-level">
+            <option value="1" selected>基本（升降記號少、原位為主）</option>
+            <option value="2">進階（重升重降、轉位、小調、複音程、教會調式）</option>
+          </select>
+        </label>
+        <label>每回題數
+          <select id="s-count">
+            <option value="10" selected>10 題</option>
+            <option value="20">20 題</option>
+            <option value="0">不限（一直練）</option>
+          </select>
+        </label>
+        <label>點字顯示
+          <select id="s-brl">
+            <option value="unicode" selected>Unicode 點字（點字顯示器、報讀軟體）</option>
+            <option value="brf">ASCII（BRF）</option>
+            <option value="off">不顯示</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="s-text" checked> 題目寫出音名（關掉就只看點字樂譜作答）</label>
+        <label><input type="checkbox" id="s-auto" checked> 出題時自動播放譜例</label>
+        <label><input type="checkbox" id="s-staff" checked> 顯示五線譜（給明眼老師、家長看）</label>
+      </div>
+    </details>
+
+    <details class="pane help">
+      <summary>使用說明</summary>
+      <div class="help-body">
+        <ul>
+          <li>每題四個選項，按數字鍵 <kbd>1</kbd>～<kbd>4</kbd> 或點選項作答；答完會念出對錯與解說，按 <kbd>N</kbd> 到下一題，按 <kbd>P</kbd> 再聽一次譜例。</li>
+          <li>譜例用點字樂譜（BANA Music Braille Code 2015）寫出，只有音符，不寫拍號和小節號。調號題只有調號。</li>
+          <li>和弦題播放時先同時發聲，再由低到高一個一個彈，最後再同時發聲一次。</li>
+          <li>級數的寫法照臺灣課本：大三、增三和弦用大寫，小三、減三和弦用小寫；° 是減、+ 是增、ø 是半減；轉位數字 6、64（三和弦），7、65、43、42（七和弦）。小調依和聲小音階。</li>
+          <li>移調樂器：記譜音比實際音高，降 B 調高大二度、A 調高小三度、F 調高完全五度、降 E 調（中音薩克斯風）高大六度。</li>
+          <li>一回結束會列出答錯的題目和解說，可以複製下來給老師。</li>
+        </ul>
+      </div>
+    </details>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
+  <script src="js/brf.js?v=63"></script>
+  <script src="js/model.js?v=63"></script>
+  <script src="js/durations.js?v=63"></script>
+  <script src="js/abc-parse.js?v=63"></script>
+  <script src="js/braille-write.js?v=63"></script>
+  <script src="js/theory.js?v=63"></script>
+  <script src="js/theory-quiz.js?v=63"></script>
+  <script src="js/theory-page.js?v=63"></script>
+</body>
+</html>
