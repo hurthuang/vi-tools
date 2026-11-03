@@ -334,6 +334,7 @@
     $('paper-all-wrap').hidden = !ensembleScore();
     renderPaper(abcText);
     showMessages(warnings);
+    renderMarks(score);
     renderDual();
     $('cell-info').textContent = '';
     abcEd.setMarks([]);
@@ -778,6 +779,19 @@
   }
 
   // ---------- 訊息 ----------
+  /** 譜例方框的文字說明（exam-marks.js）。 */
+  function renderMarks(score) {
+    const list = MB.examMarks ? MB.examMarks.describe(score) : [];
+    $('marks-pane').hidden = !list.length;
+    const ul = $('marks');
+    ul.innerHTML = '';
+    for (const m of list) {
+      const li = document.createElement('li');
+      li.textContent = m.text;
+      ul.appendChild(li);
+    }
+  }
+
   function showMessages(ws) {
     const ul = $('messages');
     // 內容沒變就不重畫，避免每打一個字報讀軟體就重念一次訊息
@@ -1428,7 +1442,11 @@
       saveSettings();
       renderDual();
     });
-  $('btn-print-dual').addEventListener('click', () => {
+  $('btn-copy-marks').addEventListener('click', () => {
+    const text = [...$('marks').children].map((li) => li.textContent).join('\n');
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+  });
+    $('btn-print-dual').addEventListener('click', () => {
     if (!state.dual) return;
     const oldTitle = document.title;
     document.title = baseName() + '（雙視）';

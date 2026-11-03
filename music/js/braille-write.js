@@ -453,6 +453,126 @@
   }
   MB.brailleChords = { encode: encodeChord, decode: decodeChord };
 
+  // ---------- 數字低音與級數分析（Sec. 30、Table 26） ----------
+  const FIG_ACC = { '#': '%', b: '<', n: '*' };
+  /**
+   * 一個音的數字低音（水平式，Par. 30.2）：每一組前面寫數字記號，同一組由最低的寫起（30.2(a)(b)）；
+   * 數字用下位點（30.1.1）；升降寫在它修飾的數字前面，單獨的升降後面加點 1、3（30.2.1）。
+   * columns：[[{num, acc}]]，每一組由上到下（照墨字的讀法）。
+   */
+  function encodeFigures(columns) {
+    return columns
+      .map((col) => {
+        let s = '#';
+        const items = col.slice().reverse();
+        items.forEach((it) => {
+          if (it.acc) s += FIG_ACC[it.acc];
+          if (it.num != null) s += B.lowerNumber(it.num);
+          else if (it.acc) s += 'K';
+        });
+        return s;
+      })
+      .join('');
+  }
+  /**
+   * 級數分析（Par. 30.4）：大寫的羅馬數字只用一個大寫記號、小寫的每個都用小寫記號 ⠰（30.4(c)）；
+   * ° 減 ⠲、ø 半減 ⠲⠄、+ 增；數字前面一個數字記號、下位點、一組數字由最低的寫起（30.4(d)）；
+   * 開頭的調寫成大寫或小寫記號 + 字母 + 升降 + 冒號（30.4(f)）。
+   * 回傳 {brf, anchor}：anchor 是羅馬數字第一個字母在 brf 裡的位置（要對齊音符）。
+   */
+  function encodeAnalysis(text) {
+    let t = String(text).trim();
+    let key = '';
+    const km = /^([A-Ga-g])([#b♯♭]?)\s*:/.exec(t);
+    if (km) {
+      key = (km[1] === km[1].toUpperCase() ? ',' : ';') + km[1].toUpperCase() + ({ '#': '%', '♯': '%', b: '<', '♭': '<' }[km[2]] || '') + '3';
+      t = t.slice(km[0].length);
+    }
+    const one = (s) => {
+      const m = /^([#b♯♭]?)([IViv]+)([°o+øØ]?)(\d*)$/.exec(s);
+      if (!m) return null;
+      let out = { '#': '%', '♯': '%', b: '<', '♭': '<' }[m[1]] || '';
+      const upper = m[2] === m[2].toUpperCase();
+      const lead = out.length;
+      out += (upper ? ',' : ';') + m[2].toUpperCase();
+      out += { '°': '4', o: '4', '+': '+', ø: "4'", Ø: "4'" }[m[3]] || '';
+      if (m[4]) out += '#' + [...m[4]].reverse().map((d) => B.lowerNumber(+d)).join('');
+      return { brf: out, anchor: lead + 1 };
+    };
+    const parts = t.split('/');
+    const first = one(parts[0]);
+    if (!first) return null;
+    let brf = key + first.brf;
+    for (const p of parts.slice(1)) {
+      const o = one(p);
+      if (!o) return null;
+      brf += '/' + o.brf;
+    }
+    return { brf, anchor: key.length + first.anchor };
+  }
+  /**
+   * 點字 → 級數分析：一段（不含空格）可能連寫好幾個（⠠⠧⠠⠧⠼⠆）。回傳 [{text, at}]（at：羅馬數字第一個字母的位置），
+   * 不是級數分析回傳 null。
+   */
+  function decodeAnalysis(tok) {
+    const out = [];
+    const ACC = { '%': '#', '<': 'b' };
+    const ROMAN = /^([%<]?)([,;])([IV]+)(4'|4|\+)?(?:#([0-9]+))?/;
+    let i = 0;
+    while (i < tok.length) {
+      let text = '';
+      const km = /^([,;])([A-G])([%<]?)3/.exec(tok.slice(i));
+      if (km) {
+        text = (km[1] === ',' ? km[2] : km[2].toLowerCase()) + (ACC[km[3]] || '') + ':';
+        i += km[0].length;
+      }
+      const rm = ROMAN.exec(tok.slice(i));
+      if (!rm) return null;
+      const at = i + rm[1].length + 1;
+      const one = (m) =>
+        (ACC[m[1]] || '') + (m[2] === ',' ? m[3] : m[3].toLowerCase()) + ({ 4: '°', "4'": 'ø', '+': '+' }[m[4]] || '') + (m[5] ? [...m[5]].reverse().map((d) => B.parseLowerNumber(d)).join('') : '');
+      text += one(rm);
+      i += rm[0].length;
+      while (tok[i] === '/') {
+        const sm = ROMAN.exec(tok.slice(i + 1));
+        if (!sm) return null;
+        text += '/' + one(sm);
+        i += 1 + sm[0].length;
+      }
+      out.push({ text, at });
+    }
+    return out.length ? out : null;
+  }
+  MB.brailleAnalysis = { encodeFigures, encodeAnalysis, decodeAnalysis };
+
+  // 譜例方框（Par. 1.13.1）：方框名稱寫在兩個文字記號之間（比照排練記號，Par. 24.2，大寫照寫），
+  // 框住的範圍用譜表上方的方括號 ⠰⠂…⠐⠆；方框重疊時，第二層用 ⠰⠰⠂…⠐⠆⠆
+  function markLabel(label) {
+    const l = String(label);
+    if (/^\d+$/.test(l)) return '>#' + B.upperNumber(+l) + '>';
+    return '>' + [...l].map((c) => (/[A-Z]/.test(c) ? ',' + c : c.toUpperCase())).join('') + '>';
+  }
+  /** 依樂譜順序算出每個方框的層數（同時開著幾個），存在事件的 _markOpen／_markClose。 */
+  function prepareMarks(score) {
+    for (const part of score.parts) {
+      const open = [];
+      for (const m of part.measures)
+        for (const v of m.voices.slice(0, 1))
+          for (const ev of v) {
+            ev._markOpen = (ev.markStart || []).map((label) => {
+              open.push(label);
+              return { label, level: open.length };
+            });
+            ev._markClose = (ev.markEnd || []).map((label) => {
+              const i = open.lastIndexOf(label);
+              const level = i >= 0 ? i + 1 : 1;
+              if (i >= 0) open.splice(i, 1);
+              return { label, level };
+            });
+          }
+    }
+  }
+
   // ---------- 單一事件 ----------
   function renderEvent(ev, ctx) {
     const flags = ctx.slurs.get(ev.id) || { short: false, open: 0, close: 0 };
@@ -463,6 +583,9 @@
     else if (ev.pedalDown) head += '<C';
     if (ctx.hint) head += ctx.hint === 'large' ? '^<1' : ',<1';
     let needOct = ctx.force;
+    // 譜例方框的開始：名稱（文字記號）＋方括號；後面的音要寫音層記號
+    const markPre = (ev._markOpen || []).map((o) => markLabel(o.label) + (o.level > 1 ? ';;1' : ';1')).join('');
+    if (markPre) needOct = true;
     let words = '';
     // 文字表情（Par. 22.3）：在力度之前（較一般的指示離音符較遠，22.3.6）；含空格的長表情另成一段，由 renderMeasure 放在前面
     ctx.longWords = '';
@@ -515,6 +638,7 @@
     if (ev.kind === 'note') for (const o of ORN_ORDER) if (orn.includes(o)) r += ORNAMENT[o];
 
     let tail = '';
+    let rNote = r.length; // 音名（或休止符）那一方在 r 裡的位置：級數分析要對齊它（Par. 30.4(a)）
     if (ev.kind === 'rest') {
       r += ev.measureRest ? 'M' : REST[cls] + "'".repeat(ev.dots || 0);
       if (artic.includes('fermata')) r += '<L';
@@ -530,6 +654,7 @@
       const mainMarked = !ctx.noOctave && (needOct || needOctave(ctx.prev, written));
       if (mainMarked) r += octMark(written.octave);
       const marked = [mainMarked];
+      rNote = r.length;
       r += NOTE[written.step][cls] + "'".repeat(ev.dots || 0);
       // 指法緊接在音符（含附點）之後（Par. 15.1）
       r += noteFingers(written);
@@ -572,12 +697,17 @@
     let after = '';
     if (ev.hairpinEnd) after = ev.hairpinEnd === 'cresc' ? '>3' : '>4';
 
-    let s = head + words;
-    const body = r + tail;
+    // 數字低音（水平式）：寫在音符、連結線、圓滑線之後（Par. 30.2）
+    const fig = ev.figures && ev.figures.length ? encodeFigures(ev.figures) : '';
+    const markPost = (ev._markClose || []).map((c) => (c.level > 1 ? '"22' : '"2')).join('');
+    let s = markPre + head + words;
+    const body = r + tail + fig;
     // 文字記號後面接含點 1、2、3 的符號要加點 3；已經以句點（點 3）結尾就不用再加（Par. 22.3(d)）
     if (words && !words.endsWith("'") && B.hasDots123(body[0])) s += "'";
-    s += body + after;
+    ctx.noteAt = s.length + rNote;
+    s += body + after + markPost;
     ctx.wordEnd = !!after;
+    ctx.afterFigure = !!fig && !after && !markPost;
     return s;
   }
 
@@ -645,19 +775,32 @@
         const wasWordEnd = ctx.wordEnd;
         ctx.asEighth = plan.groups.has(ei);
         ctx.hint = plan.hints[ei];
+        const wasFigure = ctx.afterFigure;
+        ctx.afterFigure = false;
         let text = renderEvent(ev, ctx);
-        const sepLen = wasWordEnd && B.hasDots123(text[0]) ? 1 : 0;
-        if (sepLen) text = "'" + text;
+        // 數字低音後面緊接著三連音、斷奏等記號：前面加 ⠤ 分開（Par. 30.2.5）
+        let figSep = 0;
+        // 音符、休止符、音層記號、臨時記號開頭的不用分開
+        if (wasFigure && !/^[A-Z=(!)?:$\][\\&@^_".,%<*]/.test(text)) {
+          text = '-' + text;
+          figSep = 1;
+        }
+        const dot3 = wasWordEnd && B.hasDots123(text[0]) ? 1 : 0;
+        const sepLen = dot3 + figSep;
+        if (dot3) text = "'" + text;
         const lead = vi > 0 && ei === 0 ? '<>' : '';
         // 和弦名稱（Sec. 27）：對齊音符的第一個記號（音層、臨時記號、力度等也算），只標第一聲部
         const chords = vi === 0 && ev.chords && ev.chords.length ? ev.chords : null;
+        // 級數分析（Par. 30.4）：羅馬數字的第一個字母對齊音名那一方
+        const analysis = vi === 0 && ev.analysis && ev.analysis.length ? ev.analysis : null;
+        const noteAt = ctx.noteAt + sepLen - figSep;
         if (ctx.longWords) {
           // 含空格的長表情（Par. 22.3.8）：前後空方；在小節中間時，前面的音樂先寫音樂連字號。
           // 每個字一個片段，可以在字與字之間換行（續行不用音樂連字號，Ex 22.3.8-2）
           const head = lead ? lead + ' ' : ei > 0 ? '" ' : '';
           ctx.longWords.split(' ').forEach((w, k) => pieces.push({ text: (k ? ' ' : head) + w, id: ev.id, vi, ei, wbreak: k > 0 }));
-          pieces.push({ text: ' ' + text, id: ev.id, vi, ei, wbreak: true, chords, chordAt: 1 + sepLen });
-        } else pieces.push({ text: lead + text, id: ev.id, vi, ei, cont: !!ctx.asEighth, chords, chordAt: lead.length + sepLen }); // cont：分組中的後續音
+          pieces.push({ text: ' ' + text, id: ev.id, vi, ei, wbreak: true, chords, chordAt: 1 + sepLen, analysis, noteAt: 1 + noteAt + figSep });
+        } else pieces.push({ text: lead + text, id: ev.id, vi, ei, cont: !!ctx.asEighth, chords, chordAt: lead.length + sepLen, analysis, noteAt: lead.length + noteAt + figSep }); // cont：分組中的後續音
       });
     });
     const endsWithWord = ctx.wordEnd; // 小節最後寫的是文字記號（下一小節第一個音要寫音層記號）
@@ -695,6 +838,49 @@
    * 小節中間的空白第一格寫音樂連字號 ⠐，超過六格加引導點 ⠄⠄⠄（前後空一格）。
    * 只空一格時也用兩格（⠐ 和空格），避免和小節之間的空格混淆。
    */
+  /**
+   * 級數分析（Par. 30.4）的對齊：羅馬數字的第一個字母在音名那一方的正下方，大寫或小寫記號（和前面的調）往左；
+   * 分析比下面的音樂長時音樂行留空格，七格以上加引導點 ⠄⠄⠄（小節之間由特殊小節線 ⠇ 分開，Par. 1.10.2）。
+   * minStart：分析行最左可以寫到這一小節的第幾欄（負數表示可以寫到小節左邊，例如行首的小節號下面）。
+   */
+  function analysisAlign(pieces, minStart) {
+    const out = [];
+    let music = 0;
+    let line = '';
+    let first = true; // 這一小節還沒寫音
+    let shift = 0; // 分析行比音樂行往左多出的格數（行首可以寫到小節號下面）
+    const gapTo = (col) => {
+      const gap = col - music;
+      if (gap <= 0) return;
+      // 只用空格；七格以上加引導點（Par. 30.4）
+      const fill = gap >= 7 ? ' ' + "'".repeat(gap - 2) + ' ' : ' '.repeat(gap);
+      out.push({ text: fill, id: null });
+      music += fill.length;
+    };
+    for (const p of pieces) {
+      if (p.analysis) {
+        const enc = p.analysis.map(encodeAnalysis).filter(Boolean);
+        if (enc.length) {
+          const ct = enc.map((e) => e.brf).join(' ');
+          const anchor = enc[0].anchor;
+          let start = music + (p.noteAt || 0) - anchor;
+          // 和前一個分析至少相鄰（大寫、小寫記號本身就分開了）；小節開頭不能比 minStart 更左
+          const need = first ? minStart : line.length - shift;
+          if (start < need) {
+            gapTo(music + need - start);
+            start = need;
+          }
+          if (start < -shift) shift = -start;
+          line = line.padEnd(start + shift) + ct;
+        }
+      }
+      out.push(p);
+      music += p.text.length;
+      if (p.id) first = false;
+    }
+    return { pieces: out, chord: line, shift, width: Math.max(music, line.length - shift) };
+  }
+
   function chordAlign(pieces) {
     const out = [];
     let music = 0;
@@ -777,6 +963,9 @@
     if (score.keyboard && score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((e) => e.chords)))))
       warnings.push({ msg: '鋼琴譜的和弦名稱（BANA Par. 29.17）目前不轉換，已略過' });
     score.parts.forEach((p) => analysePedal(p).forEach((id) => env.pedalOmit.add(id)));
+    prepareMarks(score);
+    if ((score.keyboard || score.ensemble || score.choral) && score.parts.some((p) => p.measures.some((m) => m.voices.some((v) => v.some((e) => e.analysis)))))
+      warnings.push({ msg: '多聲部樂譜的級數分析（BANA Par. 30.4）目前不轉換，已略過；可以把低音聲部單獨轉換' });
     const first = score.parts[0];
     if (!first || !first.measures.length) return finish([], warnings);
 
@@ -1249,9 +1438,16 @@
     let prevKey = part.measures[0].key;
     const abcStarts = opts.lineMode === 'abc' && !vocal ? abcLineStarts(part) : null;
     // 和弦名稱（Sec. 27）：沒有歌詞的旋律，每一行音樂下面加一行和弦名稱，兩行一段、開頭寫小節編號
-    const lead = !vocal && part.measures.some((m) => (m.voices[0] || []).some((e) => e.chords && e.chords.length));
+    const hasEv = (f) => part.measures.some((m) => (m.voices[0] || []).some(f));
+    // 級數分析（Par. 30.4）：和和弦名稱一樣寫在音樂行下面；兩種都有時只寫級數分析
+    const analysisMode = !vocal && hasEv((e) => e.analysis && e.analysis.length);
+    const lead = analysisMode || (!vocal && hasEv((e) => e.chords && e.chords.length));
+    if (analysisMode && hasEv((e) => e.chords && e.chords.length)) env.warnings.push({ msg: '同一個聲部有級數分析又有和弦名稱：只寫級數分析，和弦名稱已略過' });
     if (vocal && part.measures.some((m) => m.voices.some((v) => v.some((e) => e.chords)))) env.warnings.push({ msg: '有歌詞的歌曲的和弦名稱（BANA Sec. 36）目前不轉換，已略過' });
-    const widthOf = (pieces) => (lead ? chordAlign(pieces).width : piecesText(pieces).length);
+    if (vocal && part.measures.some((m) => m.voices.some((v) => v.some((e) => e.analysis)))) env.warnings.push({ msg: '有歌詞的歌曲的級數分析目前不轉換，已略過' });
+    // 數字低音（水平式，Par. 30.2）：單聲部在樂曲開頭寫一次數字低音記號 ⠰⠜
+    let figSign = hasEv((e) => e.figures && e.figures.length);
+    const widthOf = (pieces) => (analysisMode ? analysisAlign(pieces, 0).width + 2 : lead ? chordAlign(pieces).width : piecesText(pieces).length) + (figSign ? 3 : 0);
 
     const flush = () => {
       if (line && line.content) {
@@ -1262,6 +1458,12 @@
           c.text = line.chord.replace(/\s+$/, '');
           c.content = true;
           lines.push(c);
+          // 級數分析：段落之間空一行（Par. 30.4(i)）
+          if (analysisMode) {
+            const b = new Line('', 'chord');
+            b.content = true;
+            lines.push(b);
+          }
         }
       }
       line = null;
@@ -1290,7 +1492,22 @@
     const used = () => Math.max(line.text.length, lead && line.chord ? line.chord.length : 0);
     const room = () => W - used() - (line.content ? 1 : 0);
     const put = (pieces, mi) => {
-      if (lead) {
+      if (figSign && pieces.length) {
+        // 數字低音記號後面接含點 1、2、3 的符號要加點 3（同手號，Par. 30.2）
+        const sep = B.hasDots123(pieces[0].text[0]) ? "'" : '';
+        pieces = [{ text: ';>' + sep, id: null }].concat(pieces);
+        figSign = false;
+      }
+      if (analysisMode) {
+        // 小節之間：音樂行用特殊小節線 ⠇（前後空格，Par. 1.10.2），分析行在同一欄空格
+        const first = !line.content;
+        if (!first) line.add(' L');
+        const col = first ? line.text.length : Math.max(line.text.length, (line.chord || '').length) + 1;
+        const al = analysisAlign(pieces, first ? -col : 0);
+        if (line.text.length < col) line.add(' '.repeat(col - line.text.length));
+        line.addPieces(al.pieces, mi);
+        if (/\S/.test(al.chord)) line.chord = (line.chord || '').padEnd(col - al.shift) + al.chord;
+      } else if (lead) {
         // 小節之間：兩行在同一欄都要有空格（Par. 27.2）
         const col = line.content ? used() + 1 : line.text.length;
         const al = chordAlign(pieces);
@@ -1441,7 +1658,9 @@
     const abcStarts = opts.lineMode === 'abc' ? abcLineStarts(rh) : null;
 
     const handText = (part, pieces, segno) => {
-      const hs = part.hand === 'O' ? '">' : HAND[part.hand];
+      // 有數字低音的左手：數字低音記號 ⠰⠜ 取代左手記號（Par. 30.2）
+      const figured = part.hand === 'L' && part.measures.some((m) => m.voices.some((v) => v.some((e) => e.figures && e.figures.length)));
+      const hs = part.hand === 'O' ? '">' : figured ? ';>' : HAND[part.hand];
       // Segno 與手號之間空一方（Par. 20.3）
       if (segno && part.hand !== 'O') return [{ text: hs + ' + ', id: null }].concat(pieces);
       const sep = B.hasDots123(pieces[0].text[0]) ? "'" : '';

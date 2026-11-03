@@ -67,6 +67,19 @@
     if (ev.pedalUp) s += '!ped-up!';
     // 和弦名稱：沒有位置記號的引號文字，abcjs 畫在五線譜上方
     for (const c of ev.chords || []) s += '"' + (chordText ? chordText(c) : c).replace(/"/g, '') + '"';
+    // 譜例方框、級數分析、數字低音（寫法見 abc-parse.js 的 specialAnnotation）
+    const ends = new Set(ev.markEnd || []);
+    for (const l of ev.markStart || []) {
+      if (ends.has(l)) {
+        s += '"^[' + l + ']"';
+        ends.delete(l);
+      } else s += '"^[' + l + '"';
+    }
+    for (const l of ends) s += '"^' + l + ']"';
+    for (const a of ev.analysis || []) s += '"_' + a + '"';
+    if (ev.figures && ev.figures.length) {
+      s += '"_' + ev.figures.map((col) => col.map((it) => (it.acc || '') + (it.num != null ? it.num : '')).join('/')).join(' ') + '"';
+    }
     // 文字表情：寫成五線譜上方的註解文字
     for (const w of ev.words || []) s += '"^' + w.replace(/"/g, "'") + '"';
     if (ev.dynamic) s += '!' + ev.dynamic + '!';

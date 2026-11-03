@@ -45,6 +45,39 @@
     if (bass) s += '/' + X.textOf(bass, 'bass-step') + altText(+(X.textOf(bass, 'bass-alter') || 0));
     return s;
   }
+  // ---------- 數字低音、級數分析（Sec. 30） ----------
+  const FIG_PRE = { sharp: '#', flat: 'b', natural: 'n', plus: '#', 'cross': '#', 'sharp-sharp': '#', 'flat-flat': 'b' };
+  /** <figured-bass> → [[{num, acc}]]（一組，由上到下，同 MusicXML 的順序）。 */
+  function figuredBass(el) {
+    const col = X.children(el, 'figure').map((f) => {
+      const n = X.textOf(f, 'figure-number');
+      const acc = FIG_PRE[(X.textOf(f, 'prefix') || X.textOf(f, 'suffix') || '').trim()] || null;
+      return { num: n && /^\d+$/.test(n.trim()) ? +n.trim() : null, acc };
+    });
+    return col.length ? [col] : null;
+  }
+  const ROMAN_N = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+  const ROMAN_WORDS = /^(?:[A-Ga-g][#b♯♭]?[:：])?[#b♯♭]?(?:VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)[°o+øØ]?\d{0,3}(?:\/[#b♯♭]?(?:VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i))?$/;
+  /** 功能和聲的 <harmony>（MusicXML 4 的 <numeral>，或舊的 <function>）→ 級數分析文字（例如 V65）；不是則回傳 null。 */
+  function numeralText(el) {
+    const fn = X.textOf(el, 'function');
+    if (fn && fn.trim()) return fn.trim();
+    const num = X.child(el, 'numeral');
+    if (!num) return null;
+    const rootEl = X.child(num, 'numeral-root');
+    if (!rootEl) return null;
+    const kind = (X.textOf(el, 'kind') || 'major').trim();
+    const lower = /^(minor|diminished|half-diminished)/.test(kind);
+    let r = rootEl.attrs.text ? rootEl.attrs.text.trim() : ROMAN_N[(+rootEl.text || 1) - 1] || 'I';
+    if (!rootEl.attrs.text) r = lower ? r.toLowerCase() : r;
+    const alt = +(X.textOf(num, 'numeral-alter') || 0);
+    const seventh = /seventh|dominant$|^dominant/.test(kind) && kind !== 'major' && kind !== 'minor';
+    const qual = kind === 'diminished' || kind === 'diminished-seventh' ? '°' : kind === 'half-diminished' ? 'ø' : kind === 'augmented' || kind === 'augmented-seventh' ? '+' : '';
+    const inv = +(X.textOf(el, 'inversion') || 0);
+    const fig = seventh ? ['7', '65', '43', '42'][inv] : ['', '6', '64'][inv] || '';
+    return (alt > 0 ? '#' : alt < 0 ? 'b' : '') + r + (r.match(/[°ø+]/) ? '' : qual) + fig;
+  }
+
   /** 和弦名稱 → <harmony>（根音、種類、低音）；後綴原樣放在 kind 的 text 屬性，其他軟體顯示時照原文。 */
   function harmonyXml(text, staff) {
     const st = staff ? ['staff', staff] : null;
@@ -238,6 +271,11 @@
       if (h) out.push(h);
     }
     if (ev.words && ev.words.length) out.push(['direction', { placement: 'above' }].concat(ev.words.map((w) => ['direction-type', ['words', w]]), [staff ? ['staff', staff] : null]));
+    // 級數分析：寫成譜表下方的文字（各打譜軟體都看得到）；數字低音：<figured-bass>（放在音的前面）
+    if (ev.analysis && ev.analysis.length) out.push(['direction', { placement: 'below' }].concat(ev.analysis.map((w) => ['direction-type', ['words', w]]), [staff ? ['staff', staff] : null]));
+    const FIG_OUT = { '#': 'sharp', b: 'flat', n: 'natural' };
+    for (const col of ev.figures || [])
+      out.push(['figured-bass'].concat(col.map((it) => ['figure', it.acc ? ['prefix', FIG_OUT[it.acc]] : null, it.num != null ? ['figure-number', it.num] : null])));
 
     const type = ev.measureRest ? null : TYPE[ev.value];
     const dots = ev.measureRest ? 0 : ev.dots || 0;
@@ -409,6 +447,7 @@
     const tupState = {};
     const pendingGrace = {}; // 'staff:voice' → 倚音
     const pendingDir = {}; // staff → {dynamic, hairpinStart, pedal…}
+    let pendingFig = null; // 數字低音，等下一個音
     const lastByStaff = {};
     const lastEvByStaff = {};
 
@@ -527,6 +566,8 @@
                   // 和速度數字在同一個 direction 的文字是速度文字（Allegro、中板）
                   const withMet = X.children(el, 'direction-type').some((d) => X.child(d, 'metronome'));
                   if (withMet && !score.tempoText) score.tempoText = t;
+                  // 譜表下方的羅馬數字（I6、V65、Ab: I、V7/V）是級數分析
+                  else if (el.attrs.placement === 'below' && ROMAN_WORDS.test(t.replace(/\s+/g, ''))) (pd.analysis = pd.analysis || []).push(t.replace(/\s+/g, '').replace('：', ':'));
                   else (pd.words = pd.words || []).push(t);
                 }
               }
@@ -546,11 +587,21 @@
             if (sn > nStaff) break;
             const t = harmonyText(el);
             if (!t) {
-              warnOnce('harmony', '沒有根音的和弦記號（功能和聲等）目前不轉換，已略過');
+              const rn = numeralText(el);
+              if (rn) {
+                const pd2 = (pendingDir[sn] = pendingDir[sn] || {});
+                (pd2.analysis = pd2.analysis || []).push(rn);
+              } else warnOnce('harmony', '沒有根音的和弦記號目前不轉換，已略過');
               break;
             }
             const pd = (pendingDir[sn] = pendingDir[sn] || {});
             (pd.chords = pd.chords || []).push(t);
+            break;
+          }
+          case 'figured-bass': {
+            // 數字低音：給下一個音（MusicXML 把它放在所屬的音前面）
+            const fb = figuredBass(el);
+            if (fb) pendingFig = (pendingFig || []).concat(fb);
             break;
           }
           case 'barline': {
@@ -805,6 +856,14 @@
             if (pd && pd.chords && pd.chords.length) {
               ev.chords = pd.chords;
               pd.chords = null;
+            }
+            if (pd && pd.analysis && pd.analysis.length) {
+              ev.analysis = pd.analysis;
+              pd.analysis = null;
+            }
+            if (pendingFig && note) {
+              ev.figures = pendingFig;
+              pendingFig = null;
             }
             if (pd && (pd.pedalDown || pd.pedalChange)) {
               if (pd.pedalChange) ev.pedalChange = true;

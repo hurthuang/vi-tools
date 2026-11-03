@@ -44,6 +44,44 @@
     if (m) return { type: /^(d\.?\s*c|da\s*capo)/i.test(m[1]) ? 'DC' : 'DS', to: m[2] ? m[2].toLowerCase() : null };
     return null;
   }
+  /**
+   * 樂理試題常用的註記：
+   * - 數字低音（BANA Sec. 30.2）：寫在下方、只有數字與升降的註記，"_6"、"_6/4"（上下疊，先寫上面的）、"_#"、"_7 #"（空格分開同一個音上的幾組數字）
+   * - 級數分析（Par. 30.4）：寫在下方的羅馬數字，"_V65"、"_vii°7"、"_V7/V"；前面可以加調："_Ab:I"、"_a:i"
+   * - 譜例方框（Par. 1.13.1）："^[A" 從這個音開始、"^A]" 到這個音結束、"^[A]" 只框這一個音（A 是方框的名稱）
+   * 回傳 {kind, ...} 或 null。
+   */
+  const FIG_ACC = { '#': '#', '♯': '#', '+': '#', b: 'b', '♭': 'b', n: 'n', '♮': 'n' };
+  const FIG_RE = /^[#♯+b♭n♮]?\d{0,2}[#♯+b♭n♮]?$/;
+  const ROMAN_RE = /^(?:([A-Ga-g][#b♯♭]?)\s*[:：]\s*)?([#b♯♭]?(?:VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)[°o+øØ]?\d{0,3}(?:\/[#b♯♭]?(?:VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i))?)$/;
+  function specialAnnotation(raw) {
+    const pos = raw[0];
+    const t = raw.slice(1).trim();
+    if (!t) return null;
+    if (pos === '^') {
+      let m;
+      if ((m = /^\[([A-Za-z0-9]{1,3})\]$/.exec(t))) return { kind: 'markOne', label: m[1] };
+      if ((m = /^\[([A-Za-z0-9]{1,3})$/.exec(t))) return { kind: 'markStart', label: m[1] };
+      if ((m = /^([A-Za-z0-9]{1,3})\]$/.exec(t))) return { kind: 'markEnd', label: m[1] };
+      return null;
+    }
+    if (pos !== '_') return null;
+    const cols = t.split(/\s+/);
+    if (cols.every((c) => c.split('/').every((x) => x && FIG_RE.test(x))) && /[\d#♯+b♭n♮]/.test(t) && !ROMAN_RE.test(t)) {
+      // 每一組由上到下：[{num, acc}]
+      const columns = cols.map((c) =>
+        c.split('/').map((x) => {
+          const mm = /^([#♯+b♭n♮]?)(\d{0,2})([#♯+b♭n♮]?)$/.exec(x);
+          return { num: mm[2] ? +mm[2] : null, acc: FIG_ACC[mm[1] || mm[3]] || null };
+        })
+      );
+      return { kind: 'figure', columns };
+    }
+    const r = ROMAN_RE.exec(t.replace(/\s+/g, ''));
+    if (r) return { kind: 'analysis', text: (r[1] ? r[1] + ':' : '') + r[2] };
+    return null;
+  }
+
   const DECO_HAIRPIN = {
     '<(': ['start', 'cresc'], 'crescendo(': ['start', 'cresc'],
     '<)': ['end', 'cresc'], 'crescendo)': ['end', 'cresc'],
@@ -150,7 +188,7 @@
       return voiceById[id];
     }
     function newDeco() {
-      return { dynamic: null, words: [], chords: [], artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
+      return { figures: [], analysis: [], markStart: [], markEnd: [], dynamic: null, words: [], chords: [], artic: [], hairpinStart: null, hairpinEnd: null, fingers: [], ornaments: [], pedal: [], nav: [], graces: null };
     }
     function ensureMeasure(v) {
       if (!v.cur) {
@@ -445,7 +483,19 @@
         // 和弦名稱 / 註解文字
         if ((m = /^"([^"]*)"/.exec(rest))) {
           const nav = navFromText(m[1]);
+          const special = specialAnnotation(m[1]);
           if (nav) v.deco.nav.push(nav);
+          // 數字低音、級數分析（Sec. 30）、譜例方框標記（Par. 1.13）
+          else if (special) {
+            if (special.kind === 'figure') v.deco.figures.push(...special.columns);
+            else if (special.kind === 'analysis') v.deco.analysis.push(special.text);
+            else if (special.kind === 'markStart') v.deco.markStart.push(special.label);
+            else if (special.kind === 'markEnd') v.deco.markEnd.push(special.label);
+            else {
+              v.deco.markStart.push(special.label);
+              v.deco.markEnd.push(special.label);
+            }
+          }
           // 註解文字（"^dolce"、"_rit." 等，開頭是 ^ _ < > @）：文字表情（Par. 22.3）
           else if (/^[\^_<>@]/.test(m[1])) {
             // 樂譜字型的符號（Unicode 私用區）略過；沒有字母的文字不轉換
@@ -650,6 +700,10 @@
       if (d.dynamic) ev.dynamic = d.dynamic;
       if (d.words.length) ev.words = d.words.slice();
       if (d.chords.length) ev.chords = d.chords.slice();
+      if (d.figures.length) ev.figures = d.figures.slice();
+      if (d.analysis.length) ev.analysis = d.analysis.slice();
+      if (d.markStart.length) ev.markStart = d.markStart.slice();
+      if (d.markEnd.length) ev.markEnd = d.markEnd.slice();
       if (d.artic.length) ev.articulations = d.artic.slice();
       if (d.hairpinStart) ev.hairpinStart = d.hairpinStart;
       if (d.hairpinEnd) ev.hairpinEnd = d.hairpinEnd;

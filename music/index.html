@@ -180,6 +180,15 @@
       <ul id="messages" aria-live="polite"></ul>
     </section>
 
+    <section class="pane" id="marks-pane" aria-labelledby="h-marks" hidden>
+      <div class="pane-head">
+        <h2 id="h-marks">譜例方框</h2>
+        <div class="pane-tools"><button type="button" id="btn-copy-marks">複製說明</button></div>
+      </div>
+      <p class="hint">樂理試題的「方框 A」「括號 B」：點字用方括號 ⠰⠂…⠐⠆ 標出範圍、前面寫方框名稱 ⠜⠠⠁⠜（BANA Par. 1.13.1、24.2）。下面的文字說明可以給報讀員念，或放進試卷的轉譯者說明。</p>
+      <ul id="marks"></ul>
+    </section>
+
     <details class="pane settings">
       <summary>轉換設定</summary>
       <div class="settings-grid">
@@ -266,6 +275,7 @@
         <p>音符、休止符、附點、音層記號、臨時記號、調號、拍號、速度、小節線、反覆記號與房號、被反覆記號拆開的小節、連結線、圓滑線、三連音與其他連音、和弦（音程）、鋼琴雙手、同小節多聲部（in-accord / ABC 的 &amp;）、力度（p、f 等）、漸強漸弱、斷奏、重音、持音、延長記號、琶音、音符分組、大小時值記號。</p>
         <p>指法（含換指）、倚音（長、短）、顫音、上下漣音、迴音、踏板（踩下、放開、換踏板）、Segno、Coda、Fine、D.C.、D.S.。播放與 MIDI 會依反覆、房號、D.C.、D.S.、Fine、Coda 的實際演奏順序進行。</p>
         <p>文字表情與速度文字（dolce、rit.、a tempo、Allegro）、換氣記號、連續整小節休止、整小節與部分小節的重複記號、歌詞（中文用國語點字，一行歌詞一行音樂的格式）、和弦名稱（沒有歌詞的旋律：音樂下面一行寫和弦名稱）。</p>
+        <p>樂理試題：數字低音（水平式，BANA Par. 30.2，單聲部與鋼琴左手）、級數分析（Par. 30.4，單聲部：音樂下面一行，羅馬數字對齊音符，小節之間用特殊小節線 ⠇）、譜例方框（Par. 1.13.1，另外列出每個方框位置的文字說明）。</p>
         <h3>ABC 寫法提示</h3>
         <ul>
           <li>指法：<code>!3!C</code>；換指：<code>!4!!3!C</code>；和弦：<code>[!1!C!3!E!5!G]</code>。</li>
@@ -275,6 +285,9 @@
           <li>文字表情：<code>"^dolce"C</code>；速度文字：<code>Q:"Allegro" 1/4=120</code>；換氣記號：<code>!breath!C</code>（C 之後換氣）。</li>
           <li>歌詞：在音樂行下面寫 <code>w:一 閃 一 閃</code>，一個音一個字。</li>
           <li>和弦名稱：<code>"C"C D "G7"E F</code>（引號裡不加 ^ 等位置記號）；降記號用 b，例如 <code>"Bb"</code>。</li>
+          <li>數字低音：寫在音符下方，<code>"_6"C</code>、<code>"_6/4"G</code>（上下疊的數字由上往下寫）、<code>"_#"E</code>、<code>"_7 #"G</code>（同一個音上的兩組數字用空格分開）。</li>
+          <li>級數分析：寫在音符下方的羅馬數字，<code>"_I"C</code>、<code>"_V65"B,</code>、<code>"_vii°7"</code>、<code>"_V7/V"</code>；第一個前面可以加調，<code>"_Ab:I"</code>、<code>"_a:i"</code>。</li>
+          <li>譜例方框：<code>"^[A"c d "^A]"e</code>（從 c 框到 e）、<code>"^[B]"f</code>（只框 f）；方框名稱是字母或數字。</li>
           <li>反覆指示：<code>!segno!</code>、<code>!coda!</code>、<code>!fine!</code>、<code>!D.C.!</code>、<code>!D.C.alfine!</code>、<code>!D.S.alcoda!</code> 等，寫在該小節最後一個音之前；也可以用文字 <code>"^Fine"</code>、<code>"^D.C. al Fine"</code>、<code>"^To Coda"</code>、<code>"^Coda"</code>。</li>
         </ul>
         <h3>尚未支援</h3>
@@ -300,6 +313,7 @@
   <script src="js/xml.js?v=63"></script>
   <script src="js/musicxml.js?v=63"></script>
   <script src="js/describe.js?v=63"></script>
+  <script src="js/exam-marks.js?v=63"></script>
   <script src="js/zh-braille.js?v=63"></script>
   <script src="js/samples.js?v=63"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->

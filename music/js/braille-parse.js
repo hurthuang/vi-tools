@@ -75,7 +75,8 @@
    * 將一個小節的點字（BRF）拆成原始事件。
    * pos: 每個字元在原始輸入中的位置（用於同步高亮）。
    */
-  function tokenizeMeasure(s, pos, warn) {
+  function tokenizeMeasure(s, pos, warn, state) {
+    const st = state || {};
     const res = { voices: [[]], startRepeat: false, endRepeat: false, volta: null, barline: 'single', repeatPrev: false };
     let voice = res.voices[0];
     let pre = newPre();
@@ -90,7 +91,7 @@
     const n = s.length;
 
     function newPre() {
-      return { acc: null, oct: null, tuplet: null, hint: null, dynamic: null, words: null, artic: [], open: 0, hairpinStart: null, start: -1, grace: null, ornaments: [], pedalDown: false, pedalChange: false };
+      return { markStart: null, acc: null, oct: null, tuplet: null, hint: null, dynamic: null, words: null, artic: [], open: 0, hairpinStart: null, start: -1, grace: null, ornaments: [], pedalDown: false, pedalChange: false };
     }
     function mark(k) {
       if (pre.start < 0) pre.start = k;
@@ -107,6 +108,40 @@
       const c2 = s[i + 2];
       const at = i;
       if (c === LONG_SP) { i++; continue; } // 長表情與音樂之間的空方
+      // 數字低音記號 ⠰⠜（Par. 30.2）：之後音符後面的 ⠼ 加下位點是數字低音
+      if (c === ';' && c1 === '>' && !last) { st.figured = true; i += c2 === "'" ? 3 : 2; continue; }
+      // 譜例方框（Par. 1.13.1）：>名稱> 加 ⠰⠂（或第二層 ⠰⠰⠂）開始，⠐⠆（⠐⠆⠆）結束
+      {
+        const mk = /^>(,[A-Z]|#[A-J]+|[A-Z0-9]{1,3}|,[A-Z][A-Z0-9]{0,2})>(;;1|;1)/.exec(s.slice(i));
+        if (mk) {
+          const raw = mk[1];
+          const label = raw[0] === '#' ? String(B.parseUpperNumber(raw.slice(1))) : raw.replace(/,([A-Z])/g, '$1').replace(/[A-Z]/g, (x, k) => (raw[0] === ',' ? x : x.toLowerCase()));
+          mark(at);
+          (pre.markStart = pre.markStart || []).push(label);
+          i += mk[0].length;
+          lastKind = null;
+          continue;
+        }
+      }
+      if (c === '"' && c1 === '2' && last) {
+        const lv = c2 === '2' ? 2 : 1;
+        (last.markEnd = last.markEnd || []).push(lv);
+        i += lv + 1;
+        continue;
+      }
+      if (st.figured && c === '#' && last && last.kind === 'note' && /^#(?:[%<*]?[0-9]|[%<*]K?)/.test(s.slice(i))) {
+        const fm = /^#((?:[%<*]?[0-9]|[%<*]K?)+)/.exec(s.slice(i));
+        const items = [];
+        const re = /([%<*]?)([0-9]?)(K?)/g;
+        let x;
+        while ((x = re.exec(fm[1])) && x[0]) items.push({ num: x[2] ? B.parseLowerNumber(x[2]) : null, acc: { '%': '#', '<': 'b', '*': 'n' }[x[1]] || null });
+        // 點字由最低的寫起，模型照墨字由上到下
+        (last.figures = last.figures || []).push(items.reverse());
+        i += fm[0].length;
+        lastKind = 'figure';
+        continue;
+      }
+      if (c === '-' && lastKind === 'figure') { i++; continue; } // 數字低音後面的分隔記號（Par. 30.2.5）
       // 文字表情（Par. 22.3）
       const addWords = (brf) => {
         const d = MB.brailleWords.decode(brf);
@@ -443,6 +478,7 @@
           hint: pre.hint,
           dynamic: pre.dynamic,
           words: pre.words,
+          markStart: pre.markStart,
           artic: pre.artic.length ? pre.artic : null,
           open: pre.open,
           hairpinStart: pre.hairpinStart,
@@ -542,13 +578,32 @@
         off += t.length + 1;
       });
     }
-    const HAND_LINE = /^(\s*)([A-J]*)('?)(\s*)(\.>|_>)/;
+    const HAND_LINE = /^(\s*)([A-J]*)('?)(\s*)(\.>|_>|;>)/;
     const keyboard = lines.some((l) => {
       const m = HAND_LINE.exec(l.text);
-      return m && (m[2] || m[1].length || l.text.trimStart().startsWith('.>') || l.text.trimStart().startsWith('_>'));
+      return m && (m[2] || m[1].length || l.text.trimStart().startsWith('.>') || l.text.trimStart().startsWith('_>') || l.text.trimStart().startsWith(';>'));
     });
     // 和弦名稱行（Sec. 27）：音樂行下面、縮排、每一段都是和弦名稱（⠠ 加 A–G 開頭，或 ⠠⠠⠝⠉）。
     // 先從樂譜中拿出來，音樂讀完後再依欄位對到上一行的音
+    // 級數分析行（Par. 30.4）：音樂行下面、每一段都是級數分析。音樂行裡小節之間是特殊小節線 ⠇，
+    // 其他空格是對齊分析留的空（含引導點），讀成同一小節
+    const analysisLines = [];
+    if (!keyboard && MB.brailleAnalysis)
+      for (let i = lines.length - 1; i > 0; i--) {
+        const t = lines[i].text;
+        const above = lines[i - 1];
+        if (!t.trim() || !above.text.trim()) continue;
+        if (!t.trim().split(/\s+/).every((x) => MB.brailleAnalysis.decodeAnalysis(x))) continue;
+        analysisLines.push({ text: t, above });
+        lines.splice(i, 1);
+        const head = /^(\s*#[A-J]+'?\s+|\s+)/.exec(above.text);
+        const start = head ? head[0].length : 0;
+        let rest = above.text.slice(start);
+        rest = rest.replace(/ L(?= |$)/g, ' ');
+        rest = rest.replace(/ '+ /g, (m) => ' ' + LONG_SP.repeat(m.length - 2) + ' ');
+        rest = rest.replace(/[ ]+/g, (run) => (run.includes('') ? ' '.repeat(run.length) : run.includes(' ') ? LONG_SP.repeat(run.length) : run));
+        above.text = above.text.slice(0, start) + rest;
+      }
     const chordLines = [];
     if (!keyboard && MB.brailleChords)
       for (let i = lines.length - 1; i > 0; i--) {
@@ -777,6 +832,7 @@
     }
 
     // ---------- 鍵盤格式 ----------
+    let figuredLH = false; // 左手用數字低音記號 ⠰⠜ 取代左手記號（Par. 30.2）
     function collectKeyboard() {
       const parallels = [];
       let cur = null;
@@ -786,6 +842,7 @@
         const hm = HAND_LINE.exec(l.text);
         if (hm) {
           const hand = hm[5] === '.>' ? 'R' : 'L';
+          if (hm[5] === ';>') figuredLH = true;
           if (hm[2] || !cur || (cur[hand] && cur[hand].text)) {
             cur = { R: new Buffer(), L: new Buffer(), number: hm[2] ? B.parseUpperNumber(hm[2]) : null, sig: null };
             if (pendingSig) { cur.sig = pendingSig; pendingSig = null; }
@@ -904,7 +961,7 @@
         const nL = countM(hands.L);
         if (nR !== nL) warn('右手與左手的小節數不同（' + nR + ' / ' + nL + '）', null);
         partsTokens.push({ hand: 'R', toks: hands.R, sigAt });
-        partsTokens.push({ hand: 'L', toks: hands.L, sigAt });
+        partsTokens.push({ hand: 'L', toks: hands.L, sigAt, figured: figuredLH });
       }
     } else {
       partsTokens.push({ hand: null, toks: collectSingle(), sigAt: {} });
@@ -965,7 +1022,7 @@
           if (pt.sigAt[idx].key) pendKey = pt.sigAt[idx].key;
           if (pt.sigAt[idx].meter) pendMeter = pt.sigAt[idx].meter;
         }
-        const r = tokenizeMeasure(t.text, t.pos, warn);
+        const r = tokenizeMeasure(t.text, t.pos, warn, (pt._state = pt._state || { figured: !!pt.figured }));
         const m = { voices: r.voices, startRepeat: r.startRepeat, endRepeat: r.endRepeat, volta: r.volta, barline: r.barline, _repeatPrev: r.repeatPrev, _repeatTie: r.repeatTie, _repeatSrc: r.repeatSrc };
         if (t.cont && measures.length) m.splitCont = true;
         // 歌曲：平行段的第一小節（寫回點字時照原本分段）
@@ -1054,6 +1111,27 @@
         }
       }
     }
+    // 級數分析：羅馬數字第一個字母所在的欄 → 上一行涵蓋這一欄的音
+    if (analysisLines.length && score.parts[0]) {
+      const evs = [];
+      for (const m of score.parts[0].measures) for (const ev of m.voices[0] || []) if (ev.src && ev.src.brl) evs.push(ev);
+      for (const al of analysisLines) {
+        const lo = al.above.off;
+        const hi = lo + al.above.text.length;
+        const inLine = evs.filter((ev) => ev.src.brl[0] >= lo && ev.src.brl[0] < hi);
+        const re = /\S+/g;
+        let m;
+        while ((m = re.exec(al.text))) {
+          for (const it of MB.brailleAnalysis.decodeAnalysis(m[0]) || []) {
+            const col = lo + m.index + it.at;
+            let ev = inLine.find((e) => e.src.brl[0] <= col && col < e.src.brl[1]);
+            if (!ev) for (const e of inLine) if (e.src.brl[0] <= col) ev = e;
+            if (ev) ev.analysis = (ev.analysis || []).concat(it.text);
+            else warn('級數分析「' + it.text + '」對不到上一行的音，已略過', null);
+          }
+        }
+      }
+    }
     M.resolveAlters(score);
     return { score, warnings };
   }
@@ -1138,6 +1216,7 @@
     let prev = null;
     let run = null;
     const doubled = {}; // 各聲部正在「重複」中的記號（Par. 22.1.1）
+    const markOpen = []; // 譜例方框：開著的名稱（照開始的順序）
     const N = part.measures.length;
     // 連音範圍（連續三連音可跨小節）：先整首掃過一次
     part.measures.forEach((m) => {
@@ -1402,6 +1481,12 @@
           if (r.pedalDown) ev.pedalDown = true;
           if (r.pedalChange) ev.pedalChange = true;
           if (r.pedalUp) ev.pedalUp = true;
+          if (r.figures) ev.figures = r.figures;
+          if (r.markStart) {
+            ev.markStart = r.markStart.slice();
+            markOpen.push(...r.markStart);
+          }
+          if (r.markEnd) ev.markEnd = r.markEnd.map((lv) => markOpen.splice(lv > 1 ? markOpen.length - 1 : 0, 1)[0] || '?');
           // 倚音：依序推算八度，時值取常見值（全/16 分類取 16 分）
           if (r.graces) {
             ev.graces = r.graces.map((gr) => {
