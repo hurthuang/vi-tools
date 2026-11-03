@@ -326,6 +326,57 @@ V:LH
 C,4 | F,2 C,2 | F,2 C,2 | G,2 C,2 |]
 `,
     },
+    {
+      name: '帆（德布西，鋼琴；樂理試題的方框標記）',
+      abc: `X:1
+T:帆（Voiles）第 10–17 小節
+C:德布西（Debussy）
+% 115 學年度音樂班術科「樂理及基礎和聲」題組三的譜例；方框 A–E、括號 B、C 照試題標出
+% 左手的低音降 B 持續音用 & 寫成第二聲部；沒有打踏板、漸強漸弱與部分圓滑線
+%%setbarnb 10
+M:2/4
+L:1/16
+K:C
+%%score {1 2}
+V:1
+V:2 clef=bass
+% 10
+[V:1] z4 ("^très doux"!tenuto![!1!e!5!^g]2-[eg]/ [!2!d!4!^f]/ [!1!c!3!e]/ [!2!_B!5!d]/ & [C,C]4 x4 |
+[V:2] (.!tenuto!_B,,,2 .!tenuto!B,,,2 z2 "^[A]".!tenuto!B,,,2 & z4 !tenuto![!3!D,D]4- |
+% 11
+[V:1] [!1!_A!3!c]4) z4 |
+[V:2] .!tenuto!_B,,,4) z4 & [D,D]2 [!5!E,E]2 [!4!D,D]2 [!5!C,C]2 |
+% 12：括號 B（第 1 拍）、括號 C 從第 2 拍開始
+[V:1] "^[B"!tenuto![!1!e!5!^g]2-[eg]/ [d^f]/ [ce]/ "^B]"[_Bd]/ "^[C"[_Ac]4- |
+[V:2] [!4!_B,,_B,] [!5!_A,,_A,] [!4!B,,B,]4 [!5!A,,A,]2 |
+% 13：括號 C 到 D–升 F 為止（時值是括號 B 的兩倍：增值）
+[V:1] ([Ac] .[!3!^F!5!_B] .[E_A] "^C]".[DF]) !tenuto![CE]4- |
+[V:2] z2 (.!tenuto!_B,,,4 .!tenuto!B,,,2) & !tenuto![!5!_A,,_A,]8 |
+% 14
+[V:1] [CE]4 z4 |
+[V:2] z2 (.!tenuto!_B,,,4 .!tenuto!B,,,2 & !tenuto![_A,,_A,]8 |
+% 15：方框 E（左手第三個和弦）
+[V:1] !pp!!tenuto![!1!e!5!^g]2-[eg]/ [d^f]/ [ce]/ [_Bd]/ [_Ac]4- |
+[V:2] .!tenuto!_B,,,4) x4 & z2 (.[_A,CE_A]2 .[_B,D^F_B]2 "^[E]".[CEAc]2) |
+% 16：方框 D（第 2 拍：升 F–降 B）
+[V:1] [Ac]7/2 [^gc']/ "^[D]"[^f_b]4 |
+[V:2] (.!tenuto!_B,,,2 .!tenuto!B,,,2 z2 .!tenuto!B,,,2 |
+% 17
+[V:1] !pp!!tenuto![!1!e!5!^g]2-[eg]/ [!2!d!4!^f]/ [!1!c!3!e]/ [!2!_B!4!d]/ [!1!_A!3!c]4 |]
+[V:2] .!tenuto!_B,,,2) x6 & z2 (.[_A,CE_A]2 .[_B,D^F_B]2 .[CEAc]2) |]
+`,
+    },
+    {
+      name: '數字低音與級數分析（自編練習）',
+      abc: `X:1
+T:數字低音與級數
+M:4/4
+L:1/4
+K:C clef=bass
+"_C:I"C, "_IV6""_6"A,, "_I64""_6/4"G,, "_V7""_7"G,, | "_I"C,2 "_ii65""_6/5"F,2 |
+"_V"G,, "_vi"A,, "_V7/V""_7/#"D, "_V"G,, | "_I"C,4 |]
+`,
+    },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MB;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

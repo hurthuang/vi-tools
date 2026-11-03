@@ -355,6 +355,12 @@
         }
         continue;
       }
+      // %%setbarnb N：第一小節的編號（摘錄的譜例從第 N 小節開始）
+      const sb = /^\s*%%setbarnb\s+(\d+)/.exec(line);
+      if (sb) {
+        score.firstNumber = +sb[1];
+        continue;
+      }
       if (/^\s*%/.test(line)) continue; // 註解與 %% 指令
       if (inHeader) {
         const f = /^([A-Za-z]):(.*)$/.exec(line);

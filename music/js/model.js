@@ -237,7 +237,8 @@
     const v0 = first.voices[0] || [];
     const t = v0.length ? voiceTicks(v0) : full;
     const pickup = !v0.some((e) => e.measureRest) && t > 0 && t < full;
-    const out = [pickup ? 0 : 1];
+    // 摘錄的譜例可以指定第一小節的編號（ABC 的 %%setbarnb）
+    const out = [score.firstNumber != null ? score.firstNumber : pickup ? 0 : 1];
     for (let i = 1; i < part.measures.length; i++) out.push(part.measures[i].splitCont ? out[i - 1] : out[i - 1] + 1);
     return out;
   }

@@ -128,6 +128,7 @@
     if (score.composer) add('C:' + score.composer + '\n');
     add('M:' + meterStr(m0.meter || { num: 4, den: 4 }) + '\n');
     add('L:1/8\n');
+    if (score.firstNumber != null && score.firstNumber !== 1) add('%%setbarnb ' + score.firstNumber + '\n');
     if (score.tempo || score.tempoText) add('Q:' + [score.tempoText ? '"' + score.tempoText + '"' : '', score.tempo ? tempoStr(score.tempo) : ''].filter(Boolean).join(' ') + '\n');
     // 全部聲部（score.ensemble）：每個聲部一行譜表，同一個 group（鋼琴雙手）用大括號
     const vid = (k) => 'P' + (k + 1);

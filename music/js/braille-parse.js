@@ -1111,6 +1111,13 @@
         }
       }
     }
+    // 第一段的小節號不是 1（摘錄的譜例）：記下來，寫回 ABC 時用 %%setbarnb
+    {
+      const fl = lines.find((l) => /^\s*#[A-J]+'?\s/.test(l.text) || HAND_LINE.test(l.text));
+      const fm = fl && /^\s*#?([A-J]+)/.exec(fl.text);
+      const n = fm ? B.parseUpperNumber(fm[1]) : null;
+      if (n && n > 1) score.firstNumber = n;
+    }
     // 級數分析：羅馬數字第一個字母所在的欄 → 上一行涵蓋這一欄的音
     if (analysisLines.length && score.parts[0]) {
       const evs = [];

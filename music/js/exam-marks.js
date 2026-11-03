@@ -39,12 +39,12 @@
       const partName = score.parts.length > 1 ? (part.hand === 'R' ? '右手' : part.hand === 'L' ? '左手' : part.name || '第 ' + (pi + 1) + ' 聲部') + '的' : '';
       part.measures.forEach((m, mi) => {
         const meter = M.meterAt(part, mi);
-        const voice = m.voices[0] || [];
+        m.voices.forEach((voice, vi) => {
         let t = 0;
         voice.forEach((ev) => {
           const where = { mi, at: t, num: numbers[mi] };
-          for (const l of ev.markStart || []) open[l] = { start: where, events: [] };
-          for (const l in open) open[l].events.push(ev);
+          for (const l of ev.markStart || []) open[l] = { start: where, events: [], vi };
+          for (const l in open) if (open[l].vi === vi) open[l].events.push(ev);
           for (const l of ev.markEnd || []) {
             const o = open[l];
             if (!o) continue;
@@ -54,11 +54,22 @@
             // 結束：最後一個音延續到的那一拍
             const lastTick = t + M.eventTicks(ev) - 1;
             const endText = (mi === a.mi ? '' : '第 ' + numbers[mi] + ' 小節') + '第 ' + (Math.floor(lastTick / (M.TPW / meter.den)) + 1) + ' 拍';
-            const span = o.events.length === 1 ? startText : startText + '到' + endText;
+            // 同一拍內（例如一拍裡的三十二分音符）只寫一次拍子
+            const sameBeat = mi === a.mi && Math.floor(a.at / (M.TPW / meter.den)) === Math.floor(lastTick / (M.TPW / meter.den));
+            const span = o.events.length === 1 || sameBeat ? startText + (o.events.length > 1 && sameBeat ? '（同一拍內）' : '') : startText + '到' + endText;
+            // 同一小節有兩個聲部（in-accord）時，標出是哪一個
+            const avg = (v) => {
+              const ns = v.filter((e) => e.kind === 'note').flatMap((e) => e.notes.map(M.diatonic));
+              return ns.length ? ns.reduce((x, y) => x + y, 0) / ns.length : null;
+            };
+            const mine = avg(m.voices[vi]);
+            const others = m.voices.filter((v, k) => k !== vi).map(avg).filter((x) => x != null);
+            const voiceName = m.voices.length > 1 && mine != null && others.length ? (others.every((x) => mine > x) ? '上方聲部' : others.every((x) => mine < x) ? '下方聲部' : '') : '';
             const names = o.events.map(eventName);
-            out.push({ label: l, order: a.mi * 1e6 + a.at, text: '方框 ' + l + '：' + partName + span + '，' + (o.events.length === 1 ? '' : o.events.length + ' 個音：') + names.join('、') });
+            out.push({ label: l, order: a.mi * 1e6 + a.at, text: '方框 ' + l + '：' + partName + voiceName + span + '，' + (o.events.length === 1 ? '' : o.events.length + ' 個音：') + names.join('、') });
           }
           t += M.eventTicks(ev);
+        });
         });
       });
       for (const l in open) out.push({ label: l, order: 1e12, text: '方框 ' + l + '：只有開始（"^[' + l + '"），找不到結束（"^' + l + ']"）' });

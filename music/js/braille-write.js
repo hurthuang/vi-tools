@@ -557,7 +557,7 @@
     for (const part of score.parts) {
       const open = [];
       for (const m of part.measures)
-        for (const v of m.voices.slice(0, 1))
+        for (const v of m.voices)
           for (const ev of v) {
             ev._markOpen = (ev.markStart || []).map((label) => {
               open.push(label);
@@ -1721,7 +1721,7 @@
         // run-over（Par. 28.1.2）
         env.slurs = sl;
         const hs = pieces[0];
-        const sp = splitMeasure(part, mi, env, null, room0 - hs.text.length, W - R.text.length - 2);
+        const sp = splitMeasure(part, mi, env, null, room0 - hs.text.length, W - indent.length - 2);
         sp.rows.forEach((row, k) => {
           if (k === 0) {
             line.add(hs.text);
