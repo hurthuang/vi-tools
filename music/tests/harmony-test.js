@@ -96,5 +96,29 @@ const abc = H.toAbc(p.chords, C);
 const r = MB.parseAbc(abc, {});
 const b = MB.scoreBraille(r, { width: 40, title: false });
 check('合唱點字', /⠜⠎/.test(MB.brf.toUnicode(b.brf)) || />S/.test(b.brf), b.brf);
+
+// 114 南區和聲題（二）：d 小調數字低音，「7/#」是 7 疊 #（不是升七度），結尾皮卡第三度寫 I
+const dm = { tonic: T.parseNote('D'), mode: 'minor' };
+const fig = (f) => H.parseFigure(f).intervals.map((x) => x.num + (x.acc || '')).join(',');
+check('7/# 是七度＋升三度', fig('7/#') === '7,5,3#' && fig('7 #') === '7,5,3#', fig('7/#'));
+check('7# 是升七度', fig('7#') === '7#,5,3', fig('7#'));
+check('6#/4 是升六度＋四度', fig('6#/4') === '6#,4', fig('6#/4'));
+iss = run(`F5 A4 D4 D3 i
+G5 A4 E4 C#3 [6/5] V65
+F5 A4 D4 D3 i
+E5 A4 C#4 E3 [6#/4] V64
+D5 A4 D4 F3 [6] i6
+E5 G4 Bb3 G3 [6] ii°6
+C#5 E4 A3 A3 V
+D5 D4 A3 F3 i6
+C#5 G4 A3 E3 V43
+D5 F4 A3 D3 i
+D5 E4 Bb3 G3 [6/5] iiø65
+D5 F4 A3 A3 [6/4] i64
+E5 G4 C#4 A2 [7/#] V7
+D5 F#4 D4 D3 [#] I`, dm);
+check('114 和聲題（二）沒有錯誤', rules(iss, 'error').length === 0, iss.map((x) => x.msg).join('\n  '));
+iss = run('D5 F#4 D4 D3 V/iv', dm);
+check('d 小調的 D 大三和弦也可以寫 V/iv', rules(iss, 'error').length === 0, iss.map((x) => x.msg).join('\n  '));
 console.log(`通過 ${pass}，失敗 ${fail}`);
 process.exit(fail ? 1 : 0);

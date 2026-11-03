@@ -65,14 +65,17 @@
     const s = String(fig || '')
       .replace(/♯|\+/g, '#')
       .replace(/♭/g, 'b')
-      .replace(/♮/g, 'n')
-      .replace(/[\s/]/g, '');
+      .replace(/♮/g, 'n');
     const items = [];
     const re = /([#bn]?)(\d)([#bn]?)|([#bn])/g;
-    let m;
-    while ((m = re.exec(s))) {
-      if (m[4]) items.push({ num: 3, acc: m[4] });
-      else items.push({ num: +m[2], acc: m[1] || m[3] || null });
+    // 「7/#」「7 #」是 7 上下疊 #（三度升），「7#」才是升七度：先依空白、斜線分組，再各自讀
+    for (const part of s.split(/[\s/]+/).filter(Boolean)) {
+      let m;
+      re.lastIndex = 0;
+      while ((m = re.exec(part))) {
+        if (m[4]) items.push({ num: 3, acc: m[4] });
+        else items.push({ num: +m[2], acc: m[1] || m[3] || null });
+      }
     }
     const nums = items.map((x) => x.num).sort((a, b) => b - a).join('');
     const full = {
@@ -186,7 +189,8 @@
         // 自己標的級數
         if (c.label && rn) {
           const mine = normalizeLabel(c.label);
-          const right = [rn.symbol, rn.secondary].filter(Boolean);
+          // 副屬和弦也可以照根音寫級數（小調結尾的大三和弦＝皮卡第三度 I，不一定是 V/iv）
+          const right = [rn.symbol, rn.secondary, rn.secondary ? rn.prefix + rn.roman + rn.qual + rn.figure : null].filter(Boolean);
           // 屬七和弦第三轉位也常寫成 V2
           if (!right.some((r) => r === mine || r.replace(/42(?=$|\/)/, '2') === mine)) add('error', i, null, [], 'label', where + '：級數寫 ' + c.label + '，應該是 ' + rn.symbol + '（' + T.speakRoman(rn.symbol) + '）');
         }

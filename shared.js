@@ -34,6 +34,8 @@ function normalizeSpaces(text) {
  */
 const PDF_SYMBOL_MAPS = [
     { font: /wingdings\s*-?2/i, map: { 0x75: '①', 0x76: '②', 0x77: '③', 0x78: '④', 0x79: '⑤', 0x7a: '⑥', 0x7b: '⑦', 0x7c: '⑧', 0x7d: '⑨', 0x7e: '⑩' } },
+    // Finale 的樂譜字型（Petrucci、Maestro）：試題的速度「♩=84」。q 有實例驗證（114 南區樂理試題），e 照字型的慣例
+    { font: /petrucci|maestro/i, map: { 0x71: '♩', 0x65: '♪' } },
 ];
 async function vitoolsFixPdfSymbols(page, content) {
     const PUA = /[\uF020-\uF0FF]/;
@@ -45,7 +47,7 @@ async function vitoolsFixPdfSymbols(page, content) {
         try { name = (page.commonObjs.get(it.fontName) || {}).name || ''; } catch (e) { continue; }
         const m = PDF_SYMBOL_MAPS.find(x => x.font.test(name));
         if (!m) continue;
-        it.str = it.str.replace(/[\uF020-\uF0FF]/g, ch => m.map[ch.charCodeAt(0) & 0xff] || ch);
+        it.str = it.str.replace(/[\uF020-\uF0FF]/g, ch => m.map[ch.charCodeAt(0) & 0xff] || (ch.charCodeAt(0) === 0xf020 ? ' ' : ch));
     }
     return content;
 }
