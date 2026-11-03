@@ -695,6 +695,7 @@
                 <label for="input-text" style="margin:0;">輸入文字：</label>
                 <button onclick="btOpenFormatModal()" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
                 <button onclick="btLayoutQuestions()" title="題號統一成「1. 」；語詞題去掉「。」、依每行方數排在同一行，一題不拆兩行；排版後中文字的點字保持不變" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🔢 題號排版</button>
+                <button onclick="btInsertMusicBlock()" title="插入樂譜區塊：在【樂譜】和【/樂譜】之間寫 ABC 記譜，輸出時換成點字樂譜（BANA Music Braille Code 2015），方數照每行方數" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🎼 樂譜區塊</button>
                 <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
@@ -3282,11 +3283,65 @@ function _getLineTokens(line, modeKey) {
 }
 
 // ── render ──────────────────────────────────────────────────
+// 樂譜區塊（docs/notes/music-theory.md）：【樂譜】…【/樂譜】之間是 ABC 記譜，輸出時換成點字樂譜
+// （music/js 的轉換器，第一次用到才載入）。整個區塊先換成等長的一行佔位字元（私用區），原文位置不變；
+// 產生 token 時再換成點字樂譜的各行。
+const MUSIC_BLOCK_RE = /^[ \t]*[【\[]樂譜[】\]][ \t]*\n([\s\S]*?)\n[ \t]*[【\[]\/樂譜[】\]][ \t]*$/gm;
+const MUSIC_PH = '\uE0A0', MUSIC_PH_FILL = '\uE0A1', MUSIC_PH_BASE = 0xE0B0;
+let _musicBlocks = [];
+let _musicLoading = null;
+function _musicReady() { return !!(window.MB && MB.toBraille && MB.parseAbc && MB.brf); }
+function _loadMusic() {
+    if (_musicLoading) return _musicLoading;
+    const files = ['brf', 'model', 'durations', 'abc-parse', 'braille-write'];
+    _musicLoading = files.reduce((p, f) => p.then(() => new Promise((res, rej) => {
+        const el = document.createElement('script');
+        el.src = 'music/js/' + f + '.js';
+        el.onload = res; el.onerror = rej;
+        document.head.appendChild(el);
+    })), Promise.resolve()).then(() => render()).catch(e => console.error('點字樂譜轉換器載入失敗', e));
+    return _musicLoading;
+}
+function _extractMusicBlocks(input, max) {
+    _musicBlocks = [];
+    if (input.indexOf('樂譜') < 0) return input;
+    return input.replace(MUSIC_BLOCK_RE, (whole, abc) => {
+        const k = _musicBlocks.length;
+        if (k > 79) return whole;
+        let lines = [], warnings = [];
+        if (!_musicReady()) _loadMusic();
+        else {
+            try {
+                const src = /^X:/m.test(abc) ? abc : 'X:1\n' + abc;
+                const r = MB.parseAbc(src, {});
+                const b = MB.toBraille(r.score, { width: max, title: !!r.score.title });
+                lines = b.brf.replace(/\n+$/, '').split('\n').map(l => MB.brf.toUnicode(l, { blankCell: true }));
+                warnings = r.warnings.concat(b.warnings).map(w => w.msg);
+            } catch (e) {
+                console.error(e);
+                warnings = ['樂譜區塊無法轉換：' + e.message];
+            }
+        }
+        _musicBlocks.push({ abc, lines, warnings });
+        return MUSIC_PH + String.fromCharCode(MUSIC_PH_BASE + k) + MUSIC_PH_FILL.repeat(Math.max(0, whole.length - 2));
+    });
+}
+function btInsertMusicBlock() {
+    const ta = document.getElementById('input-text');
+    const tpl = '【樂譜】\nM:4/4\nL:1/4\nK:C\nC D E F | G2 G2 |]\n【/樂譜】';
+    const st = ta.selectionStart, en = ta.selectionEnd, v = ta.value;
+    const before = st > 0 && v[st - 1] !== '\n' ? '\n' : '';
+    const after = en < v.length && v[en] !== '\n' ? '\n' : '';
+    ta.setRangeText(before + tpl + after, st, en, 'end');
+    ta.focus();
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function render() {
     if (!isLoaded) return;
-    // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）
-    let input     = document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n');
     const max     = parseInt(document.getElementById('cell-limit').value)||40;
+    // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）；樂譜區塊換成等長的佔位行
+    let input     = _extractMusicBlocks(document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n'), max);
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
 
@@ -3311,6 +3366,19 @@ function render() {
     let charOffset = 0;
     for (let li = 0; li < inputLines.length; li++) {
         if (li > 0) { tokens.push({ braille: '\n', text: '\n' }); charOffset++; }
+        // 樂譜區塊：換成點字樂譜的各行（已依每行方數排好）
+        const mm = /^\s*\uE0A0\s*([\uE0B0-\uE0FF])/.exec(inputLines[li]);
+        if (mm) {
+            const blk = _musicBlocks[mm[1].charCodeAt(0) - MUSIC_PH_BASE];
+            const len = inputLines[li].length;
+            const ls = blk && blk.lines.length ? blk.lines : ['⠀'];
+            ls.forEach((bl, k) => {
+                if (k > 0) tokens.push({ braille: '\n', text: '\n', isMusic: true });
+                tokens.push({ braille: bl, text: k === 0 ? '🎼' : '', isMusic: true, isCustom: true, srcStart: charOffset, srcEnd: charOffset + len });
+            });
+            charOffset += len;
+            continue;
+        }
         for (const t of _getLineTokens(inputLines[li], modeKey)) {
             tokens.push(t.srcStart !== undefined
                 ? { ...t, srcStart: t.srcStart + charOffset, srcEnd: t.srcEnd + charOffset }
