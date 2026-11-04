@@ -355,6 +355,101 @@
     'D.S.': 'D.S.', 'D.S.alfine': 'D.S. al Fine', 'D.S.alcoda': 'D.S. al Coda', fine: 'Fine', dacoda: 'To Coda',
   };
   const NAV_RE = /!(D\.C\.alfine|D\.C\.alcoda|D\.S\.alfine|D\.S\.alcoda|D\.C\.|D\.S\.|dacapo|dacoda|fine)!|"\^((?:D\.\s?[CS]\.|Da Capo|Dal Segno|Fine|To Coda)[^"]*)"/g;
+  /**
+   * 五線譜上畫譜例方框（像試題那樣框住音符、上面寫名稱）。disp.marks 是 displayAbc 拿掉的方框文字：
+   * 每個方框記號屬於它後面的第一個音；開始和結束要在同一個聲部，跨行時每一行畫一個框，名稱寫在第一個框。
+   */
+  function drawExamMarks(vis, disp) {
+    if (!vis || !disp.marks || !disp.marks.length) return;
+    const seqs = {};
+    const all = [];
+    (vis.lines || []).forEach((line, li) =>
+      (line.staff || []).forEach((st, si) =>
+        (st.voices || []).forEach((v, vi) =>
+          v.forEach((el) => {
+            if (el.el_type !== 'note' || !el.abselem) return;
+            const key = si + ':' + vi;
+            // abcjs 的 startChar 會含小節線後的空白：跳過空白，才不會對到方框記號前面
+            let p = el.startChar;
+            while (p < el.endChar && /\s/.test(disp.text[p])) p++;
+            const item = { li, key, el, pos: disp.toOrig(p) };
+            (seqs[key] = seqs[key] || []).push(item);
+            all.push(item);
+          })
+        )
+      )
+    );
+    for (const k in seqs) seqs[k].forEach((it, i) => (it.idx = i));
+    all.sort((a, b) => a.pos - b.pos);
+    const open = {};
+    const spans = [];
+    for (const m of disp.marks.slice().sort((a, b) => a.pos - b.pos)) {
+      const it = all.find((x) => x.pos >= m.pos);
+      if (!it) continue;
+      if (m.open) open[m.label] = it;
+      if (m.close) {
+        const s = open[m.label];
+        delete open[m.label];
+        if (s && s.key === it.key && s.idx <= it.idx) spans.push({ label: m.label, items: seqs[it.key].slice(s.idx, it.idx + 1) });
+      }
+    }
+    const NS = 'http://www.w3.org/2000/svg';
+    for (const sp of spans) {
+      const segs = [];
+      for (const it of sp.items) {
+        const last = segs[segs.length - 1];
+        if (last && last.li === it.li) last.items.push(it);
+        else segs.push({ li: it.li, items: [it] });
+      }
+      segs.forEach((seg, k) => {
+        let svg = null;
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const it of seg.items)
+          for (const e of it.el.abselem.elemset || []) {
+            if (!e || !e.ownerSVGElement) continue;
+            svg = e.ownerSVGElement;
+            // 符頭、符桿、符尾、加線，加上音符本身的指法數字（試題的方框可能就是框指法）
+            const shapes = e.querySelectorAll ? [e, ...e.querySelectorAll('path, line, rect, ellipse, text')] : [e];
+            const inv = svg.getScreenCTM() && svg.getScreenCTM().inverse();
+            if (!inv) continue;
+            for (const s of shapes) {
+              if (s.tagName === 'g' || (s.tagName !== 'text' && s.closest && s.closest('text'))) continue;
+              if (s.tagName === 'text' && !/^\s*\d\s*$/.test(s.textContent)) continue;
+              const r = s.getBoundingClientRect();
+              if (!r.width && !r.height) continue;
+              for (const [cx, cy] of [[r.left, r.top], [r.right, r.bottom]]) {
+                const p = new DOMPoint(cx, cy).matrixTransform(inv);
+                x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+              }
+            }
+          }
+        if (!svg || !isFinite(x0)) return;
+        const pad = 4;
+        const g = document.createElementNS(NS, 'g');
+        g.setAttribute('class', 'exam-mark');
+        g.setAttribute('aria-hidden', 'true');
+        const rect = document.createElementNS(NS, 'rect');
+        rect.setAttribute('x', x0 - pad);
+        rect.setAttribute('y', y0 - pad);
+        rect.setAttribute('width', x1 - x0 + 2 * pad);
+        rect.setAttribute('height', y1 - y0 + 2 * pad);
+        rect.setAttribute('fill', 'none');
+        rect.setAttribute('stroke', '#000');
+        rect.setAttribute('stroke-width', '1.2');
+        g.appendChild(rect);
+        if (k === 0) {
+          const t = document.createElementNS(NS, 'text');
+          t.setAttribute('x', x0 - pad);
+          t.setAttribute('y', y0 - pad - 3);
+          t.setAttribute('font-size', '13');
+          t.setAttribute('font-family', 'sans-serif');
+          t.textContent = sp.label;
+          g.appendChild(t);
+        }
+        svg.appendChild(g);
+      });
+    }
+  }
   /** pos 所在小節第一個音的位置：往前找到小節線或行首，再跳過小節線剩下的部分、房號、空白、行內欄位。 */
   function measureStart(abc, pos) {
     let i = pos;
@@ -362,6 +457,7 @@
     const skip = /^(?::+|\[?\d+(?:[,-]\d+)*|\s+|\[[A-Za-z]:[^\]\n]*\])*/.exec(abc.slice(i, pos));
     return i + skip[0].length;
   }
+  const MARK_RE = /"\^\s*(\[)?([A-Za-z0-9]{1,3})(\])?\s*"/g;
   function displayAbc(abc) {
     const edits = []; // { pos, del, ins }：在原本 ABC 的 pos 刪去 del 個字元、插入 ins
     abc.replace(NAV_RE, (m, deco, ann, off) => {
@@ -370,6 +466,14 @@
       const start = /^Fine/i.test(text) ? off : measureStart(abc, off);
       if (start === off) edits.push({ pos: off, del: m.length, ins: label });
       else edits.push({ pos: start, del: 0, ins: label }, { pos: off, del: m.length, ins: '' });
+      return m;
+    });
+    // 譜例方框："^[A" "^A]" "^[A]" 不顯示文字，畫完五線譜後在音符外面畫框（drawExamMarks）
+    const marks = [];
+    abc.replace(MARK_RE, (m, open, label, close, off) => {
+      if (!open && !close) return m;
+      marks.push({ pos: off, label, open: !!open, close: !!close });
+      edits.push({ pos: off, del: m.length, ins: '' });
       return m;
     });
     edits.sort((a, b) => a.pos - b.pos || a.del - b.del);
@@ -392,7 +496,7 @@
       }
       return s.orig + Math.min(p - s.disp, s.len);
     };
-    return { text, toOrig };
+    return { text, toOrig, marks };
   }
   let paperMap = (p) => p;
 
@@ -491,6 +595,7 @@
         const t = svg.querySelector('title');
         if (t) t.textContent = label;
       });
+      drawExamMarks(vis, disp);
       // 畫面上每個音對應的事件 id（播放時用 id 標示，不轉點字的聲部也跟得上）：
       // 產生的 ABC 用它的位置表；編輯區的 ABC 用各事件在 ABC 的位置（含不轉點字的其餘聲部）
       let idSpans = genMap;
