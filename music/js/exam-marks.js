@@ -39,7 +39,12 @@
     const numbers = M.measureNumbers(score);
     score.parts.forEach((part, pi) => {
       const open = {};
-      const partName = score.parts.length > 1 ? (part.hand === 'R' ? '右手' : part.hand === 'L' ? '左手' : part.name || '第 ' + (pi + 1) + ' 聲部') + '的' : '';
+      // 總譜（score.ensemble）裡的鋼琴寫成「Primo 右手」「鋼琴左手」，只有一個樂器時寫「右手」
+      const hand = part.hand === 'R' ? '右手' : part.hand === 'L' ? '左手' : '';
+      const mate = part.hand === 'L' ? score.parts[pi - 1] : part.hand === 'R' ? score.parts[pi + 1] : null;
+      const inst = part.name || (mate && mate.hand && mate.name) || '';
+      const who = hand ? (score.ensemble ? (inst ? inst + ' ' : '鋼琴') : '') + hand : inst || '第 ' + (pi + 1) + ' 聲部';
+      const partName = score.parts.length > 1 ? who + '的' : '';
       part.measures.forEach((m, mi) => {
         const meter = M.meterAt(part, mi);
         m.voices.forEach((voice, vi) => {

@@ -1792,8 +1792,9 @@
    */
   function instrumentAbbrs(parts) {
     const base = parts.map((p, k) => {
-      // 鋼琴的左手沒有名稱：沿用右手（同一個樂器）
-      const name = (p.name || (p.hand === 'L' && parts[k - 1] ? parts[k - 1].name : '') || '').trim().toLowerCase();
+      // 鋼琴的一手沒有名稱：沿用另一手（同一個樂器）；兩手都沒有名稱就是鋼琴
+      const mate = p.hand === 'L' ? parts[k - 1] : p.hand === 'R' ? parts[k + 1] : null;
+      const name = (p.name || (mate && mate.hand && mate.name) || (p.hand ? 'piano' : '')).trim().toLowerCase();
       const num = /\b(\d+|i{1,3})$/i.exec(name);
       const hit = INSTR_ABBR.find(([re]) => re.test(name));
       let a = hit ? hit[1] : (name.match(/[a-z]/g) || []).slice(0, 2).join('');
@@ -1816,7 +1817,9 @@
   /** 樂器表（Par. 33.2）：左欄樂器名稱（不用縮寫字），右欄縮寫；名稱比最長的短三格以上時補點 5 的引導點。 */
   function instrumentTable(parts, abbrs, env, lines) {
     const names = parts.map((p, k) => {
-      const nm = p.name || (p.hand && parts[k - 1] ? parts[k - 1].name : '') || '';
+      // 鋼琴雙手只有一手寫了名稱時兩手共用；都沒寫（ABC 的大括號雙手）叫 Piano
+      const mate = p.hand === 'L' ? parts[k - 1] : p.hand === 'R' ? parts[k + 1] : null;
+      const nm = p.name || (mate && mate.hand && mate.name) || (p.hand ? 'Piano' : '');
       const full = p.hand ? nm + (p.hand === 'L' ? ' left hand' : ' right hand') : nm;
       const t = titleBrf(full.trim() || String(k + 1), []);
       if (t == null) env.warnings.push({ msg: '樂器名稱「' + full + '」需要國語點字表，樂器表改用編號' });
@@ -1958,7 +1961,7 @@
         console.error(e);
         return;
       }
-      brf += heading(blk.map((p) => p.name).filter(Boolean).join(' ') || String(k + 1), k + 1) + '\n';
+      brf += heading(blk.map((p) => p.name).filter(Boolean).join(' ') || (blk.length === 2 ? 'Piano' : String(k + 1)), k + 1) + '\n';
       if (isSel) {
         for (const m of res.map) map.push(Object.assign({}, m, { start: m.start + brf.length, end: m.end + brf.length }));
         warnings = res.warnings;

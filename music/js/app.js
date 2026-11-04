@@ -334,7 +334,7 @@
     $('paper-all-wrap').hidden = !ensembleScore();
     renderPaper(abcText);
     showMessages(warnings);
-    renderMarks(score);
+    renderMarks(marksScore());
     renderDual();
     $('cell-info').textContent = '';
     abcEd.setMarks([]);
@@ -780,6 +780,11 @@
 
   // ---------- 訊息 ----------
   /** 譜例方框的文字說明（exam-marks.js）。 */
+  /** 方框說明跟著顯示的範圍：點字選總譜／全部聲部，或五線譜勾「顯示全部聲部」時列出所有聲部的方框。 */
+  function marksScore() {
+    const all = state.abcEnsemble && ($('brl-scope').value !== 'part' || $('paper-all').checked);
+    return all ? MB.ensembleScore({ score: state.score, ensemble: state.abcEnsemble }) : state.score;
+  }
   function renderMarks(score) {
     const list = MB.examMarks ? MB.examMarks.describe(score) : [];
     $('marks-pane').hidden = !list.length;
@@ -1472,6 +1477,7 @@
       $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
       saveSettings();
       rerenderPaper();
+      if (id === 'paper-all' && state.score) renderMarks(marksScore());
     });
   $('btn-play').addEventListener('click', () => play());
   $('btn-stop').addEventListener('click', () => {

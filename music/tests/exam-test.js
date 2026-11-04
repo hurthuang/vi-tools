@@ -48,5 +48,13 @@ const xs = MB.toMusicXML(MB.parseAbc(abc, {}).score);
 const back = MB.parseMusicXML(typeof xs === 'string' ? xs : xs.xml);
 const line = MB.toAbc(back.score).abc.trim().split('\n').pop();
 check('MusicXML 數字低音、級數', line === '"_I6""_6"E,2 "_6/4"G,2 "_#"G,2 "_V7""_7"G,2 | "_b"C2 D2 "_6/5"B,,2 C2 |]', line);
+// 三重奏（小提琴、大提琴、沒寫名稱的鋼琴雙手）：總譜的樂器表叫 Piano（不是沿用前一個樂器），方框說明寫「鋼琴右手」
+const trio = `X:1\nM:2/4\nL:1/8\nK:C\n%%score 1 2 {3 4}\nV:1 name="Violin"\nV:2 name="Cello" clef=bass\nV:3\nV:4 clef=bass\n[V:1] z4 |]\n[V:2] z4 |]\n[V:3] "^[A]"c2 d2 |]\n[V:4] C,4 |]`;
+const tr = MB.parseAbc(trio, {});
+const table = MB.brf.toUnicode(MB.scoreBraille(tr, { width: 40 }).brf);
+check('總譜樂器表：沒名稱的鋼琴叫 Piano', /⠠⠏⠊⠁⠝⠕ ⠗⠊⠛⠓⠞/.test(table) && !/⠉⠑⠇⠇⠕ ⠗⠊⠛⠓⠞/.test(table) && /⠜⠏⠗⠄/.test(table), table);
+const tm = MB.examMarks.describe(MB.ensembleScore(tr)).map((m) => m.text).join('\n');
+check('總譜的方框說明：鋼琴右手', /方框 A：鋼琴右手的第 1 小節/.test(tm), tm);
+check('弱起小節', /弱起小節/.test(MB.examMarks.describe(MB.parseAbc('X:1\nM:2/4\nL:1/8\nK:C\n"^[A]"c2 | c4 |]', {}).score).map((m) => m.text).join('')));
 console.log(`通過 ${pass}，失敗 ${fail}`);
 process.exit(fail ? 1 : 0);
