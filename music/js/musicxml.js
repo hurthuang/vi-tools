@@ -338,6 +338,8 @@
       }
       const note = [
         'note',
+        // ABC 的 x（隱藏休止符）：五線譜不印
+        !n && ev.hidden ? { 'print-object': 'no' } : null,
         k > 0 ? ['chord'] : null,
         n
           ? ['pitch', ['step', n.step], n.alter ? ['alter', n.alter] : null, ['octave', n.octave]]
@@ -777,6 +779,7 @@
               }
             }
             if (hiddenAsRest && X.child(el, 'rest')) ev._hidden = true; // 只有隱藏的休止符可能是補位
+            if (!note && el.attrs && el.attrs['print-object'] === 'no') ev.hidden = true;
             const typ = X.textOf(el, 'type');
             const dots = X.children(el, 'dot').length;
             const tmEl = X.child(el, 'time-modification');

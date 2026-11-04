@@ -56,5 +56,11 @@ check('總譜樂器表：沒名稱的鋼琴叫 Piano', /⠠⠏⠊⠁⠝⠕ ⠗�
 const tm = MB.examMarks.describe(MB.ensembleScore(tr)).map((m) => m.text).join('\n');
 check('總譜的方框說明：鋼琴右手', /方框 A：鋼琴右手的第 1 小節/.test(tm), tm);
 check('弱起小節', /弱起小節/.test(MB.examMarks.describe(MB.parseAbc('X:1\nM:2/4\nL:1/8\nK:C\n"^[A]"c2 | c4 |]', {}).score).map((m) => m.text).join('')));
+// 隱藏休止符 x：寫回 ABC 保留 x（只轉鋼琴時五線譜不會多出休止符），點字照樣是休止符，MusicXML 匯出不印
+const hx = MB.parseAbc('X:1\nM:4/4\nL:1/4\nK:C\nD x C z | C4 |]', {}).score;
+check('隱藏休止符寫回 x', /D2 x2 C2 z2/.test(MB.toAbc(hx).abc), MB.toAbc(hx).abc);
+check('隱藏休止符的點字是休止符', (MB.toBraille(hx, { width: 40, title: false }).brf.match(/V/g) || []).length === 2, MB.toBraille(hx, { width: 40, title: false }).brf);
+const hxml = MB.toMusicXML(hx);
+check('隱藏休止符 MusicXML 不印', (typeof hxml === 'string' ? hxml : hxml.xml).split('print-object="no"').length === 2);
 console.log(`通過 ${pass}，失敗 ${fail}`);
 process.exit(fail ? 1 : 0);

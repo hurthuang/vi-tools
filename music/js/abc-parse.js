@@ -583,6 +583,7 @@
           const count = m[1] ? +m[1] : 1;
           for (let k = 0; k < count; k++) {
             const ev = { id: M.newId(), kind: 'rest', measureRest: true, value: 1, dots: 0, notes: [], src: { abc: [pos, pos + m[0].length] } };
+            if (m[0][0] === 'X') ev.hidden = true;
             curList(v).push(ev);
             if (k < count - 1) closeMeasure(v, { type: 'single' });
           }
@@ -592,6 +593,8 @@
         // 休止符
         if ((m = /^[zx](\d*)(\/*)(\d*)/.exec(rest))) {
           const ev = { id: M.newId(), kind: 'rest', notes: [], src: { abc: [pos, pos + m[0].length] } };
+          // x：隱藏休止符（五線譜不畫，只補滿小節）；點字照樣寫成休止符，寫回 ABC 時保留 x
+          if (m[0][0] === 'x') ev.hidden = true;
           ev._ticks = unitTicks() * lengthMult(m[1], m[2], m[3]);
           // 長度為 0 的隱形休止符（如 x0）只是排版用途，略過
           if (ev._ticks > 0) pushEvent(v, ev);

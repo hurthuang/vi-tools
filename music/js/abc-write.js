@@ -90,7 +90,7 @@
     for (const o of ev.ornaments || []) if (ORN[o]) s += ORN[o];
     if (ev.kind === 'rest') {
       const t = ev.measureRest ? M.meterTicks(meter) : M.valueTicks(ev.value, ev.dots);
-      s += 'z' + lenStr(t);
+      s += (ev.hidden ? 'x' : 'z') + lenStr(t);
     } else {
       const len = lenStr(M.valueTicks(ev.value, ev.dots));
       const notes = ev.notes.slice().sort((a, b) => M.diatonic(a) - M.diatonic(b));

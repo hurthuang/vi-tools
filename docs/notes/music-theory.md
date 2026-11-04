@@ -95,4 +95,6 @@ ABC 寫法（`abc-parse.js` 的 `specialAnnotation`，abcjs 五線譜照常顯�
   ABC 大括號裡的鋼琴雙手沒寫名稱時，總譜樂器表叫 Piano（縮寫 pr／pl，原本會沿用前一個樂器的名稱，變成 Cello right hand），方框說明寫「鋼琴右手」
 - 五線譜上的方框（app.js `drawExamMarks`）：`displayAbc` 把 "^[A" "^A]" "^[A]" 的文字拿掉、記下位置；abcjs 畫完後，每個方框記號對到它後面的第一個音
   （abcjs 的 startChar 含小節線後的空白，要先跳過空白），同一聲部從開始到結束的音的外框（符頭、符桿、加線、指法數字）畫一個框，名稱寫在左上；跨行時每行一個框
+- 隱藏休止符：ABC 的 x／X 讀成 `ev.hidden` 的休止符，寫回 ABC 保留 x（原本變成 z，只轉一個聲部時五線譜多出休止符，例：114 題組一第 3 小節左手）；
+  點字照樣寫休止符（小節要補滿）；MusicXML 匯出 `print-object="no"`，匯入時認得
 
