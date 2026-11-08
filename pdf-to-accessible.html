@@ -2352,7 +2352,7 @@ let _hfCandidates = [];
 function openHfPanel() {
   const text = getEditorText();
   if (!text.trim()) return;
-  if (p2aFromHaodian) setStatus('這份是vi-tools 辨識套件排好的，頁首頁尾已經略過，通常不用再刪');
+  if (p2aFromHaodian) setStatus('這份是 vi-tools 辨識套件排好的，頁首頁尾已經略過，通常不用再刪');
   _hfCandidates = detectHeaderFooter(text);
 
   const listEl = document.getElementById('hf-list');
@@ -2436,7 +2436,7 @@ function toggleWrapPanel() {
   } else {
     panel.classList.add('open');
     btn.classList.add('primary');
-    if (p2aFromHaodian) setStatus('這份是vi-tools 辨識套件排好的，斷行已對照原卷，通常不用再整理');
+    if (p2aFromHaodian) setStatus('這份是 vi-tools 辨識套件排好的，斷行已對照原卷，通常不用再整理');
     document.getElementById('fwp-linelen-wrap').style.display =
       _wrapMode === 'aggressive' ? 'flex' : 'none';
     wrapRefresh();
@@ -2643,7 +2643,7 @@ document.addEventListener('DOMContentLoaded', function(){
   setTheme(t);
 });
 
-// ── 從vi-tools 辨識套件（本機的辨識程式）帶入排好的文字 ──
+// ── 從 vi-tools 辨識套件（本機的辨識程式）帶入排好的文字 ──
 // 辨識套件用 window.open 打開這頁（網址帶 #from=haodian），這頁回「vitools-ready」，辨識套件再送 {type:'haodian-text', name, text}。
 // 只收開這頁的那個視窗、而且是本機（127.0.0.1／localhost）送來的。
 var p2aFromHaodian = false;
@@ -2684,7 +2684,7 @@ function p2aLoadFormatted(text, name, vtdocHtml) {
   p2aSetFormatted(true);
   p2aVtdoc = v ? { v: v, t: t, name: name + '.vtdoc.html' } : null;
   p2aVtdocBar();
-  setStatus('已從vi-tools 辨識套件帶入「' + name + '」（已排版）' + (v ? '，改完可以按「存回中繼檔」' : ''));
+  setStatus('已從 vi-tools 辨識套件帶入「' + name + '」（已排版）' + (v ? '，改完可以按「存回中繼檔」' : ''));
 }
 (function () {
   var LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;

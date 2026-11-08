@@ -76,9 +76,24 @@ select{font:inherit;font-size:.88rem;padding:3px}
 .ty-h1{--c:#be123c}.ty-h2{--c:#7c3aed}.ty-q{--c:#2563eb}.ty-opt{--c:#0891b2}.ty-item{--c:#0e7490}.ty-p{--c:#6b7280}
 .ty-passage{--c:#4b5563}.ty-optfig{--c:#0891b2}.ty-fig{--c:#16a34a}.ty-table{--c:#65a30d}.ty-score{--c:#c026d3}
 .ty-figtext,.ty-figdesc,.ty-tbltext{--c:#ea580c}.ty-skip{--c:#9ca3af}.ty-page{--c:#bbb}.ty-other{--c:#444}
+.vtv-bx.cur{cursor:move}
+.vtv-bx .hd{position:absolute;width:12px;height:12px;background:#fff;border:2px solid #e00000;border-radius:2px;z-index:4}
+.hd-nw{left:-7px;top:-7px;cursor:nwse-resize}.hd-n{left:calc(50% - 6px);top:-7px;cursor:ns-resize}.hd-ne{right:-7px;top:-7px;cursor:nesw-resize}
+.hd-e{right:-7px;top:calc(50% - 6px);cursor:ew-resize}.hd-se{right:-7px;bottom:-7px;cursor:nwse-resize}.hd-s{left:calc(50% - 6px);bottom:-7px;cursor:ns-resize}
+.hd-sw{left:-7px;bottom:-7px;cursor:nesw-resize}.hd-w{left:-7px;top:calc(50% - 6px);cursor:ew-resize}
+.vtv-bx .del{position:absolute;right:-12px;top:-26px;width:22px;height:22px;font:700 14px/20px sans-serif;text-align:center;color:#fff;background:#e00000;border:1px solid #fff;border-radius:50%;cursor:pointer;z-index:5}
+.vtv-bx .del:hover{background:#a00000}
+.row.dropb{box-shadow:inset 0 3px 0 var(--blue)}.row.dropa{box-shadow:inset 0 -3px 0 var(--blue)}
+#ly-bx{font-size:.85rem;background:#eaf2ff;border:1px solid var(--blue);border-radius:6px;padding:6px 10px}
 #ly-om{font-size:.85rem;background:#fff7e0;border:1px solid #e6a100;border-radius:6px;padding:6px 10px}
 #ly-om[hidden],[hidden]{display:none !important}
 .help{font-size:.8rem;color:var(--dim);padding:0 14px 10px}
+.help summary{cursor:pointer;color:var(--blue);font-size:.85rem;padding:2px 0}
+.help p{margin:4px 0 0;line-height:1.7}
+#ly-dlg{max-width:620px;border:1px solid var(--bd);border-radius:9px;padding:14px 20px}
+#ly-dlg h2{font-size:1.05rem;margin:0 0 8px}
+#ly-dlg progress{width:100%}
+#ly-dlg .dim{font-size:.8rem;color:var(--dim)}
 kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;padding:0 3px;background:#fafafa}
 @media (prefers-reduced-motion:no-preference){.vtv-bx.cur{animation:ly-pulse .5s ease-in-out 3 alternate}}
 @keyframes ly-pulse{from{box-shadow:0 0 0 9px rgba(255,214,0,.55)}to{box-shadow:0 0 0 14px rgba(255,214,0,.2)}}
@@ -91,8 +106,8 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
 </header>
 <main>
 <div class="bar">
-  <button class="btn" id="ly-open" type="button">📂 開啟中繼檔</button>
-  <input type="file" id="ly-file" accept=".html,.htm" hidden>
+  <button class="btn" id="ly-open" type="button" title="中繼檔、PDF、圖檔（可以一次選好幾張）、Word（.docx）、.txt">📂 開啟檔案</button>
+  <input type="file" id="ly-file" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.docx,.txt" multiple hidden>
   <button class="btn pri" id="ly-save" type="button" disabled>💾 存回中繼檔</button>
   <button class="btn" id="ly-undo" type="button" disabled title="Ctrl＋Z">↶ 復原</button>
   <button class="btn" id="ly-order" type="button" title="照閱讀順序在原卷上點這一頁的框（O）">排順序</button>
@@ -101,13 +116,15 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <button class="btn" id="ly-send" type="button" title="打開文件整理，帶排好的文字與中繼檔過去（標成已排版）">送到文件整理</button>
   <select id="ly-dragmode" aria-label="在原卷上拉框時" hidden>
     <option value="auto" hidden disabled>拉框：辨識套件（文字＋算式）</option>
+    <option value="text" hidden disabled>拉框：辨識純文字（辨識套件，不找算式）</option>
     <option value="math">拉框：辨識成一個算式</option>
     <option value="layer" selected>拉框：讀文字（PDF 文字層）</option>
+    <option value="fig">拉框：框成附圖</option>
   </select>
   <span id="ly-hd" hidden>
     <span id="ly-hd-name" style="color:#0a7a4a;font-size:.85rem"></span>
   </span>
-  <button class="btn" id="ly-hd-find" type="button" title="打開vi-tools 辨識套件之後按這個，就可以重新辨識、拉框辨識文字＋算式">找本機辨識套件</button>
+  <button class="btn" id="ly-hd-find" type="button" title="打開 vi-tools 辨識套件之後按這個，就可以重新辨識、拉框辨識文字＋算式">找本機辨識套件</button>
   <span id="ly-st" role="status" aria-live="polite"></span>
 </div>
 <div id="ly-name"></div>
@@ -124,7 +141,12 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-zin" type="button" aria-label="放大">＋</button>
     </div>
     <div class="scroll" id="ly-scroll"><div id="ly-page"><div id="ly-ov"></div></div>
-      <p id="ly-nosrc" hidden>這個中繼檔沒有帶原卷。請在vi-tools 辨識套件存中繼檔時勾「中繼檔包含原卷」，再存一次。</p>
+      <p id="ly-nosrc" hidden>這個中繼檔沒有帶原卷。請在 vi-tools 辨識套件存中繼檔時勾「中繼檔包含原卷」，再存一次。</p>
+    </div>
+    <div id="ly-bx" hidden>
+      <p id="ly-bx-text" role="status" style="margin:0 0 6px"></p>
+      <button class="btn pri" id="ly-bx-read" type="button">重新讀框裡的字</button>
+      <button class="btn" id="ly-bx-close" type="button">不用</button>
     </div>
     <div id="ly-om" hidden>
       <p id="ly-om-text" style="margin:0 0 6px;white-space:pre-wrap"></p>
@@ -148,6 +170,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-merge" type="button" title="G">併到上一段</button>
       <button class="btn" id="ly-new" type="button" title="N">新增一段</button>
       <button class="btn" id="ly-drop" type="button" title="D">刪題</button>
+      <button class="btn" id="ly-del" type="button" title="Delete（只是不要輸出的話用 0 略過）">刪除區塊</button>
       <button class="btn" id="ly-reocr" type="button" title="用本機的辨識套件重新辨識這一塊（R）" hidden>重新辨識</button>
       <label id="ly-how-w" hidden>輸出 <select id="ly-how"></select></label>
       <label id="ly-tac-w" hidden><input type="checkbox" id="ly-tac"> 做觸圖</label>
@@ -160,16 +183,35 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
     <div id="ly-list" tabindex="0" role="listbox" aria-label="排好的內容（上下鍵選，數字鍵改類型）" aria-multiselectable="true"></div>
   </section>
 </div>
-<p class="help">
-  上下鍵選區塊（Shift 多選）；數字鍵改類型：<kbd>1</kbd> 題目 <kbd>2</kbd> 選項 <kbd>3</kbd> 文字 <kbd>8</kbd> 大題 <kbd>9</kbd> 標題 <kbd>0</kbd>／<kbd>Delete</kbd> 略過；
+<details class="help">
+  <summary>按鍵與操作說明</summary>
+  <p>  上下鍵選區塊（Shift 多選）；數字鍵改類型：<kbd>1</kbd> 題目 <kbd>2</kbd> 選項 <kbd>3</kbd> 文字 <kbd>8</kbd> 大題 <kbd>9</kbd> 標題 <kbd>0</kbd> 略過（不輸出）；<kbd>Delete</kbd> 或框右上角 ✕ 刪除區塊；新拉的框放在選到的區塊後面；選到的框拖控制點改大小、拖中間搬位置；右邊清單可以拖曳排順序；
   <kbd>Alt</kbd>＋<kbd>↑</kbd><kbd>↓</kbd> 搬移；<kbd>E</kbd>／<kbd>Enter</kbd> 改字（<kbd>Enter</kbd> 或 <kbd>Esc</kbd> 改完、<kbd>Shift</kbd>＋<kbd>Enter</kbd> 換行、<kbd>Ctrl</kbd>＋<kbd>Enter</kbd> 從游標處分段）；
   <kbd>G</kbd> 併到上一段（選了好幾塊＝全部併成一段）；<kbd>O</kbd> 排順序（在原卷上依序點框）；原卷空白處拖曳＝新增區塊；<kbd>N</kbd> 新增一段；<kbd>D</kbd> 刪題／恢復；<kbd>PageUp</kbd>／<kbd>PageDown</kbd> 原卷換頁；<kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原；<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存檔。
   點兩下算式改 LaTeX（細修算式請到 nc 整份算式校對）。
-</p>
+  </p>
+</details>
 </main>
+<dialog id="ly-dlg" aria-labelledby="ly-dlg-h">
+  <h2 id="ly-dlg-h">開啟「<span id="ly-dlg-name"></span>」</h2>
+  <div id="ly-dlg-ask">
+    <p>本機開著 vi-tools 辨識套件。要怎麼讀這份檔案？</p>
+    <p><button class="btn pri" id="ly-dlg-hd" type="button">用辨識套件辨識（文字＋算式，一頁約 20～60 秒）</button>
+      <label id="ly-dlg-pages-w">頁碼 <input id="ly-dlg-pages" size="10" placeholder="全部" aria-describedby="ly-dlg-pages-h"></label>
+      <span id="ly-dlg-pages-h" class="dim">空白＝全部，例：1-3,5</span></p>
+    <p><button class="btn" id="ly-dlg-local" type="button"></button></p>
+    <p><button class="btn" id="ly-dlg-cancel" type="button">取消</button></p>
+  </div>
+  <div id="ly-dlg-run" hidden>
+    <p id="ly-dlg-prog" role="status" aria-live="polite"></p>
+    <progress id="ly-dlg-bar" max="1" value="0" aria-label="辨識進度"></progress>
+    <p><button class="btn" id="ly-dlg-stop" type="button">停止（保留做完的頁）</button></p>
+  </div>
+</dialog>
 <script src="html-table.js"></script>
 <script src="vtdoc.js"></script>
 <script src="vtdoc-view.js"></script>
+<script src="vtdoc-build.js"></script>
 <script src="haodian-ocr.js"></script>
 <script src="mfr-web.js"></script>
 <script src="vt-layout.js"></script>

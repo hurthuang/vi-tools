@@ -178,7 +178,8 @@
 
     // 給網頁版算式辨識（mfr-web.js）：框裡的圖，PDF 用 200 DPI 算圖（跟辨識套件一樣），框外加 pad 像素；
     // 有 vitoolsMfr 就順便 clean（灰階、淺色變白）
-    sv.cropCanvas = function (p, box, pad) {
+    // raw：不做算式辨識的前處理（灰階、淺色變白），附圖用
+    sv.cropCanvas = function (p, box, pad, raw) {
       if (!SRC) return Promise.reject(new Error('沒有原卷'));
       pad = pad == null ? 2 : pad;
       const cut = (W, H) => {
@@ -192,7 +193,7 @@
         cx.fillRect(0, 0, cv.width, cv.height);
         return { cv, cx, x0, y0 };
       };
-      const done = cv => (window.vitoolsMfr ? vitoolsMfr.clean(cv) : cv);
+      const done = cv => (!raw && window.vitoolsMfr ? vitoolsMfr.clean(cv) : cv);
       if (SRC.kind === 'pdf') {
         return pdf.getPage(SRC.pageMap ? SRC.pageMap[p - 1] : p).then(pg => {
           const vp = pg.getViewport({ scale: 200 / 72 });

@@ -11,7 +11,7 @@
   - 標題裡的單位「月均溫（℃）」移到數字後面；括號裡有數字的「大杯(1000毫升)」不是單位。
   - 拆成好幾段的表（1～6 月、7～12 月，「月分」列重複）接成一張；兩層標題列（左上角空白）合成「價格 中杯」。
 - `replaceAll(text, axis)`：每張表換成條列文字，表格前面同一行的字（「表(一)」）自己一行。
-- 規則跟vi-tools 辨識套件 `app/exam/layout.py` 的 `table_text` 相同，改一邊要一起改。
+- 規則跟 vi-tools 辨識套件 `app/exam/layout.py` 的 `table_text` 相同，改一邊要一起改。
 
 ## 文件整理（pdf-to-accessible.html）
 
@@ -24,7 +24,7 @@
 - 輸入有表格時，輸入框上方出現「以列為軸／以欄為軸」：直接改寫輸入框（`btTablesToText`），跟題號排版一樣用 `btKeepZhBraille` 保住中文點字，報告可以「復原排版」。
 - 沒有在轉換時偷偷換掉（轉換結果要對應回原文位置），所以沒按的話點字會照標籤原文轉。
 
-## 從vi-tools 辨識套件帶入（送到文件整理）
+## 從 vi-tools 辨識套件帶入（送到文件整理）
 
 - 辨識套件（本機 http://127.0.0.1:<埠>）用 `window.open('…/pdf-to-accessible.html#from=haodian')` 打開文件整理；文件整理看到 `#from=haodian` 而且有 `window.opener`，就回 `{type:'vitools-ready'}`；辨識套件再送 `{type:'haodian-text', name, text, formatted:true}`。
 - 文件整理只收 `e.source === window.opener`、來源是 `http://127.0.0.1` 或 `http://localhost` 的訊息（`p2aLoadFormatted`）。原本的內容先放進復原紀錄。

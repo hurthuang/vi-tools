@@ -1,4 +1,4 @@
-// 算式辨識（MFR）結果的整理，跟vi-tools 辨識套件一樣：
+// 算式辨識（MFR）結果的整理，跟 vi-tools 辨識套件一樣：
 //   post(raw)：Pix2Text（MIT License, breezedeus）latex_ocr.py 的後處理（辨識套件 app/exam/pix2text_post.py）
 //   tidy(tex)：辨識套件 app/exam/mathocr.py 的 tidy（整理成人手打的樣子）
 //   vitoolsMfrTidy.clean(raw) = tidy(post(raw))

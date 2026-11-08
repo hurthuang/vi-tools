@@ -1,4 +1,4 @@
-// 本機vi-tools 辨識套件的「辨識一塊」（辨識套件 app/exam/region.py、server.py 的 /api/ocr）。
+// 本機 vi-tools 辨識套件的「辨識一塊」（辨識套件 app/exam/region.py、server.py 的 /api/ocr）。
 // 偵測到才有功能：辨識套件沒開（或沒裝）時 detect() 回 null，頁面就不顯示辨識的按鈕。
 // 之後桌面版的辨識套件也提供同樣的 /api/ocr，這邊不用改。
 //   const hd = await vitoolsHaodian.detect()        → { base:'http://127.0.0.1:18760/', version } 或 null
@@ -19,7 +19,7 @@
     const base = 'http://127.0.0.1:' + port + '/';
     return Promise.race([fetch(base + 'api/ocr', { cache: 'no-store' }), timeout(1500)])
       .then(r => r.ok ? r.json() : null)
-      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr } : null)
+      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc } : null)
       .catch(() => null);
   }
 
@@ -67,5 +67,36 @@
     });
   }
 
-  window.vitoolsHaodian = { detect, recognize, get found() { return found; } };
+  // 整份原卷（PDF、圖檔）→ 中繼檔的 HTML（辨識套件 0.3 起的 /api/doc，試卷模式；found.doc 為 true 才有）
+  //   await vitoolsHaodian.doc(file, { pages:'1-3', onProgress(st), signal })
+  //   st：{ state, done, total, eta, elapsed, log[] }；signal 取消 → 辨識套件做完這一頁就停，回傳做完的頁
+  function api(path, opt) {
+    return fetch(found.base + path, opt).then(r => {
+      const ct = r.headers.get('Content-Type') || '';
+      const body = ct.includes('json') ? r.json() : r.text();
+      return body.then(b => { if (!r.ok) throw new Error((b && b.error) || ('HTTP ' + r.status)); return b; });
+    });
+  }
+  async function doc(file, opt) {
+    if (!found) throw new Error('沒有連上辨識套件');
+    if (!found.doc) throw new Error('這個版本的辨識套件不能整份辨識，請更新到 0.3 以上');
+    const o = opt || {};
+    const u8 = new Uint8Array(await file.arrayBuffer());
+    const { id } = await api('api/doc', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: file.name, data: b64(u8), pages: o.pages || '' }) });
+    if (/\.pdf$/i.test(file.name)) sent.add(await sha256(u8));   // 辨識套件已經記住這份 PDF
+    let stopped = false;
+    const stop = () => { if (!stopped) { stopped = true; api('api/doc/' + id + '/cancel', { method: 'POST' }).catch(() => {}); } };
+    if (o.signal) { if (o.signal.aborted) stop(); else o.signal.addEventListener('abort', stop); }
+    for (;;) {
+      const st = await api('api/doc/' + id, { cache: 'no-store' });
+      if (o.onProgress) o.onProgress(st);
+      if (st.state === 'error') throw new Error((st.log || []).slice(-1)[0] || '辨識失敗');
+      if (st.state === 'stopped' && !st.done) throw new Error('已停止，沒有做完的頁');
+      if (st.state === 'done' || st.state === 'stopped') return api('api/doc/' + id + '/vtdoc', { cache: 'no-store' });
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  window.vitoolsHaodian = { detect, recognize, doc, get found() { return found; } };
 })();

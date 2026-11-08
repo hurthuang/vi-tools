@@ -159,10 +159,11 @@
   function changed() { dirty = true; ops++; }
 
   // ---------- 開檔 ----------
-  function load(html, name) {
+  // note：從原始文件剛做出來的（還沒存成中繼檔），狀態列先說怎麼來的
+  function load(html, name, note) {
     const v = vitoolsVtdoc.parse(html);
     if (!v) { alert('這個檔案不是 vi-tools 中繼檔（.vtdoc.html）'); return; }
-    V = v; fname = name; dirty = false; ops = 0; undoStack = []; omSel = null;
+    V = v; fname = name; dirty = !!note; ops = 0; undoStack = []; omSel = null;
     main = V.doc.querySelector('main') || V.doc.body;
     rowOf = new WeakMap();
     flatten();
@@ -174,11 +175,14 @@
     render();
     sv.open(V).then(ok => {
       $('ly-nosrc').hidden = ok;
+      $('ly-nosrc').textContent = !V.meta.source || V.meta.source.kind === 'text' ?
+        '這份是從 Word 或純文字做的，沒有原卷，直接在右邊整理。' :
+        '這個中繼檔沒有帶原卷。請在 vi-tools 辨識套件存中繼檔時勾「中繼檔包含原卷」，再存一次。';
       $('ly-page').hidden = !ok;
       if (ok) { const b = cur >= 0 && boxOf(blocks[cur]); sv.show(b ? b.page : 1); }
       showHd();
       const om = (V.meta.omitted || []).filter(o => o.kind === 'uncovered').length;
-      status('共 ' + blocks.length + ' 個區塊' + (om ? '；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : '') +
+      status((note ? note + '。' : '') + '共 ' + blocks.length + ' 個區塊' + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : '') +
         (groupLost ? '；這份有題組（vt-group），版面整理還不認得，存回後題組外框會拿掉' : ''));
     });
     $('ly-list').focus();
@@ -223,6 +227,7 @@
     r.className = 'row';
     r.setAttribute('role', 'option');
     r.innerHTML = '<span class="no"></span><span class="ty"></span><div class="tx"></div>';
+    if (b.type !== 'page') r.draggable = true;
     rowContent(b, r.querySelector('.tx'));
     rowOf.set(b.el, r);
     r._new = true;
@@ -305,6 +310,7 @@
     $('ly-split').disabled = editing < 0;
     $('ly-merge').disabled = !b || cur === 0 || !(TEXT.has(b.type) || DERIVED.has(b.type));
     $('ly-new').disabled = !V;
+    $('ly-del').disabled = !b || b.type === 'page';
     $('ly-drop').disabled = !b || b.type !== 'q';
     $('ly-reocr').hidden = !hdOn();
     $('ly-reocr').disabled = !S.some(x => TEXT.has(x.type) && boxOf(x));
@@ -354,6 +360,15 @@
         (i + 1) + '. ' + TY[b.type].name + '：' + b.el.textContent.slice(0, 40));
       d.dataset.i = i;
       if (num) { const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1; d.appendChild(n); }
+      // 選到的框：四邊四角的控制點拖曳改大小，拖框的中間搬位置
+      if (i === cur && !orderSeq) ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(h => {
+        const k = document.createElement('span'); k.className = 'hd hd-' + h; k.dataset.h = h; d.appendChild(k);
+      });
+      if (i === cur && !orderSeq) {
+        const x = document.createElement('span');
+        x.className = 'del'; x.textContent = '✕'; x.title = '刪除這一塊（Delete）';
+        d.appendChild(x);
+      }
       ov.appendChild(d);
     });
     ((V.meta && V.meta.omitted) || []).forEach((o, k) => {
@@ -433,6 +448,8 @@
     return out;
   }
 
+  // 新拉的框放在哪裡：目前選到的區塊（表格、附圖連同後面的文字）後面；沒選到 → null（照原卷位置）
+  function afterCur() { return cur >= 0 && blocks[cur] ? unitEnd(cur) + 1 : null; }
   function addOne(o, type, pos) {
     const el = main.ownerDocument.createElement('p');
     el.dataset.box = o.page + ' ' + o.box.map(x => (+x).toFixed(4)).join(' ');
@@ -753,7 +770,7 @@
   }
 
   // ---------- 拉框新增區塊 ----------
-  let drag = null;
+  let drag = null, bxEdit = null;   // bxEdit：拖曳改既有區塊的框
   function ovPoint(e) {
     const r = $('ly-ov').getBoundingClientRect();
     return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))];
@@ -766,9 +783,11 @@
     $('ly-hd-find').hidden = !!f;
     if (f) $('ly-hd-name').textContent = '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
     // 拉框方式：「文字＋算式」只有連上辨識套件才有；「一個算式」沒辨識套件時用網頁版辨識（mfr-web.js）
-    const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]');
+    const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]'), tx = dm.querySelector('option[value="text"]');
     const was = au.hidden;
     au.hidden = au.disabled = !f;
+    tx.hidden = tx.disabled = !f;
+    if (!f && dm.value === 'text') dm.value = 'layer';
     if (f && was) dm.value = 'auto';
     if (!f && dm.value === 'auto') dm.value = 'layer';
     dm.querySelector('option[value="math"]').textContent = '拉框：辨識成一個算式' + (f ? '（辨識套件）' : '（網頁辨識）');
@@ -802,7 +821,7 @@
     vitoolsHaodian.detect().then(f => {
       $('ly-hd-find').disabled = false;
       showHd();
-      status(f ? '找到本機的vi-tools 辨識套件，可以重新辨識（R）、拉框辨識' : '沒找到本機的vi-tools 辨識套件（要先打開辨識套件）');
+      status(f ? '找到本機的 vi-tools 辨識套件，可以重新辨識（R）、拉框辨識' : '沒找到本機的 vi-tools 辨識套件（要先打開辨識套件）');
     });
   }
   let hdBusy = false;
@@ -892,20 +911,208 @@
     status('重新辨識了 ' + n + ' 塊（辨識套件；算式記得到 nc 校對）');
   }
 
+  // 拉框「框成附圖」：裁原卷那一塊當附圖（輸出方式＝標附圖、做觸圖），框裡的字當圖中文字（標籤，觸圖製作放原位）；
+  // 框裡原本的短文字區塊（地圖上的地名、甲乙丙…）收進附圖，不再當文字輸出
+  async function figFromBox(page, box) {
+    if (!sv.has()) { status('沒有原卷，不能框附圖'); return; }
+    let cv;
+    try { cv = await sv.cropCanvas(page, box, 4, true); } catch (e) { status('裁不出圖：' + e.message); return; }
+    const s = Math.min(1, 1400 / Math.max(cv.width, cv.height));
+    let out = cv;
+    if (s < 1) {
+      out = document.createElement('canvas');
+      out.width = Math.round(cv.width * s); out.height = Math.round(cv.height * s);
+      out.getContext('2d').drawImage(cv, 0, 0, out.width, out.height);
+    }
+    const W = box[2] - box[0], H = box[3] - box[1];
+    const within = (x0, y0, x1, y1) => x0 >= box[0] - 0.01 && x1 <= box[2] + 0.01 && y0 >= box[1] - 0.01 && y1 <= box[3] + 0.01;
+    const px = b => [Math.round(((b[0] + b[2]) / 2 - box[0]) / W * out.width), Math.round(((b[1] + b[3]) / 2 - box[1]) / H * out.height)];
+    const labels = (await sv.textIn(page, box)).map(l => ({ text: l.text, xy: px(l.box) }));
+    const absorb = blocks.filter(b => {
+      if (!['p', 'opt', 'item', 'skip'].includes(b.type) || b.el.querySelector('.vt-math[data-checked="1"]')) return false;
+      const x = boxOf(b);
+      return x && x.page === page && within(x.x0, x.y0, x.x1, x.y1) && b.el.textContent.trim().length <= 30;
+    });
+    const has = t => labels.some(l => l.text === t);
+    absorb.forEach(b => { const x = boxOf(b), t = b.el.textContent.trim(); if (t && !has(t)) labels.push({ text: t, xy: px([x.x0, x.y0, x.x1, x.y1]) }); });
+    const om = ((V.meta && V.meta.omitted) || []).filter(o => o.page === page && within(...o.box));
+    om.forEach(o => { const t = (o.text || '').trim(); if (t && !has(t)) labels.push({ text: t, xy: px(o.box) }); });
+
+    snap();
+    const D = main.ownerDocument;
+    const fig = D.createElement('figure');
+    fig.className = 'vt-fig';
+    fig.dataset.how = 'mark';
+    fig.dataset.tactile = '1';
+    const img = D.createElement('img');
+    img.src = out.toDataURL('image/jpeg', 0.85);
+    img.alt = labels.length ? '圖中文字：' + labels.map(l => l.text).join('、') : '附圖';
+    fig.appendChild(img);
+    if (labels.length) {
+      const ul = D.createElement('ul');
+      ul.className = 'vt-labels';
+      ul.hidden = true;
+      labels.forEach(l => { const li = D.createElement('li'); li.dataset.x = l.xy[0]; li.dataset.y = l.xy[1]; li.textContent = l.text; ul.appendChild(li); });
+      fig.appendChild(ul);
+    }
+    const curB = blocks[cur];
+    blocks = blocks.filter(b => !absorb.includes(b));
+    om.forEach(o => V.meta.omitted.splice(V.meta.omitted.indexOf(o), 1));
+    const ci = curB && !absorb.includes(curB) ? blocks.indexOf(curB) : -1;
+    const at = addOne({ page, box, text: '' }, 'p', ci >= 0 ? unitEnd(ci) + 1 : null);
+    fig.dataset.box = blocks[at].el.dataset.box;
+    blocks[at] = { el: fig, type: 'fig' };
+    build(); changed();
+    render();
+    select(at);
+    status('框成附圖（輸出：標(請參閱附圖)、做觸圖）' + (labels.length ? '；圖裡的字 ' + labels.length + ' 個當標籤' : '') +
+      (absorb.length ? '；原本 ' + absorb.length + ' 塊文字收進附圖' : '') + '。題幹裡要有「(請參閱附圖)」，沒有的話在題目那行按 E 補上');
+  }
+
+  // ---------- 改既有區塊的框、刪除區塊、拖曳排順序 ----------
+  const boxAttrOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.box || '';
+  const blkOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.blk || '';
+  // 同一個框的幾個元素（辨識套件一個區塊拆出的題目行＋題幹、幾個選項；表格、附圖後面的文字）
+  function boxGroup(b) {
+    const a = boxAttrOf(b), k = blkOf(b);
+    return a ? blocks.filter(x => x.type !== 'page' && boxAttrOf(x) === a && blkOf(x) === k) : [b];
+  }
+  let bxPending = null;
+  async function applyBox(i, page, nb) {
+    const b = blocks[i];
+    if (!b) return;
+    const ob = boxOf(b);
+    const grp = boxGroup(b);
+    const attr = page + ' ' + nb.map(x => (+x).toFixed(4)).join(' ');
+    snap();
+    grp.forEach(x => { (x.type === 'q' && x.sec ? x.sec : x.el).dataset.box = attr; rowOf.delete(x.el); });
+    if (b.type === 'fig' && ob) {
+      try { await recropFig(b.el, page, [ob.x0, ob.y0, ob.x1, ob.y1], nb); } catch (e) { status('附圖重新裁切失敗：' + e.message); }
+    }
+    changed();
+    render();
+    if (TEXT.has(b.type)) {
+      bxPending = b;
+      $('ly-bx-text').textContent = '框改好了。要照新的框重新讀這一塊的字嗎？（' + (hdOn() ? '用辨識套件' : '讀 PDF 文字層') + '）';
+      $('ly-bx').hidden = false;
+    } else status(b.type === 'fig' ? '附圖照新的框重新裁切了（框外的圖中文字拿掉）' : '框改好了');
+  }
+  // 附圖改框：照新框重裁圖，圖中文字（標籤）換算到新圖的座標，框外的拿掉
+  async function recropFig(el, page, ob, nb) {
+    const img = el.querySelector('img');
+    if (!img) return;
+    const old = new Image();
+    old.src = img.src;
+    await (old.decode ? old.decode() : Promise.resolve()).catch(() => {});
+    const cv = await sv.cropCanvas(page, nb, 4, true);
+    const s = Math.min(1, 1400 / Math.max(cv.width, cv.height));
+    let out = cv;
+    if (s < 1) {
+      out = document.createElement('canvas');
+      out.width = Math.round(cv.width * s); out.height = Math.round(cv.height * s);
+      out.getContext('2d').drawImage(cv, 0, 0, out.width, out.height);
+    }
+    el.querySelectorAll('ul.vt-labels li').forEach(li => {
+      if (!old.naturalWidth) return;
+      const X = ob[0] + (+li.dataset.x / old.naturalWidth) * (ob[2] - ob[0]), Y = ob[1] + (+li.dataset.y / old.naturalHeight) * (ob[3] - ob[1]);
+      if (X < nb[0] || X > nb[2] || Y < nb[1] || Y > nb[3]) { li.remove(); return; }
+      li.dataset.x = Math.round((X - nb[0]) / (nb[2] - nb[0]) * out.width);
+      li.dataset.y = Math.round((Y - nb[1]) / (nb[3] - nb[1]) * out.height);
+    });
+    img.src = out.toDataURL('image/jpeg', 0.85);
+  }
+  // 照框重新讀字：有辨識套件用辨識套件（文字＋算式），沒有就讀 PDF 文字層（一行一行接成段落，題號、選項開頭的另起一段）
+  async function rereadBlock(b) {
+    const bx = boxOf(b);
+    if (!bx || blocks.indexOf(b) < 0) return;
+    const grp = boxGroup(b).filter(x => TEXT.has(x.type));
+    const head = grp[0] || b;
+    const box = [bx.x0, bx.y0, bx.x1, bx.y1];
+    let lines;
+    try {
+      if (hdOn()) lines = (await hd(bx.page, box, { type: head.type })).lines || [];
+      else {
+        lines = [];
+        (await sv.textIn(bx.page, box)).forEach(l => {
+          const k = vitoolsVtdocBuild.kindOf(l.text);
+          if (lines.length && k === 'p') {
+            const last = lines[lines.length - 1];
+            lines[lines.length - 1] = last + (/[A-Za-z0-9,.]$/.test(last) && /^[A-Za-z0-9]/.test(l.text) ? ' ' : '') + l.text;
+          } else lines.push(...splitOpts(l.text));
+        });
+      }
+    } catch (e) { status('讀字失敗：' + e.message); return; }
+    if (!lines.length) { status('新的框裡讀不到字' + (hdOn() ? '' : '（PDF 文字層沒有字；掃描頁要用辨識套件）')); return; }
+    snap();
+    setInline(head.el, lines[0]);
+    if (head.type === 'opt') retypeLabel(head.el);
+    rowOf.delete(head.el);
+    blocks = blocks.filter(x => x === head || !grp.includes(x));
+    const attr = boxAttrOf(head);
+    blocks.splice(blocks.indexOf(head) + 1, 0, ...lines.slice(1).map(t => newBlock(lineType(t, head.type === 'q' ? 'p' : head.type), t, attr)));
+    cur = anchor = blocks.indexOf(head);
+    build(); changed();
+    render();
+    status('照新的框重新讀了字（' + lines.length + ' 段）' + (hdOn() ? '；算式記得到 nc 校對' : ''));
+  }
+  // 刪除選到的區塊（真的拿掉；只是不要輸出請用 0 略過）
+  function delBlocks() {
+    let S = selRange().filter(i => blocks[i].type !== 'page');
+    if (!S.length) return;
+    endEdit();
+    const kill = new Set();
+    S.forEach(i => { for (let k = unitStart(i), e = unitEnd(unitStart(i)); k <= e; k++) kill.add(blocks[k]); kill.add(blocks[i]); });
+    snap();
+    const first = Math.min(...S);
+    blocks = blocks.filter(b => !kill.has(b));
+    cur = anchor = Math.min(first, blocks.length - 1);
+    build(); changed();
+    render();
+    status('刪除了 ' + kill.size + ' 塊（Ctrl＋Z 復原；只是不要輸出的話用 0 略過）');
+  }
+  // 題目連同它的選項、題幹、附圖（到下一題、大題、標題、換頁為止）；不是題目就是它自己（表格、附圖連同後面的文字）
+  function qEnd(i) {
+    if (!blocks[i] || blocks[i].type !== 'q') return unitEnd(i);
+    let e = i;
+    while (e + 1 < blocks.length && !['q', 'h1', 'h2', 'page'].includes(blocks[e + 1].type)) e++;
+    return e;
+  }
+  // 清單上拖曳一列（或選到的幾列）放到另一列的前面／後面；拖題目會連同它的選項一起搬
+  function moveTo(from, to, after) {
+    const S = selRange();
+    let a, z;
+    if (S.includes(from) && S.length > 1) { a = unitStart(S[0]); z = unitEnd(S[S.length - 1]); }
+    else { a = unitStart(from); z = qEnd(a); }
+    // 放到題目「後面」＝放到那一題（含選項）的後面
+    let t = after ? qEnd(unitStart(to)) + 1 : unitStart(to);
+    if (t >= a && t <= z + 1) return;
+    snap();
+    const seg = blocks.splice(a, z - a + 1);
+    if (t > z) t -= seg.length;
+    blocks.splice(t, 0, ...seg);
+    cur = t + Math.max(0, Math.min(seg.length - 1, (S.includes(from) ? cur : from) - a));
+    anchor = S.includes(from) && seg.length > 1 ? t : cur;
+    if (S.includes(from) && seg.length > 1) cur = t + seg.length - 1;
+    build(); changed();
+    render();
+    status('搬好了（' + seg.length + ' 塊）');
+  }
+
   async function newFromBox(page, box) {
-    const inside = o => { const cx = (o.box[0] + o.box[2]) / 2, cy = (o.box[1] + o.box[3]) / 2; return cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]; };
+    if ($('ly-dragmode').value === 'fig') return figFromBox(page, box);
+    const inside =o => { const cx = (o.box[0] + o.box[2]) / 2, cy = (o.box[1] + o.box[3]) / 2; return cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]; };
     let how0 = $('ly-dragmode').value;
     const web = how0 === 'math' && !hdOn();
     if (web && !window.vitoolsMfr) how0 = 'layer';
-    if (how0 === 'auto' && !hdOn()) how0 = 'layer';
-    if (how0 === 'math' || how0 === 'auto') {
+    if ((how0 === 'auto' || how0 === 'text') && !hdOn()) how0 = 'layer';
+    if (how0 === 'math' || how0 === 'auto' || how0 === 'text') {
       // 辨識套件（一個算式，或文字＋算式）；沒有辨識套件時一個算式用網頁版辨識
       if (hdBusy) { status('還在辨識上一塊，請稍等'); return; }
       let r;
       try { r = web ? await webMath(page, box) : await hd(page, box, { mode: how0, type: 'q' }); } catch (e) { status('辨識失敗：' + e.message); return; }
       snap();
       const boxAttr = page + ' ' + box.map(x => (+x).toFixed(4)).join(' ');
-      let at = addOne({ page, box, text: '' }, 'p');
+      let at = addOne({ page, box, text: '' }, 'p', afterCur());
       if (how0 === 'math') {
         blocks[at] = { el: mathBlock(page, box, r), type: 'p' };
       } else {
@@ -916,6 +1123,7 @@
       build(); changed();
       render();
       select(at);
+      if (how0 === 'text') { status('用辨識套件辨識純文字，新增 ' + (r.lines || []).length + ' 塊' + (r.text_layer ? '（讀 PDF 文字層）' : '') + '；類型不對用數字鍵改'); return; }
       status(how0 === 'math' ? '辨識成一個算式' + (web ? '（網頁辨識 ' + r.sec.toFixed(1) + ' 秒）' : '') + '：' + r.tex +
         (r.score != null ? '（信心 ' + Math.round(r.score * 100) + '%）' : '') + '；記得到 nc 校對' :
         '用辨識套件新增 ' + (r.lines || []).length + ' 塊' + (r.text_layer ? '（中文讀 PDF 文字層、算式用辨識）' : '') + '；類型不對用數字鍵改');
@@ -930,11 +1138,12 @@
       else { lines = [{ page, box, text: '' }]; how = '這裡讀不到字，請按 E 打字'; }
     }
     snap();
+    const pos0 = afterCur();
     let last = -1, n = 0;
     lines.forEach(ln => {
       const parts = splitOpts(ln.text);
       parts.forEach((t, k) => {
-        last = k === 0 && last < 0 ? addOne({ page, box: ln.box, text: t }, parts.length > 1 ? 'opt' : 'p')
+        last = k === 0 && last < 0 ? addOne({ page, box: ln.box, text: t }, parts.length > 1 ? 'opt' : 'p', pos0)
           : addOne({ page, box: ln.box, text: t }, parts.length > 1 ? 'opt' : 'p', last + 1);
         n++;
       });
@@ -1127,6 +1336,78 @@
     return vitoolsVtdoc.serialize(V, '版面整理', '版面整理 ' + ops + ' 處');
   }
 
+  // ---------- 開原始文件（PDF、圖檔、Word、.txt）→ 中繼檔 ----------
+  // PDF、圖檔：連上辨識套件時問要不要整份辨識（文字＋算式）；沒有就在網頁裡讀 PDF 文字層／只放原卷（vtdoc-build.js）
+  let dlgAbort = null, dlgFiles = null;
+  function openFiles(fl) {
+    const files = [...fl];
+    const k = vitoolsVtdocBuild.kind(files[0]);
+    if (k === 'vtdoc') { files[0].text().then(t => load(t, files[0].name)); return; }
+    const ocrable = (k === 'pdf' && files.length === 1) || (k === 'image' && files.length === 1);
+    if (ocrable && hdOn() && vitoolsHaodian.found.doc) { askOpen(files, k); return; }
+    buildLocal(files);
+  }
+  function askOpen(files, k) {
+    dlgFiles = files;
+    $('ly-dlg-name').textContent = files[0].name;
+    $('ly-dlg-ask').hidden = false; $('ly-dlg-run').hidden = true;
+    $('ly-dlg-local').textContent = k === 'pdf' ? '只讀 PDF 文字層（很快，不辨識算式，掃描頁沒有字）' : '只放原卷（不辨識，自己在原卷上拉框）';
+    $('ly-dlg-pages-w').hidden = k !== 'pdf';
+    $('ly-dlg').showModal();
+    $('ly-dlg-hd').focus();
+  }
+  async function buildLocal(files) {
+    status('讀檔中…');
+    try {
+      const r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status });
+      let note = '已開啟「' + files[0].name + '」：' + r.note;
+      if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（打開 vi-tools 辨識套件可以辨識文字與算式）';
+      load(r.html, r.name, note);
+    } catch (e) { status('開不了：' + e.message); alert('開不了「' + files[0].name + '」：' + e.message); }
+  }
+  async function runHd() {
+    const files = dlgFiles, pages = $('ly-dlg-pages').value.trim();
+    $('ly-dlg-ask').hidden = true; $('ly-dlg-run').hidden = false;
+    $('ly-dlg-stop').disabled = false;
+    $('ly-dlg-stop').focus();
+    dlgAbort = new AbortController();
+    let lastDone = -1;
+    const prog = $('ly-dlg-prog'), bar = $('ly-dlg-bar');
+    prog.textContent = '送到辨識套件…（第一次辨識要載入模型，大約 20 秒）';
+    try {
+      const html = await vitoolsHaodian.doc(files[0], { pages, signal: dlgAbort.signal, onProgress: st => {
+        if (st.total) { bar.max = st.total; bar.value = st.done; }
+        if (st.done === lastDone) return;   // 換頁時才更新文字，報讀軟體不會一直念
+        lastDone = st.done;
+        prog.textContent = st.total ? '辨識中：做完 ' + st.done + '／' + st.total + ' 頁' + (st.eta ? '，大約還要 ' + Math.ceil(st.eta / 60) + ' 分鐘' : '') +
+          (st.stopping ? '（停止中，做完這頁就停）' : '') : '辨識中…';
+      } });
+      const stopped = dlgAbort.signal.aborted;
+      dlgAbort = null;
+      $('ly-dlg').close();
+      load(html, files[0].name.replace(/\.[^.]+$/, '') + '.vtdoc.html',
+        '已用辨識套件辨識「' + files[0].name + '」' + (stopped ? '（停止了，只有做完的頁）' : '') + '，算式記得到 nc 整份算式校對檢查');
+    } catch (e) {
+      dlgAbort = null;
+      $('ly-dlg').close();
+      status('辨識失敗：' + e.message);
+      alert('辨識失敗：' + e.message);
+    }
+  }
+  function initOpenDialog() {
+    const d = $('ly-dlg');
+    $('ly-dlg-hd').addEventListener('click', runHd);
+    $('ly-dlg-local').addEventListener('click', () => { d.close(); buildLocal(dlgFiles); });
+    $('ly-dlg-cancel').addEventListener('click', () => d.close());
+    $('ly-dlg-stop').addEventListener('click', () => {
+      if (!dlgAbort) return;
+      dlgAbort.abort();
+      $('ly-dlg-stop').disabled = true;
+      $('ly-dlg-prog').textContent += '（停止中，做完這頁就停）';
+    });
+    d.addEventListener('cancel', e => { if (dlgAbort) e.preventDefault(); });   // 辨識中按 Esc 不關
+  }
+
   // ---------- 事件 ----------
   function init() {
     sv = vitoolsVtdocView.create({ scroll: $('ly-scroll'), host: $('ly-page'), overlay: $('ly-ov'), fit: $('ly-fit'), label: $('ly-pg') });
@@ -1135,11 +1416,8 @@
       if (dirty && !confirm('還沒存回中繼檔，確定要開別的檔？')) return;
       $('ly-file').value = ''; $('ly-file').click();
     });
-    $('ly-file').addEventListener('change', e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      f.text().then(t => load(t, f.name));
-    });
+    $('ly-file').addEventListener('change', e => { if (e.target.files.length) openFiles(e.target.files); });
+    initOpenDialog();
     $('ly-save').addEventListener('click', save);
     $('ly-undo').addEventListener('click', undo);
     $('ly-type').addEventListener('change', e => setType(e.target.value));
@@ -1158,6 +1436,40 @@
       if (e.target.checked) b.el.dataset.tactile = '1'; else delete b.el.dataset.tactile;
       changed(); rowOf.delete(b.el); render();
     });
+    $('ly-del').addEventListener('click', delBlocks);
+    $('ly-bx-read').addEventListener('click', () => { const b = bxPending; bxPending = null; $('ly-bx').hidden = true; if (b) rereadBlock(b); });
+    $('ly-bx-close').addEventListener('click', () => { bxPending = null; $('ly-bx').hidden = true; });
+    // 右邊清單拖曳排順序
+    const lst = $('ly-list');
+    let dragFrom = -1;
+    const clearDrop = () => lst.querySelectorAll('.dropb,.dropa').forEach(r => r.classList.remove('dropb', 'dropa'));
+    lst.addEventListener('dragstart', e => {
+      const r = e.target.closest && e.target.closest('.row');
+      if (!r || editing >= 0) { e.preventDefault(); return; }
+      dragFrom = +r.dataset.i;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(dragFrom));
+    });
+    lst.addEventListener('dragover', e => {
+      const r = e.target.closest && e.target.closest('.row');
+      if (dragFrom < 0 || !r) return;
+      e.preventDefault();
+      const after = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+      clearDrop();
+      r.classList.add(after ? 'dropa' : 'dropb');
+    });
+    lst.addEventListener('dragleave', e => { if (!lst.contains(e.relatedTarget)) clearDrop(); });
+    lst.addEventListener('drop', e => {
+      const r = e.target.closest && e.target.closest('.row');
+      clearDrop();
+      if (dragFrom < 0 || !r) return;
+      e.preventDefault();
+      const after = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+      const f = dragFrom;
+      dragFrom = -1;
+      moveTo(f, +r.dataset.i, after);
+    });
+    lst.addEventListener('dragend', () => { dragFrom = -1; clearDrop(); });
     $('ly-om-add').addEventListener('click', () => addOmitted(false));
     $('ly-om-all').addEventListener('click', () => addOmitted(true));
     $('ly-om-close').addEventListener('click', () => { omSel = null; $('ly-om').hidden = true; sv.redraw(); });
@@ -1187,6 +1499,16 @@
     // 原卷空白處拖曳＝新增區塊
     const ov = $('ly-ov');
     ov.addEventListener('mousedown', e => {
+      if (e.button === 0 && e.target.classList && e.target.classList.contains('del')) { e.preventDefault(); e.stopPropagation(); delBlocks(); $('ly-list').focus({ preventScroll: true }); return; }
+      const cb = e.button === 0 && !orderSeq && e.target.closest && e.target.closest('.vtv-bx.cur');
+      if (cb && cb.dataset.i != null) {   // 選到的框：拖控制點改大小、拖中間搬位置
+        const bx = boxOf(blocks[+cb.dataset.i]);
+        if (bx) {
+          e.preventDefault();
+          bxEdit = { i: +cb.dataset.i, h: e.target.dataset.h || 'move', p: ovPoint(e), b0: [bx.x0, bx.y0, bx.x1, bx.y1], nb: null, d: cb, page: bx.page };
+          return;
+        }
+      }
       if (e.button !== 0 || e.target !== ov || !V || orderSeq) return;
       e.preventDefault();
       const p = ovPoint(e);
@@ -1195,6 +1517,22 @@
       drag = { p, d, q: p };
     });
     window.addEventListener('mousemove', e => {
+      if (bxEdit) {
+        const q = ovPoint(e), dx = q[0] - bxEdit.p[0], dy = q[1] - bxEdit.p[1], h = bxEdit.h;
+        if (!bxEdit.nb && Math.abs(dx) + Math.abs(dy) < 0.004) return;
+        const b = bxEdit.b0.slice();
+        if (h === 'move') { b[0] += dx; b[2] += dx; b[1] += dy; b[3] += dy; }
+        else {
+          if (h.includes('w')) b[0] += dx;
+          if (h.includes('e')) b[2] += dx;
+          if (h.includes('n')) b[1] += dy;
+          if (h.includes('s')) b[3] += dy;
+        }
+        const nb = [Math.min(b[0], b[2]), Math.min(b[1], b[3]), Math.max(b[0], b[2]), Math.max(b[1], b[3])].map(v => Math.max(0, Math.min(1, v)));
+        bxEdit.nb = nb;
+        Object.assign(bxEdit.d.style, { left: nb[0] * 100 + '%', top: nb[1] * 100 + '%', width: (nb[2] - nb[0]) * 100 + '%', height: (nb[3] - nb[1]) * 100 + '%' });
+        return;
+      }
       if (!drag) return;
       drag.q = ovPoint(e);
       const [a, b] = [drag.p, drag.q];
@@ -1202,6 +1540,13 @@
         width: Math.abs(a[0] - b[0]) * 100 + '%', height: Math.abs(a[1] - b[1]) * 100 + '%' });
     });
     window.addEventListener('mouseup', () => {
+      if (bxEdit) {
+        const x = bxEdit;
+        bxEdit = null;
+        if (x.nb && x.nb[2] - x.nb[0] > 0.005 && x.nb[3] - x.nb[1] > 0.004) applyBox(x.i, x.page, x.nb);
+        else if (x.nb) sv.redraw();
+        return;
+      }
       if (!drag) return;
       const [a, b] = [drag.p, drag.q];
       drag.d.remove();
@@ -1212,11 +1557,12 @@
     });
 
     ov.addEventListener('click', e => {
+      if (!ov.contains(e.target) || e.target.classList.contains('del')) return;   // 剛按了 ✕（框已經重畫）
       const d = e.target.closest('.vtv-bx');
       if (!d) return;
       if (orderSeq) { if (d.dataset.i != null) orderClick(+d.dataset.i); return; }
       if (d.dataset.om != null) showOmitted(+d.dataset.om);
-      else if (d.dataset.i != null) { select(+d.dataset.i, e.shiftKey, false); const r = $('ly-r' + cur); if (r) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      else if (d.dataset.i != null) { select(+d.dataset.i, e.shiftKey, false); $('ly-list').focus({ preventScroll: true }); const r = $('ly-r' + cur); if (r) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
     });
 
     const list = $('ly-list');
@@ -1254,7 +1600,7 @@
       if (k === 'PageDown' || k === 'PageUp') { e.preventDefault(); sv.show(sv.page + (k === 'PageDown' ? 1 : -1)); return; }
       const ty = Object.keys(TY).find(t => TY[t].key === k);
       if (ty) { e.preventDefault(); setType(ty); return; }
-      if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); setType('skip'); return; }
+      if (k === 'Delete') { e.preventDefault(); delBlocks(); return; }
       if (k === 'e' || k === 'E' || k === 'Enter') { e.preventDefault(); startEdit(); return; }
       if (k === 'g' || k === 'G') { e.preventDefault(); merge(); return; }
       if (k === 'n' || k === 'N') { e.preventDefault(); addNew(); return; }
@@ -1273,6 +1619,9 @@
     });
     document.addEventListener('keydown', e => {
       if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(); }
+      // 焦點不在清單（例：剛點了原卷上的框）也可以按 Delete 刪選到的區塊
+      const t = e.target;
+      if (e.key === 'Delete' && V && editing < 0 && !$('ly-list').contains(t) && !(t.closest && t.closest('input,textarea,select,[contenteditable="true"],dialog'))) { e.preventDefault(); delBlocks(); }
     });
     window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   }

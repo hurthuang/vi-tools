@@ -1,7 +1,7 @@
 // 文字裡的 HTML 表格（<table border="1"><tr><td>…</td></tr></table>）：
 //   vi-tools 辨識套件的試卷輸出、老師手打的點字試卷都用這種寫法（一張表寫在同一行）
 // 給文件整理（預覽畫成表格、朗讀逐格念、自動調整不拆表格）與文字轉點字（表格轉成條列文字）用
-// 規則跟vi-tools 辨識套件 app\exam\layout.py 的 table_text 相同，改一邊要一起改
+// 規則跟 vi-tools 辨識套件 app\exam\layout.py 的 table_text 相同，改一邊要一起改
 // 對外：window.vitoolsHtmlTable = {
 //   RE                          找表格的正規表示式（g）
 //   has(text)                   有沒有表格
