@@ -356,6 +356,10 @@
   </div>
 </div>
 <div class="subbar" id="sub-make" role="tablist" aria-label="教材製作" data-group="group-make" hidden>
+  <div class="tab" role="tab" id="tab-layout" data-target="frame-layout"
+       tabindex="-1" aria-selected="false" aria-controls="frame-layout">
+    <span class="icon" aria-hidden="true">🗂</span> 版面整理
+  </div>
   <div class="tab" role="tab" id="tab-p2a" data-target="frame-p2a"
        tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
     <span class="icon" aria-hidden="true">🔊</span> 朗讀與音檔
@@ -485,6 +489,23 @@
       <h2 class="group-title" id="home-make">教材製作</h2>
       <p class="group-desc">把文件和圖形整理成視障學生可以用的教材。</p>
       <div class="tool-cards">
+
+        <div class="tool-card" style="--card-accent:#a78bfa" onclick="switchTo('frame-layout')"
+             role="button" tabindex="0" aria-label="開啟版面整理工具" aria-describedby="desc-layout"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-layout')}">
+          <div class="tool-icon" aria-hidden="true">🗂</div>
+          <div class="tool-info">
+            <div class="tool-name">
+              版面整理
+              <span class="tool-badge" style="background:#a78bfa">測試版</span>
+            </div>
+            <div class="tool-desc" id="desc-layout">
+              試卷、教材的第一步：開 PDF、圖檔或 Word，對照原卷排好題目、選項、題組，框選附圖、表格、算式，
+              存成中繼檔（NVDA 可以直接讀），再送去文字轉點字、朗讀與音檔、觸圖製作、數學點字。
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
 
         <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')"
              role="button" tabindex="0" aria-label="開啟朗讀與音檔工具" aria-describedby="desc-p2a"
@@ -707,6 +728,7 @@
   <iframe id="frame-bt"    class="panel" src="braille-translate.htm"  role="tabpanel" aria-labelledby="tab-bt"    title="文字轉點字"></iframe>
   <iframe id="frame-g2"    class="panel" src="braille-to-text.html"   role="tabpanel" aria-labelledby="tab-g2"    title="點字轉文字"></iframe>
   <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
+  <iframe id="frame-layout" class="panel" data-src="layout.html" role="tabpanel" aria-labelledby="tab-layout" title="版面整理"></iframe>
   <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="朗讀與音檔"></iframe>
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq" title="UEB 查詢"></iframe>
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="音樂點字"></iframe>
@@ -772,7 +794,7 @@
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
     'frame-music': 'music', 'frame-mstudent': 'music-student', 'frame-mtheory': 'music-theory', 'addons-panel': 'addons',
-    'frame-tactile': 'tactile', 'frame-abacus': 'abacus',
+    'frame-tactile': 'tactile', 'frame-abacus': 'abacus', 'frame-layout': 'layout',
     'frame-books': 'books', 'frame-zhshort': 'zh-tw-short',
     'frame-guide': 'guide', 'frame-search': 'search'
   };
@@ -902,6 +924,13 @@
   // nc → bt 銜接：nc 的「複製並開啟 bt」按鈕送出數學算式時，切到 bt 分頁，
   // 再轉發給 bt 的 iframe 讓它填進輸入框（bt 自己的 setBtInput 監聽器負責覆蓋）。
   window.addEventListener('message', function(e) {
+    // 版面整理 → 朗讀與音檔：切分頁，轉交排好的文字與中繼檔（只收同一個網站的框架）
+    if (e.data && e.data.type === 'sendToP2a' && e.origin === location.origin) {
+      switchTo('frame-p2a');
+      var pf = document.getElementById('frame-p2a');
+      try { pf.contentWindow.postMessage({ type: 'haodian-text', from: 'layout', name: e.data.name, text: e.data.text, vtdoc: e.data.vtdoc }, location.origin); } catch (ex) {}
+      return;
+    }
     if (e.data && e.data.type === 'sendToBt') {
       switchTo('frame-bt');
       var btFrame = document.getElementById('frame-bt');

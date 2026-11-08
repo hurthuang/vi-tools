@@ -2690,13 +2690,14 @@ function p2aSetFormatted(on) {
   if (h) h.textContent = on ? '（已排版，通常不需要；要用再展開）' : '（PDF、Word、TXT 用）';
   if (on) switchTab('tts');
 }
-function p2aLoadFormatted(text, name, vtdocHtml) {
+function p2aLoadFormatted(text, name, vtdocHtml, from) {
+  var src = from === 'layout' ? '版面整理' : 'vi-tools 辨識套件';
   var v = vtdocHtml && window.vitoolsVtdoc ? vitoolsVtdoc.parse(vtdocHtml) : null;
   var t = v ? vitoolsVtdoc.toText(v) : null;
   if (t) text = t.text;  // 有中繼檔就用中繼檔轉出來的文字（存回時才對得上）
   var cur = getEditorText();
   pushHistory(cur);  // 原本的內容可以按「復原」拿回來
-  document.getElementById('fi-name').textContent = name + '（vi-tools 辨識套件）';
+  document.getElementById('fi-name').textContent = name + '（' + src + '）';
   document.getElementById('fi-size').textContent = text.length + ' 字';
   document.getElementById('file-info').classList.add('active');
   pageCount = 0;
@@ -2705,15 +2706,19 @@ function p2aLoadFormatted(text, name, vtdocHtml) {
   p2aSetFormatted(true);
   p2aVtdoc = v ? { v: v, t: t, name: name + '.vtdoc.html' } : null;
   p2aVtdocBar();
-  setStatus('已從 vi-tools 辨識套件帶入「' + name + '」（已排版）' + (v ? '，改完可以按「存回中繼檔」' : ''));
+  setStatus('已從' + src + '帶入「' + name + '」（已排版）' + (v ? '，改完可以按「存回中繼檔」' : ''));
 }
 (function () {
   var LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
   window.addEventListener('message', function (e) {
     var d = e.data;
     // 版面整理（同一個網站）也用這個送過來
-    if (!d || d.type !== 'haodian-text' || !(LOCAL.test(e.origin) || e.origin === location.origin) || !window.opener || e.source !== window.opener) return;
-    p2aLoadFormatted(String(d.text || ''), String(d.name || 'vi-tools 辨識套件'), typeof d.vtdoc === 'string' ? d.vtdoc : null);
+    if (!d || d.type !== 'haodian-text') return;
+    // 開這頁的視窗（辨識套件、單獨開的版面整理），或首頁（版面整理在首頁的框架裡，首頁轉交）
+    var fromOpener = (LOCAL.test(e.origin) || e.origin === location.origin) && window.opener && e.source === window.opener;
+    var fromHome = e.origin === location.origin && window.parent !== window && e.source === window.parent;
+    if (!fromOpener && !fromHome) return;
+    p2aLoadFormatted(String(d.text || ''), String(d.name || 'vi-tools 辨識套件'), typeof d.vtdoc === 'string' ? d.vtdoc : null, d.from);
   });
   if (window.opener && /(^|[#&])from=(haodian|layout)(&|$)/.test(location.hash)) {
     try { window.opener.postMessage({ type: 'vitools-ready', page: 'pdf-to-accessible' }, '*'); } catch (err) { /* 開這頁的視窗已經關了 */ }

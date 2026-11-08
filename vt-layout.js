@@ -1241,10 +1241,18 @@
     if (!V) return;
     navigator.clipboard.writeText(plainText()).then(() => status('全部文字已複製到剪貼簿'), () => status('複製失敗，請改用「存成 .txt」'));
   }
-  // 跟辨識套件的「送到朗讀與音檔」一樣：開新分頁，等它回 vitools-ready 再送文字與中繼檔
+  // 在首頁的框架裡：請首頁切到「朗讀與音檔」分頁、轉交文字與中繼檔（同 nc 送到文字轉點字）。
+  // 單獨開這頁：跟辨識套件的「送到朗讀與音檔」一樣，開新分頁，等它回 vitools-ready 再送
   function sendP2a() {
     if (!V) return;
     const text = plainText();
+    let inHome = false;
+    try { inHome = window.parent !== window && !!window.parent.document.getElementById('frame-p2a'); } catch (e) {}
+    if (inHome) {
+      window.parent.postMessage({ type: 'sendToP2a', name: baseName(), text, vtdoc: serializeNow() }, location.origin);
+      status('已送到朗讀與音檔（標成已排版）');
+      return;
+    }
     const w = window.open('pdf-to-accessible.html#from=layout', '_blank');
     if (!w) { status('瀏覽器擋住了新分頁，請改用「複製全部文字」'); return; }
     const html = serializeNow();
@@ -1253,7 +1261,7 @@
       if (e.source !== w || !e.data || e.data.type !== 'vitools-ready') return;
       clearTimeout(t);
       window.removeEventListener('message', on);
-      w.postMessage({ type: 'haodian-text', name: baseName(), text, formatted: true, vtdoc: html }, location.origin);
+      w.postMessage({ type: 'haodian-text', from: 'layout', name: baseName(), text, formatted: true, vtdoc: html }, location.origin);
       status('已送到朗讀與音檔（新分頁，標成已排版）');
     }
     window.addEventListener('message', on);

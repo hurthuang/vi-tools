@@ -8,13 +8,14 @@
 
 ## 工具
 
-主頁的工具分成四組：點字轉換（文字轉點字、點字轉文字、數學點字、音樂點字）、教材製作（朗讀與音檔、觸圖製作）、學習與查詢（點字教材：注音點字、數理點字、UEB、音樂點字四本；珠算練習、點字樂譜練習、UEB 查詢、縮點）、附加元件（NVDA 附加元件連結）。上方第一排頁籤選組別，第二排選工具；各工具的網址（如 `#math`、`#abacus`）不變。
+主頁的工具分成四組：點字轉換（文字轉點字、點字轉文字、數學點字、音樂點字）、教材製作（版面整理、朗讀與音檔、觸圖製作）、學習與查詢（點字教材：注音點字、數理點字、UEB、音樂點字四本；珠算練習、點字樂譜練習、UEB 查詢、縮點）、附加元件（NVDA 附加元件連結）。上方第一排頁籤選組別，第二排選工具；各工具的網址（如 `#math`、`#abacus`）不變。
 
 | 工具 | 連結 | 說明 |
 |------|------|------|
 | 文字轉點字 | [braille-translate.htm](https://hurthuang.github.io/vi-tools/braille-translate.htm) | 文字→點字即時轉換，支援 UEB G1／G2／自定／Comp8；可分批啟用 G2 縮寫規則；Nemeth 數學模式；自訂規則；雙視校對區點擊注音點字格可手動修正多音字讀音；修正紀錄自動本機存檔，可匯出含修正紀錄的 HTML 校對檔，重新開啟後繼續修編 |
 | 點字轉文字 | [braille-to-text.html](https://hurthuang.github.io/vi-tools/braille-to-text.html) | UEB G2 與台灣注音點字混排自動辨識，還原為英文／中文；雙視校對區點字在上、國字在下，可點擊修正同音異字；修正紀錄自動本機存檔，可匯出含修正紀錄的 HTML 校對檔跨裝置繼續修編；McBopomofoWeb 引擎 |
 | 數學點字 | [nemeth_converter.html](https://hurthuang.github.io/vi-tools/nemeth_converter.html) | LaTeX 數學式↔Nemeth 點字雙向轉換；MathJax 即時預覽；108 課綱符號對照；數學編輯器 |
+| 版面整理（測試版） | [layout.html](https://hurthuang.github.io/vi-tools/layout.html) | 試卷、教材的第一步：開 PDF／圖檔／Word，對照原卷排好題目、選項、題組，框選附圖、表格、算式，存成中繼檔（.vtdoc.html，NVDA 可以直接讀），再送去文字轉點字、朗讀與音檔、觸圖製作、數學點字 |
 | 朗讀與音檔 | [pdf-to-accessible.html](https://hurthuang.github.io/vi-tools/pdf-to-accessible.html) | 開啟 PDF／DOCX／TXT，自動整理版面雜訊（頁首頁尾、選項斷行、連字號等）；內建語音朗讀（TTS）試聽；高對比與黃底黑字主題 |
 | UEB 查詢 | [UEB-g2-query.html](https://hurthuang.github.io/vi-tools/UEB-g2-query.html) | 輸入英文單字查 G2 點字，逐條列出所用縮寫規則並以色碼標示；支援點字反查英文；與 liblouis 結果並排比對 |
 | 縮點（實驗性質） | [zh-tw-short.html](https://hurthuang.github.io/vi-tools/zh-tw-short.html) | 注音點字的調號併入第七、八點（縮點）；輸入文字逐行對照國語點字與縮點，附讀寫規則（讀打一致）、進階打法與範例；八點點字字型（空點畫成小點）；只適用八點點字顯示器 |
