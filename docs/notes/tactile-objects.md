@@ -47,3 +47,8 @@
 - `paper` 可以省略（用目前紙張）；`titleBrl`、標籤的 `brl` 沒給就在這裡轉。
 - 儲存：來源是圖片的頁面（`packSrc`）存框選範圍的 PNG、圖片帶的字、`opts`、`fig`，所以截圖、圖檔做的觸圖開回來也能描圖；PDF 來源還是不存。
 - vi-tools 辨識套件（E:\Project\haodian-omr）的試卷版面調整畫面「附圖→觸圖（.tactile）」輸出這種檔：只有 `pages[].title` 與 `pages[].src.{image, labels}`，標題「第N題」，標籤是圖裡的字（文字層或 OCR）。
+
+## 開中繼檔（2026-11-08）
+
+- 「開啟檔案」收 `.html`／`.vtdoc.html`（`openVtdoc`）：`main figure.vt-fig[data-tactile="1"]`（不在 `template`、`section[data-drop]` 裡）一張一頁，轉成跟辨識套件「附圖→觸圖」一樣的 `{format:"vi-tools-tactile", pages:[{title, src:{image, labels:[{text,cx,cy}]}}]}` 交給 `loadTactile`；標題「第N題」（`section.vt-q` 的 `data-num`）＋「選項」（`data-role="options"`）＋圖說，重複的加「圖2」。標籤座標是圖片像素（`ul.vt-labels li` 的 `data-x`、`data-y`）。
+- 檢查：版面整理讀地理卷 PDF 文字層做出的中繼檔（7 張附圖）→ 觸圖製作 7 頁。
