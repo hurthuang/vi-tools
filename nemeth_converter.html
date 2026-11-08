@@ -110,6 +110,67 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
 .btn.pri:hover{background:#3d7ee0}
 .st{font-size:.71rem;color:var(--dim);min-height:18px;padding:2px 0}
 .st.ok{color:var(--green)}.st.err{color:var(--red)}
+/* 整份算式校對 */
+#p-vtm .sr-only{position:absolute;left:-9999px}
+#p-vtm [hidden]{display:none !important}
+.vtm-grid{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+@media(max-width:900px){.vtm-grid{grid-template-columns:1fr}}
+.vtm-side summary{cursor:pointer;font-size:.8rem;color:var(--dim);margin-bottom:4px}
+.vtm-side:not([open]){width:5.5em}
+#vtm-list{width:250px;background:var(--surf);color:var(--text);border:1px solid var(--bd);border-radius:7px;font-size:.8rem;padding:4px;height:calc(100vh - 190px);min-height:360px}
+#vtm-list option{padding:3px 4px}
+#vtm-list option.low{color:var(--red)}
+#vtm-list option.warn{color:#b35900;font-weight:600}
+.vtm-errmsg{background:#ffe9e9;color:#8a0000;border:1px solid #d00;border-radius:6px;padding:6px 10px;margin:0 0 6px;font-size:.9rem}
+#vtm-list optgroup{font-size:.78rem;color:var(--dim)}
+.vtm-bx.area{border:1px solid rgba(60,60,60,.55)}
+.vtm-bx.area.hid{border-style:dashed}
+.vtm-bx.skip{border:1px solid #666;background:repeating-linear-gradient(45deg,rgba(110,110,110,.28) 0 4px,transparent 4px 9px)}
+.vtm-bx.unc{border:2px solid #e00000;background:repeating-linear-gradient(45deg,rgba(230,0,0,.32) 0 4px,transparent 4px 9px)}
+.vtm-bx.warn.cur{background:rgba(255,230,0,.15)}
+.vtm-warn{background:#fff7e0;color:#4a3300;border:1px solid #e6a100;border-radius:6px;padding:8px 10px}
+#vtm-fit{background:var(--surf);color:var(--text);border:1px solid var(--bd2);border-radius:4px;font-size:.8rem}
+.vtm-col{min-width:0}
+.vtm-scroll{height:calc(100vh - 190px);min-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:7px;background:#fff}
+.vtm-right{display:flex;flex-direction:column;gap:8px;height:calc(100vh - 160px);min-height:420px;min-width:0}
+.vtm-right .vtm-edit{flex:none;max-height:60%;overflow:auto}
+.vtm-docpane{flex:1;min-height:150px;display:flex;flex-direction:column}
+.vtm-docpane .vtm-scroll{flex:1;height:auto;min-height:120px}
+#vtm-page{position:relative;width:100%}
+#vtm-page .vtm-sheet{display:block;width:100%;height:auto}
+#vtm-ov{position:absolute;inset:0}
+.vtm-bx{position:absolute;box-sizing:border-box;border-radius:2px}
+.vtm-bx.m{cursor:pointer;border:2px dashed #e6a100}
+.vtm-bx.m.ok{border:2px solid #1a9850}
+/* 正在校對的：粗紅框＋外圈黃光＋淡紅底，一眼就找得到 */
+.vtm-bx.cur{border:none;outline:4px solid #e00000;outline-offset:4px;background:rgba(255,230,0,.18);box-shadow:0 0 0 9px rgba(255,212,0,.85),0 0 18px 12px rgba(255,140,0,.6);z-index:2;animation:vtm-pulse 1.2s ease-in-out 3}
+.vtm-bx.blk{outline:4px solid #1557d6;outline-offset:4px;background:rgba(21,87,214,.08)}
+.vtm-bx.blk.cur{outline-color:#e00000;background:rgba(255,230,0,.12)}
+@keyframes vtm-pulse{50%{box-shadow:0 0 0 14px rgba(255,212,0,.95),0 0 26px 16px rgba(255,140,0,.8)}}
+@media (prefers-reduced-motion:reduce){.vtm-bx.cur{animation:none}}
+#vtm-doc{color:#111;background:#fff;padding:8px 12px;font-size:.92rem;line-height:1.8}
+#vtm-doc h1{font-size:1.2rem}#vtm-doc h2{font-size:1.05rem;color:#036;border-bottom:1px solid #036}#vtm-doc h3{font-size:1rem;margin:.8em 0 .2em}
+#vtm-doc p{margin:.15em 0}#vtm-doc .vt-opt{margin-left:1.5em}
+#vtm-doc table{border-collapse:collapse}#vtm-doc td,#vtm-doc th{border:1px solid #555;padding:1px 6px}
+#vtm-doc figure{margin:.3em 0;color:#555;font-size:.9em}#vtm-doc figure::before{content:'［附圖］'}
+#vtm-doc [hidden]{display:none}
+#vtm-doc .vt-math{cursor:pointer;border-bottom:2px dotted #e6a100;padding:0 1px}
+#vtm-doc .vt-math.ok{border-bottom:2px solid #1a9850}
+#vtm-doc .vt-math.cur{outline:4px solid #e00000;outline-offset:2px;background:#fff2a8;border-radius:3px}
+#vtm-doc .vtm-blk{outline:3px solid #1557d6;outline-offset:2px;background:#e8f0ff}
+#vtm-doc .vtm-pgmark{color:#888;font-size:.8rem;text-align:center;margin:.6em 0}
+.vtm-bad{color:var(--red);font-size:.9rem}
+.vtm-edit{border:2px solid var(--bd2);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.vtm-erow{display:flex;gap:10px;flex-wrap:wrap}
+.vtm-erow>.pane{min-width:220px}
+#vtm-tex{min-height:3em;font-family:var(--mono);font-size:1rem}
+.vtm-h{font-size:1rem;margin:0}
+.vtm-img{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;background:#fff;color:#555}
+.vtm-img img{max-width:100%;max-height:260px}
+.vtm-big{font-size:1.3rem;min-height:50px;display:flex;align-items:center;justify-content:center}
+.vtm-opt{display:inline-flex;align-items:center;gap:4px;font-size:.85rem}
+.btn.vtm-sm{padding:2px 8px}
+#vtm-nem.err{color:var(--red)}
 .keyhint{font-size:.7rem;color:var(--dim);background:var(--surf2);
   border:1px solid var(--bd);border-radius:5px;padding:5px 9px;
   display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -292,6 +353,10 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
       aria-controls="p-n2l" onclick="setMode('n2l')">
       Nemeth &#x2192; LaTeX
     </button>
+    <button class="tab" id="t-vtm" role="tab" aria-selected="false"
+      aria-controls="p-vtm" onclick="setMode('vtm')" title="開 vi-tools 中繼檔（.vtdoc.html），一個一個算式對照原卷校對，改好存回">
+      整份算式校對
+    </button>
   </div>
   <a href="nemeth-book.html" style="margin-left:auto;color:var(--blue);white-space:nowrap">📘 數理點字教材</a>
 </header>
@@ -399,12 +464,92 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
   <div class="st" id="n2l-st" role="status" aria-live="polite"></div>
 </main>
 
+<!-- 整份算式校對（中繼檔）panel -->
+<main id="p-vtm" style="display:none" role="tabpanel" aria-labelledby="t-vtm">
+  <div class="acts" role="group" aria-label="中繼檔">
+    <input type="file" id="vtm-file" accept=".html,.htm" style="display:none">
+    <button class="btn" onclick="document.getElementById('vtm-file').click()">📂 開啟中繼檔</button>
+    <button class="btn pri" id="vtm-save" disabled title="改過的算式寫回中繼檔（LaTeX 與 MathML），確認過的標記也存進去">💾 存回中繼檔</button>
+    <label class="vtm-opt">排序
+      <select id="vtm-sort"><option value="doc">原卷順序</option><option value="conf" selected>有錯、信心低的先</option></select></label>
+    <label class="vtm-opt"><input type="checkbox" id="vtm-only"> 只列還沒確認的</label>
+    <span class="st" id="vtm-stat" role="status"></span>
+  </div>
+  <div class="st" id="vtm-name">還沒開檔。中繼檔由vi-tools 辨識套件「存成中繼檔」產生（勾「包含原卷」才能對照整頁原卷），文件整理、文字轉點字存回的也可以。</div>
+  <div class="st" id="vtm-st" role="status" aria-live="polite" style="color:var(--blue)"></div>
+  <div class="vtm-grid">
+    <details class="vtm-side" open>
+      <summary>算式清單</summary>
+      <label class="sr-only" for="vtm-list">算式清單（Enter 到 LaTeX 欄）</label>
+      <select id="vtm-list" size="20"></select>
+    </details>
+    <section class="pane vtm-col" aria-label="原卷">
+      <div class="ph"><span class="dot p" aria-hidden="true"></span>原卷
+        <span id="vtm-page-tools" style="margin-left:auto;display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap;text-transform:none">
+          <select id="vtm-fit" aria-label="原卷顯示方式"><option value="page" selected>整頁</option><option value="width">合寬</option><option value="zoom">放大</option></select>
+          <label class="vtm-opt" title="選到算式時自動放大到那裡"><input type="checkbox" id="vtm-follow"> 跟著算式放大</label>
+          <label class="vtm-opt" title="其他區塊也畫淡灰框、略過的畫灰斜線；原卷上有字卻沒有框的地方就是漏掉的"><input type="checkbox" id="vtm-all"> 顯示全部框</label>
+          <button class="btn vtm-sm" id="vtm-pprev" type="button" aria-label="上一頁">◀</button>
+          <span id="vtm-pg"></span>
+          <button class="btn vtm-sm" id="vtm-pnext" type="button" aria-label="下一頁">▶</button>
+          <button class="btn vtm-sm" id="vtm-zout" type="button" aria-label="縮小">－</button>
+          <button class="btn vtm-sm" id="vtm-zin" type="button" aria-label="放大">＋</button>
+        </span></div>
+      <div id="vtm-page-box" hidden>
+        <div class="vtm-scroll" id="vtm-page-scroll"><div id="vtm-page"><div id="vtm-ov"></div></div></div>
+      </div>
+      <div class="box vtm-img" id="vtm-nosrc">
+        <img id="vtm-crop" alt="原卷裡這個算式的圖" hidden>
+        <span id="vtm-nocrop">這份中繼檔沒有帶原卷，只能看每個算式的裁圖（手打的算式沒有圖）</span>
+      </div>
+    </section>
+    <div class="vtm-right">
+    <section class="vtm-edit" id="vtm-edit" hidden aria-labelledby="vtm-head">
+      <h2 class="vtm-h" id="vtm-head"></h2>
+      <div class="vtm-warn" id="vtm-warn" hidden>
+        <p id="vtm-warn-text" style="white-space:pre-wrap;margin:0"></p>
+        <div class="acts"><button class="btn pri" id="vtm-warn-ok" type="button">✓ 看過了，下一個</button></div>
+      </div>
+      <p class="vtm-errmsg" id="vtm-err" role="alert" hidden></p>
+    <div class="vtm-erow" id="vtm-erow">
+        <div class="pane" style="flex:1">
+          <div class="ph"><label for="vtm-tex">LaTeX（Ctrl＋Enter 確認正確並跳下一個；Alt＋PageDown／PageUp 下一個／上一個）</label>
+            <button class="me-open-btn" id="vtm-me" type="button" style="margin-left:auto;text-transform:none;font-size:.75rem">📝 數學編輯器</button></div>
+          <textarea id="vtm-tex" rows="2" spellcheck="false"></textarea>
+          <div class="acts">
+            <button class="btn pri" id="vtm-ok" type="button">✓ 正確，下一個</button>
+            <button class="btn" id="vtm-back" type="button">上一個</button>
+            <button class="btn" id="vtm-next" type="button">下一個</button>
+            <button class="btn" id="vtm-undo" type="button">還原辨識結果</button>
+            <button class="btn" id="vtm-unmath" type="button" title="辨識錯、其實不是算式（例如「圖（二）」）：改回一般文字">不是算式，改回文字</button>
+            <span class="st" id="vtm-state"></span>
+          </div>
+        </div>
+        <div class="pane" style="flex:1">
+          <div class="ph" id="vtm-prev-label"><span class="dot p" aria-hidden="true"></span>目前的算式</div>
+          <div class="box prev vtm-big" id="vtm-prev" role="region" aria-labelledby="vtm-prev-label"></div>
+          <div class="ph"><span class="dot g" aria-hidden="true"></span>Nemeth 點字</div>
+          <div class="box mono font-unicode" id="vtm-nem"></div>
+        </div>
+      </div>
+    </section>
+    <section class="pane vtm-col vtm-docpane" aria-label="文字">
+      <div class="ph"><span class="dot g" aria-hidden="true"></span>文字（點算式選它；點其他文字，原卷上框出那一塊）
+        <button class="btn vtm-sm" id="vtm-mk" type="button" style="margin-left:auto;text-transform:none" title="漏掉的算式：先在下面選取那幾個字，再按這個">選取的文字變成算式</button></div>
+      <div class="vtm-scroll" id="vtm-doc-scroll"><div id="vtm-doc"></div></div>
+    </section>
+    </div>
+  </div>
+</main>
+
 <script src="shared.js"></script>
 <script src="math-speech.js"></script>
 <script src="desktop-audio.js"></script>
 <script src="lang-segments.js"></script>
 <script src="voice-settings.js"></script>
 <script src="speech-block.js"></script>
+<script src="vtdoc.js"></script>
+<script src="nc-vtdoc.js"></script>
 <script>
 // 🔊 報讀：LaTeX 算式轉成 MathCAT 報讀文字後朗讀（桌面版可匯出音檔）。
 // 認算式沿用轉點字的 MATH_RE（\( \) 與 $ $），而且和 l2nConvert 一樣逐行處理，念的算式和轉成點字的一致
@@ -3173,10 +3318,13 @@ function setMode(m){
   curMode=m;
   document.getElementById('p-l2n').style.display=(m==='l2n')?'flex':'none';
   document.getElementById('p-n2l').style.display=(m==='n2l')?'flex':'none';
+  document.getElementById('p-vtm').style.display=(m==='vtm')?'flex':'none';
   document.getElementById('t-l2n').className='tab'+(m==='l2n'?' on':'');
   document.getElementById('t-n2l').className='tab'+(m==='n2l'?' on':'');
+  document.getElementById('t-vtm').className='tab'+(m==='vtm'?' on':'');
   document.getElementById('t-l2n').setAttribute('aria-selected',m==='l2n');
   document.getElementById('t-n2l').setAttribute('aria-selected',m==='n2l');
+  document.getElementById('t-vtm').setAttribute('aria-selected',m==='vtm');
   ncSaveSessionDebounced();
 }
 
@@ -3697,11 +3845,15 @@ ncCheckSavedSession();
 var _meModalReturn = null, _meModalTrap = null;
 var _ME_FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
+var _meTarget = null;   // { get, set }：沒有的時候編輯 LaTeX → Nemeth 的輸入框
 function openMathEditor() {
   initMathEditor();
   var ta = document.getElementById('latexInput');
   var l2nIn = document.getElementById('l2n-in');
-  if (ta && l2nIn) {
+  if (ta && _meTarget) {
+    ta.value = _meTarget.get();
+    if (typeof updatePreview === 'function') updatePreview();
+  } else if (ta && l2nIn) {
     ta.value = l2nIn.value;
     if (typeof updatePreview === 'function') updatePreview();
   }
@@ -3723,6 +3875,7 @@ function openMathEditor() {
   _meModalTrap = function() { modalEl.removeEventListener('keydown', onKey); };
 }
 function closeMathEditor() {
+  _meTarget = null;
   document.getElementById('me-modal').classList.remove('open');
   if (_meModalTrap) { _meModalTrap(); _meModalTrap = null; }
   if (_meModalReturn) { _meModalReturn.focus(); _meModalReturn = null; }
@@ -3730,7 +3883,9 @@ function closeMathEditor() {
 function applyMathEditor() {
   var ta = document.getElementById('latexInput');
   var l2nIn = document.getElementById('l2n-in');
-  if (ta && l2nIn) {
+  if (ta && _meTarget) {
+    _meTarget.set(ta.value);
+  } else if (ta && l2nIn) {
     l2nIn.value = ta.value;
     l2nConvert();
   }

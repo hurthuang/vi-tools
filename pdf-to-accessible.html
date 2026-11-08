@@ -289,6 +289,8 @@ select.setting-select {
 #preview-content p {
   margin-bottom: 1em;
 }
+#preview-content table.html-table { border-collapse: collapse; margin: .4em 0 1em; }
+#preview-content table.html-table th, #preview-content table.html-table td { border: 1px solid currentColor; padding: 2px 10px; }
 #preview-content .opt-A { color: #80cbc4; }
 #preview-content .opt-B { color: #a5d6a7; }
 #preview-content .opt-C { color: #ffe082; }
@@ -583,6 +585,8 @@ input[type=range] { accent-color: var(--accent2); }
 <!-- 中英分語音：朗讀時英文段用英文語音（設定各頁共用） -->
 <script src="lang-segments.js"></script>
 <script src="exam-split.js"></script>
+<script src="html-table.js"></script>
+<script src="vtdoc.js"></script>
 <script src="voice-settings.js"></script>
 <script src="desktop-audio.js"></script>
 </head>
@@ -612,11 +616,17 @@ input[type=range] { accent-color: var(--accent2); }
         <p>拖曳檔案至此，或點選開啟</p>
         <div class="dz-formats">支援：PDF · TXT · DOCX · RTF</div>
       </div>
-      <input type="file" id="file-input" accept=".pdf,.txt,.docx,.rtf" style="display:none">
+      <input type="file" id="file-input" accept=".pdf,.txt,.docx,.rtf,.html,.htm" style="display:none">
       <div style="height:8px"></div>
       <div id="file-info">
         <strong id="fi-name"></strong><br>
         <span id="fi-size"></span>　<span id="fi-pages"></span>
+      </div>
+      <div id="fi-haodian" role="note" hidden style="margin-top:6px;padding:6px 8px;border-left:4px solid #2e7d32;background:var(--surface2, #eef7ee);font-size:.82rem;line-height:1.5;">
+        <strong>已排版</strong>（vi-tools 辨識套件帶入）：題目、選項、斷行都已經對照原卷排好，頁首頁尾也已略過。「自動調整」不會再做斷行整理；「斷行整理」「頁首頁尾」通常不用再做。
+      </div>
+      <div id="fi-vtdoc" hidden style="margin-top:6px;">
+        <button type="button" class="btn-tb" onclick="p2aVtdocSave()" title="改過的文字存回中繼檔（.vtdoc.html），轉點字、NVDA 電子檔也會跟著改">💾 存回中繼檔</button>
       </div>
     </div>
 
@@ -843,6 +853,11 @@ input[type=range] { accent-color: var(--accent2); }
         <ol id="split-list"></ol>
       </details>
       <p id="tts-voice-warn" hidden></p>
+      <label id="tts-table-wrap" hidden>表格念法
+        <select id="tts-table-axis" class="setting-select" title="文件裡的 HTML 表格朗讀時改成條列文字">
+          <option value="rows">以列為軸（一列一句：「月均溫：1月 -3.7℃，2月 …」）</option>
+          <option value="cols">以欄為軸（一欄一句：「1月：月均溫 -3.7℃，降水量 3mm」）</option>
+        </select></label>
       <fieldset id="tts-mode" hidden>
         <legend>朗讀內容</legend>
         <label><input type="radio" name="tts-mode" value="speech"> 報讀文字</label>
@@ -1058,6 +1073,7 @@ function decodeTextFile(buf) {
 }
 
 async function handleFile(file) {
+  p2aSetFormatted(false);
   const ext = file.name.split('.').pop().toLowerCase();
   const fiInfo = document.getElementById('file-info');
   document.getElementById('fi-name').textContent = file.name;
@@ -1077,6 +1093,20 @@ async function handleFile(file) {
     } else if (ext === 'docx') {
       text = await readDocx(file);
       setProgress(100, '完成');
+    } else if (ext === 'html' || ext === 'htm') {  // vi-tools 中繼檔（.vtdoc.html）
+      const html = decodeTextFile(await file.arrayBuffer());
+      const v = window.vitoolsVtdoc && vitoolsVtdoc.parse(html);
+      if (!v) { alert('這個 HTML 不是 vi-tools 中繼檔（.vtdoc.html）'); setProgress(0, ''); return; }
+      const t = vitoolsVtdoc.toText(v);
+      setProgress(100, '完成');
+      pushHistory('');
+      setEditorText(t.text, false);
+      p2aSetFormatted(true);
+      p2aVtdoc = { v, t, name: file.name };
+      p2aVtdocBar();
+      document.getElementById('sb-pages').textContent = '頁數：—';
+      setStatus('已載入中繼檔 ' + file.name + '（已排版）');
+      return;
     } else if (ext === 'rtf') {
       text = await readRtf(file);
       setProgress(100, '完成');
@@ -1386,9 +1416,13 @@ function p2aGetOpts() {
 function runAutoClean() {
   const text = getEditorText();
   if (!text.trim()) return;
-  let result = cleanExamText(text, p2aGetOpts());
+  const tables = [];
+  const masked = window.vitoolsHtmlTable
+    ? text.replace(vitoolsHtmlTable.RE, m => '\n@@VITABLE' + (tables.push(m) - 1) + '@@\n') : text;   // \u79C1\u7528\u5340\u5B57\u5143\u6703\u88AB\u6E05\u6389\uFF0C\u7528 ASCII \u8A18\u865F
+  let result = cleanExamText(masked, p2aGetOpts());
   // 若開啟「斷行整理」開關，套用目前面板的模式設定
-  if (document.getElementById('tog-auto-wrap').checked) {
+  const doWrap = document.getElementById('tog-auto-wrap').checked && !p2aFromHaodian;  // 辨識套件排好的不再斷行整理
+  if (doWrap) {
     const lines = result.split('\n');
     const threshold = parseInt(document.getElementById('fwp-linelen').value, 10) || 25;
     const decisions = [];
@@ -1423,8 +1457,9 @@ function runAutoClean() {
     }
     result = wrapped.replace(/\n{3,}/g, '\n\n').trim();
   }
+  if (tables.length) result = result.replace(/\n*[ \t]*@@\s*VITABLE\s*(\d+)\s*@@[ \t]*\n*/g, (m, k) => '\n' + tables[+k] + '\n').replace(/^\n+/, '');
   setEditorText(result);
-  setStatus('格式整理完成' + (document.getElementById('tog-auto-wrap').checked ? '（含斷行）' : ''));
+  setStatus('格式整理完成' + (doWrap ? '（含斷行）' : p2aFromHaodian ? '（辨識套件已排版，跳過斷行整理）' : ''));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1470,7 +1505,9 @@ function buildPreview() {
     const t = line.trim();
     if (!t) { html += '<p style="margin:.4em 0;"></p>'; continue; }
 
-    if (/^[一二三四五六七八九十][、．]/.test(t) || /^[★※【第]/.test(t)) {
+    if (/<table\b/i.test(t) && window.vitoolsHtmlTable) {   // HTML 表格（vi-tools 辨識套件、手打的點字試卷）：畫成表格
+      html += tableLineHtml(t);
+    } else if (/^[一二三四五六七八九十][、．]/.test(t) || /^[★※【第]/.test(t)) {
       html += `<span class="section-title">${esc(t)}</span>`;
     } else if (/^\d{1,3}\s*[\.。、]/.test(t)) {
       html += `<span class="q-num">${esc(t)}</span>`;
@@ -1491,6 +1528,29 @@ function buildPreview() {
 
 function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 一行裡的 HTML 表格 → 安全的 HTML（只取格子文字與 colspan）；表格前後同一行的字各自一段
+function tableLineHtml(t) {
+  let out = '', last = 0;
+  t.replace(vitoolsHtmlTable.RE, (m, at) => {
+    const before = t.slice(last, at).trim();
+    if (before) out += `<p>${esc(before)}</p>`;
+    out += vitoolsHtmlTable.element(m).outerHTML;
+    last = at + m.length;
+    return m;
+  });
+  const after = t.slice(last).trim();
+  if (after) out += `<p>${esc(after)}</p>`;
+  return out;
+}
+
+// 朗讀、匯出音檔用的文字：HTML 表格換成條列文字（逐格念，帶欄名、列名），不改編輯區
+function getSpeakText() {
+  const txt = getEditorText();
+  if (!window.vitoolsHtmlTable || !vitoolsHtmlTable.has(txt)) return txt;
+  const sel = document.getElementById('tts-table-axis');
+  return vitoolsHtmlTable.replaceAll(txt, sel ? sel.value : 'rows').text;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1519,7 +1579,10 @@ let _ttsLastIdx   = -1;
 let _ttsStartIdx  = 0;   // 點擊設定的起始句子
 
 function buildTtsDisplay() {
-  const txt = getEditorText();
+  const hasTable = !!(window.vitoolsHtmlTable && vitoolsHtmlTable.has(getEditorText()));
+  document.getElementById('tts-table-wrap').hidden = !hasTable;
+  document.getElementById('tts-table-axis').onchange = () => { if (window.ttsStop) ttsStop(); buildTtsDisplay(); };
+  const txt = getSpeakText();
   const el = document.getElementById('tts-text-display');
   if (!txt.trim()) { el.textContent = '（無文字）'; return; }
 
@@ -1630,12 +1693,12 @@ function ttsPlay() {
   if (!window.speechSynthesis) { alert('此瀏覽器不支援語音合成'); return; }
   if (ttsPlaying) return;
   // 算式還在轉報讀文字：等轉完（朗讀區會重建）再播
-  if (_ttsMathConverting && _ttsMathConverting.txt === getEditorText()) {
+  if (_ttsMathConverting && _ttsMathConverting.txt === getSpeakText()) {
     _ttsMathConverting.promise.then(() => ttsPlay());
     return;
   }
   if (!_ttsSentences.length) { buildTtsDisplay(); }
-  const fullTxt = getEditorText();
+  const fullTxt = getSpeakText();
   if (!fullTxt.trim()) return;
 
   // 計算從 _ttsStartIdx 開始的字元偏移
@@ -1893,7 +1956,7 @@ if (window.vitoolsVoiceSettings) vitoolsVoiceSettings.mount(document.getElementB
     }
 
     async function exportText() {
-      const txt = getEditorText();
+      const txt = getSpeakText();
       if (!txt.trim()) throw new Error('沒有可匯出的文字');
       const math = ttsHasMath(txt);
       if (math && ttsMode !== 'raw') {
@@ -1993,7 +2056,7 @@ function initSplitExport(api, nativeVoice, getVoices) {
 
   // 文字或模式沒變時不重建，保留使用者改過的檔名與選擇
   async function build(force) {
-    const txt = getEditorText();
+    const txt = getSpeakText();
     const key = txt + '|' + how.value + '|' + (ttsHasMath(txt) ? ttsMode : 'plain');
     if (!force && key === builtKey) return;
     builtKey = key;
@@ -2126,7 +2189,9 @@ function exportHtml() {
   for (const line of lines) {
     const t = line.trim();
     if (!t) { body += '\n'; continue; }
-    if (/^[一二三四五六七八九十][、．]/.test(t) || /^[★※【第]/.test(t)) {
+    if (/<table\b/i.test(t) && window.vitoolsHtmlTable) {
+      body += tableLineHtml(t) + '\n';
+    } else if (/^[一二三四五六七八九十][、．]/.test(t) || /^[★※【第]/.test(t)) {
       body += `<h2>${esc(t)}</h2>\n`;
     } else if (/^\d{1,3}\s*[\.。、]/.test(t)) {
       body += `<p class="q">${esc(t)}</p>\n`;
@@ -2147,6 +2212,7 @@ h2{font-size:1.2em;color:#003399;margin:1.6em 0 .6em;border-bottom:2px solid #00
 p{margin:.6em 0;}
 .q{font-weight:bold;color:#003399;margin-top:1.4em;}
 .opt{color:#444;padding-left:1em;}
+table{border-collapse:collapse;margin:.6em 0;}th,td{border:1px solid #444;padding:2px 10px;}
 @media print{body{font-size:14pt;}}
 </style>
 </head>
@@ -2286,6 +2352,7 @@ let _hfCandidates = [];
 function openHfPanel() {
   const text = getEditorText();
   if (!text.trim()) return;
+  if (p2aFromHaodian) setStatus('這份是vi-tools 辨識套件排好的，頁首頁尾已經略過，通常不用再刪');
   _hfCandidates = detectHeaderFooter(text);
 
   const listEl = document.getElementById('hf-list');
@@ -2369,6 +2436,7 @@ function toggleWrapPanel() {
   } else {
     panel.classList.add('open');
     btn.classList.add('primary');
+    if (p2aFromHaodian) setStatus('這份是vi-tools 辨識套件排好的，斷行已對照原卷，通常不用再整理');
     document.getElementById('fwp-linelen-wrap').style.display =
       _wrapMode === 'aggressive' ? 'flex' : 'none';
     wrapRefresh();
@@ -2389,6 +2457,7 @@ function classifyLineBreak(lines, idx, mode, lenThreshold) {
   const next = idx + 1 < lines.length ? lines[idx+1] : null;
   if (cur.trim() === '') return 'blank';
   if (!next || next.trim() === '') return 'keep';
+  if (/<\/?table\b/i.test(cur) || /<table\b/i.test(next)) return 'keep';   // HTML 表格自己一行
 
   const nextTrim = next.trim();
   if (/^[一二三四五六七八九十百][、．]/.test(nextTrim)) return 'keep';
@@ -2573,6 +2642,62 @@ document.addEventListener('DOMContentLoaded', function(){
   try{ t=localStorage.getItem('site-theme')||'light'; }catch(e){}
   setTheme(t);
 });
+
+// ── 從vi-tools 辨識套件（本機的辨識程式）帶入排好的文字 ──
+// 辨識套件用 window.open 打開這頁（網址帶 #from=haodian），這頁回「vitools-ready」，辨識套件再送 {type:'haodian-text', name, text}。
+// 只收開這頁的那個視窗、而且是本機（127.0.0.1／localhost）送來的。
+var p2aFromHaodian = false;
+var p2aVtdoc = null;   // 開啟的中繼檔 { v, t（開啟時的純文字與行對應）, name }
+function p2aVtdocBar() {
+  var b = document.getElementById('fi-vtdoc');
+  if (b) b.hidden = !p2aVtdoc;
+}
+// 改過的文字存回中繼檔（只改內容；朗讀的語速、停頓不寫進去）
+function p2aVtdocSave() {
+  if (!p2aVtdoc) return;
+  var r = vitoolsVtdoc.applyText(p2aVtdoc.v, p2aVtdoc.t, getEditorText());
+  var note = '文字 ' + r.changed + ' 行修改、' + r.added + ' 行新增、' + r.removed + ' 行刪除';
+  var html = vitoolsVtdoc.serialize(p2aVtdoc.v, '文件整理', note);
+  p2aVtdoc.t = vitoolsVtdoc.toText(p2aVtdoc.v);
+  var name = /\.vtdoc\.html?$/i.test(p2aVtdoc.name) ? p2aVtdoc.name : p2aVtdoc.name.replace(/\.html?$/i, '') + '.vtdoc.html';
+  triggerDownload(new Blob([html], { type: 'text/html;charset=utf-8' }), name);
+  setStatus('已存回中繼檔 ' + name + '：' + note);
+}
+function p2aSetFormatted(on) {
+  p2aFromHaodian = !!on;
+  if (!on) { p2aVtdoc = null; p2aVtdocBar(); }
+  var n = document.getElementById('fi-haodian');
+  if (n) n.hidden = !on;
+}
+function p2aLoadFormatted(text, name, vtdocHtml) {
+  var v = vtdocHtml && window.vitoolsVtdoc ? vitoolsVtdoc.parse(vtdocHtml) : null;
+  var t = v ? vitoolsVtdoc.toText(v) : null;
+  if (t) text = t.text;  // 有中繼檔就用中繼檔轉出來的文字（存回時才對得上）
+  var cur = getEditorText();
+  pushHistory(cur);  // 原本的內容可以按「復原」拿回來
+  document.getElementById('fi-name').textContent = name + '（vi-tools 辨識套件）';
+  document.getElementById('fi-size').textContent = text.length + ' 字';
+  document.getElementById('file-info').classList.add('active');
+  pageCount = 0;
+  document.getElementById('sb-pages').textContent = '頁數：—';
+  setEditorText(text, false);
+  p2aSetFormatted(true);
+  p2aVtdoc = v ? { v: v, t: t, name: name + '.vtdoc.html' } : null;
+  p2aVtdocBar();
+  setStatus('已從vi-tools 辨識套件帶入「' + name + '」（已排版）' + (v ? '，改完可以按「存回中繼檔」' : ''));
+}
+(function () {
+  var LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    // 版面整理（同一個網站）也用這個送過來
+    if (!d || d.type !== 'haodian-text' || !(LOCAL.test(e.origin) || e.origin === location.origin) || !window.opener || e.source !== window.opener) return;
+    p2aLoadFormatted(String(d.text || ''), String(d.name || 'vi-tools 辨識套件'), typeof d.vtdoc === 'string' ? d.vtdoc : null);
+  });
+  if (window.opener && /(^|[#&])from=(haodian|layout)(&|$)/.test(location.hash)) {
+    try { window.opener.postMessage({ type: 'vitools-ready', page: 'pdf-to-accessible' }, '*'); } catch (err) { /* 開這頁的視窗已經關了 */ }
+  }
+})();
 
 // ── 框架主題控制 ──
 window.addEventListener('message', function(e) {

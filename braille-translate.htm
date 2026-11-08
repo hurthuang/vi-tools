@@ -698,6 +698,16 @@
                 <button onclick="btInsertMusicBlock()" title="插入樂譜區塊：在【樂譜】和【/樂譜】之間寫 ABC 記譜，輸出時換成點字樂譜（BANA Music Braille Code 2015），方數照每行方數" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🎼 樂譜區塊</button>
                 <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
+            <div id="bt-vtdoc-bar" hidden role="region" aria-label="中繼檔" style="padding:6px 10px;margin-bottom:8px;background:#e3f2fd;color:#1b1f2d;border:1px solid #90caf9;border-radius:6px;font-size:0.85em;">
+                <span id="bt-vtdoc-msg"></span>
+                <button type="button" onclick="btVtdocSave()" title="改過的文字、修正的讀音（多音字）存回中繼檔；點字的換行、版面不會寫進去" style="padding:3px 10px;font-size:0.95em;background:#1565c0;">存回中繼檔</button>
+                <button type="button" onclick="btVtdocClose()" title="不再跟中繼檔連動（輸入框的文字留著）" style="padding:3px 10px;font-size:0.95em;background:#757575;">關閉連動</button>
+            </div>
+            <div id="bt-table-bar" hidden style="padding:6px 10px;margin-bottom:8px;background:#e8f5e9;color:#1b1f2d;border:1px solid #a5d6a7;border-radius:6px;font-size:0.85em;">
+                <span id="bt-table-msg"></span>
+                <button type="button" onclick="btTablesToText('rows')" title="一列一行，例：「月均溫：1月 -3.7℃，2月 -0.7℃…」" style="padding:3px 10px;font-size:0.95em;background:#2e7d32;">以列為軸</button>
+                <button type="button" onclick="btTablesToText('cols')" title="一欄一行，例：「1月：月均溫 -3.7℃，降水量 3mm」" style="padding:3px 10px;font-size:0.95em;background:#2e7d32;">以欄為軸</button>
+            </div>
             <textarea id="input-text" autofocus placeholder="請在此輸入內容...（Ctrl+B 切換點字直接輸入）"></textarea>
         </div>
         <div class="output-area">
@@ -3140,6 +3150,29 @@ function btLayoutQuestions() {
     _btShowLayoutReport('題號排版', r, mixed, oldText, oldEdits);
 }
 
+// HTML 表格（<table border="1">…</table>，豪點樂譜辨識、手打的點字試卷）：點字摸讀時改成條列文字
+//   以列為軸「月均溫：1月 -3.7℃，2月 …」、以欄為軸「1月：月均溫 -3.7℃，降水量 3mm」（規則在 html-table.js）
+//   直接改輸入框（看得到、可以再改），跟題號排版一樣保住中文點字、可以復原
+function _btUpdateTableBar(text) {
+    const bar = document.getElementById('bt-table-bar');
+    if (!bar || !window.vitoolsHtmlTable) return;
+    const n = (text.match(vitoolsHtmlTable.RE) || []).length;
+    bar.hidden = !n;
+    if (n) document.getElementById('bt-table-msg').textContent = `有 ${n} 個表格（HTML），點字會照標籤原文轉；改成條列文字：`;
+}
+function btTablesToText(axis) {
+    const ta = document.getElementById('input-text');
+    const oldText = ta.value;
+    const oldEdits = new Map(_btZhEdits), before = _btZhSeq(oldText);
+    const { text, count } = vitoolsHtmlTable.replaceAll(oldText, axis);
+    if (!count || text === oldText) { _btShowLayoutReport('表格轉成條列文字', null, [], oldText, oldEdits); return; }
+    ta.value = text;
+    const r = btKeepZhBraille(before, text);
+    render();
+    btSaveSessionDebounced();
+    _btShowLayoutReport(`表格轉成條列文字（${axis === 'cols' ? '以欄為軸' : '以列為軸'}，${count} 個表格）`, r, [], oldText, oldEdits);
+}
+
 function _btShowLayoutReport(title, r, mixed, oldText, oldEdits) {
     let box = document.getElementById('bt-layout-report');
     if (!box) {
@@ -3339,6 +3372,12 @@ function btInsertMusicBlock() {
 
 function render() {
     if (!isLoaded) return;
+<<<<<<< HEAD
+=======
+    // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）
+    let input     = document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n');
+    _btUpdateTableBar(input);
+>>>>>>> 8e7a012 (中繼檔、版面整理（測試版）、nc 整份算式校對、HTML 表格、網頁版算式辨識)
     const max     = parseInt(document.getElementById('cell-limit').value)||40;
     // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）；樂譜區塊換成等長的佔位行
     let input     = _extractMusicBlocks(document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n'), max);
@@ -5109,6 +5148,10 @@ function btHandleOpenFile(event) {
     if (/\.html?$/i.test(file.name)) {
         const reader = new FileReader();
         reader.onload = function(ev) {
+            if (window.vitoolsVtdoc && vitoolsVtdoc.isVtdoc(ev.target.result)) {  // vi-tools 中繼檔
+                try { btVtdocOpen(ev.target.result, file.name); } catch (e) { alert('無法載入中繼檔：' + e.message); }
+                return;
+            }
             try {
                 const data = _extractSessionFromHtml(ev.target.result);
                 if (!data) { alert('無法載入：此 HTML 檔案不含校對存檔資料。'); return; }
@@ -5124,6 +5167,83 @@ function btHandleOpenFile(event) {
     } else {
         handleOpenFile(event, 'input-text', render);
     }
+}
+
+// ════════════════════════════════════════════════════════════
+//  vi-tools 中繼檔（.vtdoc.html，docs/notes/vtdoc.md）
+//  開啟：照規格轉成純文字放進輸入框，中繼檔裡的讀音（data-reading）變成多音字修正。
+//  存回：輸入框改過的行寫回對應的元素；多音字修正寫成 data-reading（注音）。點字的換行、版面不寫回去。
+// ════════════════════════════════════════════════════════════
+let _btVtdoc = null;   // { v, t（開啟時的純文字與行對應）, name }
+
+function btVtdocOpen(html, name) {
+    const v = vitoolsVtdoc.parse(html);
+    if (!v) throw new Error('不是中繼檔');
+    const t = vitoolsVtdoc.toText(v);
+    _btVtdoc = { v, t, name };
+    document.getElementById('input-text').value = t.text;
+    _btZhEdits.clear();
+    _btZhEditsVersion++;
+    render();
+    if (!mcbReady) {  // 注音引擎還在載入：讀音等它好了再套
+        _btVtdocBar(`中繼檔「${vitoolsVtdoc.title(v) || name}」，注音引擎載入中，讀音稍後套用…`);
+        const wait = setInterval(() => { if (mcbReady && _btVtdoc && _btVtdoc.v === v) { clearInterval(wait); _btVtdocReadings(v, name); } }, 300);
+        return;
+    }
+    _btVtdocReadings(v, name);
+}
+
+function _btVtdocReadings(v, name) {
+    let n = 0, bad = 0;
+    for (const r of vitoolsVtdoc.readings(v)) {
+        const brl = _zhBpmfToBraille(r.reading.split(/\s+/)[0]);
+        if (brl === null) { bad++; continue; }
+        _btZhEdits.set(_zhCtxKey(r.line, r.index), brl);
+        n++;
+    }
+    _btZhEditsVersion++;
+    render();
+    btSaveSession();
+    _btVtdocBar(`中繼檔「${vitoolsVtdoc.title(v) || name}」` + (n ? `，讀音修正 ${n} 個` : '') + (bad ? `（${bad} 個讀音看不懂，沒有套用）` : '') +
+        '。改字、修正讀音後按「存回中繼檔」。');
+}
+
+function _btVtdocBar(msg) {
+    const bar = document.getElementById('bt-vtdoc-bar');
+    bar.hidden = !_btVtdoc;
+    document.getElementById('bt-vtdoc-msg').textContent = msg || '';
+}
+
+function btVtdocClose() {
+    _btVtdoc = null;
+    _btVtdocBar('');
+}
+
+function btVtdocSave() {
+    if (!_btVtdoc) return;
+    const { v, t, name } = _btVtdoc;
+    const text = document.getElementById('input-text').value;
+    const r = vitoolsVtdoc.applyText(v, t, text);
+    // 讀音：每個中文字照它在行裡的前後文找多音字修正，改的是可以寫成注音的才寫回
+    let skipped = 0;
+    const nRead = vitoolsVtdoc.applyReadings(v, (line, i) => {
+        if (!_isZhChar(line[i])) return null;
+        const brl = _btZhEdits.get(_zhCtxKey(line, i));
+        if (brl === undefined) return null;
+        const bpmf = _zhBrailleToBpmf(brl);
+        if (!bpmf) { skipped++; return null; }
+        return bpmf;
+    });
+    const note = `文字 ${r.changed} 行修改、${r.added} 行新增、${r.removed} 行刪除；讀音 ${nRead} 個`;
+    const html = vitoolsVtdoc.serialize(v, '文字轉點字', note);
+    _btVtdoc.t = vitoolsVtdoc.toText(v);   // 之後再存，以現在的內容為準
+    const fname = /\.vtdoc\.html?$/i.test(name) ? name : name.replace(/\.html?$/i, '') + '.vtdoc.html';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    _btVtdocBar(`已存回 ${fname}：${note}` + (skipped ? `（${skipped} 個點字修正不是注音，沒有寫回）` : '') + '。');
 }
 
 function saveInputText() {
@@ -5191,6 +5311,8 @@ window.addEventListener('message', function(e) {
 loadRules();
 
 </script>
+<script src="html-table.js"></script>
+<script src="vtdoc.js"></script>
 <script src="shared.js"></script>
 <script src="desktop-audio.js"></script>
 <script src="brl-reading-data.js"></script>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>版面整理（測試版）</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
+    macros: { ratio: ['\\mathrel{\\unicode{x2236}}', 0], proportion: ['\\mathrel{\\unicode{x2237}}', 0] } },
+  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{--bd:#c9cfdd;--dim:#5b6476;--blue:#1557d6;--surf:#f6f7fb}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif;color:#111;background:#fff;font-size:15px}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--surf)}
+header h1{font-size:1.15rem;margin:0}
+header .beta{font-size:.75rem;background:#ffe9b0;color:#5a3d00;border-radius:4px;padding:1px 6px}
+header a{margin-left:auto;color:var(--blue)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 14px}
+.btn{font:inherit;font-size:.88rem;padding:4px 10px;border:1px solid #9aa5bc;border-radius:5px;background:#fff;color:#111;cursor:pointer}
+.btn:hover{background:#eef3ff}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,select:focus-visible,#ly-list:focus-visible{outline:3px solid #ffb000;outline-offset:1px}
+select{font:inherit;font-size:.88rem;padding:3px}
+#ly-st{color:var(--dim);font-size:.85rem}
+#ly-name{font-size:.85rem;color:var(--dim);padding:0 14px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:10px;padding:6px 14px}
+.col{min-width:0;display:flex;flex-direction:column;gap:6px}
+.ph{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.85rem;color:var(--dim)}
+.ph b{color:#111}
+.scroll{height:calc(100vh - 200px);min-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:7px;background:#fff}
+#ly-page{position:relative;margin:0 auto}
+.vtv-sheet{display:block;width:100%;height:auto}
+#ly-ov{position:absolute;inset:0}
+.vtv-bx{position:absolute;cursor:pointer;border:2px solid var(--c,#888);background:color-mix(in srgb,var(--c,#888) 8%,transparent)}
+.vtv-bx .n{position:absolute;left:-2px;top:-15px;font:600 11px/13px sans-serif;background:var(--c,#888);color:#fff;padding:0 3px;border-radius:3px 3px 0 0;white-space:nowrap}
+.vtv-bx.hid{border-style:dashed}
+.vtv-bx.cur{outline:4px solid #e00000;outline-offset:3px;box-shadow:0 0 0 9px rgba(255,214,0,.55);z-index:3}
+.vtv-bx.sel{outline:3px solid #e00000;outline-offset:2px;z-index:2}
+.vtv-bx.om-skip{--c:#777;background:repeating-linear-gradient(45deg,rgba(110,110,110,.3) 0 4px,transparent 4px 9px)}
+.vtv-bx.om-unc{--c:#e00000;background:repeating-linear-gradient(45deg,rgba(230,0,0,.3) 0 4px,transparent 4px 9px)}
+.vtv-bx.drag{border:2px dashed #e00000;background:rgba(255,0,0,.06);pointer-events:none}
+#ly-ov{cursor:crosshair}
+#ly-nosrc{padding:20px;color:var(--dim)}
+#ly-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--surf);font-size:.85rem}
+#ly-tools .sep{width:1px;align-self:stretch;background:var(--bd)}
+#ly-list{height:calc(100vh - 250px);min-height:300px;overflow:auto;border:1px solid var(--bd);border-radius:7px;padding:4px 6px}
+.row{display:flex;gap:8px;align-items:flex-start;padding:3px 4px;border:2px solid transparent;border-radius:5px;cursor:pointer}
+.row:hover{background:#f3f6fc}
+.row.sel{background:#fff6d6;border-color:#e6a100}
+.row.cur{border-color:#e00000;background:#fff3c4}
+.row .no{flex:none;width:2.4em;text-align:right;color:var(--dim);font-size:.75rem;padding-top:3px}
+.row .ty{flex:none;width:4.6em;text-align:center;font-size:.75rem;border-radius:4px;padding:2px 0;color:#fff;background:var(--c,#888)}
+.row .tx{flex:1;min-width:0;line-height:1.7;overflow-wrap:anywhere}
+.row.t-h1 .tx{font-size:1.15rem;font-weight:700}
+.row.t-h2 .tx{font-weight:700}
+.row.t-q .tx{font-weight:600}
+.row.t-opt .tx,.row.t-item .tx{padding-left:1.4em}
+.row.t-skip .tx,.row.hid .tx{color:#888;text-decoration:line-through}
+.row.t-page{cursor:default}
+.row.t-page .tx{color:#888;font-size:.8rem}
+.row .tx[contenteditable="true"]{outline:2px solid var(--blue);background:#fff;cursor:text;padding:0 3px}
+.row .tx img{max-height:140px;max-width:100%;border:1px solid #ddd}
+.row .tx table{border-collapse:collapse;font-size:.85rem}
+.row .tx td,.row .tx th{border:1px solid #777;padding:1px 6px}
+.row.drop .tx{color:#a0005a}
+.row .vt-math{background:#eef4ff;border-radius:3px}
+.row .vt-math[contenteditable="false"]{cursor:pointer}
+.ty-h1{--c:#be123c}.ty-h2{--c:#7c3aed}.ty-q{--c:#2563eb}.ty-opt{--c:#0891b2}.ty-item{--c:#0e7490}.ty-p{--c:#6b7280}
+.ty-passage{--c:#4b5563}.ty-optfig{--c:#0891b2}.ty-fig{--c:#16a34a}.ty-table{--c:#65a30d}.ty-score{--c:#c026d3}
+.ty-figtext,.ty-figdesc,.ty-tbltext{--c:#ea580c}.ty-skip{--c:#9ca3af}.ty-page{--c:#bbb}.ty-other{--c:#444}
+#ly-om{font-size:.85rem;background:#fff7e0;border:1px solid #e6a100;border-radius:6px;padding:6px 10px}
+#ly-om[hidden],[hidden]{display:none !important}
+.help{font-size:.8rem;color:var(--dim);padding:0 14px 10px}
+kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;padding:0 3px;background:#fafafa}
+@media (prefers-reduced-motion:no-preference){.vtv-bx.cur{animation:ly-pulse .5s ease-in-out 3 alternate}}
+@keyframes ly-pulse{from{box-shadow:0 0 0 9px rgba(255,214,0,.55)}to{box-shadow:0 0 0 14px rgba(255,214,0,.2)}}
+</style>
+</head>
+<body>
+<header role="banner">
+  <h1>版面整理</h1><span class="beta">測試版</span>
+  <a href="guide.html#layout">使用說明</a>
+</header>
+<main>
+<div class="bar">
+  <button class="btn" id="ly-open" type="button">📂 開啟中繼檔</button>
+  <input type="file" id="ly-file" accept=".html,.htm" hidden>
+  <button class="btn pri" id="ly-save" type="button" disabled>💾 存回中繼檔</button>
+  <button class="btn" id="ly-undo" type="button" disabled title="Ctrl＋Z">↶ 復原</button>
+  <button class="btn" id="ly-order" type="button" title="照閱讀順序在原卷上點這一頁的框（O）">排順序</button>
+  <button class="btn" id="ly-txt" type="button">存成 .txt</button>
+  <button class="btn" id="ly-copy" type="button">複製全部文字</button>
+  <button class="btn" id="ly-send" type="button" title="打開文件整理，帶排好的文字與中繼檔過去（標成已排版）">送到文件整理</button>
+  <select id="ly-dragmode" aria-label="在原卷上拉框時" hidden>
+    <option value="auto" hidden disabled>拉框：辨識套件（文字＋算式）</option>
+    <option value="math">拉框：辨識成一個算式</option>
+    <option value="layer" selected>拉框：讀文字（PDF 文字層）</option>
+  </select>
+  <span id="ly-hd" hidden>
+    <span id="ly-hd-name" style="color:#0a7a4a;font-size:.85rem"></span>
+  </span>
+  <button class="btn" id="ly-hd-find" type="button" title="打開vi-tools 辨識套件之後按這個，就可以重新辨識、拉框辨識文字＋算式">找本機辨識套件</button>
+  <span id="ly-st" role="status" aria-live="polite"></span>
+</div>
+<div id="ly-name"></div>
+<div class="grid">
+  <section class="col" aria-label="原卷">
+    <div class="ph"><b>原卷</b>
+      <select id="ly-fit" aria-label="原卷顯示方式"><option value="page" selected>整頁</option><option value="width">合寬</option><option value="zoom">放大</option></select>
+      <label><input type="checkbox" id="ly-follow"> 跟著選到的放大</label>
+      <label><input type="checkbox" id="ly-onum" checked> 標順序</label>
+      <button class="btn" id="ly-pprev" type="button" aria-label="上一頁">◀</button>
+      <span id="ly-pg"></span>
+      <button class="btn" id="ly-pnext" type="button" aria-label="下一頁">▶</button>
+      <button class="btn" id="ly-zout" type="button" aria-label="縮小">－</button>
+      <button class="btn" id="ly-zin" type="button" aria-label="放大">＋</button>
+    </div>
+    <div class="scroll" id="ly-scroll"><div id="ly-page"><div id="ly-ov"></div></div>
+      <p id="ly-nosrc" hidden>這個中繼檔沒有帶原卷。請在vi-tools 辨識套件存中繼檔時勾「中繼檔包含原卷」，再存一次。</p>
+    </div>
+    <div id="ly-om" hidden>
+      <p id="ly-om-text" style="margin:0 0 6px;white-space:pre-wrap"></p>
+      <button class="btn pri" id="ly-om-add" type="button">加回來（放在原卷上前一塊的後面）</button>
+      <button class="btn" id="ly-om-all" type="button">這一頁同樣的都加回來</button>
+      <button class="btn" id="ly-om-close" type="button">關閉</button>
+    </div>
+  </section>
+  <section class="col" aria-label="排好的內容">
+    <div id="ly-tools" aria-label="選到的區塊">
+      <label>類型 <select id="ly-type" aria-label="類型">
+        <option value="q">1 題目</option><option value="opt">2 選項</option><option value="p">3 文字</option>
+        <option value="h2">8 大題</option><option value="h1">9 標題</option><option value="item">小項</option>
+        <option value="passage">文章</option><option value="optfig">選項是圖</option><option value="skip">0 略過（不輸出）</option>
+      </select></label>
+      <button class="btn" id="ly-up" type="button" title="Alt＋↑">↑ 上移</button>
+      <button class="btn" id="ly-down" type="button" title="Alt＋↓">↓ 下移</button>
+      <span class="sep"></span>
+      <button class="btn" id="ly-edit" type="button" title="E 或 Enter">✎ 改字</button>
+      <button class="btn" id="ly-split" type="button" title="改字時 Ctrl＋Enter">從游標處分段</button>
+      <button class="btn" id="ly-merge" type="button" title="G">併到上一段</button>
+      <button class="btn" id="ly-new" type="button" title="N">新增一段</button>
+      <button class="btn" id="ly-drop" type="button" title="D">刪題</button>
+      <button class="btn" id="ly-reocr" type="button" title="用本機的辨識套件重新辨識這一塊（R）" hidden>重新辨識</button>
+      <label id="ly-how-w" hidden>輸出 <select id="ly-how"></select></label>
+      <label id="ly-tac-w" hidden><input type="checkbox" id="ly-tac"> 做觸圖</label>
+      <span id="ly-hd-w" hidden>
+        <label>第一列是標題 <select id="ly-hrow"><option value="">自動</option><option value="1">是</option><option value="0">不是</option></select></label>
+        <label>第一欄是標題 <select id="ly-hcol"><option value="">自動</option><option value="1">是</option><option value="0">不是</option></select></label>
+      </span>
+      <button class="btn" id="ly-allpages" type="button" title="這一塊的位置，其他頁同樣位置的都改成同樣類型（例如頁首都略過）">套用到所有頁</button>
+    </div>
+    <div id="ly-list" tabindex="0" role="listbox" aria-label="排好的內容（上下鍵選，數字鍵改類型）" aria-multiselectable="true"></div>
+  </section>
+</div>
+<p class="help">
+  上下鍵選區塊（Shift 多選）；數字鍵改類型：<kbd>1</kbd> 題目 <kbd>2</kbd> 選項 <kbd>3</kbd> 文字 <kbd>8</kbd> 大題 <kbd>9</kbd> 標題 <kbd>0</kbd>／<kbd>Delete</kbd> 略過；
+  <kbd>Alt</kbd>＋<kbd>↑</kbd><kbd>↓</kbd> 搬移；<kbd>E</kbd>／<kbd>Enter</kbd> 改字（<kbd>Enter</kbd> 或 <kbd>Esc</kbd> 改完、<kbd>Shift</kbd>＋<kbd>Enter</kbd> 換行、<kbd>Ctrl</kbd>＋<kbd>Enter</kbd> 從游標處分段）；
+  <kbd>G</kbd> 併到上一段（選了好幾塊＝全部併成一段）；<kbd>O</kbd> 排順序（在原卷上依序點框）；原卷空白處拖曳＝新增區塊；<kbd>N</kbd> 新增一段；<kbd>D</kbd> 刪題／恢復；<kbd>PageUp</kbd>／<kbd>PageDown</kbd> 原卷換頁；<kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原；<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存檔。
+  點兩下算式改 LaTeX（細修算式請到 nc 整份算式校對）。
+</p>
+</main>
+<script src="html-table.js"></script>
+<script src="vtdoc.js"></script>
+<script src="vtdoc-view.js"></script>
+<script src="haodian-ocr.js"></script>
+<script src="mfr-web.js"></script>
+<script src="vt-layout.js"></script>
+</body>
+</html>
