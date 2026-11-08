@@ -259,7 +259,7 @@
             border-color: #42a5f5 !important;
         }
         .token-text { 
-            font-size: calc(var(--base-font-size) * 0.6); color: #666; 
+            font-size: calc(var(--base-font-size) * 0.6 * var(--dual-scale, 1)); color: #666;
             border-bottom: 1px solid #eee; width: 100%; 
             text-align: center; margin-bottom: 6px; padding-bottom: 2px;
         }
@@ -268,7 +268,8 @@
             line-height: 1; color: #1a1a1a;
         }
         .token-zhuyin {
-            font-size: calc(var(--base-font-size) * 0.5); color: #6a1b9a;
+            font-size: calc(var(--base-font-size) * 0.5 * var(--dual-scale, 1)); color: #6a1b9a;
+            line-height: 1.3;
             border-top: 1px dashed #eee; width: 100%;
             text-align: center; margin-top: 6px; padding-top: 3px;
         }
@@ -385,6 +386,11 @@
         .zh-py-clickable { cursor: pointer !important; }
         .zh-py-clickable:hover { background: rgba(106,27,154,.18) !important; border-radius: 2px; }
         html[data-theme="dark"] .token-zhuyin { color: #ba68c8; border-color: #2e3350; }
+        /* 聲調：單獨放大、加粗、顏色加深（國字與注音的大小另由 --dual-scale 調整） */
+        .zy-tone { font-size: 1.6em; font-weight: 900; color: #311b92; line-height: 0.8; vertical-align: -0.1em; }
+        html[data-theme="dark"] .zy-tone { color: #e1bee7; }
+        .token-group.zh-edited .zy-tone { color: #bf360c; }
+        html[data-theme="dark"] .token-group.zh-edited .zy-tone { color: #ff8a65; }
         .token-group.lg-punct { border-style: dashed !important; cursor: pointer; }
         .token-group.lg-punct:hover { border-color: #4caf50 !important; }
         .token-group.lg-nospace { opacity: .65; }
@@ -559,6 +565,13 @@
             <label for="font-size-slider" style="margin:0;display:inline;font-weight:bold;">字體大小：</label>
             <input type="range" id="font-size-slider" min="16" max="48" value="22" style="vertical-align: middle;">
             <span id="font-size-val" aria-live="polite">22px</span>
+            <label for="dual-scale" style="margin:0 0 0 10px;display:inline;font-weight:bold;">雙視大小：</label>
+            <select id="dual-scale" title="雙視校對區國字與注音的大小（點字不變）；聲調另外放大加粗">
+                <option value="1">小</option>
+                <option value="1.4">中</option>
+                <option value="1.8">大</option>
+                <option value="2.2">特大</option>
+            </select>
         </div>
         <div class="control-item">
             <strong>格式：</strong>
@@ -1452,6 +1465,10 @@ function _zhBpmfToBraille(input) {
 }
 
 // 點字 → 注音字串（單一音節；轉換失敗回傳空字串）
+// 雙視校對區的注音：聲調符號另外包一層，單獨放大加粗（看注音時聲調最難看清楚）
+function _zyToneHtml(zy) {
+    return escHtml(zy).replace(/[ˊˇˋ˙]/g, m => `<span class="zy-tone">${m}</span>`);
+}
 function _zhBrailleToBpmf(brl) {
     if (!brl || !mcbReady) return '';
     try {
@@ -2793,7 +2810,7 @@ function _zhPyEdEnsureDOM() {
     document.addEventListener('mousedown', e => {
         const el2 = document.getElementById('zh-py-ed');
         if (el2 && el2.style.display !== 'none' &&
-            !el2.contains(e.target) && !e.target.classList.contains('zh-py-clickable'))
+            !el2.contains(e.target) && !e.target.closest('.zh-py-clickable'))
             _zhPyEdClose();
     }, true);
 }
@@ -4391,7 +4408,7 @@ function renderParallelView(tokens) {
         if (t.isZhChar) {
             const zy = _zhBrailleToBpmf(t.braille);
             const zyAttrs = ` data-ctxkey="${escHtml(t.ctxKey)}" data-char="${escHtml(t.text)}" data-bpmf="${escHtml(zy)}" title="點擊修正「${escHtml(t.text)}」注音"`;
-            zyHtml = `<div class="token-zhuyin zh-py-clickable"${zyAttrs}>${escHtml(zy || '－')}</div>`;
+            zyHtml = `<div class="token-zhuyin zh-py-clickable"${zyAttrs}>${_zyToneHtml(zy || '－')}</div>`;
         }
         g.innerHTML = `<div class="token-text">${escHtml(t.text)}</div>`
                     + `<div class="${brlCls}"${brlAttrs}>${escHtml(dispB)}</div>`
@@ -4712,6 +4729,7 @@ async function _getSimBrailleFontFace() {
 async function downloadParallelHtml() {
     btSaveSession();
     const fs = document.getElementById('font-size-slider').value;
+    const ds = parseFloat(document.getElementById('dual-scale').value) || 1;
     const sessionJson = (localStorage.getItem(_BT_SESSION_KEY) || 'null').replace(/<\/script>/gi, '<\\/script>');
     const fontFace = await _getSimBrailleFontFace();
     const html=`<html><head><meta charset="UTF-8"><style>
@@ -4719,9 +4737,11 @@ async function downloadParallelHtml() {
         body{font-family:sans-serif;padding:20px}
         .token-group{display:inline-flex;flex-direction:column;align-items:center;padding:5px;
           border:1px solid #a5d6a7;background:#f1f8e9;border-radius:4px;margin:3px}
-        .token-text{font-size:${fs*.6}px;color:#388e3c;border-bottom:1px solid #c8e6c9;width:100%;text-align:center}
+        .token-text{font-size:${fs*.6*ds}px;color:#388e3c;border-bottom:1px solid #c8e6c9;width:100%;text-align:center}
         .token-braille{font-size:${fs*1.3}px;color:#2e7d32}
-        .token-zhuyin{font-size:${fs*.5}px;color:#6a1b9a;border-top:1px dashed #eee;width:100%;text-align:center;margin-top:6px;padding-top:3px}
+        .token-zhuyin{font-size:${fs*.5*ds}px;line-height:1.3;color:#6a1b9a;border-top:1px dashed #eee;width:100%;text-align:center;margin-top:6px;padding-top:3px}
+        .zy-tone{font-size:1.6em;font-weight:900;color:#311b92;line-height:.8;vertical-align:-.1em}
+        .zh-edited .zy-tone{color:#bf360c}
         .token-space{background:#fffde7 !important;border-color:#fff176 !important}
         .token-space .token-text{color:#f9a825 !important}
         .token-space .token-braille{color:#f9a825 !important}
@@ -4758,6 +4778,20 @@ document.getElementById('font-size-slider').addEventListener('input', e=>{
     document.documentElement.style.setProperty('--base-font-size',e.target.value+'px');
     document.getElementById('font-size-val').textContent=e.target.value+'px';
 });
+// 雙視大小（國字與注音一起放大）：記在這台電腦的瀏覽器
+(function() {
+    const KEY = 'vi-bt-dual-scale';
+    const sel = document.getElementById('dual-scale');
+    const apply = v => document.documentElement.style.setProperty('--dual-scale', v);
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
+    apply(sel.value);
+    sel.addEventListener('change', () => {
+        apply(sel.value);
+        try { localStorage.setItem(KEY, sel.value); } catch (e) {}
+    });
+})();
 document.getElementById('input-text').addEventListener('input', function() {
     if (_suppressInput) return;
     if (_lgSpaceSet.size) _lgSpaceSet.clear();
