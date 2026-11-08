@@ -23,7 +23,7 @@ dotnet publish -p:PublishProfile=Portable
 執行需求：
 - Windows 10（1809 以上）或 11，x64
 - Microsoft Edge WebView2 Runtime（Windows 10/11 通常已內建；缺少時程式會提示並開啟下載頁）
-- Windows 臺灣中文語音（缺少時面板與文件整理會顯示安裝方法：設定 → 時間與語言 → 語音 → 新增語音 → 中文(台灣)）
+- Windows 臺灣中文語音（缺少時面板與朗讀與音檔會顯示安裝方法：設定 → 時間與語言 → 語音 → 新增語音 → 中文(台灣)）
 - 網路：有網路時用線上網頁（網頁的修正與新功能直接拿到）；沒有網路也能用全部功能（改用內附網頁與內附 CDN 函式庫）
 
 ### 網頁來源：線上優先，離線用內附
@@ -69,7 +69,7 @@ dotnet publish -p:PublishProfile=Portable
   - 資料檔用 `node ../tools/build-brl-reading.mjs <brl_dict.dic>` 重新產生；改字典前後用 `node ../tools/sim-brl-dict.mjs <現行版.dic> <修正版.dic>` 模擬 DictSwitcher 逐條取代的結果（每個音節單獨、兩個音節相連），`../tools/hanhan-phonemes.ps1` 取得 Hanhan 實際的念法
 - 逐行清單、存報讀檔、Alt+Shift+A 同數學點字頁
 
-**文件整理**：網頁本身（`../pdf-to-accessible.html`）的功能，瀏覽器版也有；桌面版在「朗讀」分頁的播放控制列多一顆「💾 匯出音檔…」（或 Alt+Shift+A），缺臺灣中文語音時顯示提示：
+**朗讀與音檔**：網頁本身（`../pdf-to-accessible.html`）的功能，瀏覽器版也有；桌面版在「朗讀」分頁的播放控制列多一顆「💾 匯出音檔…」（或 Alt+Shift+A），缺臺灣中文語音時顯示提示：
 - 沿用該頁選好的語音、速度、音量（網頁語音名稱對應到同名的 Windows 語音，找不到時改用臺灣中文語音並提示）
 - 匯出範圍和「播放」一致：點過某一句就從該句到結尾，否則全文
 - 檔名預設用開啟的檔案名稱
@@ -80,12 +80,12 @@ dotnet publish -p:PublishProfile=Portable
   - **原文**：照 LaTeX 原文顯示和念，可用來校對原始碼
   - 切換時先停止播放，保留目前的起始句；切句時避開算式內部（如 `n!`），三種模式的句子一一對應
 
-**文件整理的分段匯出**（試卷：題組文章、題目、選項各一個音檔）：朗讀分頁的「分段匯出」（`vitoolsDesktop.features` 含 `'batch'` 才顯示，瀏覽器版沒有）：
+**朗讀與音檔的分段匯出**（試卷：題組文章、題目、選項各一個音檔）：朗讀分頁的「分段匯出」（`vitoolsDesktop.features` 含 `'batch'` 才顯示，瀏覽器版沒有）：
 - 切分規則在 `../exam-split.js`（檔頭有完整規則，`tests/cases/examsplit.mjs` 有各種寫法的範例）：題目認行首「第1題」「1.」「1.( )」「( )1.」「2()」（依題號順序判斷，避免文章裡的編號清單、注意事項）；選項認行首「(A)」「（Ａ）」與「（選項請參閱紙本試卷）」，一題的選項合成一段，題號和 (A) 同一行（英聽）整題一段；題組認「回答25及26題」「請依圖回答21~23」提示行、單獨一行「第20及21題」「(20-21)」「A.」、「二、題組」後直接接的文章；第一題之後的大標題自己一段；第一題之前是「說明」
 - 規則的依據：會考 113–115 年 NVDA 試題本與 PDF（題號全部正確），以及視巡雲端硬碟（`H:\我的雲端硬碟\視巡\<年度>\點字試卷`）裡老師以前用 Balabolka 做的語音卷：12 份 Big5 文字檔與 mp3 一一對應（都是「依空行分割」），共 1015 段，自動判斷找到 98.2% 的切點；改規則後用 `tools/check-exam-split.cjs` 重跑比對
 - 「切分方式」三種：自動判斷（預設）、**依空行切**（同 Balabolka「依空行分割」，以前分好段的文字檔直接用，12 份中 11 份段數和當年的 mp3 完全相同；另一份當年是依兩個空行切）、只用 `===` 記號切
 - 手動分割記號（比照 Balabolka）：單獨一行 `===`，後面可接名稱；那一行不念；三種切分方式都認得
-- 文件整理開 .txt 時自動判斷編碼（UTF-16 BOM、UTF-8，都不是時當 Big5），以前的 Big5 文字檔不會亂碼
+- 朗讀與音檔開 .txt 時自動判斷編碼（UTF-16 BOM、UTF-8，都不是時當 Big5），以前的 Big5 文字檔不會亂碼
 - 匯出前先列出清單（預覽）：一列一個音檔，可改檔名、試聽（Windows 語音前 300 字）、併入上一檔、不匯出；文字和朗讀內容模式沒變時保留這些調整
 - 每段念的內容和「播放」一致（朗讀內容模式、中英分語音）；匯出時存檔視窗選位置並輸入名稱，app 以這個名稱建資料夾（已存在且有檔案時加「 (2)」），音檔依順序編號，另寫播放清單 `.m3u8`
 
@@ -96,7 +96,7 @@ dotnet publish -p:PublishProfile=Portable
 - 朗讀用瀏覽器內建語音；「📄 存報讀檔」存完整報讀文字（.txt，瀏覽器下載）；匯出音檔用同名的 Windows 語音，也是全文；缺臺灣中文語音時顯示提示
 - MathCAT（`../mathcat/`，約 3.5MB）第一次展開才載入；頁面的 MathJax 從 CDN 載入，桌面版離線載不到時改用內附的 MathJax 3.2.2
 
-**中英夾雜分語音**（`../voice-settings.js` + `../lang-segments.js`，瀏覽器版也有）：報讀區塊的「語音設定」、文件整理朗讀分頁的「中英語音設定」（都預設收合），設定各頁共用、記在瀏覽器：
+**中英夾雜分語音**（`../voice-settings.js` + `../lang-segments.js`，瀏覽器版也有）：報讀區塊的「語音設定」、朗讀與音檔朗讀分頁的「中英語音設定」（都預設收合），設定各頁共用、記在瀏覽器：
 - **英文語音**：「自動」（預設；有英文語音就用，名稱寫在括號裡，沒有時寫「這台電腦沒有英文語音」並照舊全用中文）、「不切換」或指定某個英文語音
 - **切換條件**：「兩個以上英文單字」（預設；單獨的縮寫如 PDF、NVDA 仍用中文語音念）或「每個英文字」；數字、標點跟著前一段
 - 播放時每段各用各的語音（多段 utterance，朗讀位置標示照常）；匯出時每段各用同名的 Windows 語音合成再接起來
@@ -143,7 +143,7 @@ function onDesktop(fn) {
 | `desktop-assets/cdn/` | CDN 函式庫的內附版本，路徑同網址：`cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/`（Apache 2.0）、`cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/`（MIT／GPLv3）、`cdn.jsdelivr.net/npm/mathjax@3/es5/`（3.2.2，Apache 2.0；三個合併檔 tex-chtml、tex-mml-chtml、tex-svg 加上 a11y、adaptors、input、output、ui，不含 3.8MB 的 sre 語音引擎）、`cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/`（點字樂譜的五線譜與播放，MIT）；取自 npm 套件，各資料夾附授權檔。另有 `cdn.jsdelivr.net/gh/paulrosen/midi-js-soundfonts@cbd6b6f…/abcjs/acoustic_grand_piano-mp3/`：點字樂譜播放用的鋼琴音色 88 個 mp3（約 6.8MB，內容與 abcjs 預設的 paulrosen.github.io 相同；授權說明見該資料夾的 NOTICE.txt） |
 | `bridge.js` | 注入每個頁面（含首頁分頁的 iframe），提供 `window.vitoolsDesktop`（介面都在網頁），經由最上層頁面的 `chrome.webview` 和原生層溝通；首頁的 Alt+Shift+A 轉給目前分頁 |
 | `../desktop-audio.js`（網頁） | 桌面版共用小工具（`onDesktop`、缺語音提示文字、匯出進度文字）；原本的右下角浮動面板已由各頁的報讀區塊取代；網頁先上線、再發佈需要它的 app 版本 |
-| `../speech-block.js`、`../math-speech.js`、`../mathcat/`、`../brl-reading*.js`（網頁） | 「🔊 報讀」區塊（數學點字、文字轉點字、點字轉文字）、算式報讀（數學點字、文件整理）、點字讀音（文字轉點字、點字轉文字），瀏覽器與桌面版都能用。MathCAT 取自 [mathcat-lab](https://github.com/hurthuang/mathcat-lab) 的 `mathcat-wasm/`，原始碼見該專案 `rust-src/` |
+| `../speech-block.js`、`../math-speech.js`、`../mathcat/`、`../brl-reading*.js`（網頁） | 「🔊 報讀」區塊（數學點字、文字轉點字、點字轉文字）、算式報讀（數學點字、朗讀與音檔）、點字讀音（文字轉點字、點字轉文字），瀏覽器與桌面版都能用。MathCAT 取自 [mathcat-lab](https://github.com/hurthuang/mathcat-lab) 的 `mathcat-wasm/`，原始碼見該專案 `rust-src/` |
 
 ## 待辦
 

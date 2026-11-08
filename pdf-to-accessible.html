@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>文件整理</title>
+<title>朗讀與音檔</title>
 <link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -101,6 +101,16 @@ header .subtitle { font-size: 0.85rem; color: var(--text-dim); }
   top: 10px;
 }
 
+/* 整理文字（格式整理、語音轉檔輔助、雜訊清理）：開已排版的中繼檔時收起來 */
+#p2a-tidy > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+#p2a-tidy > summary .hint { font-weight: 400; font-size: 0.75rem; color: var(--text-dim); }
+#p2a-tidy[open] > summary { margin-bottom: 12px; }
 .section-label {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -595,7 +605,7 @@ input[type=range] { accent-color: var(--accent2); }
 <header>
   <span style="font-size:1.6rem;" aria-hidden="true">📄</span>
   <div>
-    <h1>文件整理</h1>
+    <h1>🔊 朗讀與音檔</h1>
     <div class="subtitle">支援 PDF / TXT / DOCX，自動排版，螢幕報讀優化</div>
   </div>
 </header>
@@ -638,6 +648,9 @@ input[type=range] { accent-color: var(--accent2); }
 
     <div class="divider"></div>
 
+    <!-- 整理文字：PDF／Word／TXT 用；已排版（中繼檔、版面整理、辨識套件帶入）時收起來 -->
+    <details id="p2a-tidy" open>
+    <summary>整理文字 <span class="hint" id="p2a-tidy-hint">（PDF、Word、TXT 用）</span></summary>
     <!-- 格式整理 -->
     <div>
       <div class="section-label">格式整理</div>
@@ -693,6 +706,8 @@ input[type=range] { accent-color: var(--accent2); }
         🔍 偵測頁首頁尾
       </button>
     </div>
+
+    </details>
 
     <div class="divider"></div>
 
@@ -2657,7 +2672,7 @@ function p2aVtdocSave() {
   if (!p2aVtdoc) return;
   var r = vitoolsVtdoc.applyText(p2aVtdoc.v, p2aVtdoc.t, getEditorText());
   var note = '文字 ' + r.changed + ' 行修改、' + r.added + ' 行新增、' + r.removed + ' 行刪除';
-  var html = vitoolsVtdoc.serialize(p2aVtdoc.v, '文件整理', note);
+  var html = vitoolsVtdoc.serialize(p2aVtdoc.v, '朗讀與音檔', note);
   p2aVtdoc.t = vitoolsVtdoc.toText(p2aVtdoc.v);
   var name = /\.vtdoc\.html?$/i.test(p2aVtdoc.name) ? p2aVtdoc.name : p2aVtdoc.name.replace(/\.html?$/i, '') + '.vtdoc.html';
   triggerDownload(new Blob([html], { type: 'text/html;charset=utf-8' }), name);
@@ -2668,6 +2683,12 @@ function p2aSetFormatted(on) {
   if (!on) { p2aVtdoc = null; p2aVtdocBar(); }
   var n = document.getElementById('fi-haodian');
   if (n) n.hidden = !on;
+  // 已排版：整理文字的工具收起來（還是可以展開用），直接到朗讀
+  var d = document.getElementById('p2a-tidy');
+  if (d) d.open = !on;
+  var h = document.getElementById('p2a-tidy-hint');
+  if (h) h.textContent = on ? '（已排版，通常不需要；要用再展開）' : '（PDF、Word、TXT 用）';
+  if (on) switchTab('tts');
 }
 function p2aLoadFormatted(text, name, vtdocHtml) {
   var v = vtdocHtml && window.vitoolsVtdoc ? vitoolsVtdoc.parse(vtdocHtml) : null;

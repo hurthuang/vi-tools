@@ -112,7 +112,7 @@ th/wh/sh 跨複合詞邊界、跨前綴邊界、dis+c 細分（disco/discern 可
 | `braille-translate.htm` | 文字轉點字 | → | → 文字轉點字 |
 | `braille-to-text.html` | 點字轉文字 | ← | ← 點字轉文字 |
 | `nemeth_converter.html` | 數學點字 | π | π 數學點字 |
-| `pdf-to-accessible.html` | 文件整理 | 📄 | 📄 文件整理 |
+| `pdf-to-accessible.html` | 朗讀與音檔（2026-11-08 由「文件整理」改名；開中繼檔或已排版的文字時，左邊「整理文字」收起來、切到朗讀分頁） | 🔊 | 🔊 朗讀與音檔 |
 | `UEB-g2-query.html` | UEB 查詢 | 🔍 | 🔍 UEB 查詢 |
 
 - 內部 codename（bt/b2t/nc/p2a/query）僅保留於 HTML id（`tab-bt`、`frame-bt` 等），不出現在 UI 文字

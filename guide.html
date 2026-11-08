@@ -228,7 +228,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <div class="sidebar-group">
     <div class="sidebar-heading">教材製作</div>
     <a href="#layout">🗂 版面整理（測試版）</a>
-    <a href="#p2a">📄 文件整理</a>
+    <a href="#p2a">🔊 朗讀與音檔</a>
     <a href="#tactile">✋ 觸圖製作</a>
   </div>
   <div class="sidebar-group">
@@ -282,7 +282,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       </tr>
       <tr><th colspan="3" scope="colgroup">教材製作</th></tr>
       <tr>
-        <td>📄 文件整理</td>
+        <td>🔊 朗讀與音檔</td>
         <td>PDF／文件 → 螢幕報讀用純文字</td>
         <td>整理考試卷 PDF，供視障學生以報讀軟體閱讀</td>
       </tr>
@@ -351,7 +351,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
   <div class="feat common" id="common-open">
     <div class="feat-title">📂 開啟檔案</div>
-    <div class="applies">適用：<b>文字轉點字</b>、<b>數學點字</b>（LaTeX 模式）、<b>文件整理</b></div>
+    <div class="applies">適用：<b>文字轉點字</b>、<b>數學點字</b>（LaTeX 模式）、<b>朗讀與音檔</b></div>
     <p>支援 <b>TXT、DOCX、ODT、RTF、PDF</b>。點擊「📂 開啟」按鈕，或將檔案拖曳至指定區域。</p>
     <div class="note">PDF 以 pdf.js 解析文字層；掃描式 PDF（純影像）無法萃取文字。</div>
     <div class="note">DOCX 加了注音（注音標示）的考卷只取國字；圈號選項（①）、Word 自動編號的題號會保留。從 Word 複製貼上的「在(ㄗㄞˋ)」這類注音，可在格式調整按「自動調整」去掉。</div>
@@ -367,12 +367,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <div class="feat-title">🌙 深色／淺色主題</div>
     <div class="applies">適用：全部五項工具</div>
     <p>所有工具均支援深色與淺色主題切換，設定存於瀏覽器 localStorage，下次開啟自動套用。</p>
-    <p><b>文件整理</b>另提供<b>高對比</b>與<b>黃底黑字</b>兩種低視力友善配色，從左側「顯示設定 → 主題」選擇。</p>
+    <p><b>朗讀與音檔</b>另提供<b>高對比</b>與<b>黃底黑字</b>兩種低視力友善配色，從左側「顯示設定 → 主題」選擇。</p>
   </div>
 
   <div class="feat common" id="common-speech">
     <div class="feat-title">🔊 報讀（朗讀）</div>
-    <div class="applies">適用：<b>文字轉點字</b>、<b>點字轉文字</b>、<b>數學點字</b>（文件整理的朗讀在「朗讀」分頁，用法相近）</div>
+    <div class="applies">適用：<b>文字轉點字</b>、<b>點字轉文字</b>、<b>數學點字</b>（朗讀與音檔的朗讀在「朗讀」分頁，用法相近）</div>
     <p>在狀態列下方展開「🔊 報讀」，用電腦的語音把內容念出來，方便用耳朵檢查。</p>
     <ul>
       <li><b>朗讀</b>：按「▶ 朗讀」從頭念；也可以在下方的報讀文字點一行，從那一行開始念。念到的那一行會反白，按 <kbd>Esc</kbd> 停止。</li>
@@ -691,7 +691,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li><b>刪題</b>：在題目那行按 <kbd>D</kbd>，整題收起來、換成「此題型盲生不適合作答」，再按一次恢復；存檔時重算刪題說明。</li>
     <li><b>表格、附圖的輸出方式</b>：選到表格可以改成保留表格、以列／以欄為軸的文字（可以指定第一列、第一欄是不是標題）、只標附表、不輸出；選到附圖可以改成標附圖、加圖中文字、改成文字敘述、不輸出，以及要不要做觸圖。</li>
     <li><b>漏掉的字</b>：原卷上紅色斜線是沒被收進任何區塊的字，灰色斜線是在辨識套件設成略過的區塊。點它，按「加回來」放到原卷上前一塊的後面；「這一頁同樣的都加回來」會把同一行的接成一段，一行有好幾個 (A)(B) 就自動拆成選項。</li>
-    <li><kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原，<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存回中繼檔；也可以「存成 .txt」、「複製全部文字」、「送到文件整理」（帶中繼檔過去，標成已排版）。</li>
+    <li><kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原，<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存回中繼檔；也可以「存成 .txt」、「複製全部文字」、「送到朗讀與音檔」（帶中繼檔過去，標成已排版）。</li>
     <li><b>用本機的辨識套件</b>：電腦上開著 vi-tools 辨識套件（0.3 以上）時，版面整理會自己找到它，工具列出現「已連上辨識套件」（之後開辨識套件的話按「找本機辨識套件」）。這時可以：選一塊按「重新辨識」（<kbd>R</kbd>），同一塊拆出來的幾段一起換成新的辨識結果；在原卷上拉框，用辨識套件文字＋算式、「辨識純文字」（不找算式，國語、社會這類沒有算式的卷子用，一般字不會被誤認成算式），或「辨識成一個算式」（框住一個算式）。PDF 的中文讀文字層、算式用辨識，跟辨識套件一樣準。辨識套件沒開時，「重新辨識」與「文字＋算式」不會出現。線上版第一次連本機辨識套件時，Chrome 可能會問要不要允許存取本機網路，請按允許。</li>
     <li><b>沒有辨識套件也能辨識一個算式</b>：拉框方式選「辨識成一個算式（網頁辨識）」，在原卷上框住一個算式，就在網頁裡辨識成 LaTeX（跟辨識套件同一個模型的精簡版）。第一次用要下載辨識模型（約 33 MB），之後存在瀏覽器裡；一個算式大約 1～2 秒。框要剛好框住算式，框到旁邊的字會一起辨識進去；只有頁面圖、沒有 PDF 的中繼檔比較不準。框裡同時有文字和算式時，請分開框，或用辨識套件。</li>
     <li>測試版還不能：改既有區塊的框、題組（vt-group）。</li>
@@ -699,15 +699,15 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 </section>
 
 
-<!-- ════════════ 文件整理 ════════════ -->
+<!-- ════════════ 朗讀與音檔 ════════════ -->
 <section id="p2a">
-  <h2 class="section-title">文件整理</h2>
+  <h2 class="section-title">朗讀與音檔</h2>
 
   <div class="tool-header" style="--tool-color:#22d3ee">
-    <div class="tool-icon">📄</div>
+    <div class="tool-icon">🔊</div>
     <div>
-      <div class="tool-hname">文件整理 <span class="tool-hfile">pdf-to-accessible.html</span></div>
-      <div class="tool-hdesc">開啟 PDF 或文件，自動整理版面雜訊，輸出適合螢幕報讀軟體閱讀的乾淨純文字。內建語音朗讀功能，可在瀏覽器中直接試聽效果。</div>
+      <div class="tool-hname">朗讀與音檔 <span class="tool-hfile">pdf-to-accessible.html</span></div>
+      <div class="tool-hdesc">朗讀文件、存成 MP3／WAV（試卷的題目、選項可以分段存）。開版面整理排好的中繼檔，直接到「朗讀」分頁；也可以開 PDF、Word、TXT，用左邊的「整理文字」去掉頁首頁尾、排好選項。（原名「文件整理」，2026-11 改名）</div>
       <div class="tool-tags">
         <span class="tag">PDF / DOCX / TXT</span>
         <span class="tag">自動格式整理</span>
@@ -770,7 +770,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <p>整理完成後可匯出為 <b>TXT</b>（純文字）或 <b>HTML</b>（保留換行格式）。</p>
   <p><b>表格</b>：文字裡的 HTML 表格（<code>&lt;table border="1"&gt;…&lt;/table&gt;</code>）在預覽和匯出的 HTML 裡顯示成表格，NVDA 可以用表格指令逐格讀；朗讀時改成條列文字，朗讀分頁可以選「以列為軸」或「以欄為軸」。自動調整、斷行整理不會拆開表格。</p>
   <p><b>中繼檔（.vtdoc.html）</b>：「開啟檔案」可以開 vi-tools 中繼檔（vi-tools 辨識套件「存成中繼檔」產生，用瀏覽器打開就是 NVDA 易讀的電子檔）。改完字按檔案資訊下方的「存回中繼檔」，下載更新過的中繼檔；轉點字、NVDA 電子檔都會跟著改。</p>
-  <p><b>從 vi-tools 辨識套件帶入</b>：在辨識套件的試卷版面調整畫面按「輸出」→「送到文件整理」，會打開文件整理並帶入排好的文字，檔案資訊下方標「已排版」。已排版的文字，「自動調整」不再做斷行整理；斷行、頁首頁尾已經對照原卷處理過，通常不用再整理。</p>
+  <p><b>從 vi-tools 辨識套件帶入</b>：在辨識套件的試卷版面調整畫面按「輸出」→「送到朗讀與音檔」，會打開朗讀與音檔並帶入排好的文字，檔案資訊下方標「已排版」。已排版的文字，「自動調整」不再做斷行整理；斷行、頁首頁尾已經對照原卷處理過，通常不用再整理。</p>
 </section>
 
 
@@ -993,7 +993,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <p>桌面版就是這個網站的工具，另外多了兩件事：</p>
   <ul>
     <li><b>沒有網路也能用</b>：有網路時用網站上最新的版本，沒網路時自動改用程式內附的版本。</li>
-    <li><b>存成音檔</b>：報讀和文件整理的朗讀內容，可以存成 MP3 或 WAV，放到手機或播放器聽。</li>
+    <li><b>存成音檔</b>：報讀和朗讀與音檔的朗讀內容，可以存成 MP3 或 WAV，放到手機或播放器聽。</li>
   </ul>
   <p>只需要在網頁上朗讀、不需要離線或音檔的話，用網頁版就可以了。</p>
 
@@ -1008,8 +1008,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <h3 id="app-存成音檔">存成音檔</h3>
   <ul>
     <li><b>文字轉點字、點字轉文字、數學點字</b>：展開「🔊 報讀」，按「💾 匯出音檔…」。</li>
-    <li><b>文件整理</b>：在「朗讀」分頁按「💾 匯出音檔…」。有點選某一句時，從那一句存到結尾。</li>
-    <li><b>試卷分段匯出</b>（文件整理）：展開「朗讀」分頁的「分段匯出」，題組文章、每題的題目、每題的選項各存成一個音檔，學生可以一題一題聽、重聽某一題的選項。
+    <li><b>朗讀與音檔</b>：在「朗讀」分頁按「💾 匯出音檔…」。有點選某一句時，從那一句存到結尾。</li>
+    <li><b>試卷分段匯出</b>（朗讀與音檔）：展開「朗讀」分頁的「分段匯出」，題組文章、每題的題目、每題的選項各存成一個音檔，學生可以一題一題聽、重聽某一題的選項。
       <ul>
         <li>匯出前先看清單：一列一個音檔，可以改檔名、按「▶ 試聽」、選「併入上一檔」或「不匯出」。</li>
         <li>自動判斷認得「第1題」「1.」題號、「(A)」選項、「請閱讀以下短文，並回答25及26題」這類題組說明。格式不整齊的試卷，可以在「編輯」分頁單獨一行打 <code>===</code> 從那裡切開，後面可以接名稱（例：<code>=== 閱讀測驗一</code>），這一行不會念；或把「切分方式」改成「只用 === 記號切」。</li>

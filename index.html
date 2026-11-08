@@ -358,7 +358,7 @@
 <div class="subbar" id="sub-make" role="tablist" aria-label="教材製作" data-group="group-make" hidden>
   <div class="tab" role="tab" id="tab-p2a" data-target="frame-p2a"
        tabindex="-1" aria-selected="false" aria-controls="frame-p2a">
-    <span class="icon" aria-hidden="true">📄</span> 文件整理
+    <span class="icon" aria-hidden="true">🔊</span> 朗讀與音檔
   </div>
   <div class="tab" role="tab" id="tab-tactile" data-target="frame-tactile"
        tabindex="-1" aria-selected="false" aria-controls="frame-tactile">
@@ -487,17 +487,17 @@
       <div class="tool-cards">
 
         <div class="tool-card" style="--card-accent:#22d3ee" onclick="switchTo('frame-p2a')"
-             role="button" tabindex="0" aria-label="開啟文件整理工具" aria-describedby="desc-p2a"
+             role="button" tabindex="0" aria-label="開啟朗讀與音檔工具" aria-describedby="desc-p2a"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-p2a')}">
-          <div class="tool-icon" aria-hidden="true">📄</div>
+          <div class="tool-icon" aria-hidden="true">🔊</div>
           <div class="tool-info">
             <div class="tool-name">
-              文件整理
+              朗讀與音檔
               <span class="tool-badge" style="background:#22d3ee">TTS</span>
             </div>
             <div class="tool-desc" id="desc-p2a">
-              將 PDF 或其他文件轉換為乾淨的純文字，去除頁首頁尾與排版雜訊，
-              適合語音報讀軟體使用。內建 TTS 語音預覽，可直接在瀏覽器中試聽。
+              朗讀文件、存成 MP3（試卷的題目、選項可以分段存）。開版面整理排好的中繼檔直接朗讀；
+              也可以開 PDF、Word、TXT，整理頁首頁尾、選項斷行等雜訊。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -707,7 +707,7 @@
   <iframe id="frame-bt"    class="panel" src="braille-translate.htm"  role="tabpanel" aria-labelledby="tab-bt"    title="文字轉點字"></iframe>
   <iframe id="frame-g2"    class="panel" src="braille-to-text.html"   role="tabpanel" aria-labelledby="tab-g2"    title="點字轉文字"></iframe>
   <iframe id="frame-nc"    class="panel" src="nemeth_converter.html"   role="tabpanel" aria-labelledby="tab-nc"    title="數學點字"></iframe>
-  <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="文件整理"></iframe>
+  <iframe id="frame-p2a"   class="panel" src="pdf-to-accessible.html" role="tabpanel" aria-labelledby="tab-p2a"   title="朗讀與音檔"></iframe>
   <iframe id="frame-gq"    class="panel" src="UEB-g2-query.html"       role="tabpanel" aria-labelledby="tab-gq" title="UEB 查詢"></iframe>
   <iframe id="frame-music" class="panel" src="music/index.html"       role="tabpanel" aria-labelledby="tab-music" title="音樂點字"></iframe>
   <iframe id="frame-mstudent" class="panel" data-src="music/student.html" role="tabpanel" aria-labelledby="tab-mstudent" title="點字樂譜練習"></iframe>
