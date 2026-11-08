@@ -848,7 +848,8 @@
       const u = new URL(a.href), page = rel(u);
       if (page === null || u.pathname === frame.contentWindow.location.pathname) return;  // 同一頁的錨點照常
       if (BOOK_SET.has(page)) { e.preventDefault(); switchTo('frame-books', page + u.hash); }
-      else if (PAGE_FRAME[page] && PAGE_FRAME[page] !== 'frame-books') {
+      // 連到自己這個框架的首頁（例：各級撥珠教法的「出題練習」回 abacus/index.html）：在框架裡照常換頁，不能攔
+      else if (PAGE_FRAME[page] && PAGE_FRAME[page] !== 'frame-books' && PAGE_FRAME[page] !== frame.id) {
         e.preventDefault();
         const f = document.getElementById(PAGE_FRAME[page]);
         if (u.hash && !f.getAttribute('src')) f.dataset.src = page + u.hash;   // 還沒載入：載入時就帶錨點
