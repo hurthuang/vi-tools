@@ -163,7 +163,15 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
 .vtm-edit{border:2px solid var(--bd2);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .vtm-erow{display:flex;gap:10px;flex-wrap:wrap}
 .vtm-erow>.pane{min-width:220px}
-#vtm-tex{min-height:3em;font-family:var(--mono);font-size:1rem}
+#vtm-tex{height:auto;min-height:3.6em;font-family:var(--mono);font-size:1rem}
+/* 校對區的框照內容高度（一般頁面的 textarea、.box 是固定 200px，在這裡太高，手改點字的按鈕會被擠到下面看不到） */
+#vtm-prev{min-height:56px;height:auto}
+#vtm-nem{height:auto;min-height:0;max-height:8em;resize:none;font-size:1.5rem;line-height:1.5;padding:6px 10px}
+#vtm-brl{height:auto;min-height:0;font-size:1.5rem;line-height:1.5;padding:6px 10px}
+#vtm-brl-st:empty{display:none}
+#vtm-tdlg{width:min(760px,94vw);border:2px solid var(--bd2);border-radius:8px;background:var(--surf);color:var(--text);padding:12px 14px}
+#vtm-tdlg::backdrop{background:rgba(0,0,0,.35)}
+#vtm-tdlg-ta{height:auto;min-height:6em;font-size:1rem}
 .vtm-h{font-size:1rem;margin:0}
 .vtm-img{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;background:#fff;color:#555}
 .vtm-img img{max-width:100%;max-height:260px}
@@ -508,13 +516,14 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
       <h2 class="vtm-h" id="vtm-head"></h2>
       <div class="vtm-warn" id="vtm-warn" hidden>
         <p id="vtm-warn-text" style="white-space:pre-wrap;margin:0"></p>
-        <div class="acts"><button class="btn pri" id="vtm-warn-ok" type="button">✓ 看過了，下一個</button></div>
+        <div class="acts"><button class="btn pri" id="vtm-warn-ok" type="button">✓ 看過了，下一個</button>
+          <button class="btn" id="vtm-tedit3" type="button" hidden>✎ 改這段文字</button></div>
       </div>
       <p class="vtm-errmsg" id="vtm-err" role="alert" hidden></p>
     <div class="vtm-erow" id="vtm-erow">
         <div class="pane" style="flex:1">
           <div class="ph"><label for="vtm-tex">LaTeX（Ctrl＋Enter 確認正確並跳下一個；Alt＋PageDown／PageUp 下一個／上一個）</label>
-            <button class="me-open-btn" id="vtm-me" type="button" style="margin-left:auto;text-transform:none;font-size:.75rem">📝 數學編輯器</button></div>
+            <button class="me-open-btn" id="vtm-me" type="button" style="margin-left:auto;text-transform:none;font-size:.75rem;white-space:nowrap;flex:none">📝 數學編輯器</button></div>
           <textarea id="vtm-tex" rows="2" spellcheck="false"></textarea>
           <div class="acts">
             <button class="btn pri" id="vtm-ok" type="button">✓ 正確，下一個</button>
@@ -522,22 +531,41 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
             <button class="btn" id="vtm-next" type="button">下一個</button>
             <button class="btn" id="vtm-undo" type="button">還原辨識結果</button>
             <button class="btn" id="vtm-unmath" type="button" title="辨識錯、其實不是算式（例如「圖（二）」）：改回一般文字">不是算式，改回文字</button>
+            <button class="btn" id="vtm-tedit2" type="button" title="改這個算式所在的那一段文字（文字和算式一起改，例如刪掉算式後面多出來的字）">✎ 改這段文字</button>
             <span class="st" id="vtm-state"></span>
           </div>
         </div>
         <div class="pane" style="flex:1">
           <div class="ph" id="vtm-prev-label"><span class="dot p" aria-hidden="true"></span>目前的算式</div>
           <div class="box prev vtm-big" id="vtm-prev" role="region" aria-labelledby="vtm-prev-label"></div>
-          <div class="ph"><span class="dot g" aria-hidden="true"></span>Nemeth 點字</div>
+          <div class="ph"><span class="dot g" aria-hidden="true"></span>Nemeth 點字
+            <button class="btn vtm-sm" id="vtm-brl-edit" type="button" style="margin-left:auto;text-transform:none;letter-spacing:0" title="自動轉的點字不對時手改；存回中繼檔後，文字轉點字會用手改的">✎ 手改點字</button>
+            <button class="btn vtm-sm" id="vtm-brl-auto" type="button" style="text-transform:none;letter-spacing:0" hidden>改回自動轉的</button></div>
           <div class="box mono font-unicode" id="vtm-nem"></div>
+          <span class="st" id="vtm-brl-st" role="status"></span>
+          <div id="vtm-brl-w" hidden>
+            <label for="vtm-brl" class="st">手改的點字（Unicode 點字或點字 ASCII；ASCII 會自動換成點字；Esc 收起）</label>
+            <textarea id="vtm-brl" class="mono font-unicode" rows="2" spellcheck="false"></textarea>
+          </div>
         </div>
       </div>
     </section>
     <section class="pane vtm-col vtm-docpane" aria-label="文字">
       <div class="ph"><span class="dot g" aria-hidden="true"></span>文字（點算式選它；點其他文字，原卷上框出那一塊）
-        <button class="btn vtm-sm" id="vtm-mk" type="button" style="margin-left:auto;text-transform:none" title="漏掉的算式：先在下面選取那幾個字，再按這個">選取的文字變成算式</button></div>
+        <button class="btn vtm-sm" id="vtm-tedit" type="button" style="margin-left:auto;text-transform:none" title="先在下面點要改的那一段（或選一個算式），再按這個：文字和算式一起改">✎ 改這段文字</button>
+        <button class="btn vtm-sm" id="vtm-mk" type="button" style="text-transform:none" title="漏掉的算式：先在下面選取那幾個字，再按這個">選取的文字變成算式</button></div>
       <div class="vtm-scroll" id="vtm-doc-scroll"><div id="vtm-doc"></div></div>
     </section>
+    <dialog id="vtm-tdlg" aria-labelledby="vtm-tdlg-h">
+      <h2 class="vtm-h" id="vtm-tdlg-h">改這段文字</h2>
+      <p class="st" id="vtm-tdlg-note"></p>
+      <label for="vtm-tdlg-ta" class="st">這段的內容（算式寫成 \( LaTeX \)；Ctrl＋Enter 確定、Esc 取消）</label>
+      <textarea id="vtm-tdlg-ta" rows="4" spellcheck="false"></textarea>
+      <div class="acts">
+        <button class="btn pri" id="vtm-tdlg-ok" type="button">確定</button>
+        <button class="btn" id="vtm-tdlg-no" type="button">取消</button>
+      </div>
+    </dialog>
     </div>
   </div>
 </main>

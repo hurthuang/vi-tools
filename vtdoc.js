@@ -93,19 +93,104 @@
   }
 
   // 元素裡的文字（算式用 \( data-tex \)，讀音照字）
+  // 算式中間夾的中文移到算式外（辨識套件 mathocr.split_cjk 同規則）：
+  //   '2 \frac{1}{3} 是 4 \frac{1}{9}' → [{math:'2 \frac{1}{3}'}, {text:'是'}, {math:'4 \frac{1}{9}'}]
+  //   只看最外層（\frac{甲}{乙} 留在算式裡）；\text{是} 這類內容全是中文的也算文字。沒夾中文回傳 null。
+  //   不拆的話，後面那個算式在點字裡會接著前面的算式，少了數字記號。
+  const CJK_CH = /[\u4e00-\u9fff\u3000-\u303f\uff01-\uff0f\uff1a-\uff20]/;
+  const TEXT_CMD = /^\\(?:text|mbox|mathrm|textrm|mathbf|textbf)\s*\{([^{}]*)\}/;
+  function splitCjk(tex) {
+    const out = [];
+    let buf = '', depth = 0, i = 0;
+    const flushMath = () => { if (buf.trim()) out.push({ math: buf.trim() }); buf = ''; };
+    const addText = t => { const l = out[out.length - 1]; if (l && l.text != null) l.text += t; else out.push({ text: t }); };
+    while (i < tex.length) {
+      const c = tex[i];
+      if (c === '\\') {
+        if (depth === 0) {
+          const m = TEXT_CMD.exec(tex.slice(i));
+          if (m && m[1].trim() && [...m[1]].every(ch => CJK_CH.test(ch) || /\s/.test(ch))) {
+            flushMath(); addText(m[1].trim()); i += m[0].length; continue;
+          }
+        }
+        const m = /^\\(?:[A-Za-z]+|[\s\S])/.exec(tex.slice(i));
+        buf += m[0]; i += m[0].length; continue;
+      }
+      if (c === '{') depth++;
+      else if (c === '}') depth = Math.max(0, depth - 1);
+      if (depth === 0 && CJK_CH.test(c)) { flushMath(); addText(c); i++; continue; }
+      buf += c; i++;
+    }
+    flushMath();
+    return out.some(p => p.text != null) && out.some(p => p.math != null) ? out : null;
+  }
+  // 算式被原卷斷行切開：後半「<7」跑到下一行、被當成文字（√48⅑ 換行 <7）。
+  //   算式後面緊接「關係符號＋數字或單一字母」就收回算式裡（後面還接英文字的不收，免得吃到英文單字）
+  const TAIL_RE = /^\s*([<>=＜＞＝≤≥≠])\s*([-−]?(?:\d+(?:\.\d+)?|[A-Za-z]))(?![0-9A-Za-z.])/;
+  const OP_TEX = { '＜': '<', '＞': '>', '＝': '=', '≤': '\\le', '≥': '\\ge', '≠': '\\neq' };
+  function tailTex(m) { return (OP_TEX[m[1]] || m[1]) + ' ' + m[2].replace('−', '-'); }
+  function joinTail(text) {
+    return text.replace(/\\\((.+?)\\\)([^\\]*)/g, (all, tex, rest) => {
+      let t = tex, r = rest, m;
+      while ((m = TAIL_RE.exec(r))) { t += ' ' + tailTex(m); r = r.slice(m[0].length); }
+      return '\\(' + t + '\\)' + r;
+    });
+  }
+  // 中繼檔裡的算式元素整理（nc 開檔時）：夾中文的拆開、被斷行切開的後半收回來。
+  //   新的算式沿用原本的信心、裁圖、位置；確認標記、手改點字、MathML 不留 → { split, joined }
+  function splitMathEls(root) {
+    let split = 0, joined = 0;
+    root.querySelectorAll('.vt-math').forEach(el => {
+      if (el.closest('template')) return;
+      const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
+      const parts = splitCjk(tex);
+      if (!parts) return;
+      const doc = el.ownerDocument;
+      for (const p of parts) {
+        if (p.text != null) { el.parentNode.insertBefore(doc.createTextNode(p.text), el); continue; }
+        el.parentNode.insertBefore(mathLike(el, p.math), el);
+      }
+      el.remove();
+      split++;
+    });
+    root.querySelectorAll('.vt-math').forEach(el => {
+      if (el.closest('template')) return;
+      const nx = el.nextSibling;
+      if (!nx || nx.nodeType !== 3) return;
+      let tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, ''), r = nx.nodeValue, m, got = false;
+      while ((m = TAIL_RE.exec(r))) { tex += ' ' + tailTex(m); r = r.slice(m[0].length); got = true; }
+      if (!got) return;
+      el.replaceWith(mathLike(el, tex));
+      nx.nodeValue = r;
+      joined++;
+    });
+    return { split, joined };
+  }
+  function mathLike(el, tex) {
+    const s = el.cloneNode(false);
+    s.dataset.tex = tex;
+    for (const a of ['data-brl', 'data-brlsrc', 'data-checked', 'id']) s.removeAttribute(a);
+    s.textContent = '\\(' + tex + '\\)';
+    return s;
+  }
+
   function inlineText(el) {
     let s = '';
     for (const n of el.childNodes) {
       if (n.nodeType === 3) s += n.nodeValue;
       else if (n.nodeType === 1) {
         const tag = n.tagName.toLowerCase();
-        if (n.classList.contains('vt-math')) s += '\\(' + (n.dataset.tex || n.textContent.replace(/^\\\(|\\\)$/g, '')) + '\\)';
+        if (n.classList.contains('vt-math')) {
+          const tex = n.dataset.tex || n.textContent.replace(/^\\\(|\\\)$/g, '');
+          const parts = splitCjk(tex);
+          s += parts ? parts.map(p => p.text != null ? p.text : '\\(' + p.math + '\\)').join('') : '\\(' + tex + '\\)';
+        }
         else if (tag === 'br') s += '\n';
         else if (n.hasAttribute('hidden')) continue;
         else s += inlineText(n);
       }
     }
-    return s;
+    return joinTail(s);
   }
 
   function tableLine(t) {
@@ -153,6 +238,8 @@
   function setInline(el, text) {
     const old = new Map();
     el.querySelectorAll('.vt-math').forEach(s => { if (s.dataset.tex && !old.has(s.dataset.tex)) old.set(s.dataset.tex, s); });
+    const pieces = new Map();   // 拆開的算式 → 原本的元素
+    for (const s of old.values()) for (const p of splitCjk(s.dataset.tex) || []) if (p.math != null && !pieces.has(p.math)) pieces.set(p.math, s);
     const doc = el.ownerDocument;
     while (el.firstChild) el.removeChild(el.firstChild);
     let k = 0;
@@ -161,6 +248,8 @@
       const tex = m[1].trim();
       const prev = old.get(tex);
       if (prev) el.appendChild(prev.cloneNode(true));
+      else if (pieces.has(tex)) el.appendChild(mathLike(pieces.get(tex), tex));
+      else if ([...old.keys()].some(k => tex.startsWith(k))) el.appendChild(mathLike(old.get([...old.keys()].find(k => tex.startsWith(k))), tex));
       else {
         const s = doc.createElement('span');
         s.className = 'vt-math';
@@ -363,5 +452,25 @@
     return (v.meta && v.meta.title) || (v.doc.querySelector('h1') || {}).textContent || v.doc.title || '';
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, applyText, applyReadings, readings, serialize, title, inlineText, source, box };
+  // 手改點字的來源雜湊（規格 3.4、3.7）：FNV-1a 32 位元，算 UTF-8 位元組，8 位十六進位
+  function hash(s) {
+    let h = 0x811c9dc5;
+    for (const b of new TextEncoder().encode(s || '')) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+  }
+
+  // 算式手改的點字：{ hand: Map(LaTeX → 點字)（data-brlsrc 對得上的），stale: [LaTeX…]（算式後來改過、手改的點字是舊的） }
+  function mathBrl(v) {
+    const hand = new Map(), stale = [];
+    (v.doc.querySelector('main') || v.doc.body).querySelectorAll('.vt-math[data-brl]').forEach(el => {
+      if (el.closest('template')) return;
+      const tex = (el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '')).trim();
+      if (!tex || !el.dataset.brl) return;
+      if (el.dataset.brlsrc === hash(tex)) { if (!hand.has(tex)) hand.set(tex, el.dataset.brl); }
+      else stale.push(tex);
+    });
+    return { hand, stale };
+  }
+
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, setInline };
 })();

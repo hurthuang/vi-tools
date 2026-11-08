@@ -6,6 +6,8 @@
   var V = null, name = '', items = [], warns = [], cur = -1, curW = -1, dirty = false;
   var SRC = null, pdf = null, page = 0, nPages = 0, zoom = 2, renderTok = 0, blkSel = null, aspect = {};
   var c2o = new WeakMap();   // 文字欄的元素 → 中繼檔裡的元素
+  var blkEl = null;          // 文字欄點到的那一段（中繼檔裡的元素），「改這段文字」用
+  var BLOCKS = 'p,h1,h2,h3,h4,h5,h6,li,td,th,caption,figcaption,dt,dd';
   var LOW = 0.9;   // 信心低於這個的標紅
   // 會改到整頁 MathJax 的指令（辨識錯出來的 \newcommand 之類）：不畫、不轉 MathML
   var UNSAFE = /\\(?:re)?newcommand|\\def(?![a-z])|\\let(?![a-z])|\\newenvironment|\\require/;
@@ -72,6 +74,7 @@
     var conf = el.dataset.conf != null && el.dataset.conf !== '' ? parseFloat(el.dataset.conf) : null;
     var q = el.closest('section.vt-q');
     return { el: el, tex0: tex, tex: tex, conf: conf, crop: el.dataset.crop || '', checked: el.dataset.checked === '1',
+      brl: el.dataset.brl || null, brlsrc: el.dataset.brlsrc || '',
       hidden: hiddenUp(el), box: vitoolsVtdoc.box(el) || vitoolsVtdoc.box(el.closest('[data-box]')),
       own: !!vitoolsVtdoc.box(el), where: q && q.dataset.num ? '第 ' + q.dataset.num + ' 題' : '' };
   }
@@ -79,9 +82,11 @@
   function load(html, fname) {
     var v = vitoolsVtdoc.parse(html);
     if (!v) { alert('這個檔案不是 vi-tools 中繼檔（.vtdoc.html）'); return; }
-    V = v; name = fname; dirty = false; blkSel = null; aspect = {};
+    V = v; name = fname; dirty = false; blkSel = null; blkEl = null; aspect = {};
     items = [];
     var main = v.doc.querySelector('main') || v.doc.body;
+    // 辨識的算式中間夾中文（2⅓ 是 4⅑）拆開、被原卷斷行切開的後半（<7）收回來；改了要存回才會留下
+    var fx = vitoolsVtdoc.splitMathEls(main);
     main.querySelectorAll('.vt-math').forEach(function (el) {
       if (el.closest('template')) return;
       items.push(newItem(el));
@@ -97,12 +102,19 @@
       });
     }
     $('vtm-name').textContent = fname + '（' + (vitoolsVtdoc.title(v) || '') + '）';
+    var fixMsg = '';
+    if (fx.split || fx.joined) {
+      dirty = true;
+      fixMsg = ('開檔時自動整理了算式：' + (fx.split ? fx.split + ' 個中間夾中文的拆開（中文移到算式外）' : '') +
+        (fx.split && fx.joined ? '、' : '') + (fx.joined ? fx.joined + ' 個被斷行切開的後半收回算式' : '') + '；請檢查，存回中繼檔才會留下');
+    }
     $('vtm-save').disabled = false;
     cur = -1; curW = -1;
     renderDoc();
     findWarns();
     renderList();
     openSource().then(function () {
+      if (fixMsg) status(fixMsg);
       if (warns.length) selectWarn(0);
       else {
         var first = order()[0];
@@ -133,8 +145,21 @@
       warns.push({ kind: 'skip', page: o.page, boxes: [o.box], label: '第 ' + o.page + ' 頁有一塊設成「略過」（沒輸出）：' + t.slice(0, 20) + (t.length > 20 ? '…' : ''),
         text: o.text });
     });
-    // 文字裡像算式的寫法
+    // 算式後面緊接一個單獨的數字：常是原卷的次方被辨識成文字（(999+1) 2 → (999+1)^{2}）
     var main = V.doc.querySelector('main') || V.doc.body;
+    main.querySelectorAll('.vt-math').forEach(function (s) {
+      if (s.closest('template') || hiddenUp(s)) return;
+      var nx = s.nextSibling, tex = (s.dataset.tex || '').trim();
+      if (!nx || nx.nodeType !== 3 || !/[)\]}]$/.test(tex)) return;
+      var m = /^ ?([1-9])(?![\d.,A-Za-z])/.exec(nx.nodeValue);
+      if (!m) return;
+      var el = s.closest(BLOCKS) || s.parentElement;
+      var b = vitoolsVtdoc.box(s) || vitoolsVtdoc.box(s.closest('[data-box]'));
+      warns.push({ kind: 'exp', el: el, page: b ? b.page : 0, boxes: b ? [[b.x0, b.y0, b.x1, b.y1]] : [],
+        label: '可能漏掉的次方：' + (tex.length > 24 ? '…' + tex.slice(-24) : tex) + ' 後面的「' + m[1] + '」',
+        text: '\\(' + tex + '\\) ' + m[1] });
+    });
+    // 文字裡像算式的寫法
     main.querySelectorAll('h1,h2,h3,p,td,th,caption').forEach(function (el) {
       if (el.closest('template') || hiddenUp(el)) return;
       var t = '';
@@ -374,6 +399,7 @@
     s += it.added ? '（自己加的）' : it.conf == null ? '（手打）' : '（信心 ' + Math.round(it.conf * 100) + '%）';
     if (it.tex !== it.tex0 && !it.added) s += ' ✎改過';
     else if (it.checked) s += ' ✓';
+    if (it.brl) s += brlStale(it) ? ' ⚠手改點字是舊的' : ' ⠿手改點字';
     var t = it.tex.length > 40 ? it.tex.slice(0, 40) + '…' : it.tex;
     return s + '　' + t;
   }
@@ -424,6 +450,19 @@
     try { return { ok: true, s: asc2brl(latexToNemethAsc(tex)) }; } catch (e) { return { ok: false, s: e.message }; }
   }
 
+  // 手改的點字（data-brl，規格 3.4）：記著是從哪一版 LaTeX 轉的（data-brlsrc），算式後來又改了就是舊的
+  function brlStale(it) { return !!it.brl && it.brlsrc !== vitoolsVtdoc.hash(it.tex.trim()); }
+  function toBrl(v) { return v.replace(/[\x20-\x7e]/g, function (c) { return asc2brl(c); }).replace(/\r/g, ''); }
+
+  function showBrl(it, auto) {
+    var nb = $('vtm-nem');
+    if (it.brl) { nb.textContent = it.brl; nb.className = 'box mono font-unicode'; }
+    $('vtm-brl-auto').hidden = !it.brl;
+    $('vtm-brl-st').textContent = !it.brl ? '' : brlStale(it)
+      ? '⚠ 算式改過了，這個手改的點字是舊的（文字轉點字會改用自動轉的）。請重改，或改回自動轉的。自動轉的是：' + (auto.ok ? auto.s : '轉不出來')
+      : '手改過（文字轉點字會用這個）';
+  }
+
   function refresh() {
     var it = items[cur];
     if (UNSAFE.test(it.tex)) $('vtm-prev').innerHTML = '<span class="vtm-bad">這個算式裡有 \\newcommand 之類的指令，多半是辨識錯了，請對照原卷重打</span>';
@@ -432,6 +471,7 @@
     var nb = $('vtm-nem');
     nb.textContent = r.ok ? r.s : '轉不出點字：' + r.s;
     nb.className = 'box mono font-unicode' + (r.ok ? '' : ' err');
+    showBrl(it, r);
     $('vtm-undo').disabled = it.tex === it.tex0 || it.added;
     var hadErr = !!it.err;
     checkErr(it);
@@ -463,6 +503,7 @@
     $('vtm-nocrop').hidden = !!(SRC || it.crop);
     $('vtm-tex').value = it.tex;
     $('vtm-list').value = i;
+    $('vtm-brl-w').hidden = true;
     refresh();
     markDoc();
     var s = docSpan(i);
@@ -479,8 +520,10 @@
     var tip = {
       uncovered: '原卷上紅色斜線的地方沒被收進任何區塊，這些字沒有輸出。要補回來，請回辨識套件版面調整把框拉大或補一個框，再重新存中繼檔；本來就不要的（例如雜訊），按「看過了」。',
       skip: '這一塊在版面調整被設成「略過」，內容沒有輸出。如果是題目或選項，請回辨識套件版面調整改類型；本來就該略過的，按「看過了」。',
-      suspect: '這段文字裡有像算式的寫法，但沒有當成算式。是算式的話，在右邊文字欄選取那幾個字，按「選取的文字變成算式」；不是的話按「看過了」。'
+      suspect: '這段文字裡有像算式的寫法，但沒有當成算式。是算式的話，在右邊文字欄選取那幾個字，按「選取的文字變成算式」，或按「✎ 改這段文字」直接改；不是的話按「看過了」。',
+      exp: '算式後面緊接一個單獨的數字，常是原卷的次方被辨識成文字。是的話按「✎ 改這段文字」，把數字併進算式（例如 (999+1)^{2}）、刪掉後面的數字；不是的話按「看過了」。'
     }[w.kind];
+    $('vtm-tedit3').hidden = !w.el;
     $('vtm-warn-text').textContent = (w.text ? '內容：' + w.text + '\n' : '') + tip;
     $('vtm-list').value = 'w' + k;
     markDoc();
@@ -611,18 +654,125 @@
     if (ord.length) select(ord[0]); else $('vtm-edit').hidden = true;
   }
 
+  // ---------- 改這段文字（文字和算式一起改）----------
+  // 開一個文字框，內容是這一段的純文字（算式寫成 \( LaTeX \)，同文字轉點字的輸入框），確定後用 vtdoc.js 的 setInline 寫回：
+  // 沒改的算式沿用原本的元素（信心、原卷位置、裁圖），算式清單照文件順序重建，沒改的算式保留辨識結果、確認、手改點字。
+  var editEl = null, editOrig = '', editBack = null;
+  function editTarget(from) {
+    if (from === 'vtm-tedit3' && curW >= 0) return warns[curW].el || null;
+    if (from === 'vtm-tedit2' && cur >= 0) return items[cur].el.closest(BLOCKS) || items[cur].el.parentElement;
+    if (blkEl && blkEl.isConnected) return blkEl;
+    if (cur >= 0 && !items[cur].gone) return items[cur].el.closest(BLOCKS) || items[cur].el.parentElement;
+    if (curW >= 0 && warns[curW].el) return warns[curW].el;
+    return null;
+  }
+  function editText(from) {
+    if (!V) return;
+    var el = editTarget(from);
+    if (!el) { status('先在右邊文字欄點要改的那一段，或在清單選一個算式'); return; }
+    // 這一段裡的算式先換成目前（可能還沒存）的 LaTeX
+    items.forEach(function (it) {
+      if (!it.gone && el.contains(it.el) && it.el.dataset.tex !== it.tex) { it.el.dataset.tex = it.tex; it.mathDirty = true; }
+    });
+    editEl = el;
+    editOrig = vitoolsVtdoc.inlineText(el);
+    editBack = document.activeElement;
+    var fmt = Array.prototype.some.call(el.querySelectorAll('*'), function (n) {
+      return !n.closest('.vt-math') && !/^(BR|SPAN)$/.test(n.tagName) && n !== el;
+    });
+    $('vtm-tdlg-note').textContent = (fmt ? '這段有粗體、底線之類的格式，改了之後格式會拿掉（文字、算式都留著）。' : '') +
+      '改字、刪掉多出來的字，或把漏掉的部分補進算式。';
+    $('vtm-tdlg-ta').value = editOrig;
+    $('vtm-tdlg').showModal();
+    $('vtm-tdlg-ta').focus();
+  }
+  function editTextOk() {
+    var el = editEl, nt = $('vtm-tdlg-ta').value.replace(/\r/g, '');
+    $('vtm-tdlg').close();
+    if (!el || nt === editOrig) return;
+    // 原本的算式狀態，照 LaTeX 對回
+    var state = new Map();
+    items.forEach(function (it) { if (!it.gone && el.contains(it.el) && !state.has(it.tex)) state.set(it.tex, it); });
+    var curIt = cur >= 0 ? items[cur] : null;
+    var lines = nt.split('\n');
+    vitoolsVtdoc.setInline(el, lines[0]);
+    for (var k = 1; k < lines.length; k++) {
+      var tmp = el.ownerDocument.createElement('span');
+      vitoolsVtdoc.setInline(tmp, lines[k]);
+      el.appendChild(el.ownerDocument.createElement('br'));
+      while (tmp.firstChild) el.appendChild(tmp.firstChild);
+    }
+    var news = rebuildItems(state, el);
+    warns.forEach(function (w) { if (w.el === el) w.done = true; });
+    dirty = true;
+    renderDoc();
+    renderList();
+    var i = curIt ? items.indexOf(curIt) : -1;
+    if (i < 0 && curIt) i = items.findIndex(function (x) { return x.el.isConnected && el.contains(x.el) && x.tex === curIt.tex; });
+    if (i >= 0) select(i);
+    else { var c = cloneOf(el); markDoc(); if (c) { c.classList.add('vtm-blk'); scrollDoc(c); } }
+    blkEl = el;
+    status('已改好這段文字' + (news ? '；新的算式 ' + news + ' 個，請檢查' : '') + '。存回中繼檔才會留下');
+  }
+  // 算式清單照文件順序重建：同一個元素沿用；setInline 換掉的照 LaTeX 對回原本的狀態；
+  // 還對不回的，跟這一段裡沒用到的原本算式照順序配對（LaTeX 改過：留辨識結果、信心、原卷位置）；剩下的是新的算式 → 回傳新的個數
+  function rebuildItems(state, el) {
+    var main = V.doc.querySelector('main') || V.doc.body;
+    var byEl = new Map(), maxN = 0, news = 0, live = [], fresh = [];
+    items.forEach(function (it) { if (!it.gone) byEl.set(it.el, it); maxN = Math.max(maxN, it.n || 0); });
+    main.querySelectorAll('.vt-math').forEach(function (span) {
+      if (span.closest('template')) return;
+      var it = byEl.get(span);
+      if (!it) {
+        it = newItem(span);
+        var old = state && state.get(it.tex);
+        if (old) {
+          state.delete(it.tex);
+          ['tex0', 'conf', 'checked', 'brl', 'brlsrc', 'added', 'n', 'crop'].forEach(function (k) { it[k] = old[k]; });
+          it.mathDirty = true;
+          if (old === items[cur]) items[cur] = it;
+        } else fresh.push(it);
+      }
+      live.push(it);
+    });
+    var left = [];
+    if (state) state.forEach(function (o) { if (left.indexOf(o) < 0) left.push(o); });
+    left.sort(function (a, b) { return items.indexOf(a) - items.indexOf(b); });
+    fresh.forEach(function (it) {
+      var old = el && el.contains(it.el) ? left.shift() : null;
+      if (old) {
+        ['tex0', 'conf', 'brl', 'brlsrc', 'added', 'n', 'crop', 'box', 'own'].forEach(function (k) { it[k] = old[k]; });
+        ['data-conf', 'data-box', 'data-crop', 'data-blk'].forEach(function (a) {
+          if (old.el.hasAttribute(a) && !it.el.hasAttribute(a)) it.el.setAttribute(a, old.el.getAttribute(a));
+        });
+        if (old === items[cur]) items[cur] = it;
+      } else { it.added = true; it.n = ++maxN; news++; }
+      it.mathDirty = true;
+      checkErr(it);
+    });
+    live.forEach(function (it) { if (it.err === undefined) checkErr(it); });
+    var curIt = cur >= 0 ? items[cur] : null;
+    items = live.concat(items.filter(function (it) { return it.gone; }));
+    cur = curIt ? items.indexOf(curIt) : -1;
+    return news;
+  }
+
   function status(s) { $('vtm-st').textContent = s; }
 
   function save() {
     if (!V) return;
-    var changed = 0, checked = 0, bad = 0, added = 0, gone = 0;
+    var changed = 0, checked = 0, bad = 0, added = 0, gone = 0, brl = 0;
     items.forEach(function (it) {
       if (it.gone) { if (!it.added) gone++; return; }
       var el = it.el;
-      var edit = it.tex !== el.dataset.tex;
+      var edit = it.tex !== el.dataset.tex || it.mathDirty;
+      it.mathDirty = false;
       if (it.added && !el.dataset.checked) added++; else if (edit) changed++;
       if (edit) el.dataset.tex = it.tex;
       if (done(it)) { if (el.dataset.checked !== '1') checked++; el.dataset.checked = '1'; }
+      // 手改的點字：有就寫（連同來源雜湊）；改回自動轉的就拿掉
+      if (it.brl) { if (el.dataset.brl !== it.brl) brl++; el.dataset.brl = it.brl; el.dataset.brlsrc = it.brlsrc; }
+      else if (el.hasAttribute('data-brl')) { el.removeAttribute('data-brl'); el.removeAttribute('data-brlsrc'); }
       // MathML 由 data-tex 產生：改過的、還沒有 MathML 的都重轉
       if (edit || !el.querySelector('math')) {
         try {
@@ -631,7 +781,7 @@
         } catch (e) { el.textContent = '\\(' + it.tex + '\\)'; bad++; }
       }
     });
-    var note = '算式 ' + changed + ' 個修改、' + checked + ' 個確認' + (added ? '、' + added + ' 個新增' : '') + (gone ? '、' + gone + ' 個改回文字' : '');
+    var note = '算式 ' + changed + ' 個修改、' + checked + ' 個確認' + (added ? '、' + added + ' 個新增' : '') + (gone ? '、' + gone + ' 個改回文字' : '') + (brl ? '；點字手改 ' + brl + ' 個' : '');
     var html = vitoolsVtdoc.serialize(V, 'nc 算式校對', note);
     items.forEach(function (it) { it.tex0 = it.tex; });
     var fn = /\.vtdoc\.html?$/i.test(name) ? name : name.replace(/\.html?$/i, '') + '.vtdoc.html';
@@ -679,6 +829,50 @@
       status('已還原成原本的辨識結果');
     });
     $('vtm-unmath').addEventListener('click', unMath);
+    ['vtm-tedit', 'vtm-tedit2', 'vtm-tedit3'].forEach(function (id) {
+      var b = $(id);
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', function () { editText(id); });
+    });
+    $('vtm-tdlg-ok').addEventListener('click', editTextOk);
+    $('vtm-tdlg-no').addEventListener('click', function () { $('vtm-tdlg').close(); });
+    $('vtm-tdlg-ta').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); editTextOk(); }
+    });
+    $('vtm-tdlg').addEventListener('close', function () { if (editBack) editBack.focus(); });
+    $('vtm-brl-edit').addEventListener('click', function () {
+      if (cur < 0) return;
+      var it = items[cur], r = nemeth(it.tex);
+      $('vtm-brl').value = it.brl || (r.ok ? r.s : '');
+      $('vtm-brl-w').hidden = false;
+      $('vtm-brl').focus();
+    });
+    $('vtm-brl').addEventListener('input', function () {
+      var it = items[cur], ta = this, pos = ta.selectionStart;
+      var v = toBrl(ta.value);
+      if (v !== ta.value) { ta.value = v; ta.setSelectionRange(pos, pos); }
+      var r = nemeth(it.tex), was = !!it.brl;
+      // 跟自動轉的一樣就不算手改
+      if (!v.trim() || (r.ok && v === r.s)) it.brl = null;
+      else { it.brl = v; it.brlsrc = vitoolsVtdoc.hash(it.tex.trim()); }
+      dirty = true;
+      $('vtm-nem').textContent = it.brl || (r.ok ? r.s : '轉不出點字：' + r.s);
+      showBrl(it, r);
+      if (was !== !!it.brl) { var o = $('vtm-list').querySelector('option[value="' + cur + '"]'); if (o) o.textContent = label(it); }
+    });
+    $('vtm-brl').addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); $('vtm-brl-w').hidden = true; $('vtm-brl-edit').focus(); }
+    });
+    $('vtm-brl-auto').addEventListener('click', function () {
+      if (cur < 0) return;
+      var it = items[cur];
+      it.brl = null; it.brlsrc = '';
+      dirty = true;
+      $('vtm-brl-w').hidden = true;
+      var o = $('vtm-list').querySelector('option[value="' + cur + '"]'); if (o) o.textContent = label(it);
+      refresh();
+      status('已改回自動轉的點字');
+    });
     $('vtm-mk').addEventListener('mousedown', function (e) { e.preventDefault(); });  // 按鈕不要搶走選取
     $('vtm-mk').addEventListener('click', makeMath);
     $('vtm-warn-ok').addEventListener('click', function () {
@@ -712,8 +906,10 @@
       var s = e.target.closest('.vt-math[data-i]');
       if (s && items[+s.dataset.i]) { select(+s.dataset.i, 'doc'); return; }
       if (!window.getSelection().isCollapsed) return;
+      var pb = e.target.closest(BLOCKS);
+      blkEl = pb && $('vtm-doc').contains(pb) ? c2o.get(pb) || null : null;
       var b = e.target.closest('[data-box]');
-      if (!b) return;
+      if (!b) { markDoc(); if (pb) pb.classList.add('vtm-blk'); return; }
       markDoc();
       b.classList.add('vtm-blk');
       blkSel = vitoolsVtdoc.box(b);

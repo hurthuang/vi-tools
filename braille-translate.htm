@@ -3291,6 +3291,42 @@ function btCheckSavedSession() {
     } catch(e) {}
 }
 
+// ── 算式 \( LaTeX \) → Nemeth 點字（docs/notes/vtdoc.md 3.4）──────────────
+// 中繼檔的算式在輸入框寫成 \( … \)。手改過的點字（data-brl，來源雜湊對得上）直接用；
+// 其他用數學點字（nemeth_converter.html）的 latexToNemethAsc 自動轉：第一次遇到算式才在隱藏的 iframe 載入，
+// 載好之前算式先原樣顯示，載好重新轉換。
+const _btMath = { hand: new Map(), stale: [], win: null, loading: false, failed: '', version: 0 };
+function _btMathEngine() {
+    if (_btMath.win || _btMath.loading || _btMath.failed) return;
+    _btMath.loading = true;
+    const f = document.createElement('iframe');
+    f.src = 'nemeth_converter.html';
+    f.hidden = true; f.tabIndex = -1;
+    f.setAttribute('aria-hidden', 'true');
+    f.style.display = 'none';
+    const t0 = Date.now();
+    const poll = () => {
+        let w = null;
+        try { w = f.contentWindow; } catch (e) {}
+        if (w && typeof w.latexToNemethAsc === 'function' && typeof w.asc2brl === 'function') {
+            _btMath.win = w; _btMath.loading = false; _btMath.version++;
+            render();
+            return;
+        }
+        if (Date.now() - t0 > 30000) { _btMath.loading = false; _btMath.failed = '數學點字轉換載入失敗'; _btMath.version++; render(); return; }
+        setTimeout(poll, 200);
+    };
+    f.onload = poll;
+    document.body.appendChild(f);
+}
+// → { brl, hand } 或 { err } 或 null（還在載入）
+function _btMathBraille(tex) {
+    if (_btMath.hand.has(tex)) return { brl: _btMath.hand.get(tex), hand: true };
+    if (!_btMath.win) { _btMathEngine(); return _btMath.failed ? { err: _btMath.failed } : null; }
+    try { return { brl: _btMath.win.asc2brl(_btMath.win.latexToNemethAsc(tex)) }; }
+    catch (e) { return { err: e.message || String(e) }; }
+}
+
 function _getLineModeKey() {
     const mode = document.getElementById('en-mode').value;
     const nemeth = document.getElementById('nemeth-mode').checked ? '1' : '0';
@@ -3301,7 +3337,7 @@ function _getLineModeKey() {
                       .map(cb => cb.checked ? '1' : '0').join('');
     }
     const lowGrade = document.getElementById('low-grade-mode').value;
-    return mode + '|' + nemeth + '|' + exam + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade;
+    return mode + '|' + nemeth + '|' + exam + '|' + groups + '|' + _customRulesVersion + '|' + _btZhEditsVersion + '|' + lowGrade + '|' + _btMath.version;
 }
 
 function _getLineTokens(line, modeKey) {
@@ -4037,6 +4073,25 @@ function tokenizeWithCustom(text) {
 
         // 非標準空白（見 shared.js）：看不見的字元刪除；行首的全形空白是段落縮排，一個轉一方
         if (ZERO_WIDTH_RE.test(ch)) { i++; continue; }
+        // 算式 \( LaTeX \)（同一行裡）：手改的點字或自動轉的 Nemeth；轉不出來就原樣留著（輸出區下方會提醒）
+        if (ch === '\\' && text[i + 1] === '(') {
+            const end = text.indexOf('\\)', i + 2), eol = text.indexOf('\n', i);
+            if (end > 0 && (eol < 0 || end < eol)) {
+                const src = text.slice(i, end + 2), tex = text.slice(i + 2, end).trim();
+                const r = _btMathBraille(tex);
+                const prev = tokens[tokens.length - 1];
+                if (prev && !prev.isSpace && prev.braille !== '\n') pushTok({ text:'空', braille:'\u2800', isSpace:true });
+                pushTok({ text: src, braille: r && r.brl ? r.brl : src, isNemeth: true, isMath: true,
+                          mathHand: !!(r && r.hand), mathErr: r && r.err ? r.err : '' });
+                i = end + 2;
+                const nx = text[i];
+                if (nx !== undefined && nx !== '\n' && nx !== ' ' && !WIDE_SPACE_RE.test(nx)) {
+                    _srcStart = i;
+                    pushTok({ text:'空', braille:'\u2800', isSpace:true });
+                }
+                continue;
+            }
+        }
         if (ch === '\u3000' && /^\u3000*$/.test(text.slice(text.lastIndexOf('\n', i - 1) + 1, i))) {
             pushTok({ text:'空', braille:'\u2800', isSpace:true }); i++;
             continue;
@@ -5177,6 +5232,8 @@ function btVtdocOpen(html, name) {
     if (!v) throw new Error('不是中繼檔');
     const t = vitoolsVtdoc.toText(v);
     _btVtdoc = { v, t, name };
+    const mb = vitoolsVtdoc.mathBrl(v);
+    _btMath.hand = mb.hand; _btMath.stale = mb.stale; _btMath.version++;
     document.getElementById('input-text').value = t.text;
     _btZhEdits.clear();
     _btZhEditsVersion++;
@@ -5200,7 +5257,10 @@ function _btVtdocReadings(v, name) {
     _btZhEditsVersion++;
     render();
     btSaveSession();
+    const st = _btMath.stale;
     _btVtdocBar(`中繼檔「${vitoolsVtdoc.title(v) || name}」` + (n ? `，讀音修正 ${n} 個` : '') + (bad ? `（${bad} 個讀音看不懂，沒有套用）` : '') +
+        (_btMath.hand.size ? `，算式手改點字 ${_btMath.hand.size} 個` : '') +
+        (st.length ? `。⚠ ${st.length} 個算式的手改點字是舊的（算式後來改過），改用自動轉的：${st.slice(0, 3).join('、')}${st.length > 3 ? '…' : ''}；要用手改的，請回數學點字的「整份算式校對」重改` : '') +
         '。改字、修正讀音後按「存回中繼檔」。');
 }
 
@@ -5212,6 +5272,7 @@ function _btVtdocBar(msg) {
 
 function btVtdocClose() {
     _btVtdoc = null;
+    _btMath.hand = new Map(); _btMath.stale = []; _btMath.version++;
     _btVtdocBar('');
 }
 
