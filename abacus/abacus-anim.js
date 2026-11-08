@@ -2,7 +2,7 @@
  * 撥珠動畫：把一題加、減、乘、除法拆成一步一步的撥珠動作，畫在上 1 珠、下 4 珠的算盤上。
  * 乘法照直式從個位開始，每一位的乘積加在同一位和左邊一位，乘積照九九唸法先撥高位；
  * 兩位數乘數一行一行做（76 × 58 先算 76 × 8，再算 76 × 5），跟出題頁 mulTrace 同順序。
- * 加減法照出題頁的 trace()：dir = 'high' 從最高位往右、'low' 從個位往左；進位、借位時先動左邊一檔，再回來用補數修正。
+ * 加減法照出題頁的 trace()：dir = 'high' 從最高位往右、'low' 從個位往左；進位、借位時先動左邊一檔，再回來用補數修正（加法可以改成先扣補數，見 carry）。
  * 除法（除數一位數）從最高位開始，商記在點顯器上（畫面上另外一列）；乘回來扣的時候照 dir，跟減法一樣。
  * 乘法只從個位開始。dir 沒給時用全站設定（abacus-dir.js），沒有全站設定時從最高位開始。
  * 除數兩位數：商在心裡估好、試乘確認後，除數一位一位乘、一位一位扣（156 ÷ 26 商 6：先扣 2 × 6 = 12，再扣 6 × 6 = 36）。
@@ -10,14 +10,16 @@
  * merge：小補數的上珠和下珠一步撥完（第 5 級以後的預設）；沒給時分兩步（1～4 級學小補數時）。
  * plain：加減法用家長版的口語短句（使用者 2026-11-01）：第一步先念題目「9 + 2 等於多少？先撥 9。」「個位不夠加 2，十位加 1。」「加太多了，扣掉 2 的大朋友 8。答案為 11。」
  *   小補數叫小朋友、大補數叫大朋友；珠子的動作跟完整說明一樣，只換文字。乘除法不受影響。
- * abacusSteps(x, y, op, dir, merge, plain) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
+ * carry：加法進位的順序（abacus-dir.js）。'comp' 先扣補數再進位（同口訣），其他（預設）先進位再修正；乘法加乘積也照這個，減法不受影響。
+ * abacusSteps(x, y, op, dir, merge, plain, carry) 回傳 [{ d: 每一檔的數字（個位在前）, moved: 動到的檔, text }]，node 也能用。
  */
 (function (g) {
   'use strict';
   const PLACE = ['個位', '十位', '百位', '千位', '萬位', '十萬位'];
 
-  function abacusSteps(x, y, op, dir, merge, plain) {
+  function abacusSteps(x, y, op, dir, merge, plain, carry) {
     plain = !!plain && (op === '+' || op === '-');
+    const comp = carry === 'comp';
     // 一位數 × 多位數（3 × 46）換成 46 × 3 來撥，跟分級一樣
     let swap = '';
     if (op === '×' && x < 10 && y >= 10) { swap = `${x} × ${y} 換成 ${y} × ${x} 來撥，答案一樣。`; [x, y] = [y, x]; }
@@ -81,6 +83,20 @@
       const a = d[k], R = PLACE[k];
       if (a + v <= 9) return addDirect(k, v);
       const c = 10 - v;
+      if (comp) {
+        // 先扣補數（同口訣「七去三進一」）：這一檔先扣大補數，再到左邊一檔加 1。a + v ≥ 10，所以 a ≥ c，一定扣得到
+        const then = d[k + 1] + 1 <= 9 ? '再' : '接著';
+        if (plain) {
+          pending += `${R}不夠加 ${v}，`;
+          subDirect(k, c, `先扣掉 ${v} 的大朋友 ${c}`);
+          pending += then;
+          return add(k + 1, 1);
+        }
+        pending += `${R}是 ${a}，加 ${v} 會超過 9，這一檔不夠加。加 ${v} 就是加 10 再少 ${c}（${c} 是 ${v} 的大補數），所以先在${R}減 ${c}：`;
+        subDirect(k, c);
+        pending += `${then}在${PLACE[k + 1]}加 1（就是${R}加 10）：`;
+        return add(k + 1, 1);
+      }
       if (plain) {
         pending += `${R}不夠加 ${v}，`;
         add(k + 1, 1);
@@ -289,6 +305,10 @@
           <label><input type="radio" name="abd-dir" value="high"> 從最高位開始</label>
           <label><input type="radio" name="abd-dir" value="low"> 從個位開始</label>
           <span class="abd-dir-note"></span></span>
+        <span class="abd-dir" role="radiogroup" aria-label="加法進位的順序">加法進位的順序：
+          <label><input type="radio" name="abd-carry" value="carry"> 先進位</label>
+          <label><input type="radio" name="abd-carry" value="comp"> 先扣補數（同口訣）</label>
+          <span class="abd-dir-note">（只在動畫裡對照，不改頁面上方的設定）</span></span>
         <label class="abd-merge"><input type="checkbox" name="abd-merge"> 小補數上珠和下珠一起撥（第 5 級以後）</label>
         <span class="abd-dir" role="radiogroup" aria-label="加減法的說明">加減法的說明：
           <label><input type="radio" name="abd-plain" value="" checked> 完整</label>
@@ -333,7 +353,7 @@
     function load(x, y, op, dir) {
       stop();
       cur = [x, y, op];
-      steps = abacusSteps(x, y, op, dir, curMerge(), curPlain());
+      steps = abacusSteps(x, y, op, dir, curMerge(), curPlain(), curCarry());
       divisor = op === '÷' ? y : 0;
       quo.hidden = !divisor;
       const top = Math.max(x, op === '+' ? x + y : op === '×' ? x * y : x);
@@ -413,6 +433,10 @@
     function setMerge(v) { mergeOpt = !!v; if (mergeBox) mergeBox.checked = !!v; }
     // 加減法的說明：完整（老師看）或家長版口語；自己出題的面板可以切換，其他照 opts.plain
     function curPlain() { const r = form && form.querySelector('input[name=abd-plain]:checked'); return r ? !!r.value : !!opts.plain; }
+    // 加法進位的順序：照全站設定（abacus-dir.js）；自己出題的面板可以暫時切換對照
+    const globalCarry = () => (g.AbacusDir && g.AbacusDir.carry ? g.AbacusDir.carry() : 'carry');
+    function setCarry(v) { const r = form && form.querySelector(`input[name=abd-carry][value=${v}]`); if (r) r.checked = true; }
+    function curCarry() { const r = form && form.querySelector('input[name=abd-carry]:checked'); return r ? r.value : opts.carry || globalCarry(); }
     let fixDir = () => {};
     if (form) {
       const [ix, iy] = form.querySelectorAll('input[type=number]'), sel = form.querySelector('select'), err = form.querySelector('.abd-err');
@@ -430,7 +454,7 @@
       sel.addEventListener('change', e => { if (e.isTrusted && (sel.value === '×' || sel.value === '÷')) setMerge(true); });
       dirRow.addEventListener('change', () => form.requestSubmit());
       mergeBox.addEventListener('change', () => form.requestSubmit());
-      form.querySelectorAll('input[name=abd-plain]').forEach(r => r.addEventListener('change', () => form.requestSubmit()));
+      form.querySelectorAll('input[name=abd-plain],input[name=abd-carry]').forEach(r => r.addEventListener('change', () => form.requestSubmit()));
       form.onsubmit = e => {
         e.preventDefault();
         const x = +ix.value, y = +iy.value, op = sel.value;
@@ -444,11 +468,13 @@
       };
     }
     setDir(opts.dir || globalDir());
+    setCarry(opts.carry || globalCarry());
     setMerge(opts.merge);
     fixDir();
     let cur = [opts.x, opts.y, opts.op];
-    // 全站方向改了：動畫也換成新的方向（面板裡暫時的對照就不留了）
+    // 全站方向、進位順序改了：動畫也換成新的設定（面板裡暫時的對照就不留了）
     g.addEventListener('abacusdirchange', () => { setDir(globalDir()); fixDir(); load(...cur, curDir()); });
+    g.addEventListener('abacuscarrychange', () => { setCarry(globalCarry()); load(...cur, curDir()); });
     load(opts.x, opts.y, opts.op, curDir());
     return {
       // 換一題（例題按鈕用），自己出題的欄位也一起改；merge 有給時一起設定小補數撥法

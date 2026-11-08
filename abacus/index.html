@@ -70,7 +70,7 @@ th,td{border:1px solid var(--line);padding:6px 10px;text-align:left}
   <fieldset id="levels">
     <legend>級數、運算與題目大小（可複選）</legend>
     <p class="hint">每一級分別勾加法、減法；兩個都勾就是加減混合。</p>
-    <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5c。乘法一律從個位開始，除法一律從最高位開始。</p>
+    <p class="hint">加減法的撥珠方向在頁面最上面切換，三個珠算頁面共用。方向只影響兩位數 ± 兩位數的分級：從最高位開始時十位先撥完，個位那一步就跟兩位數 ± 一位數一樣（27+18 跟 37+8 同級），所以沒有 5c。乘法一律從個位開始，除法一律從最高位開始。加法進位的順序（先進位，或同口訣先扣補數）只改撥珠動畫和說明的先後，不影響分級和題目；乘法加乘積也照這個設定。</p>
     <div id="level-list"></div>
     <button type="button" class="secondary" id="all-on">所有級數全選</button>
     <button type="button" class="secondary" id="all-off">所有級數全不選</button>
@@ -192,6 +192,8 @@ const picker = AbacusPicker.mount($('level-list'), { initial: ['1|+', '2|+'] });
 $('all-on').onclick = () => { picker.setAll(true); clearPreview(); };
 $('all-off').onclick = () => { picker.setAll(false); clearPreview(); };
 window.addEventListener('abacusdirchange', () => clearPreview());
+// 進位順序不影響題目，但已經產生的練習代號裡有這個設定，要重新產生
+window.addEventListener('abacuscarrychange', () => { $('code-box').hidden = true; });
 
 function startSession(problems) {
   session = {
@@ -202,7 +204,7 @@ function startSession(problems) {
     sixEcho: $('six-echo').checked,
     sound: $('sound').checked,
     pre: document.querySelector('input[name=pre]:checked').value,
-    dir: dirHigh() ? '從最高位開始' : '從個位開始',
+    dir: (dirHigh() ? '從最高位開始' : '從個位開始') + (AbacusDir.carry() === 'comp' ? '，加法先扣補數' : ''),
     started: new Date(),
     problems: problems.map(p => ({ ...p, answer: calc(p), rem: remOf(p), tries: [], correct: false, done: false })),
     idx: 0,
@@ -259,7 +261,7 @@ function newProblems(rnd, canon) {
 
 // ---- 練習代號（abacus-code.js）：老師給家長，或老師之間分享設定 ----
 const codeSettings = () => ({
-  picks: picker.picks(), sizes: picker.sizes(), high: dirHigh(),
+  picks: picker.picks(), sizes: picker.sizes(), high: dirHigh(), carry: AbacusDir.carry(),
   count: Math.max(1, Math.min(100, parseInt($('count').value, 10) || 10)),
 });
 $('code-make').onclick = () => {
@@ -290,6 +292,7 @@ function readCode(raw) {
   const d = AbacusCode.decode(raw);
   if (d.error) { $('code-read-msg').textContent = d.error; return; }
   AbacusDir.set(d.high ? 'high' : 'low');
+  AbacusDir.setCarry(d.carry);
   picker.setSizes(d.sizes);
   picker.setPicks(d.picks);
   $('count').value = d.count;

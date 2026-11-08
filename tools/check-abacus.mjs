@@ -105,10 +105,20 @@ else {
 // 5. 撥珠動畫
 const val = d => d.reduce((s, v, t) => s + v * 10 ** t, 0);
 let anim = 0;
-function animCheck(x, y, op, dir) { for (const merge of [false, true]) animCheck1(x, y, op, dir, merge); }
-function animCheck1(x, y, op, dir, merge) {
+// 加法進位的順序：先進位（預設）、先扣補數（同口訣）；減法、除法不受影響，只跑一種
+function animCheck(x, y, op, dir) {
+  for (const carry of op === '+' || op === '×' ? ['carry', 'comp'] : ['carry'])
+    for (const merge of [false, true]) for (const plain of op === '+' || op === '-' ? [false, true] : [false]) animCheck1(x, y, op, dir, merge, plain, carry);
+}
+function animCheck1(x, y, op, dir, merge, plain, carry) {
   anim++;
-  const st = abacusSteps(x, y, op, dir, merge), last = st[st.length - 1];
+  const st = abacusSteps(x, y, op, dir, merge, plain, carry), last = st[st.length - 1];
+  // 先扣補數：每一次進位都是這一檔先減、左邊一檔後加
+  if (carry === 'comp') {
+    const ref = abacusSteps(x, y, op, dir, merge, plain, 'carry');
+    if (val(ref[ref.length - 1].d) !== val(last.d)) return fail(`動畫 ${x}${op}${y}（${dir}）兩種進位順序答案不一樣`);
+  }
+  if (/undefined|NaN/.test(st.map(s => s.text).join(''))) return fail(`動畫 ${x}${op}${y}（${dir}${plain ? '，家長版' : ''}）說明裡有 undefined／NaN`);
   const want = op === '+' ? x + y : op === '-' ? x - y : op === '×' ? x * y : x % y;
   if (val(last.d) !== want) return fail(`動畫 ${x}${op}${y}（${dir}）最後算盤上是 ${val(last.d)}，應該是 ${want}`);
   if (op === '÷' && last.q !== String(Math.floor(x / y))) return fail(`動畫 ${x}÷${y}（${dir}）商是 ${last.q}`);
@@ -139,7 +149,11 @@ for (let t = 0; t < 2000; t++) {
     ? (mode === 2 ? [lv + '|+', lv + '|-'] : [lv + '|' + '+-'[(mode + (rnd() < 0.3 ? 1 : 0)) % 2]]) : [lv + (/^[89]/.test(lv) ? '|÷' : '|×')]);
   const st = { picks, sizes: SZ.filter(() => rnd() < 0.5), count: 1 + Math.floor(rnd() * 100), high: rnd() < 0.5 };
   if (t % 4 === 0) { st.seed = Math.floor(rnd() * 1024); st.fp = Math.floor(rnd() * 16); }
+  // 先進位的代號要跟加這個設定之前完全一樣（舊代號、舊連結照樣能用）
+  if (K.encode({ ...st, carry: 'carry' }) !== K.encode(st)) { fail('練習代號：先進位的代號跟以前不一樣'); break; }
+  st.carry = t % 2 ? 'comp' : 'carry';
   const code = K.encode(st), d = K.decode(code);
+  if (d.carry !== st.carry) { fail(`練習代號 ${code} 進位順序讀回來是 ${d.carry}`); break; }
   const want = st.sizes.filter(id => picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^[89]/ })[id[0]].test(p)));
   codes++;
   if (d.error || JSON.stringify(d.picks) !== JSON.stringify(K.canonical(picks)) || d.count !== st.count || d.high !== st.high ||

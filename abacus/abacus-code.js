@@ -8,6 +8,8 @@
  * 位元：版本 2、方向 1、題數 3（常用的 10、5、15、20、25、30、50；其他再加 7）、有沒有種子 1（有的話種子 10、題庫指紋 4）、
  * 級數個數 5、每一級代號 5；有加減法時：運算是否一樣 1（一樣的話運算 2，不一樣每個加減法級數 2）；
  * 最後是選到的運算的題目大小（加減法 4、乘法 2、除法 3）。選 1～3 級加法大約 6～8 個字，同一組題目多 3 個字。
+ * 加法進位「先扣補數」（2026-11-08 加）：題目大小後面多放一個 1；「先進位」什麼都不放，所以代號跟以前一樣、舊代號照樣讀得到。
+ * 讀的時候後面還有位元才讀這一位（補齊 5 位的 0 就是先進位）。舊版網站讀新代號會忽略這一位（照先進位）。
  */
 (function (g) {
   'use strict';
@@ -27,8 +29,8 @@
   const gmul = (a, b) => { let r = 0; while (b) { if (b & 1) r ^= a; b >>= 1; a <<= 1; if (a & 32) a ^= 0x25; } return r; };
   const check = vals => { let c = 0, w = 1; for (const v of vals) { w = gmul(w, 2); c ^= gmul(v, w); } return c; };
 
-  // settings：{ picks: ['2|+', '3a|-', '6a|×'], sizes: ['F1', ...], count, high, seed?, fp? }
-  function encode({ picks, sizes, count, high, seed, fp }) {
+  // settings：{ picks: ['2|+', '3a|-', '6a|×'], sizes: ['F1', ...], count, high, seed?, fp?, carry? }（carry：'carry' 或 'comp'）
+  function encode({ picks, sizes, count, high, seed, fp, carry }) {
     const bits = [];
     const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >> i) & 1); };
     const byLv = new Map();
@@ -53,6 +55,7 @@
       if (same) put(masks[0], 2); else masks.forEach(m => put(m, 2));
     }
     for (const [k, re] of Object.entries(SIZE_OF)) if (lvs.some(lv => re.test(lv))) SIZE_IDS.filter(id => id[0] === k).forEach(id => put(sizes.includes(id) ? 1 : 0, 1));
+    if (carry === 'comp') put(1, 1);
     while (bits.length % 5) bits.push(0);
     const vals = [];
     for (let i = 0; i < bits.length; i += 5) vals.push(bits.slice(i, i + 5).reduce((s, b) => s * 2 + b, 0));
@@ -97,6 +100,7 @@
     }
     for (const [k, re] of Object.entries(SIZE_OF)) if (lvs.some(lv => re.test(lv))) SIZE_IDS.filter(id => id[0] === k).forEach(id => { if (get(1)) out.sizes.push(id); });
     if (p > bits.length) return { error: '代號對不起來，請再對一次' };
+    out.carry = p < bits.length && get(1) ? 'comp' : 'carry';
     return out;
   }
 
@@ -130,7 +134,8 @@
     const has = re => [...byLv.keys()].some(lv => re.test(lv));
     const sz = d.sizes.filter(id => (id[0] === 'F' && has(/^[1-5]/)) || (id[0] === 'M' && has(/^[67]/)) || (id[0] === 'D' && has(/^[89]/)));
     return [lvs.join('、') || '沒有選級數', sz.length ? '題目大小：' + sz.map(formName).join('、') : '',
-      `${d.count} 題`, d.high ? '從最高位開始' : '從個位開始', d.seed != null ? '同一組題目' : ''].filter(Boolean).join('；');
+      `${d.count} 題`, d.high ? '從最高位開始' : '從個位開始', d.carry === 'comp' ? '加法先扣補數再進位' : '',
+      d.seed != null ? '同一組題目' : ''].filter(Boolean).join('；');
   }
   const formName = id => (FORMS.find(f => f.id === id) || {}).name || id;
 

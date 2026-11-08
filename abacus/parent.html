@@ -137,12 +137,12 @@ button.guide-link{font-size:.95rem;padding:4px 12px;margin:6px 0 0;display:block
   <p><button type="button" class="secondary" id="custom-open">自己出一題（看是第幾級、怎麼撥）</button></p>
 
   <details class="more">
-    <summary>更多設定：名字、題數、題目大小、撥珠方向</summary>
+    <summary>更多設定：名字、題數、題目大小、撥珠方向、進位的順序</summary>
     <label class="stack">孩子的名字（寫在練習紀錄上，可不填）<input type="text" id="student" autocomplete="off"></label>
     <label class="stack">一次練幾題<input type="number" id="count" min="1" max="30" value="10" inputmode="numeric"></label>
     <div id="forms"></div>
     <p class="stack" id="dir-switch"></p>
-    <p class="hint">題目大小、撥珠方向請跟老師用的一樣。</p>
+    <p class="hint">題目大小、撥珠方向、進位的順序請跟老師用的一樣（輸入老師給的練習代號會自動設定好）。</p>
   </details>
 </section>
 
@@ -307,6 +307,7 @@ function applyCode(raw) {
   const d = AbacusCode.decode(raw);
   if (d.error) { $('code-msg').textContent = d.error; return false; }
   AbacusDir.set(d.high ? 'high' : 'low');
+  AbacusDir.setCarry(d.carry);
   sizes.set(d.sizes);
   chosen.clear();
   d.picks.forEach(v => chosen.add(v.split('|')[0]));
@@ -350,7 +351,7 @@ let session = null, demo = null;
 const exprOf = p => `${p.x} ${sym(p.op)} ${p.y} =`;
 
 function start(problems) {
-  session = { student: $('student').value.trim(), dir: AbacusPicker.dirHigh() ? '從最高位開始' : '從個位開始', started: new Date(),
+  session = { student: $('student').value.trim(), dir: (AbacusPicker.dirHigh() ? '從最高位開始' : '從個位開始') + (AbacusDir.carry() === 'comp' ? '，加法先扣補數' : ''), started: new Date(),
     problems: problems.map(p => ({ ...p, ok: null, how: false, tries: [] })), idx: 0 };
   $('setup').hidden = true; $('result').hidden = true; $('practice').hidden = false;
   show();
