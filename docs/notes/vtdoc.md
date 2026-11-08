@@ -86,6 +86,7 @@
 - 小項 (1)(2)、(甲)(乙)：`<p class="vt-item">`。
 - 原卷本來就換行的地方用 `<br>`；寫滿一行折下來的已經接成一段。
 - **刪題**：`<section class="vt-q" data-num="5" data-drop>` 裡只放 `<h3>5. 「此題型盲生不適合作答」</h3>`；原本的題目內容放在 `<template class="vt-dropped">`（不顯示、不朗讀，改回來時用）。
+- **題組**（閱讀測驗：一篇文章配好幾題）：`<section class="vt-group">` 包住題組說明、文章與它的題目（`section.vt-q`），題組裡不放 `h1`、`h2`。各工具讀文字時題組是透明的，轉純文字時題組前空一行。
 - `data-blk`：對應版面整理的區塊編號（見第 5 節），寫法 `p<頁>-b<區塊>`，例：`p2-b14`。每個區塊產生的元素都帶這個屬性。
 
 ### 3.2 一般文字、跨語言
@@ -294,7 +295,8 @@
   - 2026-11-08 **沒有辨識套件時的網頁版辨識一個算式**（使用者同意「有辨識套件用辨識套件，沒有用精簡 onnx」）：`mfr-web.js`（主程式介面 `vitoolsMfr`）＋`mfr-worker.js`（Web Worker，onnxruntime-web 1.20.1 WASM，從 jsDelivr 載入）＋`mfr-tidy.js`（Pix2Text post_process＋辨識套件 mathocr.tidy 的 JS 版）；模型 `models/mfr/`（Pix2Text MFR 1.5 int8 動態量化，encoder 23 MB＋decoder 10 MB，MIT，做法 `tools/quantize-mfr.py`）。第一次用才下載，存 Cache API（`vitools-mfr-1`，換模型改名字）；本機與桌面版不另存。前處理照辨識套件：PDF 200 DPI 算圖（`vtdoc-view` 的 `sv.cropCanvas`，框外加 2 px）、灰階、>=200 變白、PIL BICUBIC 縮 384×384；貪婪解碼（最多 512 個 token，辨識套件是 1024）。不放 MFD（AGPL），所以只辨識框好的一個算式。版面整理的拉框方式：辨識套件連上時「文字＋算式（辨識套件）」「一個算式（辨識套件）」，沒連上時「一個算式（網頁辨識）」；都有「讀文字（PDF 文字層）」。
     - 檢查：`mfr-tidy.js` 跟辨識套件 Python 版 3,126 筆（19 份 mfr.tsv＋150 個原始輸出）逐字相同；量化版 2,976 個算式跟原版一字不差 92%，拿手打答案判斷原版對量化錯 31、量化對原版錯 23（E:\Project\agy-work\20261108-mfr-web）；瀏覽器（單執行緒，GitHub Pages 沒有 COOP/COEP 就是這樣）PDF 卷 40 個算式跟辨識套件結果一字不差 32 個（其他多是空白，1 個辨識套件亂碼網頁版對、1 個網頁版多字），平均 1.2 秒、最慢 2.6 秒，載入模型 6 秒；版面整理實際拉框（辨識套件關著）：載入＋辨識 2.7 秒，新增一塊算式。只有頁面圖的中繼檔（g2a1）比較常多切到旁邊的字。
     - 桌面版離線：onnxruntime-web 的 ort.wasm.min.js、ort-wasm-simd-threaded.wasm／.mjs 要放進 desktop/desktop-assets/cdn/（還沒放）；WebView2 跑 Worker＋WASM 還沒實測。
-  - 還沒做：改既有區塊的框、題組 vt-group（遇到會提示，存回時外框拿掉）、首頁卡片（改 index.html 要先 rebase）、送到文件整理還沒實測開分頁。
+  - **題組（2026-11-08）**：`flatten` 每個區塊記 `grp`（所在的 `section.vt-group`），`build` 把連續同一個 `grp` 的區塊放進去（題目不跨題組）；`normGroups`：標題、大題不進題組，夾在同一個題組中間的區塊（新拉的框、搬進來的）併進去，跟前面斷開的離開，沒有題目的題組拆掉。`T`／「設成題組」：選好範圍；只選一塊時照文字裡「第 11～13 題」「11-13 題」「第 11 題至第 13 題」「25及26題」自動選到最後一題（含選項）；在題組裡只選一塊再按＝取消。清單上題組的列左邊紫色線，開頭、結尾標「題組開始」「題組結束」（螢幕報讀念得到）。
+  - 還沒做：首頁卡片（改 index.html 要先 rebase）、送到文件整理還沒實測開分頁。
   - 2026-11-08 **直接開原始文件**（製作流程第 1 步）：「📂 開啟檔案」收中繼檔、PDF、圖檔（可多張）、.docx、.txt。
     - 連上辨識套件（`found.doc`，0.3 起）而且是一份 PDF 或一張圖：對話框問「用辨識套件辨識」（可填頁碼）或在網頁裡讀。辨識套件那邊是 `/api/doc`（app/server.py：POST 送檔 → 試卷模式的工作；GET 進度；GET `/vtdoc` 拿中繼檔（含原卷、位置，沒有 MathML，版面整理存檔時轉）；POST `/cancel`；CORS 同 `/api/ocr`；PDF 順便記住，之後「重新辨識一塊」不用再送）。`haodian-ocr.js` 的 `doc(file, {pages, onProgress, signal})`。進度只在換頁時更新文字（報讀軟體不會一直念），辨識中 Esc 不關對話框。
     - 網頁裡讀（`vtdoc-build.js`，`vitoolsVtdocBuild.fromFiles`）：PDF 用 pdf.js 文字層，一行一行（同一高度但水平隔太遠的分兩行；兩欄頁先左欄後右欄）、上下靠近而且不是題號／選項／小項開頭的接成段落，照開頭判斷類型（`1.`→題目、`(A)`／①→選項、`一、`→大題、`(1)`／`(甲)`→小項，第一段 60 字以內當標題），一行好幾個選項自動拆；英數字之間 PDF 真的隔開（超過字高 1/4）才補空白。原卷照辨識套件的規則放（15 MB 以下放 PDF，超過放每頁 JPEG 長邊 1600）。文字層少於 20 字的頁當掃描頁，只放原卷。圖檔每張一頁 JPEG，沒有內容。.docx 用 shared.js 的 `docxXmlToText`（用到才載入 shared.js、JSZip），.txt 一行一段，都沒有原卷（`meta.source` 不寫，原卷那欄說明沒有原卷）。

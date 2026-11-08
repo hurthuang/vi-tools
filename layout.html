@@ -71,6 +71,10 @@ select{font:inherit;font-size:.88rem;padding:3px}
 .row .tx table{border-collapse:collapse;font-size:.85rem}
 .row .tx td,.row .tx th{border:1px solid #777;padding:1px 6px}
 .row.drop .tx{color:#a0005a}
+.row.grp{border-left:5px solid #7b3fa0;border-top-left-radius:0;border-bottom-left-radius:0;background-image:linear-gradient(90deg,#f6effa,transparent 30%)}
+.row.gs{margin-top:6px}
+.row.ge{margin-bottom:6px}
+.row .gl{flex:none;font-size:.7rem;color:#fff;background:#7b3fa0;border-radius:4px;padding:2px 5px;align-self:flex-start;margin-top:2px}
 .row .vt-math{background:#eef4ff;border-radius:3px}
 .row .vt-math[contenteditable="false"]{cursor:pointer}
 .ty-h1{--c:#be123c}.ty-h2{--c:#7c3aed}.ty-q{--c:#2563eb}.ty-opt{--c:#0891b2}.ty-item{--c:#0e7490}.ty-p{--c:#6b7280}
@@ -170,6 +174,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-merge" type="button" title="G">併到上一段</button>
       <button class="btn" id="ly-new" type="button" title="N">新增一段</button>
       <button class="btn" id="ly-drop" type="button" title="D">刪題</button>
+      <button class="btn" id="ly-grp" type="button" title="T：選好文章到最後一題（或只選寫著「回答第 11～13 題」的那段）設成題組；在題組裡只選一塊再按＝取消">設成題組</button>
       <button class="btn" id="ly-del" type="button" title="Delete（只是不要輸出的話用 0 略過）">刪除區塊</button>
       <button class="btn" id="ly-reocr" type="button" title="用本機的辨識套件重新辨識這一塊（R）" hidden>重新辨識</button>
       <label id="ly-how-w" hidden>輸出 <select id="ly-how"></select></label>
@@ -187,7 +192,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <summary>按鍵與操作說明</summary>
   <p>  上下鍵選區塊（Shift 多選）；數字鍵改類型：<kbd>1</kbd> 題目 <kbd>2</kbd> 選項 <kbd>3</kbd> 文字 <kbd>8</kbd> 大題 <kbd>9</kbd> 標題 <kbd>0</kbd> 略過（不輸出）；<kbd>Delete</kbd> 或框右上角 ✕ 刪除區塊；新拉的框放在選到的區塊後面；選到的框拖控制點改大小、拖中間搬位置；右邊清單可以拖曳排順序；
   <kbd>Alt</kbd>＋<kbd>↑</kbd><kbd>↓</kbd> 搬移；<kbd>E</kbd>／<kbd>Enter</kbd> 改字（<kbd>Enter</kbd> 或 <kbd>Esc</kbd> 改完、<kbd>Shift</kbd>＋<kbd>Enter</kbd> 換行、<kbd>Ctrl</kbd>＋<kbd>Enter</kbd> 從游標處分段）；
-  <kbd>G</kbd> 併到上一段（選了好幾塊＝全部併成一段）；<kbd>O</kbd> 排順序（在原卷上依序點框）；原卷空白處拖曳＝新增區塊；<kbd>N</kbd> 新增一段；<kbd>D</kbd> 刪題／恢復；<kbd>PageUp</kbd>／<kbd>PageDown</kbd> 原卷換頁；<kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原；<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存檔。
+  <kbd>G</kbd> 併到上一段（選了好幾塊＝全部併成一段）；<kbd>O</kbd> 排順序（在原卷上依序點框）；原卷空白處拖曳＝新增區塊；<kbd>N</kbd> 新增一段；<kbd>D</kbd> 刪題／恢復；<kbd>T</kbd> 設成題組（選文章到最後一題；只選寫著「回答第 11～13 題」的那段會自動選到第 13 題；在題組裡只選一塊再按＝取消）；<kbd>PageUp</kbd>／<kbd>PageDown</kbd> 原卷換頁；<kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原；<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存檔。
   點兩下算式改 LaTeX（細修算式請到 nc 整份算式校對）。
   </p>
 </details>

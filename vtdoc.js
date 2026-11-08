@@ -226,6 +226,8 @@
       const tag = el.tagName.toLowerCase();
       if (tag === 'h2') blank();  // 試卷標題前面不空行（辨識套件把頁首的附圖標記放在標題前）
       if (tag === 'h3' && el.closest('section.vt-q')) blank();
+      const grp = el.closest('section.vt-group');
+      if (grp && grp.querySelector(BLOCKS) === el) blank();   // 題組（文章＋題目）前空一行
       const text = tag === 'table' ? tableLine(el) : inlineText(el);
       text.split('\n').forEach((t, k) => lines.push({ text: t, el, part: k }));
       if (tag === 'h2' || tag === 'h1') blank();

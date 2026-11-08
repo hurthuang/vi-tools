@@ -28,7 +28,7 @@
   const FIG_HOW = [['mark', '標(請參閱附圖)'], ['figtext', '標記＋圖中文字'], ['text', '改成文字敘述'], ['none', '不輸出']];
 
   let V = null, fname = '', main = null, blocks = [], cur = -1, anchor = -1, dirty = false, ops = 0;
-  let editing = -1, editMaths = null, undoStack = [], omSel = null, groupLost = false;
+  let editing = -1, editMaths = null, undoStack = [], omSel = null;
   let rowOf = new WeakMap();   // 元素 → 清單上的那一列（沒改的不重畫，算式不用重排）
   let sv = null;
 
@@ -55,25 +55,24 @@
     return 'other';
   }
 
+  // 題組（section.vt-group，閱讀測驗的文章＋它的題目）：每個區塊記著 grp（所在的題組元素），build 時連續同一個 grp 的放進去
   function flatten() {
     const out = [];
-    groupLost = false;
-    const walk = parent => {
+    const walk = (parent, grp) => {
       for (const c of [...parent.children]) {
         if (c.tagName === 'SECTION' && c.classList.contains('vt-q') && c.querySelector(':scope > h3')) {
           let first = true;
           for (const k of [...c.children]) {
             if (k.tagName === 'TEMPLATE') continue;
-            if (first && k.tagName === 'H3') { out.push({ el: k, type: 'q', sec: c }); first = false; }
-            else out.push({ el: k, type: typeOf(k) });
+            if (first && k.tagName === 'H3') { out.push({ el: k, type: 'q', sec: c, grp }); first = false; }
+            else out.push({ el: k, type: typeOf(k), grp });
           }
         } else if (c.tagName === 'SECTION' && c.classList.contains('vt-group')) {
-          groupLost = true;
-          walk(c);
-        } else out.push({ el: c, type: typeOf(c) });
+          walk(c, c);
+        } else out.push({ el: c, type: typeOf(c), grp });
       }
     };
-    walk(main);
+    walk(main, null);
     blocks = out;
   }
 
@@ -83,20 +82,82 @@
   }
 
   function build() {
+    normGroups();
     const frag = document.createDocumentFragment();
-    let sec = null;
+    let sec = null, grp = null;
     for (const b of blocks) {
-      if (b.type === 'h1' || b.type === 'h2') { sec = null; frag.appendChild(b.el); }
+      if ((b.grp || null) !== grp) {   // 進出題組：題目不跨題組
+        grp = b.grp || null;
+        sec = null;
+        if (grp) { grp.replaceChildren(); frag.appendChild(grp); }
+      }
+      const box = grp || frag;
+      if (b.type === 'h1' || b.type === 'h2') { sec = null; box.appendChild(b.el); }
       else if (b.type === 'q') {
         sec = b.sec;
         for (const k of [...sec.children]) if (k.tagName !== 'TEMPLATE') k.remove();
         sec.insertBefore(b.el, sec.firstChild);
         const n = qnum(b.el) || (sec.hasAttribute('data-drop') ? sec.dataset.num : '');
         if (n) sec.dataset.num = n; else delete sec.dataset.num;
-        frag.appendChild(sec);
-      } else (sec || frag).appendChild(b.el);
+        box.appendChild(sec);
+      } else (sec || box).appendChild(b.el);
     }
     main.replaceChildren(frag);
+  }
+
+  // 題組整理（build 前）：標題、大題、換頁不放進題組；夾在同一個題組中間的區塊（新拉的框、搬進來的）併進去；
+  // 一個題組要連續，被搬到別處、跟前面斷開的就離開題組；題組裡要有題目，沒有就拆掉
+  function normGroups() {
+    blocks.forEach(b => { if (b.type === 'h1' || b.type === 'h2') b.grp = null; });
+    for (let i = 1; i < blocks.length - 1; i++) {
+      const b = blocks[i];
+      if (b.grp || b.type === 'h1' || b.type === 'h2') continue;
+      const p = blocks[i - 1].grp, n = blocks.slice(i + 1).find(x => x.type !== 'page');
+      if (p && n && n.grp === p) b.grp = p;
+    }
+    const done = new Set();
+    let last = null;
+    for (const b of blocks) {
+      const g = b.grp || null;
+      if (g && g !== last && done.has(g)) b.grp = null;
+      if (b.grp) done.add(b.grp);
+      last = b.grp || null;
+    }
+    for (const g of done) if (!blocks.some(b => b.grp === g && b.type === 'q')) blocks.forEach(b => { if (b.grp === g) b.grp = null; });
+  }
+
+  // T：選好的範圍設成題組；只選一塊（例如「閱讀下文，回答第 11～13 題」）照文字裡的題號範圍自動選到最後一題；
+  // 選到的在題組裡、只選一塊 → 取消那個題組
+  function toggleGroup() {
+    if (cur < 0) return;
+    const S = selRange();
+    const b = blocks[cur];
+    if (S.length === 1 && b.grp) {
+      snap();
+      const g = b.grp, n = blocks.filter(x => x.grp === g).length;
+      blocks.forEach(x => { if (x.grp === g) x.grp = null; });
+      build(); flatten(); changed(); render();
+      status('已取消題組（' + n + ' 個區塊）');
+      return;
+    }
+    let a = S[0], z = S[S.length - 1];
+    if (S.length === 1) {
+      const m = /第?\s*(\d+)\s*(?:[～~〜至到－—–\-及和與、]|題?\s*[～~〜至到－—–\-及和與、])\s*第?\s*(\d+)\s*題/.exec(b.el.textContent);
+      const last = m && blocks.findIndex((x, i) => i > a && x.type === 'q' && qnum(x.el) === m[2]);
+      if (!m || last < 0) { status('先選好題組的範圍（文章到最後一題，Shift＋上下鍵），再按 T；或選題組說明那一段（寫著「回答第 11～13 題」）'); return; }
+      z = last;
+    }
+    z = Math.max(z, qEnd(z));
+    if (!blocks.slice(a, z + 1).some(x => x.type === 'q')) { status('題組裡要有題目：範圍選到文章和它的題目'); return; }
+    snap();
+    const g = main.ownerDocument.createElement('section');
+    g.className = 'vt-group';
+    for (let i = a; i <= z; i++) if (blocks[i].type !== 'h1' && blocks[i].type !== 'h2') blocks[i].grp = g;
+    build(); flatten(); changed();
+    const qs = blocks.filter(x => x.grp === g && x.type === 'q').map(x => qnum(x.el)).filter(Boolean);
+    cur = anchor = a;
+    render();
+    status('已設成題組：' + (z - a + 1) + ' 個區塊' + (qs.length ? '，第 ' + qs[0] + (qs.length > 1 ? '～' + qs[qs.length - 1] : '') + ' 題' : '') + '（再按 T 取消）');
   }
 
   function boxOf(b) {
@@ -182,8 +243,8 @@
       if (ok) { const b = cur >= 0 && boxOf(blocks[cur]); sv.show(b ? b.page : 1); }
       showHd();
       const om = (V.meta.omitted || []).filter(o => o.kind === 'uncovered').length;
-      status((note ? note + '。' : '') + '共 ' + blocks.length + ' 個區塊' + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : '') +
-        (groupLost ? '；這份有題組（vt-group），版面整理還不認得，存回後題組外框會拿掉' : ''));
+      const ng = new Set(blocks.map(b => b.grp).filter(Boolean)).size;
+      status((note ? note + '。' : '') + '共 ' + blocks.length + ' 個區塊' + (ng ? '、' + ng + ' 個題組' : '') + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : ''));
     });
     $('ly-list').focus();
   }
@@ -249,12 +310,19 @@
       if (!r) { r = makeRow(b); fresh.push(r); }
       r.id = 'ly-r' + i;
       r.dataset.i = i;
+      const gs = b.grp && (!blocks[i - 1] || blocks[i - 1].grp !== b.grp), ge = b.grp && (!blocks[i + 1] || blocks[i + 1].grp !== b.grp);
       r.className = 'row t-' + b.type + (hiddenUp(b.el) && b.type !== 'skip' ? ' hid' : '') +
-        (b.sec && b.sec.hasAttribute('data-drop') ? ' drop' : '');
+        (b.sec && b.sec.hasAttribute('data-drop') ? ' drop' : '') + (b.grp ? ' grp' : '') + (gs ? ' gs' : '') + (ge ? ' ge' : '');
       r.querySelector('.no').textContent = i + 1;
       const ty = r.querySelector('.ty');
       ty.className = 'ty ty-' + b.type;
       ty.textContent = TY[b.type].name + (b.type === 'q' && b.sec && b.sec.hasAttribute('data-drop') ? '（刪）' : '');
+      // 題組開頭、結尾：螢幕報讀念得到（畫面上是左邊紫色線）
+      let gl = r.querySelector('.gl');
+      if (gs || ge) {
+        if (!gl) { gl = document.createElement('span'); gl.className = 'gl'; r.querySelector('.tx').before(gl); }
+        gl.textContent = gs && ge ? '題組' : gs ? '題組開始' : '題組結束';
+      } else if (gl) gl.remove();
       if (b.type === 'q') qn++;
       frag.appendChild(r);
     });
@@ -312,6 +380,8 @@
     $('ly-new').disabled = !V;
     $('ly-del').disabled = !b || b.type === 'page';
     $('ly-drop').disabled = !b || b.type !== 'q';
+    $('ly-grp').disabled = !b;
+    $('ly-grp').textContent = b && b.grp && selRange().length === 1 ? '取消題組' : '設成題組';
     $('ly-reocr').hidden = !hdOn();
     $('ly-reocr').disabled = !S.some(x => TEXT.has(x.type) && boxOf(x));
     $('ly-drop').textContent = b && b.sec && b.sec.hasAttribute('data-drop') ? '恢復這一題' : '刪題';
@@ -1429,6 +1499,7 @@
     $('ly-merge').addEventListener('click', merge);
     $('ly-new').addEventListener('click', addNew);
     $('ly-drop').addEventListener('click', toggleDrop);
+    $('ly-grp').addEventListener('click', toggleGroup);
     $('ly-how').addEventListener('change', e => setHow(e.target.value));
     $('ly-tac').addEventListener('change', e => {
       const b = blocks[cur]; if (!b) return;
@@ -1605,6 +1676,7 @@
       if (k === 'g' || k === 'G') { e.preventDefault(); merge(); return; }
       if (k === 'n' || k === 'N') { e.preventDefault(); addNew(); return; }
       if (k === 'd' || k === 'D') { e.preventDefault(); toggleDrop(); return; }
+      if (k === 't' || k === 'T') { e.preventDefault(); toggleGroup(); return; }
       if (k === 'o' || k === 'O') { e.preventDefault(); toggleOrder(); return; }
       if ((k === 'r' || k === 'R') && hdOn()) { e.preventDefault(); reocr(); return; }
       if (k === 'Escape' && orderSeq) { e.preventDefault(); toggleOrder(); return; }
