@@ -3372,15 +3372,11 @@ function btInsertMusicBlock() {
 
 function render() {
     if (!isLoaded) return;
-<<<<<<< HEAD
-=======
-    // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）
-    let input     = document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n');
-    _btUpdateTableBar(input);
->>>>>>> 8e7a012 (中繼檔、版面整理（測試版）、nc 整份算式校對、HTML 表格、網頁版算式辨識)
     const max     = parseInt(document.getElementById('cell-limit').value)||40;
     // 行分隔、段落分隔當換行（一個字換一個字，原文位置不變）；樂譜區塊換成等長的佔位行
-    let input     = _extractMusicBlocks(document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n'), max);
+    const rawIn   = document.getElementById('input-text').value.replace(LINE_SEP_RE, '\n');
+    _btUpdateTableBar(rawIn);   // 表格工具列看原文（樂譜區塊換成佔位行之前）
+    let input     = _extractMusicBlocks(rawIn, max);
     const isAscii = currentIsAscii();
     const outArea = document.getElementById('output-text');
 
