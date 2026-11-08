@@ -1468,6 +1468,8 @@
   //   先把同一列、緊鄰的文字片段接起來（中文常一字一段，下標是緊貼的小字），再依空白切開、分類
   //   圖說（圖五、圖(五)）與超過 8 個字的句子不算
   async function extractLabels(src) {
+    // 中繼檔帶來的標籤（辨識套件讀的，掃描檔、點陣化的字也有）：框沒改過就用這些
+    if (src.labels) return src.labels.map(l => ({ text: l.text, cx: l.cx, cy: l.cy }));
     if (src.doc.kind !== 'pdf') {
       // 圖片本身帶的字（vi-tools 辨識套件匯出的附圖、存在編輯檔裡的原圖）：圖片像素座標
       const r = src.rect, list = (src.doc.labels && src.doc.labels[src.page - 1]) || [];
@@ -1526,6 +1528,12 @@
       if (!text || !isLabel(text)) continue;
       if (t.cx < r.x || t.cx > r.x + r.w || t.cy < r.y || t.cy > r.y + r.h) continue;
       out.push({ text, cx: t.cx, cy: t.cy });
+    }
+    // 中繼檔記在這一頁的標籤（文字層讀不到的字）：框裡、附近沒有文字層的字才補上
+    for (const l of (src.doc.labels && src.doc.labels[src.page - 1]) || []) {
+      if (!l.text || l.cx < r.x || l.cx > r.x + r.w || l.cy < r.y || l.cy > r.y + r.h) continue;
+      if (out.some(o => Math.hypot(o.cx - l.cx, o.cy - l.cy) < 12 || l.text.includes(o.text) || o.text.includes(l.text))) continue;
+      out.push({ text: l.text, cx: l.cx, cy: l.cy });
     }
     return out;
   }
@@ -1736,25 +1744,37 @@
     if (out.length !== len) throw new Error('點陣大小不符');
     return out;
   }
-  // 來源是圖片的頁面：框選範圍的原圖（PNG）、圖片帶的字、轉換設定、圖形位置一起存，開回來還能描圖、重新產生圖形
-  //   PDF 來源不存（檔案會很大），開回來同以前不能描圖
+  // 框選範圍的原圖（PNG）、圖裡的字、轉換設定、圖形位置一起存，開回來還能描圖、重新產生圖形
+  //   圖片來源：照原圖像素裁；PDF 來源：只把框起來的那一塊畫成圖（整份 PDF 太大不存），
+  //   長邊最多 1400 像素、最多 3 倍（216 dpi）；「隱藏文字」勾著就不畫 PDF 的字，同轉點陣時
+  //   座標從 pt 換成像素（k 倍），fig.dpp 跟著除以 k，開回來重新產生圖形時標籤、圖形位置才對得上
   const srcCache = new WeakMap();
   async function packSrc(pg) {
     const s = pg.src;
-    if (!s || s.doc.kind !== 'img' || !pg.fig) return null;
-    const r = s.rect, key = [s.page, r.x, r.y, r.w, r.h].join(',');
+    if (!s || !pg.fig) return null;
+    const r = s.rect, pdf = s.doc.kind === 'pdf';
+    const k = pdf ? Math.min(3, 1400 / Math.max(r.w, r.h)) : 1;
+    const key = [s.page, r.x, r.y, r.w, r.h, pdf && pg.opts.hideText].join(',');
     let c = srcCache.get(s);
     if (!c || c.key !== key) {
-      const img = s.doc.imgs[s.page - 1], cv = document.createElement('canvas');
-      cv.width = Math.max(1, Math.round(r.w)); cv.height = Math.max(1, Math.round(r.h));
-      cv.getContext('2d').drawImage(img, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
-      c = { key, image: cv.toDataURL('image/png') };
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(r.w * k)); cv.height = Math.max(1, Math.round(r.h * k));
+      const ctx = cv.getContext('2d');
+      if (pdf) {
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+        if (pg.opts.hideText) { ctx.fillText = () => {}; ctx.strokeText = () => {}; }
+        const page = await s.doc.pdf.getPage(s.page);
+        await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: k }), transform: [1, 0, 0, 1, -r.x * k, -r.y * k] }).promise;
+      } else ctx.drawImage(s.doc.imgs[s.page - 1], r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
+      let image = cv.toDataURL('image/png');
+      if (pdf && image.length > 600000) image = cv.toDataURL('image/jpeg', 0.92);   // 照片、地圖類的 PNG 太大，改存 JPEG
+      c = { key, image };
       srcCache.set(s, c);
     }
-    const labels = (await extractLabels(s)).map(l => ({ text: l.text, cx: l.cx - r.x, cy: l.cy - r.y }));
-    return { image: c.image, labels, opts: { ...pg.opts }, fig: { ...pg.fig } };
+    const labels = (await extractLabels(s)).map(l => ({ text: l.text, cx: (l.cx - r.x) * k, cy: (l.cy - r.y) * k }));
+    return { image: c.image, labels, opts: { ...pg.opts }, fig: { ...pg.fig, dpp: pg.fig.dpp / k } };
   }
-  async function buildData() {
+  async function buildData(noPdfSrc) {
     const data = { format: 'vi-tools-tactile', version: 1, paper: { w: W, h: H }, pages: [] };
     for (const pg of pages) {
       const p = {
@@ -1764,7 +1784,7 @@
         labels: pg.labels.map(({ text, brl, manual, x, y, cx, cy }) => ({ text, brl, manual: !!manual, x, y, cx, cy })),
         fills: pg.fills || [],
       };
-      const src = await packSrc(pg);
+      const src = noPdfSrc && pg.src && pg.src.doc.kind === 'pdf' ? null : await packSrc(pg);
       if (src) p.src = src;
       data.pages.push(p);
     }
@@ -1788,7 +1808,9 @@
     autoTimer = setTimeout(async () => {
       if (!pages.length) return;
       try {
-        localStorage.setItem(AUTO_KEY, JSON.stringify({ time: Date.now(), name: $('#outName').value, data: await buildData() }));
+        const save = async noPdfSrc => localStorage.setItem(AUTO_KEY, JSON.stringify({ time: Date.now(), name: $('#outName').value, data: await buildData(noPdfSrc) }));
+        // PDF 來源的頁面裁圖可能讓備份超過瀏覽器的容量：放不下就不帶裁圖再存一次（恢復後不能描圖，存成編輯檔才有）
+        try { await save(false); } catch (e) { await save(true); }
       } catch (e) { console.warn('自動備份失敗', e); }
     }, 1500);
   }
@@ -1814,14 +1836,52 @@
   async function openTactile(f) { await loadTactile(JSON.parse(await f.text()), f.name); }
   // vi-tools 中繼檔（.vtdoc.html）：勾了「做觸圖」的附圖（figure.vt-fig[data-tactile="1"]）一張一頁，圖中文字當標籤放原位；
   // 刪掉的題目裡的圖不做。標題：第N題（＋圖說），同一題好幾張加「圖2」…（同辨識套件的「附圖→觸圖」）
+  // 中繼檔帶原卷時（PDF 或每頁的圖），左邊顯示原卷，每張附圖照 data-box 框在原卷上；沒有原卷（Word 轉來的）才用裁好的圖
+  async function vtdocSource(dom, name) {
+    let meta = {};
+    try { meta = JSON.parse(dom.getElementById('vtdoc-meta').textContent); } catch (e) {}
+    const map = (meta.source && meta.source.page_map) || null;
+    const el = dom.getElementById('vtdoc-source');
+    if (el && el.getAttribute('type') === 'application/pdf') {
+      try {
+        const bin = atob(el.textContent.replace(/\s/g, '')), data = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+        await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({ data }).promise;
+        const sizes = {};
+        return {
+          doc: { kind: 'pdf', name, numPages: pdf.numPages, pdf, labels: [] },
+          pageOf: k => (map && map[k - 1]) || k,
+          size: async n => sizes[n] || (sizes[n] = (await pdf.getPage(n)).getViewport({ scale: 1 })),
+        };
+      } catch (e) { console.warn('中繼檔的原卷打不開', e); return null; }
+    }
+    const ps = [...dom.querySelectorAll('script.vtdoc-page')].sort((a, b) => a.dataset.page - b.dataset.page);
+    if (!ps.length) return null;
+    const imgs = [], idx = {};
+    for (const s of ps) {
+      const img = new Image();
+      img.src = 'data:' + s.getAttribute('type') + ';base64,' + s.textContent.replace(/\s/g, '');
+      try { await img.decode(); } catch (e) { continue; }
+      idx[+s.dataset.page] = imgs.push(img);
+    }
+    if (!imgs.length) return null;
+    return {
+      doc: { kind: 'img', name, numPages: imgs.length, imgs, labels: [] },
+      pageOf: k => idx[k] || 0,
+      size: async n => ({ width: imgs[n - 1].naturalWidth, height: imgs[n - 1].naturalHeight }),
+    };
+  }
   async function openVtdoc(f) {
     const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
     if (!doc.getElementById('vtdoc-meta')) throw new Error('這不是 vi-tools 中繼檔');
+    const base = f.name.replace(/\.vtdoc\.html?$|\.html?$/i, '');
+    const src = await vtdocSource(doc, f.name);
     const seen = {}, out = [];
-    doc.querySelectorAll('main figure.vt-fig[data-tactile="1"]').forEach(fig => {
-      if (fig.closest('template, section[data-drop]')) return;
+    for (const fig of doc.querySelectorAll('main figure.vt-fig[data-tactile="1"]')) {
+      if (fig.closest('template, section[data-drop]')) continue;
       const img = fig.querySelector('img');
-      if (!img || !/^data:image\//.test(img.getAttribute('src') || '')) return;
+      if (!img || !/^data:image\//.test(img.getAttribute('src') || '')) continue;
       const q = fig.closest('section.vt-q'), cap = fig.querySelector('figcaption');
       let title = (q && q.dataset.num ? '第' + q.dataset.num + '題' : '') + (fig.dataset.role === 'options' ? ' 選項' : '');
       if (cap && cap.textContent.trim()) title = (title ? title + ' ' : '') + cap.textContent.trim();
@@ -1829,11 +1889,24 @@
       seen[title] = (seen[title] || 0) + 1;
       if (seen[title] > 1) title += ' 圖' + seen[title];
       const labels = [...fig.querySelectorAll('ul.vt-labels li')].map(li => ({ text: li.textContent.trim(), cx: +li.dataset.x || 0, cy: +li.dataset.y || 0 })).filter(l => l.text);
-      out.push({ title, src: { image: img.getAttribute('src'), labels } });
-    });
+      // 原卷上的位置：data-box="頁 x0 y0 x1 y1"（頁面比例）→ 來源座標（PDF 為 pt、圖為像素）；標籤是附圖的像素座標，換到原卷上
+      const b = (fig.dataset.box || '').trim().split(/\s+/).map(Number), n = src && b.length === 5 && b.every(isFinite) ? src.pageOf(b[0]) : 0;
+      if (n) {
+        const vp = await src.size(n), W0 = vp.width, H0 = vp.height;
+        const rect = { x: b[1] * W0, y: b[2] * H0, w: (b[3] - b[1]) * W0, h: (b[4] - b[2]) * H0 };
+        let iw = 0, ih = 0;
+        if (labels.length) { const im = new Image(); im.src = img.getAttribute('src'); try { await im.decode(); iw = im.naturalWidth; ih = im.naturalHeight; } catch (e) {} }
+        const at = iw && ih ? labels.map(l => ({ text: l.text, cx: rect.x + l.cx / iw * rect.w, cy: rect.y + l.cy / ih * rect.h })) : [];
+        // 也記在這一頁：重框、補框時讀不到文字層（掃描、點陣化的字）就用這些
+        (src.doc.labels[n - 1] = src.doc.labels[n - 1] || []).push(...at);
+        out.push({ title, src: { at: { page: n, rect, labels: at } } });
+      } else out.push({ title, src: { image: img.getAttribute('src'), labels } });
+    }
     if (!out.length) { alert('這個中繼檔沒有要做觸圖的附圖（在版面整理選到附圖，勾「做觸圖」）'); return; }
-    await loadTactile({ format: 'vi-tools-tactile', version: 1, pages: out, source: '中繼檔' }, f.name.replace(/\.vtdoc\.html?$|\.html?$/i, '') + '.tactile');
-    $('#edStatus').textContent = '從中繼檔開了 ' + out.length + ' 張要做觸圖的附圖';
+    const onSrc = out.filter(p => p.src.at).length;
+    await loadTactile({ format: 'vi-tools-tactile', version: 1, pages: out, source: '中繼檔', srcDoc: onSrc ? src.doc : null }, base + '.tactile');
+    $('#edStatus').textContent = '從中繼檔開了 ' + out.length + ' 張要做觸圖的附圖'
+      + (onSrc ? '；左邊是原卷，綠框是做好的圖，可以重框（取代目前這頁的圖）或補框' : '');
   }
   async function loadTactile(data, fileName) {
     if (data.format !== 'vi-tools-tactile' || !Array.isArray(data.pages)) throw new Error('這不是觸摸圖的編輯檔');
@@ -1864,7 +1937,12 @@
         objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l, brl: l.brl != null ? l.brl : labelBraille(l.text || '') })), fills: p.fills || [],
         src: null, opts: { ...defaultOpts(), ...((p.src && p.src.opts) || {}) }, undo: [],
       };
-      if (srcDoc && p.src && p.src.image) {
+      if (data.srcDoc && p.src && p.src.at) {
+        // 中繼檔的附圖：來源是原卷上框好的位置；標籤先用中繼檔的（重框之後才改讀框裡的字）
+        const a = p.src.at;
+        pg.src = { doc: data.srcDoc, page: a.page, rect: { ...a.rect }, labels: a.labels };
+        await generate(pg); made++;
+      } else if (srcDoc && p.src && p.src.image) {
         const img = srcDoc.imgs[k++];
         pg.src = { doc: srcDoc, page: k, rect: { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight } };
         if (pg.dots && p.src.fig) pg.fig = { ...p.src.fig };
@@ -1873,8 +1951,16 @@
       if (!pg.dots) pg.dots = new Uint8Array(W * H);
       list.push(pg);
     }
-    // 左邊還沒開檔：直接顯示這些原圖，可以再框選
-    if (srcDoc && !doc) {
+    // 中繼檔帶原卷：左邊換成原卷，跳到第一張附圖那一頁（框好的位置可以重框、補框）
+    if (data.srcDoc) {
+      doc = data.srcDoc; sel = null;
+      const firstAt = data.pages.find(p => p.src && p.src.at);
+      viewPage = firstAt ? firstAt.src.at.page : 1;
+      $('#empty').hidden = true; $('#pdfInner').hidden = false;
+      buildThumbStrip();
+      await renderView();
+    } else if (srcDoc && !doc) {
+      // 左邊還沒開檔：直接顯示這些原圖，可以再框選
       doc = srcDoc; viewPage = 1; sel = null;
       $('#empty').hidden = true; $('#pdfInner').hidden = false;
       buildThumbStrip();

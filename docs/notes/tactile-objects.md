@@ -45,10 +45,14 @@
 - 頁面可以有 `src: { image: 'data:image/png;base64,…', labels: [{ text, cx, cy }], opts, fig }`（座標是這張圖的像素）。舊版開到這種檔案會忽略 `src`，照樣能用。
 - 開啟時：帶 `src.image` 的頁面合成一個 `doc`（`kind: 'img'`，`doc.labels[頁]` 是圖片帶的字），`pg.src` 是整張圖；有 `dots`＋`fig` 就直接用（能描圖、重新產生圖形），沒有 `dots` 就 `generate(pg)` 轉成點陣、標籤用 `extractLabels`（圖片來源改成讀 `doc.labels`）自動排位。左邊還沒開檔時直接顯示這些原圖。
 - `paper` 可以省略（用目前紙張）；`titleBrl`、標籤的 `brl` 沒給就在這裡轉。
-- 儲存：來源是圖片的頁面（`packSrc`）存框選範圍的 PNG、圖片帶的字、`opts`、`fig`，所以截圖、圖檔做的觸圖開回來也能描圖；PDF 來源還是不存。
+- 儲存：來源是圖片的頁面（`packSrc`）存框選範圍的 PNG、圖片帶的字、`opts`、`fig`，所以截圖、圖檔做的觸圖開回來也能描圖；PDF 來源 11-08 起也存（見下節）。
 - vi-tools 辨識套件（E:\Project\haodian-omr）的試卷版面調整畫面「附圖→觸圖（.tactile）」輸出這種檔：只有 `pages[].title` 與 `pages[].src.{image, labels}`，標題「第N題」，標籤是圖裡的字（文字層或 OCR）。
 
 ## 開中繼檔（2026-11-08）
 
 - 「開啟檔案」收 `.html`／`.vtdoc.html`（`openVtdoc`）：`main figure.vt-fig[data-tactile="1"]`（不在 `template`、`section[data-drop]` 裡）一張一頁，轉成跟辨識套件「附圖→觸圖」一樣的 `{format:"vi-tools-tactile", pages:[{title, src:{image, labels:[{text,cx,cy}]}}]}` 交給 `loadTactile`；標題「第N題」（`section.vt-q` 的 `data-num`）＋「選項」（`data-role="options"`）＋圖說，重複的加「圖2」。標籤座標是圖片像素（`ul.vt-labels li` 的 `data-x`、`data-y`）。
 - 檢查：版面整理讀地理卷 PDF 文字層做出的中繼檔（7 張附圖）→ 觸圖製作 7 頁。
+- **左邊顯示原卷**（使用者 11-08 同意）：`vtdocSource` 讀 `#vtdoc-source`（PDF，`meta.source.page_map` 對頁）或 `script.vtdoc-page`（每頁的圖）建 `doc`；附圖有 `data-box` 就換成來源座標（PDF pt／圖片像素），頁面寫成 `src.at = { page, rect, labels }`、`loadTactile` 收 `data.srcDoc`，`pg.src = { doc, page, rect, labels }`，左邊換成原卷並跳到第一張附圖那頁。沒有原卷或沒有 `data-box` 的照舊用裁好的圖（`src.image`）。
+- 標籤：`pg.src.labels`（中繼檔的，`li` 的像素座標依附圖大小換到原卷上）有就直接用；重框後的新 `src` 沒有 `labels`，PDF 讀文字層，再補 `doc.labels[頁]`（中繼檔記在這一頁的）裡框內、附近 12pt 沒有文字層標籤的。
+- 儲存 PDF 來源：`packSrc` 把框起來的那一塊畫成圖（長邊 ≤ 1400 像素、最多 3 倍；「隱藏文字」勾著就不畫字），PNG 超過約 600 KB 改 JPEG 0.92；標籤座標乘 k、`fig.dpp` 除以 k，開回來重新產生圖形位置不變。自動備份放不下（localStorage）就不帶 PDF 裁圖再存一次。
+- 檢查：地理卷中繼檔 → 左邊原卷 2 頁（縮圖標 6、1），7 頁；存 .tactile 1.5 MB → 重開 7 頁、可描圖、可重新產生；辨識套件 `/api/doc` 的中繼檔 2 張附圖標籤 8、7 個帶進來。
