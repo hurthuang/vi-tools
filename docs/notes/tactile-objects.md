@@ -39,3 +39,11 @@
 - 矩形、橢圓的 `fill`（同填色種類：3、7、dots、diag、grid）：`objInside` 判斷裡面，`objFillCells` 算出填色的點（紋理不貼外框，快取 `_fk`、`_fill`）。`withObjs` 只填在底圖空白的地方，`fm` 記下位置讓 `compose` 在標籤周圍清掉。填色工具點在圖形裡面就設定 `fill`，不做 flood fill；點選時點在有填色的圖形裡面也選得到；`flattenObjs` 連填色一起轉成點陣。
 - 修正：框選範圍拖角縮放時，`float.objs` 沒有跟著更新（第一階段漏掉）。
 - 自動備份（`AUTO_KEY = 'tactile-autosave'`，localStorage）：`markDirty` 後 1.5 秒存 `buildData()`；儲存編輯檔後清掉。打開時有備份就顯示 `#restoreBar`，恢復用 `loadTactile`（同開啟編輯檔，會取代沒動過的空白頁）；還沒決定前不覆蓋舊備份。頁面排序、刪除、匯入 PRN、加入框選的圖也會標記修改。
+
+## 編輯檔帶原圖、vi-tools 辨識套件的附圖（2026-11-07，分支 `tactile-figures`）
+
+- 頁面可以有 `src: { image: 'data:image/png;base64,…', labels: [{ text, cx, cy }], opts, fig }`（座標是這張圖的像素）。舊版開到這種檔案會忽略 `src`，照樣能用。
+- 開啟時：帶 `src.image` 的頁面合成一個 `doc`（`kind: 'img'`，`doc.labels[頁]` 是圖片帶的字），`pg.src` 是整張圖；有 `dots`＋`fig` 就直接用（能描圖、重新產生圖形），沒有 `dots` 就 `generate(pg)` 轉成點陣、標籤用 `extractLabels`（圖片來源改成讀 `doc.labels`）自動排位。左邊還沒開檔時直接顯示這些原圖。
+- `paper` 可以省略（用目前紙張）；`titleBrl`、標籤的 `brl` 沒給就在這裡轉。
+- 儲存：來源是圖片的頁面（`packSrc`）存框選範圍的 PNG、圖片帶的字、`opts`、`fig`，所以截圖、圖檔做的觸圖開回來也能描圖；PDF 來源還是不存。
+- vi-tools 辨識套件（E:\Project\haodian-omr）的試卷版面調整畫面「附圖→觸圖（.tactile）」輸出這種檔：只有 `pages[].title` 與 `pages[].src.{image, labels}`，標題「第N題」，標籤是圖裡的字（文字層或 OCR）。

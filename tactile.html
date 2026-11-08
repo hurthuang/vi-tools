@@ -1467,7 +1467,11 @@
   //   先把同一列、緊鄰的文字片段接起來（中文常一字一段，下標是緊貼的小字），再依空白切開、分類
   //   圖說（圖五、圖(五)）與超過 8 個字的句子不算
   async function extractLabels(src) {
-    if (src.doc.kind !== 'pdf') return [];
+    if (src.doc.kind !== 'pdf') {
+      // 圖片本身帶的字（vi-tools 辨識套件匯出的附圖、存在編輯檔裡的原圖）：圖片像素座標
+      const r = src.rect, list = (src.doc.labels && src.doc.labels[src.page - 1]) || [];
+      return list.filter(l => l.text && l.cx >= r.x && l.cx <= r.x + r.w && l.cy >= r.y && l.cy <= r.y + r.h).map(l => ({ text: l.text, cx: l.cx, cy: l.cy }));
+    }
     const page = await src.doc.pdf.getPage(src.page);
     const vp = page.getViewport({ scale: 1 });
     const tc = await page.getTextContent();
@@ -1731,15 +1735,38 @@
     if (out.length !== len) throw new Error('點陣大小不符');
     return out;
   }
+  // 來源是圖片的頁面：框選範圍的原圖（PNG）、圖片帶的字、轉換設定、圖形位置一起存，開回來還能描圖、重新產生圖形
+  //   PDF 來源不存（檔案會很大），開回來同以前不能描圖
+  const srcCache = new WeakMap();
+  async function packSrc(pg) {
+    const s = pg.src;
+    if (!s || s.doc.kind !== 'img' || !pg.fig) return null;
+    const r = s.rect, key = [s.page, r.x, r.y, r.w, r.h].join(',');
+    let c = srcCache.get(s);
+    if (!c || c.key !== key) {
+      const img = s.doc.imgs[s.page - 1], cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(r.w)); cv.height = Math.max(1, Math.round(r.h));
+      cv.getContext('2d').drawImage(img, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height);
+      c = { key, image: cv.toDataURL('image/png') };
+      srcCache.set(s, c);
+    }
+    const labels = (await extractLabels(s)).map(l => ({ text: l.text, cx: l.cx - r.x, cy: l.cy - r.y }));
+    return { image: c.image, labels, opts: { ...pg.opts }, fig: { ...pg.fig } };
+  }
   async function buildData() {
     const data = { format: 'vi-tools-tactile', version: 1, paper: { w: W, h: H }, pages: [] };
-    for (const pg of pages) data.pages.push({
-      title: pg.title, titleBrl: pg.titleBrl,
-      dots: await packBytes(pg.dots), fillMask: pg.fillMask ? await packBytes(pg.fillMask) : null,
-      objs: objsOf(pg).map(cloneObj),
-      labels: pg.labels.map(({ text, brl, manual, x, y, cx, cy }) => ({ text, brl, manual: !!manual, x, y, cx, cy })),
-      fills: pg.fills || [],
-    });
+    for (const pg of pages) {
+      const p = {
+        title: pg.title, titleBrl: pg.titleBrl,
+        dots: await packBytes(pg.dots), fillMask: pg.fillMask ? await packBytes(pg.fillMask) : null,
+        objs: objsOf(pg).map(cloneObj),
+        labels: pg.labels.map(({ text, brl, manual, x, y, cx, cy }) => ({ text, brl, manual: !!manual, x, y, cx, cy })),
+        fills: pg.fills || [],
+      };
+      const src = await packSrc(pg);
+      if (src) p.src = src;
+      data.pages.push(p);
+    }
     return data;
   }
   $('#btnSave').onclick = async () => {
@@ -1788,21 +1815,54 @@
     if (data.format !== 'vi-tools-tactile' || !Array.isArray(data.pages)) throw new Error('這不是觸摸圖的編輯檔');
     // 插在目前這頁後面（同空白頁）；還沒有頁面時直接用編輯檔的紙張，有頁面時依目前紙張從左上角裁切或補白（畫的圖形超出紙張的部分不會匯出）
     if (onlyEmptyPage()) pages.length = 0;
-    const w = data.paper.w, h = data.paper.h, first = !pages.length, list = [];
-    if (first) setPaper(w, h);
+    // 沒寫紙張（vi-tools 辨識套件匯出的附圖）就用目前的紙張
+    const w = data.paper ? data.paper.w : W, h = data.paper ? data.paper.h : H, first = !pages.length, list = [];
+    if (first && data.paper) setPaper(w, h);
     const fit = a => w === W && h === H ? a : resizeDots(a, w, h, W, H);
-    for (const p of data.pages) list.push({
-      title: p.title || '', titleBrl: p.titleBrl || '',
-      dots: fit(await unpackBytes(p.dots, w * h)), fillMask: fit(p.fillMask ? await unpackBytes(p.fillMask, w * h) : new Uint8Array(w * h)),
-      objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l })), fills: p.fills || [],
-      src: null, opts: defaultOpts(), undo: [],
-    });
+    // 頁面帶原圖（src.image）：照開圖片的方式建來源，可以描圖、重新產生圖形；沒有點陣的頁面（只有原圖）在這裡轉成點陣
+    const srcPages = data.pages.filter(p => p.src && p.src.image);
+    let srcDoc = null;
+    if (srcPages.length) {
+      const imgs = [], labels = [];
+      for (const p of srcPages) {
+        const img = new Image();
+        img.src = p.src.image;
+        await img.decode();
+        imgs.push(img); labels.push((p.src.labels || []).map(l => ({ ...l })));
+      }
+      srcDoc = { kind: 'img', name: fileName, numPages: imgs.length, imgs, labels, unit: '張圖' };
+    }
+    let k = 0, made = 0;
+    for (const p of data.pages) {
+      const pg = {
+        title: p.title || '', titleBrl: p.titleBrl || (p.title ? titleBraille(p.title).braille : ''),
+        dots: p.dots ? fit(await unpackBytes(p.dots, w * h)) : null, fillMask: p.fillMask ? fit(await unpackBytes(p.fillMask, w * h)) : new Uint8Array(W * H),
+        objs: (p.objs || []).map(cloneObj), labels: (p.labels || []).map(l => ({ ...l, brl: l.brl != null ? l.brl : labelBraille(l.text || '') })), fills: p.fills || [],
+        src: null, opts: { ...defaultOpts(), ...((p.src && p.src.opts) || {}) }, undo: [],
+      };
+      if (srcDoc && p.src && p.src.image) {
+        const img = srcDoc.imgs[k++];
+        pg.src = { doc: srcDoc, page: k, rect: { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight } };
+        if (pg.dots && p.src.fig) pg.fig = { ...p.src.fig };
+        else { await generate(pg); made++; }
+      }
+      if (!pg.dots) pg.dots = new Uint8Array(W * H);
+      list.push(pg);
+    }
+    // 左邊還沒開檔：直接顯示這些原圖，可以再框選
+    if (srcDoc && !doc) {
+      doc = srcDoc; viewPage = 1; sel = null;
+      $('#empty').hidden = true; $('#pdfInner').hidden = false;
+      buildThumbStrip();
+      await renderView();
+    }
     const at = first ? 0 : cur + 1;
     pages.splice(at, 0, ...list);
     if (first) { $('#outName').value = fileName.replace(/\.(tactile|prn)$/i, '') + '.prn'; dirty = false; $('#saveHint').hidden = true; }
-    else markDirty();
+    if (!first || made) markDirty();   // 剛轉出來的圖還沒存過
     selectPage(at);
-    $('#edStatus').textContent = `插入 ${fileName} 的 ${list.length} 頁` + (first || (w === W && h === H) ? '' : `（這個檔案是 ${inch(w)} × ${inch(h)} 吋，已依目前紙張裁切或補白）`);
+    $('#edStatus').textContent = `插入 ${fileName} 的 ${list.length} 頁` + (made ? `（${made} 張附圖已轉成點陣，可以勾「描圖」對照原圖修改）` : '')
+      + (first || !data.paper || (w === W && h === H) ? '' : `（這個檔案是 ${inch(w)} × ${inch(h)} 吋，已依目前紙張裁切或補白）`);
   }
 
   // ── 頁面清單與屬性 ─────────────────────────────────────
