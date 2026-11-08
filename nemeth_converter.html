@@ -142,6 +142,14 @@ textarea:focus{outline:none;border-color:var(--blue);box-shadow:var(--focus-ring
 .vtm-bx{position:absolute;box-sizing:border-box;border-radius:2px}
 .vtm-bx.m{cursor:pointer;border:2px dashed #e6a100}
 .vtm-bx.m.ok{border:2px solid #1a9850}
+/* 改框：選到的算式框拖控制點改大小、拖中間搬位置；原卷空白處拖曳＝框一個漏掉的算式 */
+#vtm-ov.edit{cursor:crosshair}
+.vtm-bx.m.cur{cursor:move}
+.vtm-bx .hd{position:absolute;width:12px;height:12px;background:#fff;border:2px solid #e00000;border-radius:2px;z-index:4}
+.vtm-bx .hd-nw{left:-7px;top:-7px;cursor:nwse-resize}.vtm-bx .hd-n{left:calc(50% - 6px);top:-7px;cursor:ns-resize}.vtm-bx .hd-ne{right:-7px;top:-7px;cursor:nesw-resize}
+.vtm-bx .hd-e{right:-7px;top:calc(50% - 6px);cursor:ew-resize}.vtm-bx .hd-se{right:-7px;bottom:-7px;cursor:nwse-resize}.vtm-bx .hd-s{left:calc(50% - 6px);bottom:-7px;cursor:ns-resize}
+.vtm-bx .hd-sw{left:-7px;bottom:-7px;cursor:nesw-resize}.vtm-bx .hd-w{left:-7px;top:calc(50% - 6px);cursor:ew-resize}
+.vtm-bx.drag{border:2px dashed #1557d6;background:rgba(21,87,214,.10);z-index:5}
 /* 正在校對的：粗紅框＋外圈黃光＋淡紅底，一眼就找得到 */
 .vtm-bx.cur{border:none;outline:4px solid #e00000;outline-offset:4px;background:rgba(255,230,0,.18);box-shadow:0 0 0 9px rgba(255,212,0,.85),0 0 18px 12px rgba(255,140,0,.6);z-index:2;animation:vtm-pulse 1.2s ease-in-out 3}
 .vtm-bx.blk{outline:4px solid #1557d6;outline-offset:4px;background:rgba(21,87,214,.08)}
@@ -577,6 +585,9 @@ hr{border:none;border-top:1px solid var(--bd);margin:4px 0}
 <script src="voice-settings.js"></script>
 <script src="speech-block.js"></script>
 <script src="vtdoc.js"></script>
+<script src="vtdoc-view.js"></script>
+<script src="haodian-ocr.js"></script>
+<script src="mfr-web.js"></script>
 <script src="nc-vtdoc.js"></script>
 <script>
 // 🔊 報讀：LaTeX 算式轉成 MathCAT 報讀文字後朗讀（桌面版可匯出音檔）。

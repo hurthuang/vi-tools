@@ -184,6 +184,14 @@
   }
 
   // ---------- 原卷 ----------
+  // 裁圖、辨識用的原卷（vtdoc-view.js，不顯示，跟版面整理同一套 regionSource／cropCanvas）
+  var cut = null;
+  function openCut() {
+    if (!window.vitoolsVtdocView) return;
+    if (!cut) { var d = document.createElement('div'); cut = vitoolsVtdocView.create({ scroll: d, host: d, overlay: d }); }
+    cut.open(V);
+  }
+
   function openSource() {
     SRC = vitoolsVtdoc.source(V);
     pdf = null; page = 0; nPages = 0;
@@ -191,7 +199,7 @@
     $('vtm-nosrc').hidden = !!SRC;
     $('vtm-page-tools').hidden = !SRC;
     if (!SRC) return Promise.resolve();
-    if (SRC.kind === 'pages') { nPages = Math.max.apply(null, Object.keys(SRC.pages).map(Number)); return Promise.resolve(); }
+    if (SRC.kind === 'pages') { nPages = Math.max.apply(null, Object.keys(SRC.pages).map(Number)); openCut(); return Promise.resolve(); }
     status('載入原卷中…');
     var ready = window.pdfjsLib ? Promise.resolve() : loadScript(PDFJS + 'pdf.min.js').then(function () {
       pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
@@ -200,6 +208,7 @@
       pdf = d;
       nPages = SRC.pageMap ? SRC.pageMap.length : d.numPages;
       status('');
+      openCut();   // pdf.js 載好之後才開（兩邊同時載 pdf.js，loadScript 看到 script 已經在就當成載好了）
     }).catch(function (e) {
       SRC = null;
       $('vtm-page-box').hidden = true; $('vtm-nosrc').hidden = false; $('vtm-page-tools').hidden = true;
@@ -303,8 +312,11 @@
     items.forEach(function (it, i) {
       if (it.gone || !it.own || it.box.page !== page) return;
       var st = i === cur ? 'cur' : done(it) ? 'ok' : 'todo';
-      var d = boxDiv(it.box, 'm ' + st, it.n + '. ' + it.tex);
+      var d = boxDiv(it.box, 'm ' + st, it.n + '. ' + it.tex + (i === cur ? '（拖控制點改框，放開後重新辨識）' : ''));
       d.dataset.i = i;
+      if (i === cur) ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(function (h) {
+        var k = document.createElement('span'); k.className = 'hd hd-' + h; k.dataset.h = h; d.appendChild(k);
+      });
       ov.appendChild(d);
     });
     var c = items[cur];
@@ -757,6 +769,207 @@
     return news;
   }
 
+  // ---------- 原卷上改算式的框、框漏掉的算式 ----------
+  var bxEdit = null, drag = null, recBusy = false, skipClick = false;
+  function ovPoint(e) {
+    var r = $('vtm-ov').getBoundingClientRect();
+    return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))];
+  }
+  function boxAttr(p, b) { return p + ' ' + b.map(function (x) { return (+x).toFixed(4); }).join(' '); }
+  function short(t) { return t.length > 60 ? t.slice(0, 60) + '…' : t; }
+  function canRec() { return !!((window.vitoolsHaodian && vitoolsHaodian.found) || window.vitoolsMfr); }
+
+  // 辨識框裡的一個算式：本機有辨識套件就用它，沒有就用網頁版辨識（mfr-web.js，第一次用才下載模型）
+  function recMath(p, box) {
+    if (window.vitoolsHaodian && vitoolsHaodian.found) {
+      status('辨識中…（辨識套件；第一次辨識要載入模型，大約 20 秒）');
+      return cut.regionSource(p, box).then(function (src) { return vitoolsHaodian.recognize(src, box, { mode: 'math', type: 'p' }); })
+        .then(function (r) { return { tex: (r.tex || '').trim(), score: r.score, by: '辨識套件' }; });
+    }
+    if (!window.vitoolsMfr) return Promise.reject(new Error('沒有本機的辨識套件，網頁版辨識也載入不了'));
+    var pct = function (m) { return Math.round(m.loaded / m.total * 100); };
+    vitoolsMfr.onprogress = function (m) {
+      if (m.stage === 'download' && !m.local) status('下載算式辨識模型（只有第一次，約 33 MB）… ' + pct(m) + '%');
+      else if (m.stage === 'init' || m.stage === 'download') status('載入算式辨識模型…');
+    };
+    status(vitoolsMfr.loaded() ? '辨識中…' : '載入算式辨識模型…');
+    return cut.cropCanvas(p, box, 2).then(function (cv) {
+      return vitoolsMfr.load().then(function () { status('辨識中…'); return vitoolsMfr.recognize(cv); });
+    }).then(function (r) { return { tex: (r.tex || '').trim(), score: r.score, by: '網頁辨識' }; });
+  }
+  // 原卷裁圖（中繼檔的 data-crop，沒有原卷時對照用）
+  function cropUrl(p, box) {
+    return cut.cropCanvas(p, box, 4, true).then(function (cv) {
+      var k = Math.min(1, 600 / Math.max(cv.width, cv.height));
+      if (k < 1) {
+        var c2 = document.createElement('canvas');
+        c2.width = Math.round(cv.width * k); c2.height = Math.round(cv.height * k);
+        c2.getContext('2d').drawImage(cv, 0, 0, c2.width, c2.height);
+        cv = c2;
+      }
+      return cv.toDataURL('image/png');
+    }).catch(function () { return ''; });
+  }
+
+  // 改了算式的框：位置、裁圖更新，用新框重新辨識（原本的辨識結果留著，可以「還原辨識結果」）
+  function applyBox(i, p, nb) {
+    var it = items[i];
+    if (!it || it.gone) return;
+    it.el.dataset.box = boxAttr(p, nb);
+    it.box = vitoolsVtdoc.box(it.el);
+    it.own = true;
+    dirty = true;
+    drawBoxes();
+    cropUrl(p, nb).then(function (u) { if (u) { it.crop = u; it.el.dataset.crop = u; } });
+    if (!canRec()) { status('已改框（沒有辨識套件，網頁版辨識也載入不了，算式請自己改）'); return; }
+    if (recBusy) { status('已改框；還在辨識上一個，這個請按「重新辨識」或自己改'); return; }
+    recBusy = true;
+    recMath(p, nb).then(function (r) {
+      if (!r.tex) { status('已改框，但新框裡辨識不出算式'); return; }
+      var old = it.tex;
+      if (r.score != null) { it.conf = r.score; it.el.dataset.conf = r.score.toFixed(2); }
+      if (cur === i) { $('vtm-tex').value = r.tex; setTex(r.tex); }
+      else {   // 辨識的時候已經選了別的算式：直接改這一個，不動畫面上正在校對的
+        it.tex = r.tex;
+        checkErr(it);
+        dirty = true;
+        var o = $('vtm-list').querySelector('option[value="' + i + '"]');
+        if (o) o.textContent = label(it);
+        var sp = docSpan(i);
+        if (sp) { sp.innerHTML = mathSrc(r.tex); typeset(sp); }
+        stat(); drawBoxes();
+      }
+      status('用新框重新辨識（' + r.by + '）：' + short(r.tex) + (r.score != null ? '（信心 ' + Math.round(r.score * 100) + '%）' : '') + '；原本是 ' + short(old) + '，不對可以按「還原辨識結果」');
+    }).catch(function (e) { status('已改框，重新辨識失敗：' + e.message); })
+      .then(function () { recBusy = false; });
+  }
+
+  // 原卷空白處拉框：辨識成算式，(a) 文字欄有選取文字就換掉那段字，(b) 沒有就放進原卷上框住這裡的那一段的結尾
+  function newMathFromBox(p, box, range) {
+    if (!canRec()) { status('要框新的算式，需要本機的辨識套件或網頁版辨識'); return; }
+    if (recBusy) { status('還在辨識上一個，請稍等'); return; }
+    // 先確定要放哪裡（辨識要幾秒，期間選取可能變掉）
+    var target = null;
+    if (range) {
+      var tn = range.startContainer, cp = tn.parentElement, op = cp && c2o.get(cp);
+      var idx = cp ? Array.prototype.indexOf.call(cp.childNodes, tn) : -1, on = op && op.childNodes[idx];
+      if (on && on.nodeType === 3 && on.nodeValue === tn.nodeValue && range.endContainer === tn && !cp.closest('.vt-math'))
+        target = { node: on, a: range.startOffset, b: range.endOffset, text: tn.nodeValue.slice(range.startOffset, range.endOffset) };
+      else { status('選取的文字要在同一段一般文字裡（不要跨到算式或別段）；取消選取再拉框，會放進那一段的結尾'); return; }
+    }
+    var host = null;
+    if (!target) {
+      var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2, best = null;
+      (V.doc.querySelector('main') || V.doc.body).querySelectorAll(BLOCKS).forEach(function (el) {
+        if (el.closest('template') || hiddenUp(el)) return;
+        var b = vitoolsVtdoc.box(el) || vitoolsVtdoc.box(el.closest('[data-box]'));
+        if (!b || b.page !== p || cx < b.x0 || cx > b.x1 || cy < b.y0 || cy > b.y1) return;
+        var a = (b.x1 - b.x0) * (b.y1 - b.y0);
+        if (!best || a < best.a) best = { el: el, a: a };
+      });
+      if (!best) { status('原卷上這裡不在任何一段裡：請先在右邊文字欄選取要換掉的字（或游標點到要放的那段文字裡、選一個字），再拉框'); return; }
+      host = best.el;
+    }
+    recBusy = true;
+    Promise.all([recMath(p, box), cropUrl(p, box)]).then(function (res) {
+      var r = res[0], url = res[1];
+      if (!r.tex) { status('框裡辨識不出算式'); return; }
+      var d = (V.doc.querySelector('main') || V.doc.body).ownerDocument;
+      var s = d.createElement('span');
+      s.className = 'vt-math';
+      s.dataset.tex = r.tex;
+      s.dataset.box = boxAttr(p, box);
+      if (r.score != null) s.dataset.conf = r.score.toFixed(2);
+      if (url) s.dataset.crop = url;
+      s.textContent = '\\(' + r.tex + '\\)';
+      if (target) {
+        var mid = target.node.splitText(target.a);
+        mid.splitText(target.b - target.a);
+        mid.parentNode.replaceChild(s, mid);
+      } else {
+        var last = host.lastChild;
+        if (last && !(last.nodeType === 3 && /\s$/.test(last.nodeValue))) host.appendChild(d.createTextNode(' '));
+        host.appendChild(s);
+      }
+      rebuildItems(null, null);
+      dirty = true;
+      renderDoc();
+      renderList();
+      var i = items.findIndex(function (x) { return x.el === s; });
+      if (i >= 0) select(i);
+      status('框成新的算式（' + r.by + '）：' + short(r.tex) + (r.score != null ? '（信心 ' + Math.round(r.score * 100) + '%）' : '') +
+        (target ? '，換掉了「' + target.text + '」' : '，放在這一段的結尾；位置不對請按「✎ 改這段文字」調整'));
+    }).catch(function (e) { status('辨識失敗：' + e.message); })
+      .then(function () { recBusy = false; });
+  }
+
+  function initBoxEdit() {
+    var ov = $('vtm-ov');
+    if (window.vitoolsHaodian) vitoolsHaodian.detect().then(function () { ov.classList.toggle('edit', canRec()); });
+    ov.classList.toggle('edit', canRec());
+    ov.addEventListener('mousedown', function (e) {
+      if (e.button !== 0 || !V || !SRC) return;
+      var cb = e.target.closest && e.target.closest('.vtm-bx.m.cur');
+      if (cb && cb.dataset.i != null) {   // 選到的算式框：拖控制點改大小、拖中間搬位置
+        var it = items[+cb.dataset.i];
+        if (it && it.box) {
+          e.preventDefault();
+          bxEdit = { i: +cb.dataset.i, h: e.target.dataset.h || 'move', p: ovPoint(e), b0: [it.box.x0, it.box.y0, it.box.x1, it.box.y1], nb: null, d: cb, page: it.box.page };
+          return;
+        }
+      }
+      if (e.target.closest && e.target.closest('.vtm-bx.m')) return;   // 點別的算式＝選它（click 處理）
+      e.preventDefault();   // 不要清掉文字欄的選取
+      var sel = window.getSelection(), range = null;
+      if (sel.rangeCount && !sel.isCollapsed && $('vtm-doc').contains(sel.getRangeAt(0).startContainer)) range = sel.getRangeAt(0).cloneRange();
+      var p0 = ovPoint(e), d = boxDiv([p0[0], p0[1], p0[0], p0[1]], 'drag');
+      ov.appendChild(d);
+      drag = { p: p0, q: p0, d: d, range: range };
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (bxEdit) {
+        var q = ovPoint(e), dx = q[0] - bxEdit.p[0], dy = q[1] - bxEdit.p[1], h = bxEdit.h;
+        if (!bxEdit.nb && Math.abs(dx) + Math.abs(dy) < 0.004) return;
+        var b = bxEdit.b0.slice();
+        if (h === 'move') { b[0] += dx; b[2] += dx; b[1] += dy; b[3] += dy; }
+        else {
+          if (h.indexOf('w') >= 0) b[0] += dx;
+          if (h.indexOf('e') >= 0) b[2] += dx;
+          if (h.indexOf('n') >= 0) b[1] += dy;
+          if (h.indexOf('s') >= 0) b[3] += dy;
+        }
+        var nb = [Math.min(b[0], b[2]), Math.min(b[1], b[3]), Math.max(b[0], b[2]), Math.max(b[1], b[3])].map(function (v) { return Math.max(0, Math.min(1, v)); });
+        bxEdit.nb = nb;
+        var st = bxEdit.d.style;
+        st.left = nb[0] * 100 + '%'; st.top = nb[1] * 100 + '%'; st.width = (nb[2] - nb[0]) * 100 + '%'; st.height = (nb[3] - nb[1]) * 100 + '%';
+        return;
+      }
+      if (!drag) return;
+      drag.q = ovPoint(e);
+      var a = drag.p, c = drag.q, s2 = drag.d.style;
+      s2.left = Math.min(a[0], c[0]) * 100 + '%'; s2.top = Math.min(a[1], c[1]) * 100 + '%';
+      s2.width = Math.abs(a[0] - c[0]) * 100 + '%'; s2.height = Math.abs(a[1] - c[1]) * 100 + '%';
+    });
+    window.addEventListener('mouseup', function () {
+      if (bxEdit) {
+        var x = bxEdit;
+        bxEdit = null;
+        if (x.nb) skipClick = true;
+        if (x.nb && x.nb[2] - x.nb[0] > 0.004 && x.nb[3] - x.nb[1] > 0.003) applyBox(x.i, x.page, x.nb);
+        else if (x.nb) drawBoxes();
+        return;
+      }
+      if (!drag) return;
+      var g = drag;
+      drag = null;
+      g.d.remove();
+      var box = [Math.min(g.p[0], g.q[0]), Math.min(g.p[1], g.q[1]), Math.max(g.p[0], g.q[0]), Math.max(g.p[1], g.q[1])];
+      if (box[2] - box[0] < 0.008 || box[3] - box[1] < 0.004) return;
+      skipClick = true;
+      newMathFromBox(page, box, g.range);
+    });
+  }
+
   function status(s) { $('vtm-st').textContent = s; }
 
   function save() {
@@ -898,6 +1111,7 @@
     $('vtm-save').addEventListener('click', save);
     // 原卷：點算式的框 → 選那個算式
     $('vtm-ov').addEventListener('click', function (e) {
+      if (skipClick) { skipClick = false; return; }
       var d = e.target.closest('.vtm-bx.m');
       if (d) select(+d.dataset.i);
     });
@@ -915,6 +1129,7 @@
       blkSel = vitoolsVtdoc.box(b);
       if (SRC && blkSel) focusBox(blkSel);
     });
+    initBoxEdit();
     $('vtm-pprev').addEventListener('click', function () { blkSel = null; showPage(page - 1); });
     $('vtm-pnext').addEventListener('click', function () { blkSel = null; showPage(page + 1); });
     $('vtm-zin').addEventListener('click', function () {
