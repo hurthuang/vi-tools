@@ -46,7 +46,8 @@
   function baseName(n) { return String(n || '文件').replace(/\.[^.]+$/, ''); }
 
   // ---------- 一行文字 → 類型（跟辨識套件的自動分區塊同樣的開頭判斷，簡化版） ----------
-  const RE_Q = /^\s*(\d{1,3})\s*[.．、](?!\d)/;
+  // 題號：前面可以有作答括號「( )1.」「（　）1.」「()1.」
+  const RE_Q = /^\s*(?:[(（][\s　]*[)）]\s*)?(\d{1,3})\s*[.．、](?!\d)/;
   const RE_OPT = /^\s*(?:[（(]\s*([A-EＡ-Ｅ])\s*[)）]|([①-⑩]))/;
   const RE_SEC = /^\s*[一二三四五六七八九十]{1,3}\s*[、.．]/;
   const RE_ITEM = /^\s*(?:[（(]\s*(?:\d{1,2}|[甲乙丙丁戊己庚辛]|[一二三四五六七八九十])\s*[)）]|[⑴-⒇])/;
@@ -63,11 +64,16 @@
     if (m[1]) return String.fromCharCode(m[1].charCodeAt(0) > 0xff ? m[1].charCodeAt(0) - 0xfee0 : m[1].charCodeAt(0));
     return m[2];
   }
-  // 一行好幾個選項「(A) 3 (B) 4 (C) 5」→ 拆開
+  // 一行好幾個選項「(A) 3 (B) 4 (C) 5」→ 拆開；題目和選項寫在同一段的「1. 若…？ (A)… (B)…」→ 題目＋選項
+  //   選項標記要照順序（A、B、C…），至少兩個，才拆（題目裡提到「(A)」不會被拆）
   function splitOpts(t) {
-    if (!RE_OPT.test(t)) return [t];
     const parts = t.split(/\s*(?=[（(]\s*[A-EＡ-Ｅ]\s*[)）])/).filter(s => s.trim());
-    return parts.length > 1 && parts.every(s => RE_OPT.test(s)) ? parts : [t];
+    const head = RE_OPT.test(parts[0]) ? [] : [parts.shift()];
+    if (parts.length < 2) return [t];
+    // 標記要連續（A B C D，或一行只有 C D）
+    const c0 = RE_OPT.test(parts[0]) ? optLabel(parts[0]).charCodeAt(0) : 0;
+    const ok = c0 >= 65 && parts.every((s, k) => RE_OPT.test(s) && optLabel(s) === String.fromCharCode(c0 + k));
+    return ok ? head.concat(parts) : [t];
   }
 
   // 段落清單 [{ text, kind?, page?, box? }] → <main> 的內容（題目包成 section，選項放在題目裡）
@@ -92,7 +98,8 @@
         return;
       }
       const kind = p.kind || kindOf(p.text);
-      const tx = esc(p.text);
+      // 文字裡的 \( LaTeX \)（Word 的 EQ 分數、線段）→ 算式元素
+      const tx = p.text.split(/\\\((.+?)\\\)/).map((x, k) => k % 2 ? `<span class="vt-math" data-tex="${attr(x.trim())}">\\(${esc(x.trim())}\\)</span>` : esc(x)).join('');
       if (!title && kind === 'p' && !out.length && p.text.length <= 60) { out.push(`<h1${blk}${box}>${tx}</h1>`); title = true; return; }
       if (kind === 'h2') { close(); out.push(`<h2 class="vt-section"${blk}${box}>${tx}</h2>`); return; }
       if (kind === 'q') {
@@ -350,12 +357,17 @@
       }
       splitOpts(l.text).forEach((t, j, all) => {
         cur = { text: t, page, box: l.box.slice(), last: l.box };
-        if (all.length > 1) cur.kind = 'opt';
+        if (all.length > 1 && RE_OPT.test(t)) cur.kind = 'opt';
         paras.push(cur);
       });
     });
     paras.forEach(p => delete p.last);
-    return paras;
+    // 接好的段落裡如果有「(A)…(B)…」再拆一次（題目最後一行後面接著寫選項）
+    return paras.flatMap(p => {
+      if (p.fig || p.kind) return [p];
+      const all = splitOpts(p.text);
+      return all.length > 1 ? all.map(t => Object.assign({}, p, { text: t }, RE_OPT.test(t) ? { kind: 'opt' } : {})) : [p];
+    });
   }
 
   function renderPage(pdf, n) {
@@ -526,7 +538,7 @@
     String(text).replace(/\r\n?/g, '\n').split('\n').forEach(l => {
       const t = l.replace(/\s+/g, ' ').trim();
       if (!t) return;
-      splitOpts(t).forEach((s, j, all) => paras.push(all.length > 1 ? { text: s, kind: 'opt' } : { text: s }));
+      splitOpts(t).forEach((s, j, all) => paras.push(all.length > 1 && RE_OPT.test(s) ? { text: s, kind: 'opt' } : { text: s }));
     });
     const note = what + '，自動分成 ' + paras.length + ' 段（沒有原卷）';
     return { html: makeDoc(titleOf(paras, name), null, bodyHtml(paras), '', note), name: baseName(name) + '.vtdoc.html', note };
@@ -538,7 +550,7 @@
     const read = async n => { const f = zip.file(n); return f ? f.async('string') : ''; };
     const xml = await read('word/document.xml');
     if (!xml) throw new Error('找不到 word/document.xml，不是 Word 檔？');
-    return fromText(docxXmlToText(xml, await read('word/numbering.xml'), await read('word/styles.xml')), file.name, 'Word 檔');
+    return fromText(docxXmlToText(xml, await read('word/numbering.xml'), await read('word/styles.xml'), { math: true }), file.name, 'Word 檔');
   }
 
   function kind(f) {

@@ -355,7 +355,10 @@ function fixWordPlainText(text) {
 }
 
 // EQ 欄位碼 → 文字：\o 疊字（注音取國字、○ 疊數字取圈號）、\s 上下標、\f 分數、\r 根號，其餘取內容
+//   wordEqMath（docxXmlToText 的 { math: true }，版面整理用）：\f 分數、\x\to 上橫線（線段）寫成 LaTeX \( \)
+let wordEqMath = false;
 function evalWordEq(instr) {
+    let tex = false;
     const s = instr.replace(/^\s*eq\b/i, '').replace(/\\\*\s*("[^"]*"|\S+)/g, '');
     const UP = '\u0001', UP_END = '\u0002';   // 上標內容的記號：\o 裡是注音，丟掉；其他地方保留
     let i = 0;
@@ -369,6 +372,7 @@ function evalWordEq(instr) {
                 out += s[i + 1] || ''; i += 2; continue;   // \, \( \) 等跳脫字元
             }
             if (c === '(') { i++; out += '(' + seq(')') + ')'; i++; continue; }
+            if (c === '\u0003') { const e = s.indexOf('\u0004', i); out += s.slice(i, e < 0 ? s.length : e + 1); i = e < 0 ? s.length : e + 1; continue; }
             out += c; i++;
         }
         return out;
@@ -398,13 +402,20 @@ function evalWordEq(instr) {
                 return plain.join('');
             }
             case 's': return opts.includes('up') ? UP + args.join('') + UP_END : args.join('');
-            case 'f': return args.length === 2 ? args[0] + '/' + args[1] : args.join('');
+            case 'f':
+                if (wordEqMath && args.length === 2) { tex = true; return '\\frac{' + unmark(args[0]) + '}{' + unmark(args[1]) + '}'; }
+                return args.length === 2 ? args[0] + '/' + args[1] : args.join('');
+            case 'x':   // 框線：\to 上橫線＝線段 AB
+                if (wordEqMath && opts.includes('to') && opts.length === 1) { tex = true; return '\\overline{' + unmark(args.join('')) + '}'; }
+                return args.join('');
             case 'r': return args.length === 2 ? args[0] + '√' + args[1] : '√' + args.join('');
             default:  return args.join('');
         }
     }
-    return seq('').replace(/[\u0001\u0002]/g, '').trim();
+    const out = seq('').replace(/[\u0001\u0002]/g, '').trim();
+    return tex ? '\u0003' + unmark(out) + '\u0004' : out;
 }
+function unmark(s) { return s.replace(/[\u0003\u0004]/g, '').trim(); }
 
 // 自動編號：照 numbering.xml 的格式算出每段的編號文字（同一個 abstractNum 共用計數）
 function makeDocxNumberer(numberingXml, stylesXml) {
@@ -573,7 +584,12 @@ function docxParagraphText(p) {
     return out;
 }
 
-function docxXmlToText(documentXml, numberingXml, stylesXml) {
+function docxXmlToText(documentXml, numberingXml, stylesXml, opt) {
+    wordEqMath = !!(opt && opt.math);
+    try { return docxXmlToTextRun(documentXml, numberingXml, stylesXml).replace(/\u0003/g, '\\(').replace(/\u0004/g, '\\)'); }
+    finally { wordEqMath = false; }
+}
+function docxXmlToTextRun(documentXml, numberingXml, stylesXml) {
     const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     const doc = new DOMParser().parseFromString(documentXml, 'application/xml');
     const label = makeDocxNumberer(numberingXml, stylesXml);

@@ -226,6 +226,11 @@
     if (!v) { alert('這個檔案不是 vi-tools 中繼檔（.vtdoc.html）'); return; }
     V = v; fname = name; dirty = !!note; ops = 0; undoStack = []; omSel = null;
     main = V.doc.querySelector('main') || V.doc.body;
+    // 算式整理（同 nc 開檔）：夾中文的拆開、斷行後半收回、像算式的文字（b > a > c、變數、數字）變成算式
+    const fx = vitoolsVtdoc.splitMathEls(main);
+    const fixes = [fx.split && fx.split + ' 個算式中間夾中文的拆開', fx.joined && fx.joined + ' 個斷行後半收回算式',
+      fx.promoted && fx.promoted + ' 段像算式的文字（變數、數字、b > a > c）變成算式'].filter(Boolean);
+    if (fixes.length) dirty = true;
     rowOf = new WeakMap();
     flatten();
     cur = anchor = blocks.length ? 0 : -1;
@@ -244,7 +249,7 @@
       showHd();
       const om = (V.meta.omitted || []).filter(o => o.kind === 'uncovered').length;
       const ng = new Set(blocks.map(b => b.grp).filter(Boolean)).size;
-      status((note ? note + '。' : '') + '共 ' + blocks.length + ' 個區塊' + (ng ? '、' + ng + ' 個題組' : '') + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : ''));
+      status((note ? note + '。' : '') + (fixes.length ? '自動整理：' + fixes.join('、') + '（請到 nc 校對，存回才會留下）。' : '') + '共 ' + blocks.length + ' 個區塊' + (ng ? '、' + ng + ' 個題組' : '') + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : ''));
     });
     $('ly-list').focus();
   }

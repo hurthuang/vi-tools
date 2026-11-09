@@ -167,7 +167,167 @@
       nx.nodeValue = r;
       joined++;
     });
-    return { split, joined };
+    const promoted = promoteMath(root);
+    return { split, joined, promoted };
+  }
+
+  // 像算式的一般文字變成算式（2026-11-10 使用者定）：PDF 文字層讀到的「b > a > c」、夾在中文裡的變數「a」、數字「12」，
+  //   跟辨識套件框到的算式一樣寫成 \( \)，轉點字才會一致（數學卷的數字、變數一律 Nemeth，同使用者手打的寫法）。
+  //   只動題目、選項（section.vt-q 裡面）；不動：題號「1.」、選項標記「(A)」、配分「4 分」、「第 3 題」、「圖 1」、
+  //   兩個字母以上的小寫英文字（cm、and）。新的算式標 data-auto，nc 校對時檢查 → 變了幾個
+  const FW = { '－': '-', '−': '-', '＋': '+', '＝': '=', '＜': '<', '＞': '>', '（': '(', '）': ')', '∶': ':', '：': ':', '％': '%', '／': '/' };
+  const TEX_OP = { '×': '\\times ', '÷': '\\div ', '≤': '\\le ', '≥': '\\ge ', '≠': '\\neq ', '%': '\\%',
+    '△': '\\triangle ', '∠': '\\angle ', '⊥': '\\perp ', '∥': '\\parallel ', '≅': '\\cong ', '∼': '\\sim ', '°': '^\\circ ', 'π': '\\pi ' };
+  const RUN_RE = /[A-Za-z0-9０-９.,%％()（）+\-−－＋×÷=<>≤≥≠＜＞＝:∶：／/^△∠⊥∥≅∼°π ]+/g;
+  // 數字｜字母（π 也算）｜運算符號｜前置符號 △∠｜後置 °｜括號｜逗號｜空白
+  const TOK_RE = /(\d+(?:[.,]\d+)*)|([A-Za-z]+|π)|([+\-×÷=<>≤≥≠:/^%⊥∥≅∼])|([△∠])|(°)|([()])|(,)|( +)|(.)/g;
+  // 一行開頭的標號：作答括號「( )」、題號「1.」、小題「(1)」、選項「(A)」、圈號「①」（不管元素是不是 vt-opt）
+  const LABEL_PREFIX = /^\s*(?:[(（]\s*[)）]\s*)?(?:\d+\s*[.．、]|[(（]\s*(?:\d{1,2}|[A-Ea-e])\s*[)）]|[①-⑳])\s*/;
+  function mathGroups(run) {
+    // 一段候選字串 → 幾個算式（[start, end) 在 run 裡的位置）：兩個「數字／字母」中間只有空白就分開（a b c 是三個）
+    const toks = [];
+    let m;
+    TOK_RE.lastIndex = 0;
+    while ((m = TOK_RE.exec(run))) {
+      const t = m[0], k = m[1] ? 'num' : m[2] ? 'word' : m[3] ? 'op' : m[4] ? 'pre' : m[5] ? 'post' : m[6] ? 'par' : m[7] ? 'comma' : m[8] ? 'sp' : 'x';
+      toks.push({ t, k, s: m.index, e: m.index + t.length });
+    }
+    const groups = [];
+    let cur = null, needJoin = false;
+    const close = () => { if (cur) groups.push(cur); cur = null; };
+    for (const tk of toks) {
+      if (tk.k === 'word') {
+        // 一個字母（π 也算）、2～4 個大寫（ABC）、2～3 個小寫（abc、3ab；單位 cm、常見英文字 and 除外）
+        const ok = tk.t.length === 1 || /^[A-Z]{2,4}$/.test(tk.t) ||
+          (/^[a-z]{2,3}$/.test(tk.t) && !/^(?:cm|mm|km|kg|mg|ml|cc|hr|min|sec|am|pm|and|or|the|of|to|in|is|on|at|by|an|for|not)$/.test(tk.t));
+        if (!ok) { close(); needJoin = false; continue; }   // 英文字：不是算式，也把前後分開
+      }
+      if (tk.k === 'num' || tk.k === 'word') {
+        // 前一個是數字／字母、中間只有空白 → 另起一個（2x 這種緊接的照接）
+        if (cur && !needJoin && cur.lastAtomEnd < tk.s && run.slice(cur.lastAtomEnd, tk.s).trim() === '') close();
+        if (!cur) cur = { s: tk.s, atoms: 0 };
+        cur.atoms++; cur.e = tk.e; cur.lastAtomEnd = tk.e; needJoin = false;
+      } else if (tk.k === 'op' || tk.k === 'comma') {
+        if (cur) { cur.e = tk.e; needJoin = true; }
+        else if (tk.t === '-') { cur = { s: tk.s, atoms: 0, e: tk.e, lastAtomEnd: tk.s }; needJoin = true; }   // 負號開頭
+      } else if (tk.k === 'pre') {
+        // △ABC、∠1：前置符號，跟後面的字母／數字接在一起
+        if (cur) { cur.e = tk.e; needJoin = true; }
+        else { cur = { s: tk.s, atoms: 0, e: tk.e, lastAtomEnd: tk.s }; needJoin = true; }
+      } else if (tk.k === 'post') {
+        if (cur) cur.e = tk.e;   // 30°
+      } else if (tk.k === 'par') {
+        if (cur) cur.e = tk.e; else if (tk.t === '(') { cur = { s: tk.s, atoms: 0, e: tk.e, lastAtomEnd: tk.s }; needJoin = true; }
+      }
+    }
+    close();
+    return groups.filter(g => g.atoms > 0).map(g => {
+      let s = g.s, e = g.e;
+      // 頭尾：沒配對的括號、結尾的運算符號與逗號、頭上除了負號與左括號以外的符號，都留在算式外
+      for (let ch = true; ch;) {
+        ch = false;
+        const t = run.slice(s, e);
+        const open = (t.match(/\(/g) || []).length, cls = (t.match(/\)/g) || []).length;
+        if (/^[ ,+×÷=<>≤≥≠:/^%⊥∥≅∼°]/.test(t) || (t[0] === '(' && open > cls)) { s++; ch = true; }
+        else if (/[ ,+\-×÷=<>≤≥≠:/^.⊥∥≅∼△∠]$/.test(t) || (t.endsWith(')') && cls > open)) { e--; ch = true; }
+      }
+      return [s, e];
+    }).filter(([s, e]) => e > s && /[A-Za-z0-9π]/.test(run.slice(s, e)));
+  }
+  function promoteMath(root) {
+    const doc = root.ownerDocument;
+    const nf = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[－−＋＝＜＞（）∶：％／]/g, c => FW[c]);
+    let n = 0;
+    // 辨識套件只框到前半、後半在文字裡的數字（y=0 ＋ .04、x= ＋ 5）：接回前一個算式（中間沒有空白才接）
+    root.querySelectorAll('section.vt-q .vt-math').forEach(el => {
+      if (el.closest('template')) return;
+      const nx = el.nextSibling;
+      if (!nx || nx.nodeType !== 3) return;
+      const tex = el.dataset.tex || '';
+      // 中間最多一個空白（文字層常在算式框和後半之間多一個空白）
+      const re = /\d$/.test(tex) ? /^ ?\.\d+/ : /[=+\-<>]$/.test(tex) ? /^ ?-?\d+(?:\.\d+)?/ : null;
+      const g = re && re.exec(nf(nx.nodeValue));
+      if (!g || /^[A-Za-z]/.test(nx.nodeValue.slice(g[0].length))) return;
+      el.replaceWith(mathLike(el, tex + g[0].trim()));
+      nx.nodeValue = nx.nodeValue.slice(g[0].length);
+      n++;
+    });
+    const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+    const nodes = [];
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      const p = t.parentElement;
+      if (!p || !p.closest('section.vt-q') || p.closest('.vt-math, template, script, style, figure, h1, h2')) continue;
+      if (/[A-Za-z0-9０-９]/.test(t.nodeValue)) nodes.push(t);
+    }
+    for (const t of nodes) {
+      const raw = t.nodeValue, txt = nf(raw);   // 一對一換字，位置不變
+      // 題號「1.」、選項標記「(A)」：這一段文字在題目／選項的最前面才算
+      let skip = 0;
+      const blk = t.parentElement.closest('h3, p, li, td, th');
+      const first = blk && (() => { const w = doc.createTreeWalker(blk, 4); return w.nextNode() === t; })();
+      if (first) { const m = LABEL_PREFIX.exec(txt); if (m) skip = m[0].length; }
+      const spans = [];
+      RUN_RE.lastIndex = skip;   // 題號、選項標記之後才找
+      let m;
+      while ((m = RUN_RE.exec(txt))) {
+        for (const [a, b] of mathGroups(m[0])) {
+          const s = m.index + a, e = m.index + b;
+          if (s < skip) continue;
+          const body = txt.slice(s, e), before = txt.slice(0, s), after = txt.slice(e);
+          if (/^\d+$/.test(body)) {
+            if (/^\s*分(?![之鐘])/.test(after)) continue;                          // 配分
+            if (/第\s*$/.test(before) && /^\s*(?:小題|題|格|頁)/.test(after)) continue;   // 第 3 題
+            if (/[圖表]\s*$/.test(before)) continue;                               // 圖 1
+          }
+          spans.push([s, e]);
+        }
+      }
+      if (!spans.length) continue;
+      const frag = doc.createDocumentFragment();
+      let k = 0;
+      for (const [s, e] of spans) {
+        if (s > k) frag.appendChild(doc.createTextNode(raw.slice(k, s)));
+        const tex = txt.slice(s, e).replace(/[×÷≤≥≠%△∠⊥∥≅∼°π]/g, c => TEX_OP[c]).replace(/\s+/g, ' ').trim();
+        const el = doc.createElement('span');
+        el.className = 'vt-math';
+        el.dataset.tex = tex;
+        el.dataset.auto = '1';
+        el.textContent = '\\(' + tex + '\\)';
+        frag.appendChild(el);
+        k = e;
+        n++;
+      }
+      if (k < raw.length) frag.appendChild(doc.createTextNode(raw.slice(k)));
+      t.replaceWith(frag);
+    }
+    // 相鄰的算式接成一個：中間沒有字（9 ＋ \frac{1}{8} 是帶分數），或只有運算符號（\overline{BE}：\overline{BC}＝1:4）
+    const OPS = /^\s*([=:<>+\-×÷≤≥≠]|[＝：＜＞＋－])?\s*$/;
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (const el of root.querySelectorAll('section.vt-q .vt-math')) {
+        let nx = el.nextSibling, op = '';
+        if (nx && nx.nodeType === 3) {
+          const m = OPS.exec(nx.nodeValue);
+          if (!m) continue;
+          op = m[1] ? nf(m[1]) : '';
+          if (!op && /\s/.test(nx.nodeValue)) continue;   // 中間只有空白：是兩個算式（a b c）
+          nx = nx.nextSibling;
+        }
+        if (!nx || nx.nodeType !== 1 || !nx.classList.contains('vt-math')) continue;
+        if (!op && !(el.dataset.auto || nx.dataset.auto)) continue;   // 辨識套件本來就分開的兩個算式不動
+        const a = el.dataset.tex || '', b = nx.dataset.tex || '';
+        const tex = a + (op ? op : /[A-Za-z0-9}]$/.test(a) && /^[A-Za-z0-9]/.test(b) ? ' ' : '') + b;
+        const sp = mathLike(el, tex);
+        if (el.dataset.auto || nx.dataset.auto) sp.dataset.auto = '1';
+        while (el.nextSibling !== nx) el.nextSibling.remove();
+        nx.remove();
+        el.replaceWith(sp);
+        merged = true;
+        break;
+      }
+    }
+    return n;
   }
   // 照原本的算式元素做一個新的（LaTeX 換掉）：留位置、信心、裁圖；手改的點字 keepBrl 才留（data-brlsrc 不改，變成「舊的」）
   function mathLike(el, tex, keepBrl = true) {
@@ -495,5 +655,5 @@
     return { hand, stale };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, setInline };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline };
 })();

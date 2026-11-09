@@ -103,10 +103,11 @@
     }
     $('vtm-name').textContent = fname + '（' + (vitoolsVtdoc.title(v) || '') + '）';
     var fixMsg = '';
-    if (fx.split || fx.joined) {
+    if (fx.split || fx.joined || fx.promoted) {
       dirty = true;
-      fixMsg = ('開檔時自動整理了算式：' + (fx.split ? fx.split + ' 個中間夾中文的拆開（中文移到算式外）' : '') +
-        (fx.split && fx.joined ? '、' : '') + (fx.joined ? fx.joined + ' 個被斷行切開的後半收回算式' : '') + '；請檢查，存回中繼檔才會留下');
+      fixMsg = '開檔時自動整理了算式：' + [fx.split && fx.split + ' 個中間夾中文的拆開（中文移到算式外）',
+        fx.joined && fx.joined + ' 個被斷行切開的後半收回算式',
+        fx.promoted && fx.promoted + ' 段像算式的文字（變數、數字、b > a > c）變成算式'].filter(Boolean).join('、') + '；請檢查，存回中繼檔才會留下';
     }
     $('vtm-save').disabled = false;
     cur = -1; curW = -1;
