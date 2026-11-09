@@ -73,7 +73,7 @@ function load() {
       const m = Array.from(await (await fetch(new URL(MODEL + 's2t.txt', self.location.href).href)).text());
       for (let i = 0; i + 1 < m.length; i += 2) s2t.set(m[i], m[i + 1]);
     } catch (e) { /* 沒有對照表就照原樣 */ }
-    KEYS = ['blank'].concat(keys.split('\n').map(k => s2t.get(k) || k), [' ']);
+    KEYS = ['blank'].concat(keys.split(/\r?\n/).map(k => s2t.get(k) || k), [' ']);
     const total = FILES.reduce((a, f) => a + f[1], 0);
     const bufs = [];
     let done = 0;
