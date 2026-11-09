@@ -86,6 +86,11 @@ export default {
     // 2. 下載內容和清單不符：不覆蓋，改請使用者開下載頁面
     state.mode = 'bad';
     await cdp.key('KeyU', 'U', 2 | 8);
+    // 手動檢查找到新版：先告訴使用者開始在背景下載（0.5.0 起；以前直接下載，看起來像沒反應）
+    await sleep(800);
+    const notice = await closeAppMessageBox(2);   // 只有「確定」的對話框：送 IDCANCEL 一定關得掉
+    await sleep(500);
+    check('手動檢查找到新版：先告訴使用者開始下載、標題會顯示進度', new RegExp(`找到新版本 v${re(NEXT)}`).test(notice || '') && /背景下載/.test(notice || '') && /標題/.test(notice || ''), notice);
     const bad = await closeAppMessageBox(7);
     check('下載內容和清單不符：不覆蓋，改請使用者開下載頁面', /自動更新沒有完成/.test(bad || '') && /要開啟下載頁面嗎/.test(bad || ''), bad);
     check('核對失敗時檔案維持原狀', readFileSync(join(dir, 'web', 'guide.html')).equals(guide));

@@ -14,9 +14,12 @@ static class Updater
     public record Entry(string Sha256, long Size);
     public record Manifest(string Version, string MinApp, string Commit, string ExeUrl, Dictionary<string, Entry> Files);
     public record Result(int Changed, bool ExeReplaced);
+    /// <summary>下載進度：第幾個檔（從 0 開始）、共幾個、已下載與總共的位元組</summary>
+    public record Progress(int Done, int Total, long Bytes, long TotalBytes);
 
     const string RawBase = "https://raw.githubusercontent.com/hurthuang/vi-tools/";
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
+    // 一個檔最多等 30 分鐘：ViTools.exe 約 58 MB，網路慢（200 KB/s）時要 5 分鐘以上（0.5.0 以前是 5 分鐘，慢的網路會更新失敗）
+    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(30) };
 
     public static string AppDir => AppContext.BaseDirectory;
     static string ExePath => Environment.ProcessPath ?? Path.Combine(AppDir, "ViTools.exe");
@@ -71,7 +74,7 @@ static class Updater
     /// 下載並套用清單裡和本機不同的檔案。allowExe=false 時不動 ViTools.exe（只更新離線網頁與資源）。
     /// 失敗時丟出例外，本機檔案維持原狀。
     /// </summary>
-    public static async Task<Result> ApplyAsync(Manifest m, bool allowExe, string userAgent)
+    public static async Task<Result> ApplyAsync(Manifest m, bool allowExe, string userAgent, IProgress<Progress>? progress = null)
     {
         var todo = new List<(string path, string local, Entry e)>();
         foreach (var (path, e) in m.Files)
@@ -83,6 +86,8 @@ static class Updater
             if (!same) todo.Add((path, local, e));
         }
         if (todo.Count == 0) return new Result(0, false);
+        long totalBytes = todo.Sum(t => t.e.Size), gotBytes = 0;
+        progress?.Report(new Progress(0, todo.Count, 0, totalBytes));
 
         // 1. 全部下載到暫存資料夾並核對
         string tmp = Path.Combine(AppDir, "update-tmp");
@@ -104,6 +109,8 @@ static class Updater
                 string file = Path.Combine(tmp, (n++).ToString());
                 await File.WriteAllBytesAsync(file, data);
                 staged.Add((file, local, path == "ViTools.exe"));
+                gotBytes += data.Length;
+                progress?.Report(new Progress(n, todo.Count, gotBytes, totalBytes));
             }
 
             // 2. 覆蓋：網頁與資源直接取代；執行中的 ViTools.exe 先改名再放入新檔

@@ -173,6 +173,15 @@ public class MainForm : Form
     string _dataDir = "";
     bool _startupUpdateChecked;
 
+    // 正在下載更新時加在視窗標題後面（報讀軟體切換視窗時會念出來）
+    string _updateNote = "";
+    Progress<Updater.Progress> UpdateProgress(string what) => new(p =>
+    {
+        _updateNote = p.Done >= p.Total ? "" :
+            $"（{what}：{p.Done}／{p.Total} 個檔案，{p.Bytes * 100 / Math.Max(1, p.TotalBytes)}%）";
+        UpdateTitle();
+    });
+
     async Task CheckForUpdatesAsync(bool manual)
     {
         string? custom = Environment.GetEnvironmentVariable("VITOOLS_UPDATE_URL");
@@ -233,7 +242,14 @@ public class MainForm : Form
                     try
                     {
                         var m = await Updater.LoadManifestAsync(latestManifest, ua);
-                        var res2 = await Updater.ApplyAsync(m, allowExe: true, ua);
+                        // 手動檢查：先告訴使用者找到新版、要下載多少（以前直接在背景下載，看起來像沒反應）
+                        if (manual)
+                            MessageBox.Show(this, $"找到新版本 v{latest.ToString(3)}（目前使用 v{AppVersion}），開始在背景下載更新。\n\n" +
+                                "下載時可以繼續使用，視窗標題會顯示進度；下載完成會詢問是否重新啟動。下載完成前請不要關閉程式。",
+                                "視障輔助工具集", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        Updater.Result res2;
+                        try { res2 = await Updater.ApplyAsync(m, allowExe: true, ua, UpdateProgress($"下載 v{latest.ToString(3)} 更新")); }
+                        finally { _updateNote = ""; UpdateTitle(); }
                         string done = res2.Changed > 0
                             ? $"已自動下載 v{latest.ToString(3)} 的更新（只下載有變動的 {res2.Changed} 個檔案，目前使用 v{AppVersion}）。"
                             : $"v{latest.ToString(3)} 的更新已經下載好了（目前使用 v{AppVersion}）。";
@@ -332,7 +348,7 @@ public class MainForm : Form
     {
         string page = _web.CoreWebView2?.DocumentTitle ?? "";
         // 視窗標題帶版本號（報讀軟體切換視窗時也會念出來）
-        string suffix = $" v{AppVersion}" + (_online ? "" : "（離線版）");
+        string suffix = $" v{AppVersion}" + (_online ? "" : "（離線版）") + _updateNote;
         Text = string.IsNullOrEmpty(page) ? $"視障輔助工具集{suffix}" : $"{page} - 視障輔助工具集{suffix}";
     }
 
