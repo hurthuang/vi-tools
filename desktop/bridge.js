@@ -55,6 +55,8 @@
       case 'exportDone': w.resolve({ saved: true, path: m.path }); break;
       case 'batchDone': w.resolve({ saved: true, path: m.path, count: m.count }); break;
       case 'exportCancelled': w.resolve({ saved: false }); break;
+      case 'recognizer': w.resolve({ found: m.found, path: m.path || '', version: m.version || '', running: !!m.running, cancelled: !!m.cancelled }); break;
+      case 'recognizerStarted': w.resolve({ base: m.base }); break;
       case 'error': w.reject(new Error(m.message)); break;
       default: return;
     }
@@ -73,7 +75,17 @@
     // 新增的功能（網頁先檢查再用，舊版 app 沒有）：
     //   'segments' exportAudio 可傳 segments（中英分語音，每段指定語音）與 pause
     //   'batch'    exportAudioBatch（分段匯出：一段一個音檔，存進同一個資料夾）
-    features: Object.freeze(['segments', 'batch']),
+    //   'recognizer' recognizer.status()／start()／pick()（vi-tools 辨識套件放在 ViTools 資料夾裡，用到才在背景啟動，0.5.0 起）
+    features: Object.freeze(['segments', 'batch', 'recognizer']),
+    // vi-tools 辨識套件：
+    //   status() → { found, path, version, running }（找的是 ViTools 資料夾裡、底下兩層，或 pick() 選過的）
+    //   start()  → { base }（已經在跑的直接用；沒有就在背景啟動，等到回應，最多 60 秒；app 關掉時一起關）
+    //   pick()   → 選資料夾，回傳同 status()（取消時 cancelled: true）
+    recognizer: Object.freeze({
+      status: () => call('recognizerStatus', {}),
+      start: () => call('recognizerStart', {}),
+      pick: () => call('recognizerPick', {}),
+    }),
     // Windows 語音清單：[{ id, name, lang, isDefault }]
     getVoices: () => call('getVoices', {}),
     // 試聽：合成前 300 字，回傳 WAV 的 base64

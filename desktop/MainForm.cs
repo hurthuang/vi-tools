@@ -33,6 +33,7 @@ public class MainForm : Form
         Height = 860;
         StartPosition = FormStartPosition.CenterScreen;
         Controls.Add(_web);
+        FormClosed += (_, _) => Recognizer.Stop();   // 這個 app 背景開的辨識套件一起關
         Load += async (_, _) =>
         {
             try { await InitAsync(); }
@@ -80,7 +81,7 @@ public class MainForm : Form
             else if (LocalCdnFile(uri) is string file)
                 e.Response = core.Environment.CreateWebResourceResponse(File.OpenRead(file), 200, "OK",
                     $"Content-Type: {ContentTypeOf(file)}\r\nAccess-Control-Allow-Origin: *");
-            else if (simulateOffline && uri.Scheme is "http" or "https" && !uri.Host.Equals(Host, StringComparison.OrdinalIgnoreCase))
+            else if (simulateOffline && uri.Scheme is "http" or "https" && !uri.Host.Equals(Host, StringComparison.OrdinalIgnoreCase) && !uri.IsLoopback)   // 本機的辨識套件不算對外
                 e.Response = core.Environment.CreateWebResourceResponse(null, 503, "Simulated Offline", "");
         };
 
@@ -366,6 +367,9 @@ public class MainForm : Form
     static string ContentTypeOf(string file) => Path.GetExtension(file).ToLowerInvariant() switch
     {
         ".js" => "text/javascript; charset=utf-8",
+        // onnxruntime-web（網頁版辨識）：.mjs 要是 JavaScript 才能 import()，.wasm 要 application/wasm 才能串流編譯（0.5.0 修）
+        ".mjs" => "text/javascript; charset=utf-8",
+        ".wasm" => "application/wasm",
         ".json" => "application/json",
         ".woff" => "font/woff",
         ".woff2" => "font/woff2",
@@ -427,12 +431,45 @@ public class MainForm : Form
                 case "checkUpdate":
                     await CheckForUpdatesAsync(manual: true);
                     break;
+                // vi-tools 辨識套件（Recognizer.cs）：找到沒、背景啟動、自己選資料夾
+                case "recognizerStatus":
+                    Reply(RecognizerStatus());
+                    break;
+                case "recognizerStart":
+                    Reply(new { type = "recognizerStarted", @base = await Recognizer.StartAsync() });
+                    break;
+                case "recognizerPick":
+                    Reply(PickRecognizer());
+                    break;
             }
         }
         catch (Exception ex)
         {
             Reply(new { type = "error", message = ex.Message });
         }
+    }
+
+    static object RecognizerStatus()
+    {
+        string? dir = Recognizer.Find();
+        return new { type = "recognizer", found = dir != null, path = dir ?? "", version = dir != null ? Recognizer.Version(dir) : "", running = Recognizer.Running };
+    }
+
+    // 辨識套件放在別的地方：讓使用者選資料夾（選到外層也可以，往下找兩層），記住
+    object PickRecognizer()
+    {
+        using var dlg = new FolderBrowserDialog { Description = "選擇「vi-tools辨識套件」資料夾（裡面有 vi-tools辨識套件.cmd）", UseDescriptionForTitle = true };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return new { type = "recognizer", found = Recognizer.Find() != null, cancelled = true };
+        string? dir = Recognizer.IsKit(dlg.SelectedPath) ? dlg.SelectedPath : null;
+        try
+        {
+            dir ??= Directory.EnumerateDirectories(dlg.SelectedPath).FirstOrDefault(Recognizer.IsKit)
+                ?? Directory.EnumerateDirectories(dlg.SelectedPath).SelectMany(Directory.EnumerateDirectories).FirstOrDefault(Recognizer.IsKit);
+        }
+        catch { }
+        if (dir == null) throw new InvalidOperationException("這個資料夾裡沒有 vi-tools 辨識套件（要有 vi-tools辨識套件.cmd 那一層）");
+        Recognizer.Remember(dir);
+        return RecognizerStatus();
     }
 
     async Task PreviewAsync(JsonElement msg, Action<object> reply)

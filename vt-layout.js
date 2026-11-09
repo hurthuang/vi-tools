@@ -852,7 +852,8 @@
     $('ly-hd').hidden = !f;
     $('ly-hd-find').hidden = !!f;
     $('ly-hd-what').hidden = !!f;
-    if (f) $('ly-hd-name').textContent = '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
+    if (f) $('ly-hd-name').textContent = f.lazy ? '已找到辨識套件 ' + (f.version || '') + '（桌面版，用到時在背景開啟）'
+      : '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
     // 拉框方式：「文字＋算式」只有連上辨識套件才有；「一個算式」沒辨識套件時用網頁版辨識（mfr-web.js）
     const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]'), tx = dm.querySelector('option[value="text"]');
     const was = au.hidden;
@@ -899,11 +900,18 @@
   function findHd() {
     if (!window.vitoolsHaodian) return;
     $('ly-hd-find').disabled = true;
-    vitoolsHaodian.detect().then(f => {
-      $('ly-hd-find').disabled = false;
-      showHd();
-      status(f ? '找到本機的 vi-tools 辨識套件，可以重新辨識（R）、拉框辨識' : '沒找到本機的 vi-tools 辨識套件：要先雙擊「vi-tools辨識套件.cmd」打開它（還沒下載的話，見「什麼是辨識套件？」）');
-    });
+    const desk = window.vitoolsDesktop && (vitoolsDesktop.features || []).includes('recognizer');
+    vitoolsHaodian.detect()
+      // 桌面版找不到：讓使用者選辨識套件的資料夾（放在 ViTools 資料夾以外的地方時）
+      .then(f => f || !desk ? f : (status('沒在 ViTools 資料夾裡找到辨識套件，請選「vi-tools辨識套件」資料夾的位置'), vitoolsHaodian.pick()))
+      .catch(e => { status('選資料夾：' + e.message); return null; })
+      .then(f => {
+        $('ly-hd-find').disabled = false;
+        showHd();
+        if (f) status(f.lazy ? '找到 vi-tools 辨識套件，第一次辨識時會在背景開啟' : '找到本機的 vi-tools 辨識套件，可以重新辨識（R）、拉框辨識');
+        else if (!desk) status('沒找到本機的 vi-tools 辨識套件：要先雙擊「vi-tools辨識套件.cmd」打開它（還沒下載的話，見「什麼是辨識套件？」）');
+        else status('沒有選到辨識套件。把解壓縮的「vi-tools辨識套件」資料夾放進 ViTools 資料夾，或再按一次選位置（還沒下載的話，見「什麼是辨識套件？」）');
+      });
   }
   let hdBusy = false;
   function hd(page, box, opt) {

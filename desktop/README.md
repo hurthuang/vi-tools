@@ -125,12 +125,16 @@ function onDesktop(fn) {
 |---|---|
 | `apiVersion` | 目前 `1`。只有不相容的改變才加 1；新增功能不加，網頁用 `'功能名' in vitoolsDesktop` 判斷 |
 | `appVersion` | app 版本（`ViTools.csproj` 的 `<Version>`），例如 `'0.1.0'` |
-| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（中英分語音匯出）、`'batch'`（`exportAudioBatch`） |
+| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（中英分語音匯出）、`'batch'`（`exportAudioBatch`）、`'recognizer'`（`recognizer`，0.5.0 起） |
 | `getVoices()` | → `[{ id, name, lang, isDefault }]`，Windows 內建語音 |
 | `previewAudio({ text, voiceId, rate, volume })` | 合成前 300 字 → WAV 的 base64（`new Audio('data:audio/wav;base64,' + 結果)`）。播放要在使用者操作之後，否則瀏覽器會擋 |
 | `exportAudio({ text, voiceId, rate, volume, fileName }, onProgress)` | 跳出存檔視窗（MP3／WAV）→ `{ saved: true, path }` 或 `{ saved: false }`（取消）。有 `segments: [{ text, voiceId }]` 時忽略 `text`、`voiceId`，逐段用各自的語音合成再接起來，`pause`（`natural`／`original`／`min`）決定段落交界的靜音長度。`onProgress({ stage: 'synthesize', done, total })`、`onProgress({ stage: 'encode' })` |
 
 | `exportAudioBatch({ items, voiceId, rate, volume, fileName, pause }, onProgress)` | 分段匯出（`'batch'`）：存檔視窗選位置、輸入資料夾名稱（MP3／WAV）→ 建資料夾，`items: [{ name, text, segments? }]` 每項存成「name.mp3」（`segments` 同 `exportAudio`），另寫播放清單「資料夾名稱.m3u8」→ `{ saved: true, path, count }` 或 `{ saved: false }`。`onProgress({ stage: 'file', done, total, name })` |
+
+| `recognizer.status()` | vi-tools 辨識套件（`'recognizer'`）：→ `{ found, path, version, running }`。找的位置：`recognizer.pick()` 選過的（`%LOCALAPPDATA%\ViTools\recognizer-path.txt`）→ ViTools 資料夾本身、底下一層、兩層（解壓縮常多一層：`vi-tools-recognizer-0.4.0-portable\vi-tools辨識套件\`）；認得的資料夾有 `runtime\python\python.exe` 與 `app\main.py` |
+| `recognizer.start()` | 已經有辨識套件在跑（使用者自己開的也算）就直接用；沒有就在背景啟動（不開黑色視窗），等到它回應 → `{ base }`（最多 60 秒）。app 關掉時一起關；app 當掉或被強制結束也會關（Windows Job 物件 KILL_ON_JOB_CLOSE）。只關自己開的 |
+| `recognizer.pick()` | 選資料夾（選到外層也可以，往下找兩層），記住 → 同 `status()`；取消時多 `cancelled: true` |
 
 錯誤（例如沒有文字）以 Promise reject 回報。原生層只接受本工具網頁（`https://vitools.local/`、`https://hurthuang.github.io/vi-tools/`）送來的訊息。
 
@@ -139,6 +143,7 @@ function onDesktop(fn) {
 | 檔案 | 說明 |
 |---|---|
 | `MainForm.cs` | WebView2 外殼：線上優先／離線內附（`https://vitools.local/` 對應到網頁資料夾）、攔截 CDN 改用內附、外部連結改用瀏覽器開、處理網頁訊息 |
+| `Recognizer.cs` | vi-tools 辨識套件（https://github.com/hurthuang/vi-tools-recognizer）：找資料夾、背景啟動、等它回應、跟著 app 關（Job 物件）。網頁那邊是 `../haodian-ocr.js` 的 `detect()`／`ensure()`：桌面版找得到辨識套件時先當成有（`found.lazy`），第一次辨識才請 app 啟動 |
 | `TtsService.cs` | WinRT `SpeechSynthesizer`，長文依標點分段合成後接成單一 WAV；`MediaTranscoder` 轉 MP3 |
 | `desktop-assets/cdn/` | CDN 函式庫的內附版本，路徑同網址：`cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/`（Apache 2.0）、`cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/`（MIT／GPLv3）、`cdn.jsdelivr.net/npm/mathjax@3/es5/`（3.2.2，Apache 2.0；三個合併檔 tex-chtml、tex-mml-chtml、tex-svg 加上 a11y、adaptors、input、output、ui，不含 3.8MB 的 sre 語音引擎）、`cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/`（點字樂譜的五線譜與播放，MIT）、`cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/`（網頁版算式辨識、文字辨識的執行環境：ort.wasm.min.js、ort-wasm-simd-threaded.mjs／.wasm，約 11 MB，MIT，2026-11-09 加）；取自 npm 套件，各資料夾附授權檔。可攜版的 `web\models\` 是網頁版辨識的模型（算式 `mfr` 約 33 MB、文字 `ocr` 約 8 MB），離線也能辨識。另有 `cdn.jsdelivr.net/gh/paulrosen/midi-js-soundfonts@cbd6b6f…/abcjs/acoustic_grand_piano-mp3/`：點字樂譜播放用的鋼琴音色 88 個 mp3（約 6.8MB，內容與 abcjs 預設的 paulrosen.github.io 相同；授權說明見該資料夾的 NOTICE.txt） |
 | `bridge.js` | 注入每個頁面（含首頁分頁的 iframe），提供 `window.vitoolsDesktop`（介面都在網頁），經由最上層頁面的 `chrome.webview` 和原生層溝通；首頁的 Alt+Shift+A 轉給目前分頁 |

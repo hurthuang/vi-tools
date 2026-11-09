@@ -1,6 +1,6 @@
 // 本機 vi-tools 辨識套件的「辨識一塊」（辨識套件 app/exam/region.py、server.py 的 /api/ocr）。
 // 偵測到才有功能：辨識套件沒開（或沒裝）時 detect() 回 null，頁面就不顯示辨識的按鈕。
-// 之後桌面版的辨識套件也提供同樣的 /api/ocr，這邊不用改。
+// 桌面版 0.5.0 起，辨識套件放在 ViTools 資料夾裡會自動找到，第一次辨識時在背景啟動（detect／ensure，見下面）。
 //   const hd = await vitoolsHaodian.detect()        （打開頁面時用 detect({ auto: true })，見下面）→ { base:'http://127.0.0.1:18760/', version } 或 null
 //   await vitoolsHaodian.recognize(src, box, { type, mode })
 //     src：vtdoc-view 的 regionSource(p, box)；box：[x0,y0,x1,y1]（頁面比例）
@@ -29,13 +29,59 @@
   //   第一次請使用者按「找本機辨識套件」（detect()），找到就記住（localStorage）
   const SEEN = 'vitools-recognizer-seen';
   function seen() { try { return !!localStorage.getItem(SEEN); } catch (e) { return false; } }
-  function detect(opt) {
-    if (opt && opt.auto && !seen()) return Promise.resolve(found = null);
-    return Promise.all(PORTS.map(ping)).then(rs => {
-      found = rs.find(Boolean) || null;
-      if (found) try { localStorage.setItem(SEEN, '1'); } catch (e) { /* 存不了就每次按 */ }
-      return found;
+
+  // 桌面版 0.5.0 起（features 有 'recognizer'）：辨識套件放在 ViTools 資料夾裡就找得到，用到才在背景啟動。
+  //   這時 found 先是 { lazy: true, base: '' … }（頁面照「有辨識套件」顯示），第一次辨識時 ensure() 請桌面版啟動
+  //   iframe 裡的 vitoolsDesktop 在 DOMContentLoaded 才注入，在 WebView2 裡最多等它 1 秒
+  function desktop() {
+    const ok = d => d && Array.isArray(d.features) && d.features.includes('recognizer') && d.recognizer ? d : null;
+    if (window.vitoolsDesktop) return Promise.resolve(ok(window.vitoolsDesktop));
+    let inApp = false;
+    try { inApp = !!(window.top.chrome && window.top.chrome.webview); } catch (e) { /* */ }
+    if (!inApp) return Promise.resolve(null);
+    return new Promise(res => {
+      const t = setTimeout(() => res(ok(window.vitoolsDesktop)), 1000);
+      window.addEventListener('vitoolsdesktop-ready', () => { clearTimeout(t); res(ok(window.vitoolsDesktop)); }, { once: true });
     });
+  }
+  const pingAll = () => Promise.all(PORTS.map(ping)).then(rs => rs.find(Boolean) || null);
+
+  async function detect(opt) {
+    const d = await desktop();
+    // 桌面版：連本機不會跳區域網路的詢問，一律找；沒在跑但資料夾裡有，就先當成有（用到再開）
+    if (!d && opt && opt.auto && !seen()) return (found = null);
+    found = await pingAll();
+    if (found) { try { localStorage.setItem(SEEN, '1'); } catch (e) { /* 存不了就每次按 */ } return found; }
+    if (d) {
+      const st = await d.recognizer.status().catch(() => null);
+      if (st && st.found) found = { lazy: true, base: '', version: st.version, modes: ['auto', 'math', 'text'], doc: true, desktop: true, path: st.path };
+    }
+    return found;
+  }
+  // 桌面版：辨識套件放在別的地方時讓使用者選資料夾（不是桌面版或取消 → null）
+  async function pick() {
+    const d = await desktop();
+    if (!d) return null;
+    const st = await d.recognizer.pick();
+    return st && st.found ? detect() : null;
+  }
+  // 要真的呼叫辨識套件前：桌面版背景啟動（最多等 60 秒）；onStatus(文字) 顯示進度
+  let starting = null;
+  function ensure(onStatus) {
+    if (!found) return Promise.reject(new Error('沒有連上辨識套件'));
+    if (!found.lazy) return Promise.resolve(found);
+    if (!starting) {
+      if (onStatus) onStatus('啟動辨識套件…（大約 5～10 秒）');
+      starting = desktop().then(d => {
+        if (!d) throw new Error('沒有連上辨識套件');
+        return d.recognizer.start();
+      }).then(() => pingAll()).then(f => {
+        if (!f) throw new Error('辨識套件啟動了，但連不上');
+        found = f;
+        return f;
+      }).finally(() => { starting = null; });
+    }
+    return starting;
   }
 
   function b64(u8) {
@@ -54,7 +100,8 @@
     });
   }
 
-  function post(body) {
+  async function post(body) {
+    await ensure();
     return fetch(found.base + 'api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }));
   }
@@ -80,7 +127,8 @@
   // 整份原卷（PDF、圖檔）→ 中繼檔的 HTML（辨識套件 0.3 起的 /api/doc，試卷模式；found.doc 為 true 才有）
   //   await vitoolsHaodian.doc(file, { pages:'1-3', onProgress(st), signal })
   //   st：{ state, done, total, eta, elapsed, log[] }；signal 取消 → 辨識套件做完這一頁就停，回傳做完的頁
-  function api(path, opt) {
+  async function api(path, opt) {
+    await ensure();
     return fetch(found.base + path, opt).then(r => {
       const ct = r.headers.get('Content-Type') || '';
       const body = ct.includes('json') ? r.json() : r.text();
@@ -108,5 +156,5 @@
     }
   }
 
-  window.vitoolsHaodian = { detect, recognize, doc, get found() { return found; } };
+  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, get found() { return found; } };
 })();
