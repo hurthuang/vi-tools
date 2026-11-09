@@ -905,7 +905,7 @@
 
   function initBoxEdit() {
     var ov = $('vtm-ov');
-    if (window.vitoolsHaodian) vitoolsHaodian.detect().then(function () { ov.classList.toggle('edit', canRec()); });
+    if (window.vitoolsHaodian) vitoolsHaodian.detect({ auto: true }).then(function () { ov.classList.toggle('edit', canRec()); });
     ov.classList.toggle('edit', canRec());
     ov.addEventListener('mousedown', function (e) {
       if (e.button !== 0 || !V || !SRC) return;

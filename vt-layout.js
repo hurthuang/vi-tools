@@ -851,6 +851,7 @@
     const f = hdOn() && vitoolsHaodian.found;
     $('ly-hd').hidden = !f;
     $('ly-hd-find').hidden = !!f;
+    $('ly-hd-what').hidden = !!f;
     if (f) $('ly-hd-name').textContent = '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
     // 拉框方式：「文字＋算式」只有連上辨識套件才有；「一個算式」沒辨識套件時用網頁版辨識（mfr-web.js）
     const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]'), tx = dm.querySelector('option[value="text"]');
@@ -901,7 +902,7 @@
     vitoolsHaodian.detect().then(f => {
       $('ly-hd-find').disabled = false;
       showHd();
-      status(f ? '找到本機的 vi-tools 辨識套件，可以重新辨識（R）、拉框辨識' : '沒找到本機的 vi-tools 辨識套件（要先打開辨識套件）');
+      status(f ? '找到本機的 vi-tools 辨識套件，可以重新辨識（R）、拉框辨識' : '沒找到本機的 vi-tools 辨識套件：要先雙擊「vi-tools辨識套件.cmd」打開它（還沒下載的話，見「什麼是辨識套件？」）');
     });
   }
   let hdBusy = false;
@@ -1464,7 +1465,7 @@
       const ocr = window.vitoolsOcr ? (cv => { const p = $('ly-st').textContent; return webOcr(cv).finally(() => status(p)); }) : null;
       const r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status, ocr });
       let note = '已開啟「' + files[0].name + '」：' + r.note;
-      if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（打開 vi-tools 辨識套件可以辨識文字與算式）';
+      if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（整頁辨識算式要用 vi-tools 辨識套件，見「什麼是辨識套件？」）';
       load(r.html, r.name, note);
     } catch (e) { status('開不了：' + e.message); alert('開不了「' + files[0].name + '」：' + e.message); }
   }
@@ -1586,7 +1587,7 @@
     $('ly-order').addEventListener('click', toggleOrder);
     $('ly-reocr').addEventListener('click', reocr);
     $('ly-hd-find').addEventListener('click', findHd);
-    if (window.vitoolsHaodian) vitoolsHaodian.detect().then(showHd);
+    if (window.vitoolsHaodian) vitoolsHaodian.detect({ auto: true }).then(showHd);
     $('ly-allpages').addEventListener('click', applyAllPages);
     $('ly-txt').addEventListener('click', saveTxt);
     $('ly-copy').addEventListener('click', copyText);

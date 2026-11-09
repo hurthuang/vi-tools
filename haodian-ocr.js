@@ -1,7 +1,7 @@
 // 本機 vi-tools 辨識套件的「辨識一塊」（辨識套件 app/exam/region.py、server.py 的 /api/ocr）。
 // 偵測到才有功能：辨識套件沒開（或沒裝）時 detect() 回 null，頁面就不顯示辨識的按鈕。
 // 之後桌面版的辨識套件也提供同樣的 /api/ocr，這邊不用改。
-//   const hd = await vitoolsHaodian.detect()        → { base:'http://127.0.0.1:18760/', version } 或 null
+//   const hd = await vitoolsHaodian.detect()        （打開頁面時用 detect({ auto: true })，見下面）→ { base:'http://127.0.0.1:18760/', version } 或 null
 //   await vitoolsHaodian.recognize(src, box, { type, mode })
 //     src：vtdoc-view 的 regionSource(p, box)；box：[x0,y0,x1,y1]（頁面比例）
 //     type：q 題目、opt 選項、其他照文字；mode：auto（文字＋算式）／math（整塊一個算式）
@@ -23,9 +23,19 @@
       .catch(() => null);
   }
 
-  // 20 個連接埠一起試，第一個回應的就是
-  function detect() {
-    return Promise.all(PORTS.map(ping)).then(rs => (found = rs.find(Boolean) || null));
+  // 20 個連接埠一起試，第一個回應的就是。
+  // 打開頁面時自動找用 detect({ auto: true })：這台瀏覽器連上過辨識套件才真的去找。
+  //   沒裝的人不要每次都連本機（Chrome 會問要不要允許存取區域網路，主控台也一堆連不上的錯誤）；
+  //   第一次請使用者按「找本機辨識套件」（detect()），找到就記住（localStorage）
+  const SEEN = 'vitools-recognizer-seen';
+  function seen() { try { return !!localStorage.getItem(SEEN); } catch (e) { return false; } }
+  function detect(opt) {
+    if (opt && opt.auto && !seen()) return Promise.resolve(found = null);
+    return Promise.all(PORTS.map(ping)).then(rs => {
+      found = rs.find(Boolean) || null;
+      if (found) try { localStorage.setItem(SEEN, '1'); } catch (e) { /* 存不了就每次按 */ }
+      return found;
+    });
   }
 
   function b64(u8) {
