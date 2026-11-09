@@ -131,7 +131,7 @@
     - nc 整份算式校對（nc-vtdoc.js）：Nemeth 點字下方「✎ 手改點字」（Unicode 點字或點字 ASCII，ASCII 打字時換成點字；跟自動轉的一樣就不算手改）、「改回自動轉的」（存檔時拿掉 `data-brl`）；算式後來又改了，畫面與清單標「手改點字是舊的」，附自動轉的結果。
     - 文字轉點字（braille-translate.htm）：輸入框裡同一行的 `\( … \)` 整個當一個算式 token（`isNemeth`、`isMath`），前後空一方（同 nc l2n 的寫法）；手改的（`_btMath.hand`）優先，否則在隱藏 iframe 載入 `nemeth_converter.html` 用 `latexToNemethAsc`＋`asc2brl` 自動轉（第一次遇到算式才載入，載好前原樣顯示、載好重新轉換；`_btMath.version` 進行快取鍵）。轉不出來原樣留著（輸出區下方的非點字提醒會列出）。開中繼檔時狀態列寫手改幾個、舊的幾個（列前三個 LaTeX）。不是中繼檔、自己打的 `\( \)` 也一樣自動轉。
   - **算式整理（2026-11-08，使用者回報）**：辨識的算式中間夾中文（`2 \frac{1}{3} 是 4 \frac{1}{9}`）要拆成兩個算式、中文放外面，不然點字裡後一個算式接著前一個、少了數字記號；原卷斷行把算式切開（`\sqrt{48\frac{8}{9}}` 換行 `<7`），後半被當成文字，要收回算式。
-    - `vtdoc.js`：`splitCjk(tex)`（只看最外層，`\frac{甲}{乙}` 不拆；`\text{是}` 內容全中文也算文字）、`joinTail(text)`（算式後面緊接「< > = ≤ ≥ ≠＋數字或單一字母」收進算式，後面還接英數的不收，例：`≥ 2cm`）、`splitMathEls(root)` → `{ split, joined }`（改 DOM，新算式沿用信心、裁圖、位置，拿掉確認、手改點字）。
+    - `vtdoc.js`：`splitCjk(tex)`（只看最外層，`\frac{甲}{乙}` 不拆；`\text{是}` 內容全中文也算文字）、`joinTail(text)`（算式後面緊接「< > = ≤ ≥ ≠＋數字或單一字母」收進算式，後面還接英數的不收，例：`≥ 2cm`）、`splitMathEls(root)` → `{ split, joined }`（改 DOM，新算式沿用信心、裁圖、位置，拿掉確認；手改的點字留在拆開的第一塊，`data-brlsrc` 不改，所以會被當成「舊的」提醒）。
     - nc 開檔時自動整理（狀態列寫整理了幾個，要存回才會留下）；`inlineText` 輸出時也整理，所以沒經過 nc 的中繼檔，文字轉點字、文件整理也照樣對；`setInline` 找不到原本的算式時，從拆開前的算式、或是新算式開頭的舊算式沿用屬性。
     - 辨識套件同規則：`mathocr.split_cjk`（`edge_punct` 先拆，中文變成文字 token）、`vtdoc.join_tail`（`inline` 先收，再照「完全相同優先、其次開頭相同」對回辨識結果）。
   - **網頁版文字辨識（2026-11-09）**：`ocr-web.js`＋`ocr-worker.js`（onnxruntime-web 1.20.1），模型 `models/ocr/`（PP-OCRv6 small int8，det 2.6 MB＋rec 5.3 MB，Apache-2.0，見該資料夾 README；`tools/quantize-ocr.py`）。照 RapidOCR 3.x 的前後處理，差別：文字框一律水平長方形（連通區塊外框）、不做方向分類。19 份試卷第 1 頁中文召回 98.5%（RapidOCR 不做方向分類 99.1%），單執行緒一頁約 13 秒，拉框一塊約 2 秒。`vitoolsOcr.recognize(canvas)` → `[{box, text, score}]`。
@@ -139,7 +139,7 @@
     - 簡體字：模型偶爾認成簡體（则、圆、内、数…），`models/ocr/s2t.txt`（`tools/build-ocr-s2t.py`，OpenCC 字表，只收「只有簡體才有」的字）在載入字表時直接換成繁體，不多花辨識時間；19 份中文召回 98.5% → 98.9%，PDF 文字層裡的字沒有一個被換到。
   - **nc 原卷上改算式的框、框漏掉的算式（2026-11-08）**：原卷畫面還是 nc 自己的（翻頁、縮放、跟著算式放大都照舊），另開一份不顯示的 `vtdoc-view`（`cut`，pdf.js 載好之後才開，兩邊同時載會讓 `loadScript` 以為已經載好）負責 `regionSource`／`cropCanvas`，辨識跟版面整理同一套：本機有辨識套件 `vitoolsHaodian.recognize(…, {mode:'math'})`，沒有就 `vitoolsMfr`（網頁版）。選到的算式框畫 8 個控制點（`.hd`），放開 → `applyBox`：寫 `data-box`、重裁 `data-crop`（長邊 ≤ 600）、重新辨識換掉 LaTeX（`tex0` 不動，可以還原；辨識期間選了別的算式就直接改那一個、不動畫面）。原卷空白處拖曳 → `newMathFromBox`：mousedown 先 `preventDefault` 保住文字欄的選取；(a) 有選取（同一段一般文字）→ 換掉那串字；(b) 沒有 → 放進原卷上框住框中心、面積最小的那一段的結尾；之後 `rebuildItems` 重建清單、選到新的算式。在選到的框裡拖曳是搬框（同版面整理）。
   - **nc「✎ 改這段文字」（2026-11-08，使用者回報算式後面多出次方的「2」改不掉）**：文字欄點一段（`blkEl`）或選一個算式（它所在的那段，`BLOCKS` 選擇器），開 `<dialog>`，內容是 `vitoolsVtdoc.inlineText`（算式寫成 `\( \)`，先把還沒存的 LaTeX 寫進 `data-tex`、標 `mathDirty`），確定後 `setInline` 寫回（多行用 `<br>`；粗體、底線等格式會拿掉，對話框會提醒）。`rebuildItems` 照文件順序重建算式清單：同一個元素沿用；LaTeX 相同的對回原本狀態；剩下的跟這段沒用到的原本算式照順序配對（保留 `tex0`、信心、`data-box`、裁圖，顯示「改過」）；再剩的是新算式。存檔時 `mathDirty` 的重轉 MathML。「要檢查」多一種 `exp`：算式（結尾 `)` `]` `}`）後面緊接一個單獨的數字，提醒可能漏掉的次方，面板有「✎ 改這段文字」。
-    - 已知：版面整理、文字轉點字改了算式的 LaTeX 時，`setInline` 換成新的 `vt-math`（照 LaTeX 對舊元素），手改的點字會跟著消失、不會留下來提示；之後再補。
+    - `setInline` 寫回一段文字時，算式元素盡量沿用原本的：LaTeX 一樣照抄；是原本算式拆開的一塊、或後面多接一段 → 照原本的做；都對不上的（LaTeX 改過）跟這段裡沒用到的原本算式照順序配對（個數一樣才配，有增減就當新的）。手改的點字跟著留下，`data-brlsrc` 還是舊 LaTeX 的，nc、文字轉點字會提醒「手改點字是舊的」、不會直接用；改回原本的 LaTeX 又對得上（2026-11-09 修：之前改了 LaTeX 手改的點字會直接消失、沒有提醒）。
 
 ### 3.5 表格
 

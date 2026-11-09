@@ -137,7 +137,8 @@
     });
   }
   // 中繼檔裡的算式元素整理（nc 開檔時）：夾中文的拆開、被斷行切開的後半收回來。
-  //   新的算式沿用原本的信心、裁圖、位置；確認標記、手改點字、MathML 不留 → { split, joined }
+  //   新的算式沿用原本的信心、裁圖、位置；確認標記、MathML 不留；
+  //   手改的點字留在第一個算式（data-brlsrc 是原本 LaTeX 的，各工具會當成「舊的」提醒，不會直接用）→ { split, joined }
   function splitMathEls(root) {
     let split = 0, joined = 0;
     root.querySelectorAll('.vt-math').forEach(el => {
@@ -146,9 +147,11 @@
       const parts = splitCjk(tex);
       if (!parts) return;
       const doc = el.ownerDocument;
+      let first = true;
       for (const p of parts) {
         if (p.text != null) { el.parentNode.insertBefore(doc.createTextNode(p.text), el); continue; }
-        el.parentNode.insertBefore(mathLike(el, p.math), el);
+        el.parentNode.insertBefore(mathLike(el, p.math, first), el);
+        first = false;
       }
       el.remove();
       split++;
@@ -166,10 +169,11 @@
     });
     return { split, joined };
   }
-  function mathLike(el, tex) {
+  // 照原本的算式元素做一個新的（LaTeX 換掉）：留位置、信心、裁圖；手改的點字 keepBrl 才留（data-brlsrc 不改，變成「舊的」）
+  function mathLike(el, tex, keepBrl = true) {
     const s = el.cloneNode(false);
     s.dataset.tex = tex;
-    for (const a of ['data-brl', 'data-brlsrc', 'data-checked', 'id']) s.removeAttribute(a);
+    for (const a of keepBrl ? ['data-checked', 'id'] : ['data-brl', 'data-brlsrc', 'data-checked', 'id']) s.removeAttribute(a);
     s.textContent = '\\(' + tex + '\\)';
     return s;
   }
@@ -237,30 +241,47 @@
   }
 
   // 一行文字 → 元素內容：算式包成 vt-math（同一個算式沿用原本的屬性：信心、原卷裁圖、MathML）
+  // 一段文字（算式寫成 \( LaTeX \)）寫回元素。算式元素盡量沿用原本的（位置、信心、手改的點字）：
+  //   LaTeX 一樣 → 照抄；是原本算式拆開的一塊、或原本算式後面多接一段 → 照原本的做；
+  //   都對不上的（LaTeX 改過），跟這段裡沒用到的原本算式照順序配對（個數一樣才配，有增減就當新的）。
+  //   手改的點字一起留著，data-brlsrc 是舊 LaTeX 的，各工具會提醒「點字是舊的」、不會直接用
   function setInline(el, text) {
+    const olds = [...el.querySelectorAll('.vt-math')].filter(s => s.dataset.tex);
     const old = new Map();
-    el.querySelectorAll('.vt-math').forEach(s => { if (s.dataset.tex && !old.has(s.dataset.tex)) old.set(s.dataset.tex, s); });
+    olds.forEach(s => { if (!old.has(s.dataset.tex)) old.set(s.dataset.tex, s); });
     const pieces = new Map();   // 拆開的算式 → 原本的元素
     for (const s of old.values()) for (const p of splitCjk(s.dataset.tex) || []) if (p.math != null && !pieces.has(p.math)) pieces.set(p.math, s);
+    const ms = [...text.matchAll(MATH_RE)];
+    const used = new Set(), pieceUsed = new Set(), plan = ms.map(m => {
+      const tex = m[1].trim();
+      let src = old.get(tex), how = 'same';
+      if (!src && pieces.has(tex)) { src = pieces.get(tex); how = 'like'; }
+      if (!src) { const k = [...old.keys()].find(k => tex.startsWith(k)); if (k) { src = old.get(k); how = 'like'; } }
+      if (src) used.add(src);
+      return { tex, src, how };
+    });
+    const left = olds.filter(s => !used.has(s)), miss = plan.filter(p => !p.src);
+    if (left.length && left.length === miss.length) miss.forEach((p, i) => { p.src = left[i]; p.how = 'like'; });
     const doc = el.ownerDocument;
     while (el.firstChild) el.removeChild(el.firstChild);
     let k = 0;
-    for (const m of text.matchAll(MATH_RE)) {
+    ms.forEach((m, i) => {
       if (m.index > k) el.appendChild(doc.createTextNode(text.slice(k, m.index)));
-      const tex = m[1].trim();
-      const prev = old.get(tex);
-      if (prev) el.appendChild(prev.cloneNode(true));
-      else if (pieces.has(tex)) el.appendChild(mathLike(pieces.get(tex), tex));
-      else if ([...old.keys()].some(k => tex.startsWith(k))) el.appendChild(mathLike(old.get([...old.keys()].find(k => tex.startsWith(k))), tex));
-      else {
+      const p = plan[i];
+      if (p.src && p.how === 'same') el.appendChild(p.src.cloneNode(true));
+      else if (p.src) {
+        // 同一個原本的算式拆成好幾塊：手改的點字只留在第一塊
+        el.appendChild(mathLike(p.src, p.tex, !pieceUsed.has(p.src)));
+        pieceUsed.add(p.src);
+      } else {
         const s = doc.createElement('span');
         s.className = 'vt-math';
-        s.dataset.tex = tex;
+        s.dataset.tex = p.tex;
         s.textContent = m[0];
         el.appendChild(s);
       }
       k = m.index + m[0].length;
-    }
+    });
     if (k < text.length) el.appendChild(doc.createTextNode(text.slice(k)));
   }
 
