@@ -40,6 +40,8 @@ export function repoFiles(root) {
     list.push([`web/music/${f}`, join(root, 'music', f)]);
   }
   for (const f of walk(join(root, 'abacus'))) list.push([`web/abacus/${f}`, join(root, 'abacus', f)]);
+  // 網頁版辨識的模型（算式 models/mfr、文字 models/ocr，約 41 MB）：離線也能辨識
+  for (const f of walk(join(root, 'models'))) list.push([`web/models/${f}`, join(root, 'models', f)]);
   for (const f of walk(join(root, 'desktop', 'desktop-assets'))) list.push([`desktop-assets/${f}`, join(root, 'desktop', 'desktop-assets', f)]);
   return list;
 }
