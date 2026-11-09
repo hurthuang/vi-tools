@@ -38,6 +38,8 @@
       <!-- 點字樂譜：只帶執行時用得到的檔案（不含 tests 與說明） -->
       <WebMusicFiles Include="$(WebSource)\music\**" Exclude="$(WebSource)\music\tests\**;$(WebSource)\music\README.md;$(WebSource)\music\.gitignore" />
       <WebAbacusFiles Include="$(WebSource)\abacus\**" />
+      <!-- 網頁版辨識的模型（算式 models\mfr 約 33 MB、文字 models\ocr 約 8 MB）：離線也能辨識 -->
+      <WebModelFiles Include="$(WebSource)\models\**" />
     </ItemGroup>
     <RemoveDir Directories="$(PublishDir)web" />
     <Copy SourceFiles="@(WebRootFiles)" DestinationFolder="$(PublishDir)web" />
@@ -45,6 +47,7 @@
     <Copy SourceFiles="@(WebMathcatFiles)" DestinationFiles="@(WebMathcatFiles->'$(PublishDir)web\mathcat\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(WebMusicFiles)" DestinationFiles="@(WebMusicFiles->'$(PublishDir)web\music\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(WebAbacusFiles)" DestinationFiles="@(WebAbacusFiles->'$(PublishDir)web\abacus\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(WebModelFiles)" DestinationFiles="@(WebModelFiles->'$(PublishDir)web\models\%(RecursiveDir)%(Filename)%(Extension)')" />
     <ZipDirectory SourceDirectory="$(PublishDir)" DestinationFile="$(MSBuildProjectDirectory)\dist\ViTools-portable.zip" Overwrite="true" />
     <Message Importance="high" Text="可攜版：$(PublishDir) 與 dist\ViTools-portable.zip" />
   </Target>

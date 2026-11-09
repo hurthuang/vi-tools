@@ -2,7 +2,9 @@
 //   有開 vi-tools 辨識套件時，PDF／圖檔交給它整份辨識（haodian-ocr.js 的 doc），這裡是沒有辨識套件時用的：
 //   - PDF：讀文字層，一行一行接成段落，照開頭判斷類型（題號→題目、(A)→選項、一、→大題），帶原卷與位置（data-box）
 //          算式不會辨識（PDF 文字層的算式多半是亂的），在版面整理拉框「辨識成一個算式」
-//   - 圖檔：只帶原卷（每頁一張），內容在版面整理拉框新增
+//   - 圖檔：帶原卷（每頁一張）；有網頁版文字辨識（ocr-web.js）就辨識文字，沒有就在版面整理拉框新增
+//   - PDF 的掃描頁（沒有文字層）、附圖裡的字（文字層讀不到）：有網頁版文字辨識就用它
+//     opt.ocr(canvas, what) → [{ box:[x0,y0,x1,y1]（canvas 像素）, text, score }]（版面整理傳進來，沒有就不辨識）
 //   - Word（.docx）、純文字：照段落判斷類型，沒有原卷
 //   await vitoolsVtdocBuild.fromFiles(files, { onProgress(msg) }) → { html, name, note }
 (function () {
@@ -187,6 +189,41 @@
     });
   }
   // 兩欄的分界（頁面比例的 x）：頁面中間找一條幾乎沒有字跨過、左右兩邊都有不少字的直線；不是兩欄 → null
+  // 網頁版文字辨識的結果（canvas 像素）→ 行：同一欄、上下重疊一半以上的片段接成一行，兩欄的頁先左欄再右欄
+  function ocrLines(res, W, H) {
+    const its = res.map(r => ({ s: r.text, b: [r.box[0] / W, r.box[1] / H, r.box[2] / W, r.box[3] / H] }));
+    const g = gutter(its);
+    its.forEach(x => { x.col = colOf(x.b, g); });
+    its.sort((a, b) => a.b[1] - b.b[1]);
+    const rows = [];
+    its.forEach(x => {
+      const h = x.b[3] - x.b[1];
+      const r = rows.find(r => r.col === x.col && Math.min(r.b[3], x.b[3]) - Math.max(r.b[1], x.b[1]) > 0.5 * Math.min(h, r.b[3] - r.b[1]));
+      if (r) { r.its.push(x); r.b = [Math.min(r.b[0], x.b[0]), Math.min(r.b[1], x.b[1]), Math.max(r.b[2], x.b[2]), Math.max(r.b[3], x.b[3])]; }
+      else rows.push({ col: x.col, b: x.b.slice(), its: [x] });
+    });
+    const lines = rows.map(r => {
+      r.its.sort((a, b) => a.b[0] - b.b[0]);
+      let t = '';
+      r.its.forEach((x, k) => {
+        const gap = k ? x.b[0] - r.its[k - 1].b[2] : 0, h = x.b[3] - x.b[1];
+        if (t && (gap > 0.6 * h || (/[A-Za-z0-9]$/.test(t) && /^[A-Za-z0-9]/.test(x.s)))) t += ' ';
+        t += x.s;
+      });
+      return { text: t.replace(/\s+/g, ' ').trim(), box: r.b, col: r.col };
+    }).filter(l => l.text);
+    return { lines: order(lines), gutter: g };
+  }
+  function pageCanvas(pg, side) {
+    const vp1 = pg.getViewport({ scale: 1 });
+    const vp = pg.getViewport({ scale: side / Math.max(vp1.width, vp1.height) });
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    return pg.render({ canvasContext: cx, viewport: vp }).promise.then(() => cv);
+  }
+
   function gutter(its) {
     let best = null;
     for (let g = 0.3; g <= 0.7; g += 0.005) {
@@ -334,23 +371,67 @@
     });
   }
 
-  async function fromPdf(file, progress) {
+  // 附圖：文字層讀不到字的，用網頁版文字辨識認圖裡的字當標籤（12 個字以內的才算）
+  //   圖裡的字常常很小（座標軸的數字），那一塊另外算成高解析度的圖（最多 4 倍＝288 DPI，長邊最多 2000）再辨識
+  async function figCanvas(pg, box) {
+    const vp1 = pg.getViewport({ scale: 1 });
+    const w = (box[2] - box[0]) * vp1.width, h = (box[3] - box[1]) * vp1.height;
+    const k = Math.min(4, 2000 / Math.max(w, h, 1));
+    const vp = pg.getViewport({ scale: k });
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    await pg.render({ canvasContext: cx, viewport: vp, transform: [1, 0, 0, 1, -box[0] * vp.width, -box[1] * vp.height] }).promise;
+    return cv;
+  }
+  async function figLabels(pg, figs, ocr, progress, n) {
+    for (let k = 0; k < figs.length; k++) {
+      const f = figs[k];
+      if (!ocr || f.labels.length) continue;
+      const cv = await figCanvas(pg, f.box);
+      progress('第 ' + n + ' 頁：辨識附圖裡的字（' + (k + 1) + '／' + figs.length + '）');
+      const res = await ocr(cv, 'fig').catch(() => []);
+      res.forEach(r => {
+        const t = r.text.trim();
+        if (!t || t.length > 12) return;
+        const cx = (r.box[0] + r.box[2]) / 2 / cv.width, cy = (r.box[1] + r.box[3]) / 2 / cv.height;
+        f.labels.push({ text: t, cx: f.box[0] + cx * (f.box[2] - f.box[0]), cy: f.box[1] + cy * (f.box[3] - f.box[1]) });
+      });
+      f.ocr = f.labels.length > 0;
+      cv.width = cv.height = 0;
+    }
+  }
+
+  async function fromPdf(file, progress, ocr) {
     await pdfReady();
     const data = new Uint8Array(await file.arrayBuffer());
     const pdf = await pdfjsLib.getDocument({ data: data.slice() }).promise;
-    const paras = [], scanned = [];
-    let nfig = 0;
+    const paras = [], scanned = [], ocrd = [];
+    let nfig = 0, nfigOcr = 0;
     for (let n = 1; n <= pdf.numPages; n++) {
       progress('讀 PDF 文字層：第 ' + n + '／' + pdf.numPages + ' 頁');
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
-      if (r.chars < 20) { scanned.push(n); continue; }
+      if (r.chars < 20) {
+        if (!ocr) { scanned.push(n); continue; }
+        // 掃描頁：整頁算成圖（長邊 2000，跟辨識套件 RapidOCR 一樣）用網頁版文字辨識
+        progress('第 ' + n + '／' + pdf.numPages + ' 頁是掃描頁：網頁版文字辨識中（一頁大約 10～20 秒）');
+        const cv = await pageCanvas(pg, 2000);
+        const res = await ocr(cv, 'page');
+        const o = ocrLines(res, cv.width, cv.height);
+        cv.width = cv.height = 0;
+        if (o.lines.length) { paras.push(...joinLines(o.lines, n)); ocrd.push(n); } else scanned.push(n);
+        continue;
+      }
       const figs = (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] }));
       let lines = r.lines;
       if (figs.length) {
         progress('第 ' + n + ' 頁：裁附圖（' + figs.length + ' 張）');
         lines = attachLabels(lines, figs);
         await cropFigures(pg, figs);
+        await figLabels(pg, figs, ocr, progress, n);
+        nfigOcr += figs.filter(f => f.ocr).length;
         lines = order(lines.concat(figs.map(f => ({ text: '', box: f.box, fig: f, col: colOf(f.box, r.gutter) }))));
         nfig += figs.length;
       }
@@ -371,6 +452,8 @@
       tail = ps.join('');
     }
     let note = '讀 PDF 文字層，自動分成 ' + (paras.length - nfig) + ' 段' + (nfig ? '、附圖 ' + nfig + ' 張' : '') + '（沒有辨識算式）';
+    if (ocrd.length) note += '；第 ' + ocrd.join('、') + ' 頁是掃描頁，用網頁版文字辨識（請對照原卷檢查）';
+    if (nfigOcr) note += '；' + nfigOcr + ' 張附圖裡的字用網頁版文字辨識';
     if (scanned.length) note += '；第 ' + scanned.join('、') + ' 頁沒有文字層（掃描頁）';
     return { html: makeDoc(titleOf(paras, file.name), source, bodyHtml(paras), tail, note), name: baseName(file.name) + '.vtdoc.html', note,
       scanned, pages: pdf.numPages };
@@ -395,17 +478,46 @@
       im.src = url;
     });
   }
-  async function fromImages(files, progress) {
-    const ps = [];
+  function fileCanvas(file, side) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const im = new Image();
+      im.onload = () => {
+        const s = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(im.naturalWidth * s); cv.height = Math.round(im.naturalHeight * s);
+        const cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+        cx.drawImage(im, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        resolve(cv);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('圖片打不開：' + file.name)); };
+      im.src = url;
+    });
+  }
+  async function fromImages(files, progress, ocr) {
+    const ps = [], paras = [];
+    let got = 0;
     for (let i = 0; i < files.length; i++) {
       progress('讀圖：第 ' + (i + 1) + '／' + files.length + ' 張');
       ps.push(`<script type="image/jpeg" class="vtdoc-page" data-page="${i + 1}">${await imagePage(files[i])}</script>\n`);
+      if (!ocr) continue;
+      progress('第 ' + (i + 1) + '／' + files.length + ' 張：網頁版文字辨識中（一張大約 10～20 秒）');
+      const cv = await fileCanvas(files[i], 2000);
+      const o = ocrLines(await ocr(cv, 'page'), cv.width, cv.height);
+      cv.width = cv.height = 0;
+      if (o.lines.length) got++;
+      paras.push(...joinLines(o.lines, i + 1));
     }
     const hrs = files.map((f, i) => i ? `<hr class="vt-page" data-page="${i + 1}" aria-hidden="true">` : '').filter(Boolean).join('\n');
-    const note = '圖檔 ' + files.length + ' 張（沒有辨識文字）';
+    // 有辨識的：照段落排；最後一頁之前沒有字的頁也要換頁線，bodyHtml 遇到下一頁的段落才補
+    const body = paras.length ? bodyHtml(paras) + (paras[paras.length - 1].page < files.length ?
+      '\n' + files.map((f, i) => i + 1 > paras[paras.length - 1].page ? `<hr class="vt-page" data-page="${i + 1}" aria-hidden="true">` : '').filter(Boolean).join('\n') : '') : hrs;
+    const note = '圖檔 ' + files.length + ' 張' + (ocr ? '，用網頁版文字辨識自動分成 ' + paras.length + ' 段（沒有辨識算式，請對照原卷檢查）' : '（沒有辨識文字）');
     const source = { name: files.map(f => f.name).join('、'), kind: 'image', pages: files.length, embed: 'pages' };
-    return { html: makeDoc(baseName(files[0].name), source, hrs, ps.join(''), note), name: baseName(files[0].name) + '.vtdoc.html', note,
-      pages: files.length, images: true };
+    return { html: makeDoc(paras.length ? titleOf(paras, files[0].name) : baseName(files[0].name), source, body, ps.join(''), note),
+      name: baseName(files[0].name) + '.vtdoc.html', note, pages: files.length, images: !got };
   }
 
   // ---------- Word、純文字 ----------
@@ -443,13 +555,14 @@
     const progress = (opt && opt.onProgress) || (() => {});
     files = [...files];
     const k = kind(files[0]);
-    if (k === 'image') return fromImages(files.filter(f => kind(f) === 'image'), progress);
+    const ocr = opt && opt.ocr;
+    if (k === 'image') return fromImages(files.filter(f => kind(f) === 'image'), progress, ocr);
     if (files.length > 1) throw new Error('一次只能開一個檔（圖檔可以一次選好幾張）');
-    if (k === 'pdf') return fromPdf(files[0], progress);
+    if (k === 'pdf') return fromPdf(files[0], progress, ocr);
     if (k === 'docx') return fromDocx(files[0]);
     if (k === 'txt') return fromText(await files[0].text(), files[0].name, '純文字檔');
     throw new Error('不支援這種檔案：' + files[0].name + '（可以開中繼檔、PDF、圖檔、Word .docx、.txt）');
   }
 
-  window.vitoolsVtdocBuild = { fromFiles, kind, kindOf };
+  window.vitoolsVtdocBuild = { fromFiles, kind, kindOf, ocrLines };
 })();

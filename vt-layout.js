@@ -856,14 +856,24 @@
     const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]'), tx = dm.querySelector('option[value="text"]');
     const was = au.hidden;
     au.hidden = au.disabled = !f;
-    tx.hidden = tx.disabled = !f;
-    if (!f && dm.value === 'text') dm.value = 'layer';
+    tx.hidden = tx.disabled = !f && !window.vitoolsOcr;
+    tx.textContent = '拉框：辨識純文字' + (f ? '（辨識套件）' : '（網頁辨識）');
+    if (tx.disabled && dm.value === 'text') dm.value = 'layer';
     if (f && was) dm.value = 'auto';
     if (!f && dm.value === 'auto') dm.value = 'layer';
     dm.querySelector('option[value="math"]').textContent = '拉框：辨識成一個算式' + (f ? '（辨識套件）' : '（網頁辨識）');
     dm.querySelector('option[value="math"]').hidden = !f && !window.vitoolsMfr;
     dm.hidden = !(sv && sv.has());
     tools();
+  }
+  // 網頁版文字辨識（沒有辨識套件時）：模型第一次用才下載（約 8 MB）
+  function webOcr(cv) {
+    const pct = m => Math.round(m.loaded / m.total * 100);
+    vitoolsOcr.onprogress = m => {
+      if (m.stage === 'download' && !m.local) status('下載文字辨識模型（只有第一次，約 8 MB）… ' + pct(m) + '%');
+      else if (m.stage === 'init') status('載入文字辨識模型…');
+    };
+    return vitoolsOcr.recognize(cv);
   }
   // 網頁版辨識一個算式（沒有辨識套件時）：模型第一次用才下載
   async function webMath(page, box) {
@@ -1174,6 +1184,7 @@
     let how0 = $('ly-dragmode').value;
     const web = how0 === 'math' && !hdOn();
     if (web && !window.vitoolsMfr) how0 = 'layer';
+    if (how0 === 'text' && !hdOn() && window.vitoolsOcr) how0 = 'webtext';
     if ((how0 === 'auto' || how0 === 'text') && !hdOn()) how0 = 'layer';
     if (how0 === 'math' || how0 === 'auto' || how0 === 'text') {
       // 辨識套件（一個算式，或文字＋算式）；沒有辨識套件時一個算式用網頁版辨識
@@ -1199,9 +1210,21 @@
         '用辨識套件新增 ' + (r.lines || []).length + ' 塊' + (r.text_layer ? '（中文讀 PDF 文字層、算式用辨識）' : '') + '；類型不對用數字鍵改');
       return;
     }
-    const om = ((V.meta && V.meta.omitted) || []).filter(o => o.page === page && inside(o));
+    const om = how0 === 'webtext' ? [] : ((V.meta && V.meta.omitted) || []).filter(o => o.page === page && inside(o));
     let lines, how;
-    if (om.length) { lines = toLines(om); how = '用辨識套件沒輸出的字'; }
+    if (how0 === 'webtext') {
+      if (hdBusy) { status('還在辨識上一塊，請稍等'); return; }
+      hdBusy = true;
+      try {
+        const cv = await sv.cropCanvas(page, box, 0, true);
+        const t0 = performance.now();
+        const o = vitoolsVtdocBuild.ocrLines(await webOcr(cv), cv.width, cv.height);
+        const map = b => [box[0] + b[0] * (box[2] - box[0]), box[1] + b[1] * (box[3] - box[1]), box[0] + b[2] * (box[2] - box[0]), box[1] + b[3] * (box[3] - box[1])];
+        lines = o.lines.length ? o.lines.map(l => ({ page, box: map(l.box), text: l.text })) : [{ page, box, text: '' }];
+        how = o.lines.length ? '網頁版文字辨識 ' + ((performance.now() - t0) / 1000).toFixed(1) + ' 秒，請對照原卷檢查' : '辨識不出字，請按 E 打字';
+      } catch (e) { status('辨識失敗：' + e.message); return; } finally { hdBusy = false; }
+    }
+    else if (om.length) { lines = toLines(om); how = '用辨識套件沒輸出的字'; }
     else {
       const t = await sv.textIn(page, box);
       if (t && t.length) { lines = t.map(x => ({ page, box: x.box, text: x.text })); how = '用 PDF 的文字層（算式要再檢查）'; }
@@ -1429,7 +1452,7 @@
     dlgFiles = files;
     $('ly-dlg-name').textContent = files[0].name;
     $('ly-dlg-ask').hidden = false; $('ly-dlg-run').hidden = true;
-    $('ly-dlg-local').textContent = k === 'pdf' ? '只讀 PDF 文字層（很快，不辨識算式，掃描頁沒有字）' : '只放原卷（不辨識，自己在原卷上拉框）';
+    $('ly-dlg-local').textContent = k === 'pdf' ? '只讀 PDF 文字層（很快，不辨識算式；掃描頁用網頁版文字辨識）' : '用網頁版文字辨識（只有文字，不辨識算式、不分版面）';
     $('ly-dlg-pages-w').hidden = k !== 'pdf';
     $('ly-dlg').showModal();
     $('ly-dlg-hd').focus();
@@ -1437,7 +1460,9 @@
   async function buildLocal(files) {
     status('讀檔中…');
     try {
-      const r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status });
+      // 沒有辨識套件、或選了不用辨識套件：掃描頁、圖檔、附圖裡的字用網頁版文字辨識
+      const ocr = window.vitoolsOcr ? (cv => { const p = $('ly-st').textContent; return webOcr(cv).finally(() => status(p)); }) : null;
+      const r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status, ocr });
       let note = '已開啟「' + files[0].name + '」：' + r.note;
       if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（打開 vi-tools 辨識套件可以辨識文字與算式）';
       load(r.html, r.name, note);
