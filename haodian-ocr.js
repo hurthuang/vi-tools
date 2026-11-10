@@ -19,7 +19,7 @@
     const base = 'http://127.0.0.1:' + port + '/';
     return Promise.race([fetch(base + 'api/ocr', { cache: 'no-store' }), timeout(1500)])
       .then(r => r.ok ? r.json() : null)
-      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc } : null)
+      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc, word: !!j.word, music: j.music !== false } : null)
       .catch(() => null);
   }
 
@@ -156,5 +156,16 @@
     }
   }
 
-  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, get found() { return found; } };
+  // Word 檔 → 用這台電腦的 Word 另存 PDF（和 .docx），給版面整理當原卷（辨識套件 0.4.1 起，found.word）
+  //   await vitoolsHaodian.word(file) → { pdf: File, docx: File }
+  async function word(file) {
+    if (!found) throw new Error('沒有連上辨識套件');
+    const u8 = new Uint8Array(await file.arrayBuffer());
+    const r = await api('api/word', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, data: b64(u8) }) });
+    const bin = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const base = file.name.replace(/\.docx?$/i, '');
+    return { pdf: new File([bin(r.pdf)], base + '.pdf', { type: 'application/pdf' }), docx: new File([bin(r.docx)], base + '.docx') };
+  }
+
+  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, get found() { return found; } };
 })();

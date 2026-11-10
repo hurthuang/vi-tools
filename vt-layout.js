@@ -1546,6 +1546,19 @@
       $('ly-file-pdf').value = '';
       $('ly-file-pdf').click();
     });
+    // 辨識套件 0.4.1 起：用這台電腦的 Word 自動另存 PDF（舊式 .doc 也另存 .docx），老師不用自己開 Word
+    $('ly-wd-auto').addEventListener('click', async () => {
+      const btn = $('ly-wd-auto'), st = $('ly-wd-st');
+      btn.disabled = true;
+      st.textContent = '用 Word 轉換中…（第一次要先開辨識套件，大約 10～20 秒）';
+      try {
+        const r = await vitoolsHaodian.word(wdFiles[0]);
+        dlg.close();
+        buildLocal([r.docx, r.pdf]);
+      } catch (e) {
+        st.textContent = '沒辦法自動轉換：' + e.message;
+      } finally { btn.disabled = false; }
+    });
     $('ly-file-pdf').addEventListener('change', e => {
       const f = e.target.files[0];
       if (!f) return;
@@ -1560,8 +1573,13 @@
     $('ly-wd-only-w').hidden = old;
     $('ly-wd-skip').checked = false;
     $('ly-wd-pdf').textContent = old ? '選另存好的 Word 和 PDF' : '選這份的 PDF（跟 Word 一起開）';
+    // 有連上辨識套件、電腦有 Word（桌面版還沒開的辨識套件先當成可以）：多一個「自動轉換」放最前面
+    const f = hdOn() && vitoolsHaodian.found;
+    $('ly-wd-auto-w').hidden = !(f && (f.word || f.lazy));
+    $('ly-wd-st').textContent = '';
+    $('ly-wd-pdf').classList.toggle('pri', $('ly-wd-auto-w').hidden);
     $('ly-wd').showModal();
-    $('ly-wd-pdf').focus();
+    ($('ly-wd-auto-w').hidden ? $('ly-wd-pdf') : $('ly-wd-auto')).focus();
   }
 
   function openFiles(fl) {
