@@ -98,6 +98,7 @@
           img.src = SRC.pages[p] || '';
           made = Promise.resolve(img);
         } else {
+          if (!pdf) return;   // 正在換開別的檔（PDF 還沒載好）：等新的檔載好再畫
           made = pdf.getPage(SRC.pageMap ? SRC.pageMap[p - 1] : p).then(pg => {
             const vp1 = pg.getViewport({ scale: 1 });
             const vp = pg.getViewport({ scale: Math.max(0.5, w * (window.devicePixelRatio || 1) / vp1.width) });

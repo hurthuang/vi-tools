@@ -50,8 +50,11 @@
   const RE_Q = /^\s*(?:[(（][\s　]*[)）]\s*)?(\d{1,3})\s*[.．、](?!\d)/;
   const RE_OPT = /^\s*(?:[（(]\s*([A-EＡ-Ｅ])\s*[)）]|([①-⑩]))/;
   const RE_SEC = /^\s*[一二三四五六七八九十]{1,3}\s*[、.．]/;
+  // 題組說明：「42-43題」「第 42～43 題」「（42-43題）」開頭（「回答第 11～13 題」寫在句子裡的照舊按 T）
+  const RE_GRP = /^\s*[(（【]?\s*第?\s*(\d{1,3})\s*[-－–—−~～〜至到]\s*(\d{1,3})\s*題\s*(?:為題組)?\s*[)）】]?\s*[:：]?/;
   const RE_ITEM = /^\s*(?:[（(]\s*(?:\d{1,2}|[甲乙丙丁戊己庚辛]|[一二三四五六七八九十])\s*[)）]|[⑴-⒇])/;
   function kindOf(t) {
+    if (RE_GRP.test(t)) return 'grp';
     if (RE_Q.test(t)) return 'q';
     if (RE_OPT.test(t)) return 'opt';
     if (RE_SEC.test(t)) return 'h2';
@@ -79,8 +82,9 @@
   // 段落清單 [{ text, kind?, page?, box? }] → <main> 的內容（題目包成 section，選項放在題目裡）
   function bodyHtml(paras) {
     const out = [];
-    let inQ = false, page = 1, title = false, n = 0;
+    let inQ = false, page = 1, title = false, n = 0, grpEnd = 0;
     const close = () => { if (inQ) { out.push('</section>'); inQ = false; } };
+    const closeGrp = () => { close(); if (grpEnd) { out.push('</section>'); grpEnd = 0; } };
     paras.forEach(p => {
       if (p.page && p.page > page) {
         close();
@@ -98,10 +102,20 @@
         return;
       }
       const kind = p.kind || kindOf(p.text);
+      // 題組：說明＋文章＋題目，到說明寫的最後一題為止（題號超過、遇到大題就結束）
+      if (grpEnd && (kind === 'h2' || (kind === 'q' && +((p.text.match(RE_Q) || [])[1] || 0) > grpEnd))) closeGrp();
+      if (kind === 'grp') {
+        closeGrp();
+        const m = RE_GRP.exec(p.text) || /(\d{1,3})\s*[-－–—−~～〜至到]\s*(\d{1,3})/.exec(p.text);
+        grpEnd = m ? +m[2] : 0;
+        out.push('<section class="vt-group">');
+        out.push(`<p${blk}${box}>${esc(p.text)}</p>`);
+        return;
+      }
       // 文字裡的 \( LaTeX \)（Word 的 EQ 分數、線段）→ 算式元素
       const tx = p.text.split(/\\\((.+?)\\\)/).map((x, k) => k % 2 ? `<span class="vt-math" data-tex="${attr(x.trim())}">\\(${esc(x.trim())}\\)</span>` : esc(x)).join('');
       if (!title && kind === 'p' && !out.length && p.text.length <= 60) { out.push(`<h1${blk}${box}>${tx}</h1>`); title = true; return; }
-      if (kind === 'h2') { close(); out.push(`<h2 class="vt-section"${blk}${box}>${tx}</h2>`); return; }
+      if (kind === 'h2') { closeGrp(); out.push(`<h2 class="vt-section"${blk}${box}>${tx}</h2>`); return; }
       if (kind === 'q') {
         close();
         const m = p.text.match(RE_Q);
@@ -109,11 +123,13 @@
         inQ = true;
         return;
       }
+      // 題組裡、題目前面的文章：不要放進上一題（說明後面第一題之前）
+      if (grpEnd && !inQ && kind === 'p') { out.push(`<p class="vt-passage"${blk}${box}>${tx}</p>`); return; }
       if (kind === 'opt') { out.push(`<p class="vt-opt" data-label="${attr(optLabel(p.text))}"${blk}${box}>${tx}</p>`); return; }
       if (kind === 'item') { out.push(`<p class="vt-item"${blk}${box}>${tx}</p>`); return; }
       out.push(`<p${blk}${box}>${tx}</p>`);
     });
-    close();
+    closeGrp();
     return out.join('\n');
   }
 
@@ -344,7 +360,26 @@
     lines.forEach(l => {
       if (l.fig) { cur = null; paras.push({ fig: l.fig, page, box: l.box, text: '' }); return; }
       const h = l.box[3] - l.box[1];
+      if (/^\s*[-－—]?\s*\d{1,3}\s*[-－—]?\s*$/.test(l.text) && (l.box[1] > 0.9 || l.box[3] < 0.08)) return;   // 頁碼
+      // 一行裡有題組說明（兩欄的卷子常接在上一題最後一個選項後面）：拆成 前面／說明／後面
+      const gm = /(^|\s)((?:第\s*)?\d{1,3}\s*[-－–—−~～〜至到]\s*\d{1,3}\s*題)(?!\d)/.exec(l.text);
+      if (gm && !/每題|題目卷|共\s*\d/.test(l.text)) {
+        const pre = l.text.slice(0, gm.index).trim(), post = l.text.slice(gm.index + gm[0].length).trim();
+        if (pre || post) {
+          if (pre) handle({ text: pre, box: l.box });
+          cur = { text: gm[2].trim(), page, box: l.box.slice(), last: l.box, kind: 'grp' };
+          paras.push(cur);
+          cur = null;
+          if (post) { cur = { text: post, page, box: l.box.slice(), last: l.box }; paras.push(cur); }
+          return;
+        }
+      }
+      handle(l);
+    });
+    function handle(l) {
+      const h = l.box[3] - l.box[1];
       const k = kindOf(l.text);
+      if (k === 'grp') { cur = null; paras.push({ text: l.text, page, box: l.box.slice(), kind: 'grp' }); return; }
       const near = cur && l.box[1] - cur.last[3] < 0.9 * h && l.box[1] >= cur.last[1] &&
         Math.abs(l.box[0] - cur.box[0]) < 0.12 && Math.min(l.box[2], cur.box[2]) > Math.max(l.box[0], cur.box[0]);
       if (near && k === 'p' && !/[。？！?!：:]$/.test(cur.text) ||
@@ -360,7 +395,7 @@
         if (all.length > 1 && RE_OPT.test(t)) cur.kind = 'opt';
         paras.push(cur);
       });
-    });
+    }
     paras.forEach(p => delete p.last);
     // 接好的段落裡如果有「(A)…(B)…」再拆一次（題目最後一行後面接著寫選項）
     return paras.flatMap(p => {
@@ -449,6 +484,17 @@
       }
       paras.push(...joinLines(lines, n));
     }
+    const { source, tail } = await pdfSource(file, data, pdf, progress);
+    let note = '讀 PDF 文字層，自動分成 ' + (paras.length - nfig) + ' 段' + (nfig ? '、附圖 ' + nfig + ' 張' : '') + '（沒有辨識算式）';
+    if (ocrd.length) note += '；第 ' + ocrd.join('、') + ' 頁是掃描頁，用網頁版文字辨識（請對照原卷檢查）';
+    if (nfigOcr) note += '；' + nfigOcr + ' 張附圖裡的字用網頁版文字辨識';
+    if (scanned.length) note += '；第 ' + scanned.join('、') + ' 頁沒有文字層（掃描頁）';
+    return { html: makeDoc(titleOf(paras, file.name), source, bodyHtml(paras), tail, note), name: baseName(file.name) + '.vtdoc.html', note,
+      scanned, pages: pdf.numPages };
+  }
+
+  // 原卷 PDF 放進中繼檔（15 MB 以內放原檔，太大放每頁的圖）
+  async function pdfSource(file, data, pdf, progress) {
     const source = { name: file.name, kind: 'pdf', pages: pdf.numPages, sha256: await sha256(data) };
     let tail;
     if (data.length <= PDF_EMBED_MAX) {
@@ -463,12 +509,103 @@
       }
       tail = ps.join('');
     }
-    let note = '讀 PDF 文字層，自動分成 ' + (paras.length - nfig) + ' 段' + (nfig ? '、附圖 ' + nfig + ' 張' : '') + '（沒有辨識算式）';
-    if (ocrd.length) note += '；第 ' + ocrd.join('、') + ' 頁是掃描頁，用網頁版文字辨識（請對照原卷檢查）';
-    if (nfigOcr) note += '；' + nfigOcr + ' 張附圖裡的字用網頁版文字辨識';
-    if (scanned.length) note += '；第 ' + scanned.join('、') + ' 頁沒有文字層（掃描頁）';
-    return { html: makeDoc(titleOf(paras, file.name), source, bodyHtml(paras), tail, note), name: baseName(file.name) + '.vtdoc.html', note,
-      scanned, pages: pdf.numPages };
+    return { source, tail };
+  }
+
+  // ---------- Word ＋ 同一份的 PDF：文字用 Word 的，原卷與附圖用 PDF 的 ----------
+  //   Word 的每一段跟 PDF 文字層逐段比對（照順序往後找，比對「國字、英數」，算式只看裡面的字），找到就有原卷上的框；
+  //   只在一行裡的，照字的位置估左右範圍（同一行的幾個選項各自一個框）。對不到的段落沒有框（Word 文字方塊裡的字常這樣）
+  const normKey = s => String(s).replace(/\\\(|\\\)/g, '').replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[^\u3400-\u9fffA-Za-z0-9]/g, '').toLowerCase();
+  async function fromDocxPdf(docxFile, pdfFile, progress) {
+    progress('讀 Word 檔');
+    if (typeof window.docxXmlToText !== 'function') await load('shared.js');
+    if (!window.JSZip) await load(JSZIP);
+    const zip = await JSZip.loadAsync(await docxFile.arrayBuffer());
+    const read = async n => { const f = zip.file(n); return f ? f.async('string') : ''; };
+    const text = docxXmlToText(await read('word/document.xml'), await read('word/numbering.xml'), await read('word/styles.xml'), { math: true });
+    const paras = [];
+    String(text).replace(/\r\n?/g, '\n').split('\n').forEach(l => {
+      const t = l.replace(/\s+/g, ' ').trim();
+      if (!t) return;
+      splitOpts(t).forEach((s, j, all) => paras.push(all.length > 1 && RE_OPT.test(s) ? { text: s, kind: 'opt' } : { text: s }));
+    });
+
+    await pdfReady();
+    const data = new Uint8Array(await pdfFile.arrayBuffer());
+    const pdf = await pdfjsLib.getDocument({ data: data.slice() }).promise;
+    // PDF 每一行的字接成一長串，記住每個字是哪一行、行內第幾個字
+    let S = '';
+    const at = [];   // S 的每個字 → { li, k }
+    const lines = [], figsAll = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      progress('讀 PDF 原卷：第 ' + n + '／' + pdf.numPages + ' 頁');
+      const pg = await pdf.getPage(n);
+      const r = await pageLines(pg);
+      const figs = (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] }));
+      let ls = r.lines;
+      if (figs.length) {
+        ls = attachLabels(ls, figs);
+        await cropFigures(pg, figs);
+        figs.forEach(f => figsAll.push({ page: n, fig: f, col: colOf(f.box, r.gutter) }));
+      }
+      ls.forEach(l => {
+        if (l.fig) return;
+        const key = normKey(l.text);
+        const li = lines.length;
+        lines.push({ page: n, box: l.box, key });
+        for (let k = 0; k < key.length; k++) { S += key[k]; at.push({ li, k }); }
+      });
+    }
+    // 照順序比對
+    let cursor = 0, hit = 0;
+    for (const p of paras) {
+      const P = normKey(p.text);
+      if (!P) continue;
+      const L = P.length, kk = Math.min(L, 8);
+      const offs = [...new Set([0, Math.max(0, Math.floor(L / 2) - (kk >> 1)), L - kk])];
+      const reach = L < 4 ? 120 : Math.max(3000, 4 * L);
+      let best = -1;
+      for (const off of offs) {
+        const pos = S.indexOf(P.substr(off, kk), cursor);
+        if (pos >= 0 && pos - cursor <= reach) { const st = Math.max(cursor, pos - off); if (best < 0 || st < best) best = st; }
+      }
+      if (best < 0) continue;
+      const end = Math.min(S.length, best + L);
+      const li0 = at[best].li, pg = lines[li0].page;
+      const used = [...new Set(at.slice(best, end).map(a => a.li))].filter(li => lines[li].page === pg);
+      let box;
+      if (used.length === 1) {   // 一行裡的一部分：照字的位置估左右
+        const ln = lines[used[0]], n = ln.key.length || 1, b = ln.box;
+        const k0 = at[best].k, k1 = at[end - 1].li === used[0] ? at[end - 1].k + 1 : n;
+        const w = b[2] - b[0];
+        box = [b[0] + w * k0 / n, b[1], b[0] + w * k1 / n, b[3]];
+        if (k0 === 0 && k1 === n) box = b.slice();
+      } else {
+        const bs = used.map(li => lines[li].box);
+        box = [Math.min(...bs.map(b => b[0])), Math.min(...bs.map(b => b[1])), Math.max(...bs.map(b => b[2])), Math.max(...bs.map(b => b[3]))];
+      }
+      p.page = pg; p.box = box;
+      cursor = end;
+      hit++;
+    }
+    // 沒對到的段落：頁碼跟著前一段（換頁線位置才對）
+    let lastPage = 1;
+    paras.forEach(p => { if (p.page) lastPage = p.page; else p.page = lastPage; });
+    // PDF 的附圖：放在同一頁、同一欄、在它上面最近的那一段後面
+    for (const f of figsAll.reverse()) {
+      let k = -1;
+      paras.forEach((p, i) => { if (p.page === f.page && p.box && p.box[1] <= f.fig.box[1] && !p.fig) k = i; });
+      if (k < 0) k = paras.findIndex(p => p.page >= f.page) - 1;
+      paras.splice(k + 1, 0, { fig: f.fig, page: f.page, box: f.fig.box, text: '' });
+    }
+    const { source, tail } = await pdfSource(pdfFile, data, pdf, progress);
+    const nt = paras.filter(p => !p.fig).length;
+    const note = 'Word 檔的文字＋PDF 原卷：' + nt + ' 段裡 ' + hit + ' 段對到原卷上的位置' + (figsAll.length ? '、附圖 ' + figsAll.length + ' 張（取自 PDF）' : '') +
+      (hit < nt ? '；對不到的段落沒有框，可以在原卷上拉框補' : '');
+    return { html: makeDoc(titleOf(paras.filter(p => !p.fig), docxFile.name), source, bodyHtml(paras), tail, note),
+      name: baseName(docxFile.name) + '.vtdoc.html', note, pages: pdf.numPages };
   }
 
   // ---------- 圖檔（可以一次選好幾張，一張一頁） ----------
@@ -569,7 +706,12 @@
     const k = kind(files[0]);
     const ocr = opt && opt.ocr;
     if (k === 'image') return fromImages(files.filter(f => kind(f) === 'image'), progress, ocr);
-    if (files.length > 1) throw new Error('一次只能開一個檔（圖檔可以一次選好幾張）');
+    // Word ＋ 同一份的 PDF 一起選：文字用 Word 的，原卷用 PDF 的
+    if (files.length === 2) {
+      const d = files.find(f => kind(f) === 'docx'), p = files.find(f => kind(f) === 'pdf');
+      if (d && p) return fromDocxPdf(d, p, progress);
+    }
+    if (files.length > 1) throw new Error('一次只能開一個檔（圖檔可以一次選好幾張；Word 檔可以跟同一份的 PDF 一起選，原卷用 PDF 的）');
     if (k === 'pdf') return fromPdf(files[0], progress, ocr);
     if (k === 'docx') return fromDocx(files[0]);
     if (k === 'txt') return fromText(await files[0].text(), files[0].name, '純文字檔');

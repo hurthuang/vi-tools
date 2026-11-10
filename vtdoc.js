@@ -167,8 +167,40 @@
       nx.nodeValue = r;
       joined++;
     });
-    const promoted = promoteMath(root);
-    return { split, joined, promoted };
+    const labels = tidyLabels(root);
+    const promoted = isMathDoc(root) ? promoteMath(root) : 0;
+    return { split, joined, promoted, labels };
+  }
+
+  // 標號整理（2026-11-10 使用者定）：題號前後的作答括號「( )1.」「1.( )」拿掉；選項標記一律半形「(A) 」，後面空一格
+  //   只看題目、選項那一行最前面的文字 → 改了幾行
+  // 數學卷：標題（<title>、h1）有「數學」，或有辨識套件辨識出來的算式（data-conf）。國文、社會卷的數字、年份不要變成 Nemeth
+  function isMathDoc(root) {
+    const d = root.ownerDocument, h1 = root.querySelector('h1');
+    return /數學/.test((d.title || '') + ' ' + (h1 ? h1.textContent : '')) || !!root.querySelector('.vt-math[data-conf]');
+  }
+  function tidyLabels(root) {
+    let n = 0;
+    const doc = root.ownerDocument;
+    const firstText = el => { const w = doc.createTreeWalker(el, 4); let t = w.nextNode(); while (t && !t.nodeValue.trim() && t.nextSibling) t = w.nextNode(); return t; };
+    root.querySelectorAll('section.vt-q > h3, section.vt-q p').forEach(el => {
+      if (el.closest('template')) return;
+      const t = firstText(el);
+      if (!t || (t.parentElement && t.parentElement.closest('.vt-math'))) return;
+      const v = t.nodeValue;
+      let r = v;
+      if (el.tagName === 'H3') {
+        r = r.replace(/^(\s*)[(（][\s　]*[)）]\s*(\d{1,3}\s*[.．、])\s*/, '$1$2 ')       // ( )1.
+             .replace(/^(\s*\d{1,3}\s*[.．、])\s*[(（][\s　]*[)）]\s*/, '$1 ');          // 1.( )
+      }
+      r = r.replace(/^(\s*)[(（]\s*([A-EＡ-Ｅ])\s*[)）]\s*(?=\S)/, (m, sp, c) =>
+        sp + '(' + String.fromCharCode(c.charCodeAt(0) > 0xff ? c.charCodeAt(0) - 0xfee0 : c.charCodeAt(0)) + ') ');
+      // 只有標記、內容是下一個元素（算式）時，標記後面也要空一格
+      r = r.replace(/^(\s*)[(（]\s*([A-EＡ-Ｅ])\s*[)）]\s*$/, (m, sp, c) =>
+        sp + '(' + String.fromCharCode(c.charCodeAt(0) > 0xff ? c.charCodeAt(0) - 0xfee0 : c.charCodeAt(0)) + ') ');
+      if (r !== v) { t.nodeValue = r; n++; }
+    });
+    return n;
   }
 
   // 像算式的一般文字變成算式（2026-11-10 使用者定）：PDF 文字層讀到的「b > a > c」、夾在中文裡的變數「a」、數字「12」，

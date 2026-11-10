@@ -94,12 +94,18 @@ select{font:inherit;font-size:.88rem;padding:3px}
 .help{font-size:.8rem;color:var(--dim);padding:0 14px 10px}
 .help summary{cursor:pointer;color:var(--blue);font-size:.85rem;padding:2px 0}
 .help p{margin:4px 0 0;line-height:1.7}
-#ly-dlg{max-width:620px;border:1px solid var(--bd);border-radius:9px;padding:14px 20px}
-#ly-dlg h2{font-size:1.05rem;margin:0 0 8px}
+#ly-dlg,#ly-wd{max-width:620px;border:1px solid var(--bd);border-radius:9px;padding:14px 20px}
+#ly-dlg h2,#ly-wd h2{font-size:1.05rem;margin:0 0 8px}
 #ly-dlg progress{width:100%}
 #ly-dlg .dim{font-size:.8rem;color:var(--dim)}
 kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;padding:0 3px;background:#fafafa}
 @media (prefers-reduced-motion:no-preference){.vtv-bx.cur{animation:ly-pulse .5s ease-in-out 3 alternate}}
+.ly-menu-w{position:relative;display:inline-block}
+.ly-menu{position:absolute;top:100%;left:0;z-index:30;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--bg,#fff);border:1px solid #999;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);min-width:11em}
+.ly-menu[hidden]{display:none}
+.ly-menu .btn{text-align:left;white-space:nowrap}
+#ly-ov.pick{cursor:crosshair}
+.vtv-bx.drag.sel{border-style:dashed !important;background:rgba(26,95,180,.08) !important}
 @keyframes ly-pulse{from{box-shadow:0 0 0 9px rgba(255,214,0,.55)}to{box-shadow:0 0 0 14px rgba(255,214,0,.2)}}
 </style>
 </head>
@@ -111,13 +117,23 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
 <main>
 <div class="bar">
   <button class="btn" id="ly-open" type="button" title="中繼檔、PDF、圖檔（可以一次選好幾張）、Word（.docx）、.txt">📂 開啟檔案</button>
-  <input type="file" id="ly-file" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.docx,.txt" multiple hidden>
+  <input type="file" id="ly-file" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.docx,.doc,.txt" multiple hidden>
+  <input type="file" id="ly-file-pdf" accept=".pdf" hidden>
   <button class="btn pri" id="ly-save" type="button" disabled>💾 存回中繼檔</button>
   <button class="btn" id="ly-undo" type="button" disabled title="Ctrl＋Z">↶ 復原</button>
   <button class="btn" id="ly-order" type="button" title="照閱讀順序在原卷上點這一頁的框（O）">排順序</button>
-  <button class="btn" id="ly-txt" type="button">存成 .txt</button>
-  <button class="btn" id="ly-copy" type="button">複製全部文字</button>
-  <button class="btn" id="ly-send" type="button" title="打開朗讀與音檔，帶排好的文字與中繼檔過去（標成已排版）">送到朗讀與音檔</button>
+  <span class="ly-menu-w">
+    <button class="btn" id="ly-out" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ly-out-menu">輸出 ▾</button>
+    <span id="ly-out-menu" class="ly-menu" role="group" aria-label="輸出" hidden>
+      <button class="btn" id="ly-send" type="button" title="打開朗讀與音檔，帶排好的文字與中繼檔過去（標成已排版）">送到朗讀與音檔</button>
+      <button class="btn" id="ly-txt" type="button">存成 .txt</button>
+      <button class="btn" id="ly-copy" type="button">複製全部文字</button>
+    </span>
+  </span>
+  <span id="ly-mode-w" role="radiogroup" aria-label="框選" hidden title="區塊：在原卷上拉一個範圍選好幾塊（點框選一塊）；辨識：在空白處拉框新增一塊">框選：
+    <label><input type="radio" name="ly-mode" value="sel" checked> 區塊</label>
+    <label><input type="radio" name="ly-mode" value="new"> 辨識</label>
+  </span>
   <select id="ly-dragmode" aria-label="在原卷上拉框時" hidden>
     <option value="auto" hidden disabled>拉框：辨識套件（文字＋算式）</option>
     <option value="text" hidden disabled>拉框：辨識純文字（辨識套件，不找算式）</option>
@@ -213,6 +229,32 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
     <progress id="ly-dlg-bar" max="1" value="0" aria-label="辨識進度"></progress>
     <p><button class="btn" id="ly-dlg-stop" type="button">停止（保留做完的頁）</button></p>
   </div>
+</dialog>
+<dialog id="ly-wd" aria-labelledby="ly-wd-h">
+  <h2 id="ly-wd-h">「<span id="ly-wd-name"></span>」沒有原卷可以對照</h2>
+  <div id="ly-wd-docx">
+    <p>建議在 Word 裡另存一份 PDF，跟這個 Word 檔一起開：文字用 Word 的（最準），原卷用 PDF 的，可以在原卷上對照、拉框。</p>
+    <p><b>在 Word 裡另存 PDF：</b></p>
+    <ol>
+      <li>用 Word 打開這個檔案。</li>
+      <li>按 <kbd>F12</kbd>（或「檔案」→「另存新檔」）。</li>
+      <li>「存檔類型」選「PDF」，存在同一個資料夾，按「儲存」。</li>
+    </ol>
+    <p>已經有這份的 PDF 了，就直接按下面的按鈕選它（會從 Word 檔所在的資料夾開始找）。</p>
+  </div>
+  <div id="ly-wd-doc" hidden>
+    <p>這是舊式的 Word 檔（.doc），網頁讀不了。請在 Word 裡另存兩份，再一起開：</p>
+    <ol>
+      <li>用 Word 打開這個檔案，按 <kbd>F12</kbd>（或「檔案」→「另存新檔」）。</li>
+      <li>「存檔類型」選「Word 文件 (*.docx)」，按「儲存」。</li>
+      <li>再按一次 <kbd>F12</kbd>，「存檔類型」選「PDF」，按「儲存」。</li>
+    </ol>
+    <p>存好後按下面的按鈕，兩個一起選（按住 <kbd>Ctrl</kbd> 點兩個檔）。</p>
+  </div>
+  <p><button class="btn pri" id="ly-wd-pdf" type="button">選這份的 PDF（跟 Word 一起開）</button></p>
+  <p id="ly-wd-only-w"><button class="btn" id="ly-wd-only" type="button">只開 Word（沒有原卷）</button>
+    <label><input type="checkbox" id="ly-wd-skip"> 以後只開 Word，不要再問</label></p>
+  <p><button class="btn" id="ly-wd-cancel" type="button">取消</button></p>
 </dialog>
 <script src="html-table.js"></script>
 <script src="vtdoc.js"></script>
