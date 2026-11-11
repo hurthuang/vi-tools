@@ -1418,6 +1418,131 @@
     state.unit = null; // 自動選（名稱像旋律的聲部優先）
     convertFromAbc(tag(warnings, 'xml'));
   }
+  // ---------- 中繼檔（版面整理存的 .vtdoc.html）的譜例（docs/notes/vtdoc.md 3.7） ----------
+  //   開啟：列出 figure.vt-score，一次編一塊；左上看原卷裁圖，照常用 ABC／點字編輯。
+  //   讀：有 ABC 原文、而且它記的 MusicXML 雜湊跟現在的 MusicXML 一樣（沒被別的工具改過）→ 照 ABC 開；
+  //       否則照 MusicXML 開（辨識套件的草稿）；都沒有 → 空白的 ABC 範本。
+  //   寫回（換塊、存檔時，有改過才寫）：MusicXML（正本，拿掉 data-engine）、ABC 原文（data-src＝MusicXML 雜湊）、
+  //       點字（data-brl：點字區現在的內容、Unicode、用換行分行；data-brlsrc＝MusicXML 雜湊）
+  const VT_MXL = 'application/vnd.recordare.musicxml+xml', VT_ABC = 'text/vnd.abc';
+  const vt = { v: null, name: '', figs: [], cur: -1, base: '', baseBrl: '', changed: 0, saved: true };
+  const vtScript = (fig, type) => fig.querySelector('script[type="' + type + '"]');
+  const vtClean = (x) => x.replace(/\r\n?/g, '\n').replace(/<!DOCTYPE[^>]*>/i, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<\/script/gi, '<\\/script').trim();
+  const vtMsg = (s) => { $('vt-msg').textContent = s || ''; };
+  // 譜例前面最近的一段文字（「題組一：請依下列譜例回答…」），給選單看
+  function vtLabel(fig, i) {
+    const all = [...vt.v.doc.querySelectorAll('main h1, main h2, main h3, main p, main figure.vt-score')];
+    let t = '';
+    for (let k = all.indexOf(fig) - 1; k >= 0 && !t; k--) if (all[k].tagName !== 'FIGURE') t = all[k].textContent.replace(/\s+/g, ' ').trim();
+    const b = fig.dataset.box ? '第 ' + fig.dataset.box.split(' ')[0] + ' 頁，' : '';
+    return '譜例 ' + (i + 1) + '（' + b + (t.length > 24 ? t.slice(0, 24) + '…' : t || '前面沒有文字') + '）';
+  }
+  function vtSource(fig) {
+    const x = vtScript(fig, VT_MXL);
+    if (!x) return '還沒有音符，請對照原卷打 ABC';
+    const e = x.dataset.engine;
+    return e ? '音符是辨識套件（' + ({ homr: 'homr', audiveris: 'Audiveris' }[e] || e) + '）辨識的草稿，請逐小節對照原卷修改' : '音符已經打好（之前在這裡存過）';
+  }
+  function vtCommit() {
+    if (!vt.v || vt.cur < 0) return false;
+    if (abcTA.value === vt.base && brlTA.value === vt.baseBrl) return false;
+    const full = ensembleScore() || state.score;
+    if (!full) return false;
+    const fig = vt.figs[vt.cur];
+    const xml = vtClean(MB.toMusicXML(Object.assign({}, full, { title: state.title || full.title })));
+    const h = vitoolsVtdoc.hash(xml);
+    const put = (type, text) => {
+      let s = vtScript(fig, type);
+      if (!s) { s = vt.v.doc.createElement('script'); s.setAttribute('type', type); fig.appendChild(s); }
+      s.textContent = text;
+      return s;
+    };
+    put(VT_MXL, xml).removeAttribute('data-engine');
+    put(VT_ABC, abcTA.value.replace(/<\/script/gi, '<\\/script')).dataset.src = h;
+    fig.dataset.brl = B.toUnicode(B.toBrf(brlTA.value), { blankCell: true }).replace(/\n+$/, '');
+    fig.dataset.brlsrc = h;
+    vt.base = abcTA.value;
+    vt.baseBrl = brlTA.value;
+    vt.changed++;
+    vt.saved = false;
+    return true;
+  }
+  function vtLoad(i) {
+    if (!vt.v || i < 0 || i >= vt.figs.length) return;
+    vtCommit();
+    vt.cur = i;
+    $('vt-pick').value = String(i);
+    const fig = vt.figs[i];
+    const img = fig.querySelector('img');
+    $('vt-img').src = img ? img.src : '';
+    $('vt-img').alt = vtLabel(fig, i) + '的原卷';
+    $('vt-img').hidden = !img;
+    const x = vtScript(fig, VT_MXL), a = vtScript(fig, VT_ABC);
+    const label = vtLabel(fig, i);
+    stopPlay();
+    state.unit = null;
+    // 不帶標題：試題的題目已經寫了「請依下列譜例」，標題會被轉成點字放在樂譜最前面
+    if (a && x && a.dataset.src === vitoolsVtdoc.hash(x.textContent)) {
+      state.title = '';
+      abcTA.value = a.textContent.replace(/<\\\/script/gi, '</script');
+      convertFromAbc();
+    } else if (x) {
+      try { importMusicXML(x.textContent, ''); state.title = ''; } catch (e) { console.error(e); showMessages([{ msg: '無法讀取這塊譜例的 MusicXML：' + e.message, where: 'xml' }]); }
+    } else {
+      state.title = '';
+      abcTA.value = 'X:1\nM:4/4\nL:1/4\nK:C\n';
+      convertFromAbc();
+    }
+    vt.base = abcTA.value;
+    vt.baseBrl = brlTA.value;
+    $('vt-prev').disabled = i === 0;
+    $('vt-next').disabled = i === vt.figs.length - 1;
+    vtMsg(label + '：' + vtSource(fig) + (fig.dataset.how === 'mark' ? '（版面整理設成「只標［譜例］」，不會轉點字樂譜）' : fig.dataset.how === 'none' ? '（版面整理設成「不輸出」）' : ''));
+  }
+  function vtOpen(html, name) {
+    const v = window.vitoolsVtdoc && vitoolsVtdoc.parse(html);
+    if (!v) return showMessages([{ msg: '這個 HTML 不是 vi-tools 的中繼檔', where: 'xml' }]);
+    const figs = [...v.doc.querySelectorAll('main figure.vt-score, body > figure.vt-score')];
+    if (!figs.length) return showMessages([{ msg: '這個中繼檔裡沒有譜例（在版面整理把譜例框成「譜例」再存檔）', where: 'xml' }]);
+    Object.assign(vt, { v, name, figs, cur: -1, base: '', baseBrl: '', changed: 0, saved: true });
+    const sel = $('vt-pick');
+    sel.innerHTML = '';
+    figs.forEach((f, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = vtLabel(f, i); sel.appendChild(o); });
+    $('vt-name').textContent = vitoolsVtdoc.title(v) || name;
+    $('vt-bar').hidden = false;
+    vtLoad(0);
+    $('vt-pick').focus();
+  }
+  function vtSave() {
+    if (!vt.v) return;
+    vtCommit();
+    const note = '譜例 ' + vt.figs.length + ' 塊，這次改了 ' + vt.changed + ' 次';
+    const html = vitoolsVtdoc.serialize(vt.v, '音樂點字', note);
+    const fname = /\.vtdoc\.html?$/i.test(vt.name) ? vt.name : vt.name.replace(/\.html?$/i, '') + '.vtdoc.html';
+    download(new Blob([html], { type: 'text/html;charset=utf-8' }), fname);
+    vt.saved = true;
+    vtMsg('已存回 ' + fname + '（' + note + '）。之後在文字轉點字開這個中繼檔，譜例會用這裡的點字。');
+  }
+  $('vt-pick').addEventListener('change', (e) => vtLoad(+e.target.value));
+  $('vt-prev').addEventListener('click', () => vtLoad(vt.cur - 1));
+  $('vt-next').addEventListener('click', () => vtLoad(vt.cur + 1));
+  $('vt-save').addEventListener('click', vtSave);
+  $('vt-close').addEventListener('click', () => {
+    vtCommit();
+    if (!vt.saved && !confirm('改過的譜例還沒存回中繼檔，確定要關閉嗎？')) return;
+    Object.assign(vt, { v: null, figs: [], cur: -1 });
+    $('vt-bar').hidden = true;
+  });
+  // 開啟檔案選到 .html：當中繼檔開（比原本的開檔先處理，處理了就不往下傳）
+  $('file').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f || !/\.html?$/i.test(f.name)) return;
+    e.stopImmediatePropagation();
+    e.target.value = '';
+    if (vt.v) { vtCommit(); if (!vt.saved && !confirm('改過的譜例還沒存回中繼檔，要開另一個嗎？')) return; }
+    vtOpen(await f.text(), f.name);
+  });
+
   /** 聲部選單：ABC 有多個可選的聲部時顯示。 */
   function updatePartMenu(r) {
     const sel = $('part-select');

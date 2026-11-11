@@ -140,6 +140,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
     <option value="math">拉框：辨識成一個算式</option>
     <option value="layer" selected>拉框：讀文字（PDF 文字層）</option>
     <option value="fig">拉框：框成附圖</option>
+    <option value="score">拉框：框成譜例</option>
   </select>
   <span id="ly-hd" hidden>
     <span id="ly-hd-name" style="color:#0a7a4a;font-size:.85rem"></span>
@@ -196,6 +197,8 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-reocr" type="button" title="用本機的辨識套件重新辨識這一塊（R）" hidden>重新辨識</button>
       <label id="ly-how-w" hidden>輸出 <select id="ly-how"></select></label>
       <label id="ly-tac-w" hidden><input type="checkbox" id="ly-tac"> 做觸圖</label>
+      <button class="btn" id="ly-omr" type="button" title="用本機的辨識套件（完整版）辨識這塊譜例的音符，結果是草稿，之後在音樂點字對照原卷改" hidden>辨識樂譜</button>
+      <label id="ly-omr-w" hidden>音符 <select id="ly-omr-pick"></select></label>
       <span id="ly-hd-w" hidden>
         <label>第一列是標題 <select id="ly-hrow"><option value="">自動</option><option value="1">是</option><option value="0">不是</option></select></label>
         <label>第一欄是標題 <select id="ly-hcol"><option value="">自動</option><option value="1">是</option><option value="0">不是</option></select></label>

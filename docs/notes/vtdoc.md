@@ -191,14 +191,26 @@
 <figure class="vt-score" id="score-1" data-how="braille" data-blk="p1-b4">
   <img src="data:image/png;base64,…" alt="譜例一">
   <figcaption>譜例一</figcaption>
-  <script type="application/vnd.recordare.musicxml+xml">&lt;score-partwise …&gt;…</script>
+  <script type="application/vnd.recordare.musicxml+xml" data-engine="audiveris"><?xml version="1.0" encoding="UTF-8"?>
+<score-partwise …>…</score-partwise></script>
 </figure>
 ```
 
 - `data-how`：`braille`（轉點字樂譜，預設）／`mark`（只標「［譜例］」）／`none`。
+- MusicXML **原樣**放在 `<script>` 裡（`<script>` 裡的 `&lt;` 不會被解碼，不能跳脫）；存之前拿掉 DOCTYPE 與 XML 註解（`<!--` 會改變 HTML 解析 script 的方式）、換行統一成 LF（HTML 解析時本來就會換，雜湊才對得上）。`data-engine`：辨識套件辨識的（`homr`／`audiveris`）；手打或在音樂點字改過的沒有這個屬性。
 - MusicXML 是**正本**：在點字樂譜工具改了音符（辨識錯），存回這裡。點字樂譜的換行、版面留在點字樂譜那邊。
 - 文字轉點字遇到 `braille` 的譜例，放進 🎼 樂譜區塊（交給點字樂譜的轉換）；朗讀與音檔念「譜例一」，之後可以選擇播放。
 - **手改的點字**：跟算式一樣用 `data-brl`／`data-brlsrc`（雜湊算 MusicXML 全文），寫在 `figure.vt-score` 上；點字樂譜的分行也算在成品裡（`data-brl` 用換行分行）。文字轉點字把它整塊放進 🎼 樂譜區塊、不重新斷行。
+- **版面整理找譜例（2026-11-11，第 1 步）**：`vtdoc-build.js` 開 PDF（含 Word＋PDF）時每頁跑 `staffBoxes(pg)`：整頁算成長邊 3000 的圖，找長度 ≥ 頁寬 15% 的細橫線，五條等距（線距 2.5～14 pt，誤差 ≤ 線距 25%）＝一個譜表；排除：前後還有一條等距長線（表格格線）、五條線中間有兩個以上國字（PDF 文字層，表格）。上下相鄰（間距 < 12 個線距）、左邊齊的譜表併成一塊；框往上下各多 5 個線距（11-11 由 4 改 5：110 視唱題庫符槓下方的連音數字會被切到）、左右 1 個。跟內嵌圖片重疊的附圖併進譜例（掃描的譜例）。譜例框裡的字收成 `ul.vt-labels`（速度術語、方框代號、作答空格），連續三個國字以上的（「請於答案卷上作答」）留在段落；不做網頁版文字辨識（樂譜上辨識出來是亂的）。產生 `<figure class="vt-score" data-how="braille">`＋裁圖，還沒有 MusicXML。
+  - 測試：音樂班 114 南區、115 樂理試題（`E:\Project\materials\music\音樂班`）10 塊譜例都找到；19 份數學試卷、3 份觸圖試題 0 誤判（原本 2 個表格誤判，加了上面兩條排除）。
+  - 版面整理：拉框選單「框成譜例」；選到譜例時「輸出」選單＝轉點字樂譜／只標［譜例］／不輸出／不是譜例（改回附圖），附圖的選單多「這是譜例」；改譜例的框會重新裁圖。
+  - **純文字輸出（2026-11-11 補）**：`vtdoc.js` 的 `toText` 原本整個跳過 figure，譜例在文字轉點字、朗讀與音檔裡什麼都沒有（規格第 4 節寫「［譜例］」）。改成：看得到、`data-how` 不是 `none` 的 `figure.vt-score` 輸出一行「［譜例］」（點字 ⠪⠏⠌⠈⠉⠡⠐⠻）；這一行 `el: null`，文字轉點字存回（`applyText`）時改掉、刪掉都不會動到譜例。測試：115 試題 4 塊各一行；不改存回 0 改動；刪掉一行存回譜例還在 4 塊。有音符以後（第 3 步）改放 🎼 樂譜區塊。
+  - **版面整理「辨識樂譜」（2026-11-11）**：選到譜例、連上有樂譜辨識的辨識套件（`found.omr`，完整版 0.4.2 起）時工具列出現。裁原卷這塊（300 DPI）送 `/api/omr`，Audiveris、homr 兩個結果，先用音比較多的，「音符」選單可以換或清掉（兩個結果只記在開著的頁面）；已經有手打的音符（沒有 `data-engine`）先問要不要蓋掉。115 題組一（四重奏）9.6 秒：homr 1 個聲部 6 小節 85 個音、2 個降記號；Audiveris 5 小節 56 個音、1 個降記號（原譜 4 聲部、7 小節、4 個降記號）→ 只能當草稿。存檔再開：MusicXML、`data-engine` 完整。
+  - **音樂點字開中繼檔（2026-11-11，第 2 步）**：music/index.html「開啟檔案」選 .html → 中繼檔模式（`#vt-bar`：譜例選單〔第幾頁、前面那段文字〕、上一塊／下一塊、存回中繼檔、關閉；原卷裁圖）。讀：有 `<script type="text/vnd.abc">`（ABC 原文）而且 `data-src` ＝ 現在 MusicXML 的雜湊 → 照 ABC 開；否則照 MusicXML 開（辨識草稿）；都沒有 → 空白 ABC。不帶標題（標題會轉成點字放在樂譜前面）。寫回（換塊、存檔時，ABC 或點字有改才寫）：MusicXML（`ensembleScore()`，多聲部也整份；拿掉 `data-engine`）、ABC 原文（`data-src`）、`data-brl`（點字區的內容轉 Unicode、換行分行）、`data-brlsrc`（MusicXML 雜湊，`vitoolsVtdoc.hash`）。`vtdoc.js` 的 `SCRIPT_TYPES` 加 `text/vnd.abc`。存檔＝下載（同文字轉點字），歷程記「音樂點字：譜例 N 塊，這次改了 M 次」。測試：115 中繼檔，第 1 塊打 ABC（含 `"^[A]"`）→ 切換 → 存回 → 再開，ABC 原文一樣、點字跟畫面一樣、雜湊對；沒動的辨識草稿保持 `data-engine`、沒有 `data-brl`。music/index.html 的 `?v=` 改 64（跟 ocr-page 分支一樣，合併不衝突）；app.js 的新程式放在 `importMusicXML` 後面、自己掛一個 `#file` change（比原本的先跑，選 .html 才處理）。
+  - **文字轉點字接譜例（2026-11-11，第 3 步）**：`toText(v, { scores: 'block' })`（只有文字轉點字這樣叫；朗讀、版面整理照舊「［譜例］」，不會念出 ABC）：`scoreAbc(fig)`（ABC 原文，`data-src`、`data-brlsrc` 都等於現在 MusicXML 的雜湊）有的、輸出方式是轉點字樂譜的 → `【樂譜】`＋ABC＋`【/樂譜】`；其他 →「［譜例］」。這些行標 `fixed`，`applyText` 比對前兩邊都拿掉（新文字裡的樂譜區塊、「［譜例］」行也拿掉），文字轉點字存回不會把它們變成段落。`scoreBrl(v)` → `{ hand: Map(ABC → data-brl), draft, stale, total }`；braille-translate.htm 的 `_extractMusicBlocks` 遇到 ABC 在 `_btScoreHand` 裡就直接用那份點字（照音樂點字的換行，不重新斷行），在文字轉點字改了 ABC 才自己轉；狀態列寫譜例幾塊、點字樂譜幾塊、辨識草稿／點字舊的幾塊（都先標［譜例］），並提醒譜例要到音樂點字改。測試：115 中繼檔（第 1 塊在音樂點字打好存回、第 2 塊是 homr 草稿）→ 輸入框 1 個樂譜區塊、3 個［譜例］，輸出 2/2 行跟音樂點字一樣；存回不改 0 改動、改一行題目 1 改、沒有多出段落、4 塊譜例都在；朗讀用的 toText 沒有 ABC。
+  - **掃描的樂譜（2026-11-11，110 大考視唱題庫 260 頁掃描檔）**：原本沒有文字層的掃描頁直接跳過（或只做文字辨識），不找五線。改成掃描頁也跑 `withScores`、裁譜例；有網頁版文字辨識時譜例框裡的字收進譜例，題號留在段落。另外掃描的譜中間一條線常斷得太碎沒抓到（只有 4 條、其中一個間距是兩倍）：`findStaves` 加 `missingOne`，4 條線、一個間距約是另外兩個的兩倍、前後沒有等距線，也算一個譜表。結果：260 頁 780 塊全找到（每頁 3 塊；修之前第 29、45 頁各漏 1 塊）；114、115 結果不變；19 份數學卷 0 誤判。一份 71 秒。
+  - 110 視唱題庫的點字檔（試做）：`E:\Project\materials\music\大學術科\110視唱_辨識`（boxes.json＝版面整理找到的框、sight_omr.py 批次辨識（300 DPI、比 170 亮的浮水印變白）、build_brf.js 組點字檔：每題比較 Audiveris 與「homr 音符＋Audiveris 調號拍號」，挑拍數對不上的小節少的；標題「第Ｎ頁第Ｋ題」國語點字；輸出 BRF、Unicode、檢查清單）。
+  - 試過辨識套件的 Audiveris、homr 辨識裁好的譜例：單聲部旋律音高大致對，但題目的方框被當成小節線、調號拍號常漏、鋼琴譜只抓到一部分，只能當草稿（使用者同意辨識排在最後一步）。
 
 ### 3.8 原卷頁碼（不朗讀）
 
@@ -236,7 +248,7 @@
 | 算式 | `\(` + `data-tex` + `\)` |
 | 表格 | 看得到的表格（`data-how="table"`）→ 表名＋`<table border="1">…</table>`；`hidden` 的表格不輸出，條列文字是後面的 `<p class="vt-tbltext">` |
 | 附圖 | `<figure>` 本身不輸出；「(請參閱附圖)」在題幹裡，圖中文字、文字敘述是後面的 `<p>`（vt-figtext、vt-figdesc） |
-| 樂譜 | 「［譜例］」 |
+| 樂譜 | 「［譜例］」；文字轉點字（`toText(v, { scores: 'block' })`）遇到音樂點字確認過的譜例改成 🎼 樂譜區塊（見 3.7） |
 | 讀音 | 只留字（讀音另外傳給點字的引擎） |
 | `hidden`、`template`、原卷頁碼 | 略過 |
 

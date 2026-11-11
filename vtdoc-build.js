@@ -93,6 +93,13 @@
       }
       const box = p.box ? ` data-box="${p.page} ${p.box.map(v => v.toFixed(4)).join(' ')}"` : '';
       const blk = p.page ? ` data-blk="p${p.page}-b${n++}"` : '';
+      if (p.fig && p.fig.score) {   // 譜例：輸出方式＝轉點字樂譜（還沒有 MusicXML 時文字轉點字標「［譜例］」），框裡的字（速度、方框記號）留著當標籤
+        const f = p.fig, W = f.box[2] - f.box[0], H = f.box[3] - f.box[1];
+        const lis = f.labels.map(l => `<li data-x="${Math.round((l.cx - f.box[0]) / W * f.w)}" data-y="${Math.round((l.cy - f.box[1]) / H * f.h)}">${esc(l.text)}</li>`).join('');
+        out.push(`<figure class="vt-score" data-how="braille"${blk}${box}><img src="${f.src}" alt="譜例">` +
+          (lis ? `<ul class="vt-labels" hidden>${lis}</ul>` : '') + '</figure>');
+        return;
+      }
       if (p.fig) {   // 附圖：輸出方式＝標附圖、做觸圖；圖裡的字當標籤（座標是圖的像素）
         const f = p.fig, W = f.box[2] - f.box[0], H = f.box[3] - f.box[1];
         const alt = f.labels.length ? '圖中文字：' + f.labels.map(l => l.text).join('、') : '附圖';
@@ -308,6 +315,125 @@
     }
     return out;
   }
+  // 一頁裡的五線譜 → 譜例的框 [x0,y0,x1,y1]（頁面比例）＋譜表數
+  //   整頁算成長邊 3000 的圖（掃描進來的譜線粗、有點歪，解析度低會漏），找「夠長的細橫線」，五條等距（線距 2.5～14 pt；縮小的譜例線距只有 3 pt 多）一組＝一個譜表；
+  //   上下靠近、左邊差不多齊的譜表（總譜、鋼琴的大譜表）併成一塊。框往上多留 5 個線距（速度、標題、題目的方框記號、連音數字；4 個會切到符槓下方的連音數字，110 視唱題庫），
+  //   往下 5 個（力度、歌詞、連音數字），左右 1 個。線距太大（作答格線）、線不等距（表格）的不算
+  async function staffBoxes(pg) {
+    const vp1 = pg.getViewport({ scale: 1 });
+    const sc = 3000 / Math.max(vp1.width, vp1.height);
+    const vp = pg.getViewport({ scale: sc });
+    const W = Math.round(vp.width), H = Math.round(vp.height);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
+    await pg.render({ canvasContext: cx, viewport: vp }).promise;
+    const px = cx.getImageData(0, 0, W, H).data;
+    cv.width = cv.height = 0;
+    // 表格的橫線也可能剛好五條等距：五條線中間有國字（PDF 文字層）的不算譜表
+    const tc = await pg.getTextContent().catch(() => ({ items: [] }));
+    const zh = [];
+    tc.items.forEach(it => {
+      const n = (it.str.match(/[\u3400-\u9fff]/g) || []).length;
+      if (!n) return;
+      const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]);
+      const h = Math.hypot(it.transform[2], it.transform[3]) * sc;
+      zh.push({ x0: x, x1: x + (it.width || 0) * sc, y: y - h / 2, n });
+    });
+    const hasZh = st => zh.filter(z => z.y > st.y0 && z.y < st.y1 && z.x1 > st.x0 && z.x0 < st.x1).reduce((a, z) => a + z.n, 0) >= 2;
+    return findStaves(px, W, H, sc, hasZh);
+  }
+  // px：RGBA；sc：每 pt 幾個像素；reject(譜表 {x0,y0,x1,y1}，像素) → true 就不算
+  function findStaves(px, W, H, sc, reject) {
+    const minLen = W * 0.15;
+    const lines = [];
+    for (let y = 0; y < H; y++) {
+      let run = 0, best = 0, b0 = 0, s = 0, dark = 0;
+      const o = y * W * 4;
+      for (let x = 0; x < W; x++) {
+        const i = o + x * 4;
+        if (px[i] + px[i + 1] + px[i + 2] < 384) { if (!run) s = x; run++; dark++; if (run > best) { best = run; b0 = s; } } else run = 0;
+      }
+      if (dark < minLen || best < minLen) continue;
+      const l = lines[lines.length - 1];
+      if (l && y - l.y1 <= 1) { l.y1 = y; l.x0 = Math.min(l.x0, b0); l.x1 = Math.max(l.x1, b0 + best); }
+      else lines.push({ y0: y, y1: y, x0: b0, x1: b0 + best });
+    }
+    const thin = lines.filter(l => l.y1 - l.y0 <= Math.max(3, sc * 2));   // 譜線很細；粗的是色塊、表格外框
+    const ys = thin.map(l => (l.y0 + l.y1) / 2);
+    const staves = [];
+    // i 起 4 條線：三個間距裡一個約是另外兩個的兩倍（少抓一條），另外兩個差不多；前後沒有等距的線（不是表格）
+    const missingOne = i => {
+      const g = [1, 2, 3].map(k => ys[i + k] - ys[i + k - 1]);
+      const big = g.indexOf(Math.max(...g));
+      const small = g.filter((_, k) => k !== big);
+      const u = (small[0] + small[1]) / 2, tol = Math.max(3, u * 0.25);
+      if (u < sc * 2.5 || u > sc * 14 || Math.abs(small[0] - small[1]) > tol || Math.abs(g[big] - 2 * u) > tol) return false;
+      const near = k => k >= 0 && k + 1 < ys.length && Math.abs(ys[k + 1] - ys[k] - u) <= tol;
+      return !near(i - 1) && !near(i + 3);
+    };
+    for (let i = 0; i + 3 < thin.length;) {
+      const g = [1, 2, 3, 4].map(k => ys[i + k] - ys[i + k - 1]);
+      const mn = Math.min(...g), mx = Math.max(...g), avg = g.reduce((a, b) => a + b) / 4;
+      const tol = Math.max(3, avg * 0.25);
+      if (avg >= sc * 2.5 && avg <= sc * 14 && mx - mn <= tol) {
+        // 前後還有一條等距的長線＝表格的格線（五線譜只有五條，加線很短不算），整串跳過
+        const eq = k => k >= 0 && k + 1 < ys.length && Math.abs(ys[k + 1] - ys[k] - avg) <= tol;
+        if (eq(i - 1) || eq(i + 4)) {
+          let k = i + 4;
+          while (eq(k)) k++;
+          i = k + 1;
+          continue;
+        }
+        const grp = thin.slice(i, i + 5);
+        const st = { y0: grp[0].y0, y1: grp[4].y1, x0: Math.min(...grp.map(l => l.x0)), x1: Math.max(...grp.map(l => l.x1)), sp: avg };
+        if (!reject || !reject(st)) staves.push(st);
+        i += 5;
+      } else if (i + 3 < thin.length && missingOne(i)) {
+        // 掃描的譜，中間一條線斷得太碎沒抓到：4 條線，其中一個間距是其他的兩倍
+        const grp = thin.slice(i, i + 4), sp = (ys[i + 3] - ys[i]) / 4;
+        const st = { y0: grp[0].y0, y1: grp[3].y1, x0: Math.min(...grp.map(l => l.x0)), x1: Math.max(...grp.map(l => l.x1)), sp };
+        if (!reject || !reject(st)) staves.push(st);
+        i += 4;
+      } else i++;
+    }
+    const blocks = [];
+    staves.forEach(s => {
+      const b = blocks[blocks.length - 1];
+      if (b && s.y0 - b.y1 < s.sp * 12 && Math.abs(s.x0 - b.x0) < W * 0.1) {
+        b.y1 = s.y1; b.n++; b.x0 = Math.min(b.x0, s.x0); b.x1 = Math.max(b.x1, s.x1);
+      } else blocks.push(Object.assign({ n: 1 }, s));
+    });
+    return blocks.map(b => ({
+      box: [Math.max(0, b.x0 - b.sp) / W, Math.max(0, b.y0 - b.sp * 5) / H, Math.min(W, b.x1 + b.sp) / W, Math.min(H, b.y1 + b.sp * 5) / H],
+      staves: b.n
+    }));
+  }
+  // 附圖和譜例合在一起：跟譜例重疊的附圖（掃描進來的譜例是一張圖）併進譜例
+  async function withScores(pg, figs) {
+    const sb = await staffBoxes(pg).catch(() => []);
+    if (!sb.length) return figs;
+    const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+    const out = [];
+    sb.forEach(s => {
+      let box = s.box.slice();
+      figs.filter(f => hit(f.box, box)).forEach(f => {
+        box = [Math.min(box[0], f.box[0]), Math.min(box[1], f.box[1]), Math.max(box[2], f.box[2]), Math.max(box[3], f.box[3])];
+        f.merged = true;
+      });
+      out.push({ box, labels: [], score: true, staves: s.staves });
+    });
+    for (let i = 0; i < out.length; i++) for (let j = out.length - 1; j > i; j--) {
+      const a = out[i].box, b = out[j].box;
+      if (!hit(a, b)) continue;
+      out[i].box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+      out[i].staves += out[j].staves;
+      out.splice(j, 1);
+    }
+    return figs.filter(f => !f.merged).concat(out);
+  }
+
   // 附圖的圖（JPEG dataURL，長邊最多 1400）
   async function cropFigures(pg, figs) {
     const vp1 = pg.getViewport({ scale: 1 });
@@ -334,8 +460,10 @@
     const rest = [];
     lines.forEach(l => {
       const cx = (l.box[0] + l.box[2]) / 2, cy = (l.box[1] + l.box[3]) / 2;
+      // 譜例只收樂譜上的字（速度術語、方框代號、作答空格）；連續三個國字以上的是題目的話（「請於答案卷上作答」），留在段落
       const f = figs.find(f => cx >= f.box[0] - 0.01 && cx <= f.box[2] + 0.01 && cy >= f.box[1] - 0.01 && cy <= f.box[3] + 0.01 &&
-        (l.text.length <= 12 || (l.box[0] >= f.box[0] - 0.01 && l.box[2] <= f.box[2] + 0.01)));
+        (l.text.length <= 12 || (l.box[0] >= f.box[0] - 0.01 && l.box[2] <= f.box[2] + 0.01)) &&
+        !(f.score && /[\u3400-\u9fff]{3}/.test(l.text)));
       if (!f) { rest.push(l); return; }
       f.labels.push({ text: l.text, cx, cy });
     });
@@ -435,7 +563,7 @@
   async function figLabels(pg, figs, ocr, progress, n) {
     for (let k = 0; k < figs.length; k++) {
       const f = figs[k];
-      if (!ocr || f.labels.length) continue;
+      if (!ocr || f.labels.length || f.score) continue;   // 譜例裡的字辨識出來多半是亂的
       const cv = await figCanvas(pg, f.box);
       progress('第 ' + n + ' 頁：辨識附圖裡的字（' + (k + 1) + '／' + figs.length + '）');
       const res = await ocr(cv, 'fig').catch(() => []);
@@ -455,23 +583,35 @@
     const data = new Uint8Array(await file.arrayBuffer());
     const pdf = await pdfjsLib.getDocument({ data: data.slice() }).promise;
     const paras = [], scanned = [], ocrd = [];
-    let nfig = 0, nfigOcr = 0;
+    let nfig = 0, nfigOcr = 0, nscore = 0;
     for (let n = 1; n <= pdf.numPages; n++) {
       progress('讀 PDF 文字層：第 ' + n + '／' + pdf.numPages + ' 頁');
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
       if (r.chars < 20) {
-        if (!ocr) { scanned.push(n); continue; }
-        // 掃描頁：整頁算成圖（長邊 2000，跟辨識套件 RapidOCR 一樣）用網頁版文字辨識
+        // 掃描頁：先找五線譜（掃描的樂譜、題庫），有的話裁成譜例
+        const sf = await withScores(pg, []);
+        if (sf.length) {
+          progress('第 ' + n + '／' + pdf.numPages + ' 頁是掃描頁：裁譜例（' + sf.length + ' 塊）');
+          await cropFigures(pg, sf);
+          nfig += sf.length; nscore += sf.length;
+        }
+        const figParas = sf.map(f => ({ text: '', box: f.box, fig: f, col: 0 }));
+        if (!ocr) {
+          if (sf.length) paras.push(...joinLines(order(figParas), n)); else scanned.push(n);
+          continue;
+        }
+        // 整頁算成圖（長邊 2000，跟辨識套件 RapidOCR 一樣）用網頁版文字辨識；譜例框裡的字（譜上的記號）收進譜例
         progress('第 ' + n + '／' + pdf.numPages + ' 頁是掃描頁：網頁版文字辨識中（一頁大約 10～20 秒）');
         const cv = await pageCanvas(pg, 2000);
         const res = await ocr(cv, 'page');
         const o = ocrLines(res, cv.width, cv.height);
         cv.width = cv.height = 0;
-        if (o.lines.length) { paras.push(...joinLines(o.lines, n)); ocrd.push(n); } else scanned.push(n);
+        const ls = sf.length ? attachLabels(o.lines, sf) : o.lines;
+        if (ls.length || sf.length) { paras.push(...joinLines(order(ls.concat(figParas)), n)); if (ls.length) ocrd.push(n); } else scanned.push(n);
         continue;
       }
-      const figs = (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] }));
+      const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));
       let lines = r.lines;
       if (figs.length) {
         progress('第 ' + n + ' 頁：裁附圖（' + figs.length + ' 張）');
@@ -481,11 +621,12 @@
         nfigOcr += figs.filter(f => f.ocr).length;
         lines = order(lines.concat(figs.map(f => ({ text: '', box: f.box, fig: f, col: colOf(f.box, r.gutter) }))));
         nfig += figs.length;
+        nscore += figs.filter(f => f.score).length;
       }
       paras.push(...joinLines(lines, n));
     }
     const { source, tail } = await pdfSource(file, data, pdf, progress);
-    let note = '讀 PDF 文字層，自動分成 ' + (paras.length - nfig) + ' 段' + (nfig ? '、附圖 ' + nfig + ' 張' : '') + '（沒有辨識算式）';
+    let note = '讀 PDF 文字層，自動分成 ' + (paras.length - nfig) + ' 段' + (nfig - nscore ? '、附圖 ' + (nfig - nscore) + ' 張' : '') + (nscore ? '、譜例 ' + nscore + ' 塊' : '') + '（沒有辨識算式）';
     if (ocrd.length) note += '；第 ' + ocrd.join('、') + ' 頁是掃描頁，用網頁版文字辨識（請對照原卷檢查）';
     if (nfigOcr) note += '；' + nfigOcr + ' 張附圖裡的字用網頁版文字辨識';
     if (scanned.length) note += '；第 ' + scanned.join('、') + ' 頁沒有文字層（掃描頁）';
@@ -543,7 +684,7 @@
       progress('讀 PDF 原卷：第 ' + n + '／' + pdf.numPages + ' 頁');
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
-      const figs = (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] }));
+      const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));
       let ls = r.lines;
       if (figs.length) {
         ls = attachLabels(ls, figs);
@@ -602,7 +743,7 @@
     }
     const { source, tail } = await pdfSource(pdfFile, data, pdf, progress);
     const nt = paras.filter(p => !p.fig).length;
-    const note = 'Word 檔的文字＋PDF 原卷：' + nt + ' 段裡 ' + hit + ' 段對到原卷上的位置' + (figsAll.length ? '、附圖 ' + figsAll.length + ' 張（取自 PDF）' : '') +
+    const note = 'Word 檔的文字＋PDF 原卷：' + nt + ' 段裡 ' + hit + ' 段對到原卷上的位置' + (figsAll.length ? '、附圖 ' + figsAll.filter(f => !f.fig.score).length + ' 張' + (figsAll.some(f => f.fig.score) ? '、譜例 ' + figsAll.filter(f => f.fig.score).length + ' 塊' : '') + '（取自 PDF）' : '') +
       (hit < nt ? '；對不到的段落沒有框，可以在原卷上拉框補' : '');
     return { html: makeDoc(titleOf(paras.filter(p => !p.fig), docxFile.name), source, bodyHtml(paras), tail, note),
       name: baseName(docxFile.name) + '.vtdoc.html', note, pages: pdf.numPages };
@@ -718,5 +859,5 @@
     throw new Error('不支援這種檔案：' + files[0].name + '（可以開中繼檔、PDF、圖檔、Word .docx、.txt）');
   }
 
-  window.vitoolsVtdocBuild = { fromFiles, kind, kindOf, ocrLines };
+  window.vitoolsVtdocBuild = { fromFiles, kind, kindOf, ocrLines, staffBoxes, findStaves };
 })();
