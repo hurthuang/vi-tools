@@ -25,7 +25,9 @@
   const CLS = { 'vt-opt': 'opt', 'vt-item': 'item', 'vt-passage': 'passage', 'vt-optfig': 'optfig', 'vt-skip': 'skip',
     'vt-tbltext': 'tbltext', 'vt-figtext': 'figtext', 'vt-figdesc': 'figdesc' };
   const TBL_HOW = [['table', '保留表格'], ['rows', '以列為軸的文字'], ['cols', '以欄為軸的文字'], ['mark', '只標(請參閱附表)'], ['none', '不輸出']];
-  const FIG_HOW = [['mark', '標(請參閱附圖)'], ['figtext', '標記＋圖中文字'], ['text', '改成文字敘述'], ['none', '不輸出']];
+  const FIG_HOW = [['mark', '標(請參閱附圖)'], ['figtext', '標記＋圖中文字'], ['text', '改成文字敘述'], ['none', '不輸出'], ['=score', '這是譜例（改成譜例）']];
+  // 譜例：轉點字樂譜（要先在點字樂譜打好或辨識音符，還沒有時文字轉點字標「［譜例］」）
+  const SCORE_HOW = [['braille', '轉點字樂譜'], ['mark', '只標［譜例］'], ['none', '不輸出'], ['=fig', '不是譜例（改回附圖）']];
 
   let V = null, fname = '', main = null, blocks = [], cur = -1, anchor = -1, dirty = false, ops = 0;
   let editing = -1, editMaths = null, undoStack = [], omSel = null;
@@ -263,10 +265,11 @@
       const img = el.querySelector('img');
       if (img) { const i = document.createElement('img'); i.src = img.src; i.alt = img.alt || ''; tx.appendChild(i); }
       const cap = el.querySelector('figcaption');
-      const how = el.dataset.how || 'mark';
+      const sc = b.type === 'score', how = el.dataset.how || (sc ? 'braille' : 'mark');
       const p = document.createElement('div');
-      p.textContent = (cap ? cap.textContent + '　' : '') + '輸出：' + ((FIG_HOW.find(x => x[0] === how) || [0, how])[1]) +
-        (el.dataset.tactile === '1' ? '，做觸圖' : '') + (img && img.alt ? '　' + img.alt : '');
+      p.textContent = (cap ? cap.textContent + '　' : '') + '輸出：' + (((sc ? SCORE_HOW : FIG_HOW).find(x => x[0] === how) || [0, how])[1]) +
+        (sc && how === 'braille' && !el.querySelector('script') ? '（還沒有音符）' : '') +
+        (el.dataset.tactile === '1' ? '，做觸圖' : '') + (img && img.alt && !sc && img.alt !== '附圖' ? '　' + img.alt : '');
       p.style.fontSize = '.8rem'; p.style.color = '#555';
       tx.appendChild(p);
       return;
@@ -393,14 +396,14 @@
     $('ly-drop').textContent = b && b.type === 'h2' ? (b.el.hasAttribute('data-drop') ? '恢復這個大題' : '刪掉整個大題')
       : b && b.sec && b.sec.hasAttribute('data-drop') ? '恢復這一題' : '刪題';
     const how = $('ly-how');
-    const isT = b && b.type === 'table', isF = b && b.type === 'fig';
-    $('ly-how-w').hidden = !(isT || isF);
+    const isT = b && b.type === 'table', isF = b && b.type === 'fig', isS = b && b.type === 'score';
+    $('ly-how-w').hidden = !(isT || isF || isS);
     $('ly-tac-w').hidden = !isF;
-    if (isT || isF) {
-      const L = isT ? TBL_HOW : FIG_HOW;
-      if (how.dataset.kind !== (isT ? 't' : 'f')) {
+    if (isT || isF || isS) {
+      const L = isT ? TBL_HOW : isS ? SCORE_HOW : FIG_HOW, kind = isT ? 't' : isS ? 's' : 'f';
+      if (how.dataset.kind !== kind) {
         how.innerHTML = L.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join('');
-        how.dataset.kind = isT ? 't' : 'f';
+        how.dataset.kind = kind;
       }
       how.value = b.el.dataset.how || L[0][0];
       $('ly-tac').checked = b.el.dataset.tactile === '1';
@@ -1013,7 +1016,7 @@
 
   // 拉框「框成附圖」：裁原卷那一塊當附圖（輸出方式＝標附圖、做觸圖），框裡的字當圖中文字（標籤，觸圖製作放原位）；
   // 框裡原本的短文字區塊（地圖上的地名、甲乙丙…）收進附圖，不再當文字輸出
-  async function figFromBox(page, box) {
+  async function figFromBox(page, box, asScore) {
     if (!sv.has()) { status('沒有原卷，不能框附圖'); return; }
     let cv;
     try { cv = await sv.cropCanvas(page, box, 4, true); } catch (e) { status('裁不出圖：' + e.message); return; }
@@ -1041,12 +1044,12 @@
     snap();
     const D = main.ownerDocument;
     const fig = D.createElement('figure');
-    fig.className = 'vt-fig';
-    fig.dataset.how = 'mark';
-    fig.dataset.tactile = '1';
+    fig.className = asScore ? 'vt-score' : 'vt-fig';
+    fig.dataset.how = asScore ? 'braille' : 'mark';
+    if (!asScore) fig.dataset.tactile = '1';
     const img = D.createElement('img');
     img.src = out.toDataURL('image/jpeg', 0.85);
-    img.alt = labels.length ? '圖中文字：' + labels.map(l => l.text).join('、') : '附圖';
+    img.alt = asScore ? '譜例' : labels.length ? '圖中文字：' + labels.map(l => l.text).join('、') : '附圖';
     fig.appendChild(img);
     if (labels.length) {
       const ul = D.createElement('ul');
@@ -1061,10 +1064,15 @@
     const ci = curB && !absorb.includes(curB) ? blocks.indexOf(curB) : -1;
     const at = addOne({ page, box, text: '' }, 'p', ci >= 0 ? unitEnd(ci) + 1 : null);
     fig.dataset.box = blocks[at].el.dataset.box;
-    blocks[at] = { el: fig, type: 'fig' };
+    blocks[at] = { el: fig, type: asScore ? 'score' : 'fig' };
     build(); changed();
     render();
     select(at);
+    if (asScore) {
+      status('框成譜例（輸出：轉點字樂譜）' + (absorb.length ? '；原本 ' + absorb.length + ' 塊文字收進譜例' : '') +
+        '。音符之後在點字樂譜打譜或辨識（還沒有音符時，文字轉點字先標「［譜例］」）');
+      return;
+    }
     status('框成附圖（輸出：標(請參閱附圖)、做觸圖）' + (labels.length ? '；圖裡的字 ' + labels.length + ' 個當標籤' : '') +
       (absorb.length ? '；原本 ' + absorb.length + ' 塊文字收進附圖' : '') + '。題幹裡要有「(請參閱附圖)」，沒有的話在題目那行按 E 補上');
   }
@@ -1086,7 +1094,7 @@
     const attr = page + ' ' + nb.map(x => (+x).toFixed(4)).join(' ');
     snap();
     grp.forEach(x => { (x.type === 'q' && x.sec ? x.sec : x.el).dataset.box = attr; rowOf.delete(x.el); });
-    if (b.type === 'fig' && ob) {
+    if ((b.type === 'fig' || b.type === 'score') && ob) {
       try { await recropFig(b.el, page, [ob.x0, ob.y0, ob.x1, ob.y1], nb); } catch (e) { status('附圖重新裁切失敗：' + e.message); }
     }
     changed();
@@ -1095,7 +1103,26 @@
       bxPending = b;
       $('ly-bx-text').textContent = '框改好了。要照新的框重新讀這一塊的字嗎？（' + (hdOn() ? '用辨識套件' : '讀 PDF 文字層') + '）';
       $('ly-bx').hidden = false;
-    } else status(b.type === 'fig' ? '附圖照新的框重新裁切了（框外的圖中文字拿掉）' : '框改好了');
+    } else status(b.type === 'fig' ? '附圖照新的框重新裁切了（框外的圖中文字拿掉）' : b.type === 'score' ? '譜例照新的框重新裁切了' : '框改好了');
+  }
+  // 附圖 ↔ 譜例：換 class 與輸出方式；附圖衍生的文字（圖中文字、文字敘述）拿掉
+  function swapFigScore(b, to) {
+    if (b.type === to || !(b.type === 'fig' || b.type === 'score')) return;
+    endEdit(); snap();
+    let e = cur + 1;
+    while (e < blocks.length && DERIVED.has(blocks[e].type)) e++;
+    blocks.splice(cur + 1, e - cur - 1);
+    const el = b.el;
+    el.classList.remove('vt-fig', 'vt-score');
+    el.classList.add(to === 'score' ? 'vt-score' : 'vt-fig');
+    el.hidden = false;
+    el.dataset.how = to === 'score' ? 'braille' : 'mark';
+    if (to === 'score') el.removeAttribute('data-tactile'); else el.dataset.tactile = '1';
+    const img = el.querySelector('img');
+    if (img) img.alt = to === 'score' ? '譜例' : '附圖';
+    b.type = to;
+    build(); changed(); rowOf.delete(el); render(); mark(false);
+    status(to === 'score' ? '改成譜例（輸出：轉點字樂譜）' : '改回附圖（輸出：標(請參閱附圖)、做觸圖）');
   }
   // 附圖改框：照新框重裁圖，圖中文字（標籤）換算到新圖的座標，框外的拿掉
   async function recropFig(el, page, ob, nb) {
@@ -1200,6 +1227,7 @@
 
   async function newFromBox(page, box) {
     if ($('ly-dragmode').value === 'fig') return figFromBox(page, box);
+    if ($('ly-dragmode').value === 'score') return figFromBox(page, box, true);
     const inside =o => { const cx = (o.box[0] + o.box[2]) / 2, cy = (o.box[1] + o.box[3]) / 2; return cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]; };
     let how0 = $('ly-dragmode').value;
     const web = how0 === 'math' && !hdOn();
@@ -1417,6 +1445,16 @@
 
   function setHow(how, force) {
     const b = blocks[cur];
+    if (b && (how === '=score' || how === '=fig')) { swapFigScore(b, how.slice(1)); return; }
+    if (b && b.type === 'score') {
+      if ((b.el.dataset.how || 'braille') === how) return;
+      endEdit(); snap();
+      b.el.dataset.how = how;
+      changed(); rowOf.delete(b.el); render();
+      if (how === 'braille' && !b.el.querySelector('script[type="application/vnd.recordare.musicxml+xml"]'))
+        status('還沒有這段譜例的音符：存檔後到點字樂譜打譜或辨識；沒有音符前，文字轉點字先標「［譜例］」');
+      return;
+    }
     if (!b || !(b.type === 'table' || b.type === 'fig')) return;
     if ((b.el.dataset.how || '') === how && !force) return;
     endEdit();
