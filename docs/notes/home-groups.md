@@ -7,7 +7,7 @@
   - 第二排每組一個 `.subbar`（`role="tablist"`，`data-group="group-xxx"`），只顯示目前那一組；主頁、附加元件、說明沒有第二排。
 - 分組：
   - 點字轉換：文字轉點字、點字轉文字、數學點字、音樂點字（music/index.html，原名點字樂譜）
-  - 教材製作：版面整理（layout.html，測試版，`#layout`，`data-src`，2026-11-08 加）、朗讀與音檔（2026-11-08 由「文件整理」改名）、觸圖製作（tactile.html，2026-10-26 由「觸摸圖」改名）
+  - 教材製作：版面整理（layout.html，測試版，`#layout`，`data-src`，2026-11-08 加）、朗讀與音檔（2026-11-08 由「文件整理」改名）、觸圖製作（tactile.html，2026-10-26 由「觸摸圖」改名）、文字辨識（ocr.html，`#ocr`，`data-src`，2026-11-11 加）
   - 學習與查詢：點字教材（第一項）、珠算練習、點字樂譜練習（music/student.html）、UEB 查詢（使用者：珠算和 UEB 查詢對調）、縮點（實驗性質）（zh-tw-short.html，`#zh-tw-short`，放在 UEB 查詢後面）。
   - 附加元件：`#addons-panel`（不是 iframe），NVDA 附加元件的卡片連到 GitHub。首頁只放一張卡片打開這一頁。
 - 點字樂譜規則（music/rules.html）在點字教材列表裡，叫「音樂點字」（`tools/build-books.mjs` 的 `LINKS`）；`#music-rules` 在點字教材框架裡開它。rules.html 頁首加「所有教材」連回列表。

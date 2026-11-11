@@ -1137,4 +1137,5 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - [開啟 Word 考卷](docs/notes/docx-exam.md)：注音標示只取國字、EQ 欄位（舊式注音、圈號）、自動編號、貼上文字去括號注音（shared.js）
 - [站內搜尋（search.html）](docs/notes/site-search.md)：抓筆記本建索引（tools/build-search.mjs、data/notes.json、search-index.json）、使用者電腦每週更新、說明頁 h3 的 id 格式
 - [樂理及基礎和聲](docs/notes/music-theory.md)：樂理練習（music/theory.html）、四部和聲檢查（music/harmony.html）、點字樂譜的數字低音／級數分析／譜例方框（BANA Sec. 30、Par. 1.13）、文字轉點字的樂譜區塊、PDF 的 Wingdings 2 圈號；樂理運算以 music21 核對
+- [文字辨識頁（ocr.html）](docs/notes/ocr-page.md)：開圖檔、貼上截圖辨識成文字（ocr-web.js），接成段落、送到文字轉點字
 - [縮點對照頁（zh-tw-short.html）](docs/notes/zh-tw-short.md)：學習與查詢的頁籤、zh-tw-short.js、prn-core 的 `{ nvda: true }` 與 word／begword、8DotBraille.ttf

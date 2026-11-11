@@ -3642,6 +3642,14 @@ function applyTheme(t){
 
 // ── 框架主題控制 ──
 window.addEventListener('message', function(e) {
+    // 首頁轉來的 LaTeX（文字辨識的「送到數學點字」）：切到 LaTeX → Nemeth，取代輸入框內容
+    if (e.data && e.data.type === 'setNcInput' && e.origin === location.origin && typeof e.data.text === 'string') {
+        setMode('l2n');
+        document.getElementById('l2n-in').value = e.data.text;
+        l2nConvert();
+        ncSaveSessionDebounced();
+        return;
+    }
     if (e.data && e.data.type === 'setTheme') {
         applyTheme(e.data.theme);
         try { localStorage.setItem('nemeth-theme', e.data.theme); } catch(ex) {}

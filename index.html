@@ -368,6 +368,10 @@
        tabindex="-1" aria-selected="false" aria-controls="frame-tactile">
     <span class="icon" aria-hidden="true">✋</span> 觸圖製作
   </div>
+  <div class="tab" role="tab" id="tab-ocr" data-target="frame-ocr"
+       tabindex="-1" aria-selected="false" aria-controls="frame-ocr">
+    <span class="icon" aria-hidden="true">🔤</span> 文字辨識
+  </div>
 </div>
 <div class="subbar" id="sub-learn" role="tablist" aria-label="學習與查詢" data-group="group-learn" hidden>
   <div class="tab" role="tab" id="tab-books" data-target="frame-books"
@@ -537,6 +541,20 @@
             <div class="tool-desc" id="desc-tactile">
               從試題 PDF、Word 或截圖框選圖形，轉成 ViewPlus Tiger 點字印表機的 .prn 觸摸圖：線條自動整理成一點寬、
               A、B、C 等標籤轉成點字並避開線條、網底轉成填色；可再用畫筆、形狀與填色修改。
+            </div>
+          </div>
+          <div class="tool-arrow" aria-hidden="true">›</div>
+        </div>
+
+        <div class="tool-card" style="--card-accent:#8b5cf6" onclick="switchTo('frame-ocr')"
+             role="button" tabindex="0" aria-label="開啟文字辨識工具" aria-describedby="desc-ocr"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTo('frame-ocr')}">
+          <div class="tool-icon" aria-hidden="true">🔤</div>
+          <div class="tool-info">
+            <div class="tool-name">文字辨識</div>
+            <div class="tool-desc" id="desc-ocr">
+              把圖片裡的字變成文字：開啟圖檔，或按 Ctrl+V 貼上截圖，在瀏覽器裡辨識（圖片不上傳），
+              可以複製、存成文字檔或送到文字轉點字。
             </div>
           </div>
           <div class="tool-arrow" aria-hidden="true">›</div>
@@ -738,6 +756,7 @@
   <iframe id="frame-mtheory" class="panel" data-src="music/theory.html" role="tabpanel" aria-labelledby="tab-mtheory" title="樂理練習"></iframe>
   <iframe id="frame-zhshort" class="panel" data-src="zh-tw-short.html" role="tabpanel" aria-labelledby="tab-zhshort" title="縮點（實驗性質）"></iframe>
   <iframe id="frame-tactile" class="panel" src="tactile.html"         role="tabpanel" aria-labelledby="tab-tactile" title="觸圖製作"></iframe>
+  <iframe id="frame-ocr" class="panel" data-src="ocr.html" role="tabpanel" aria-labelledby="tab-ocr" title="文字辨識" allow="clipboard-read; clipboard-write"></iframe>
   <iframe id="frame-abacus" class="panel" src="abacus/index.html"     role="tabpanel" aria-labelledby="tab-abacus" title="珠算練習"></iframe>
   <!-- 點字教材：第一次打開才載入（data-src），不拖慢首頁 -->
   <iframe id="frame-books" class="panel" data-src="books.html" role="tabpanel" aria-labelledby="tab-books" title="點字教材"></iframe>
@@ -796,7 +815,7 @@
     'home-panel': '', 'frame-bt': 't2b', 'frame-g2': 'b2t',
     'frame-p2a': 'doc', 'frame-nc': 'math', 'frame-gq': 'query',
     'frame-music': 'music', 'frame-mstudent': 'music-student', 'frame-mtheory': 'music-theory', 'addons-panel': 'addons',
-    'frame-tactile': 'tactile', 'frame-abacus': 'abacus', 'frame-layout': 'layout',
+    'frame-tactile': 'tactile', 'frame-abacus': 'abacus', 'frame-layout': 'layout', 'frame-ocr': 'ocr',
     'frame-books': 'books', 'frame-zhshort': 'zh-tw-short',
     'frame-guide': 'guide', 'frame-search': 'search'
   };
@@ -931,6 +950,23 @@
       switchTo('frame-p2a');
       var pf = document.getElementById('frame-p2a');
       try { pf.contentWindow.postMessage({ type: 'haodian-text', from: 'layout', name: e.data.name, text: e.data.text, vtdoc: e.data.vtdoc }, location.origin); } catch (ex) {}
+      return;
+    }
+    // 文字辨識 → 數學點字：切分頁，把 LaTeX（\( \) 包著）放進 LaTeX 輸入框（只收同一個網站的框架）
+    if (e.data && e.data.type === 'sendToNc' && e.origin === location.origin) {
+      switchTo('frame-nc');
+      var nf = document.getElementById('frame-nc');
+      try { nf.contentWindow.postMessage({ type: 'setNcInput', text: e.data.text }, location.origin); } catch (ex) {}
+      return;
+    }
+    // 文字辨識（樂譜）→ 音樂點字：切分頁，把 MusicXML 交給它匯入
+    if (e.data && e.data.type === 'sendToMusic' && e.origin === location.origin) {
+      switchTo('frame-music');
+      var mf = document.getElementById('frame-music');
+      var send = function () { try { mf.contentWindow.postMessage({ type: 'setMusicXml', xml: e.data.xml, name: e.data.name }, location.origin); } catch (ex) {} };
+      // 音樂點字第一次打開還在載入：等它載完再送
+      if (mf.contentDocument && mf.contentDocument.readyState === 'complete' && mf.contentWindow.location.href !== 'about:blank') send();
+      else mf.addEventListener('load', send, { once: true });
       return;
     }
     if (e.data && e.data.type === 'sendToBt') {
