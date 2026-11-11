@@ -230,6 +230,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <a href="#layout">🗂 版面整理（測試版）</a>
     <a href="#p2a">🔊 朗讀與音檔</a>
     <a href="#tactile">✋ 觸圖製作</a>
+    <a href="#ocr">🔤 文字辨識</a>
   </div>
   <div class="sidebar-group">
     <div class="sidebar-heading">學習與查詢</div>
@@ -849,6 +850,53 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>「儲存編輯檔」存成 .tactile：.prn 只有點，開回來不能再改圖形和標籤；.tactile 開回來頁面、畫的圖形、標籤、填色都還在，可以接著改。編輯檔不含原始 PDF 或圖片，不能「重新產生圖形」或描圖。</li>
     <li>有修改時自動備份在這台電腦的瀏覽器，不小心關掉分頁時，下次打開可以恢復；存成編輯檔後備份就清掉。</li>
   </ul>
+</section>
+
+
+<section id="ocr">
+  <h2 class="section-title">文字辨識</h2>
+
+  <div class="tool-header" style="--tool-color:#8b5cf6">
+    <div class="tool-icon">🔤</div>
+    <div>
+      <div class="tool-hname">文字辨識 <span class="tool-hfile">ocr.html</span></div>
+      <div class="tool-hdesc">把圖片裡的字或算式辨識出來。辨識在瀏覽器裡做（文字用 PP-OCR，第一次使用下載約 8 MB；算式用 Pix2Text MFR，約 33 MB），圖片不會上傳，不用裝辨識套件。在「教材製作」這一組，或直接開 <code>#ocr</code>。</div>
+      <div class="tool-tags">
+        <span class="tag">開啟圖檔</span>
+        <span class="tag">貼上截圖</span>
+        <span class="tag">接成段落</span>
+        <span class="tag">直書</span>
+        <span class="tag">算式轉 LaTeX</span>
+        <span class="tag">送到數學點字</span>
+        <span class="tag">樂譜（辨識套件）</span>
+        <span class="tag">送到文字轉點字</span>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="ocr-使用方式">使用方式</h3>
+  <ul>
+    <li>按「開啟圖檔」選 PNG、JPG、GIF、BMP、WebP（可以一次選好幾張，照順序辨識），或把圖檔拖進虛線框。</li>
+    <li>用剪取工具或 PrintScreen 截圖後，在頁面上按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就會辨識；也可以按「貼上剪貼簿的圖」（瀏覽器會問要不要允許讀取剪貼簿）。</li>
+    <li>「同一段的行接起來」：上下靠近、上一行排到右邊、下一行不是題號或選項開頭的，接成一段（中文不加空格）。不勾就照原圖一行一行。</li>
+    <li>「新的結果接在後面」：勾了之後再貼上或開檔，結果接在原本的文字後面，適合一頁一頁截圖。</li>
+    <li>直書（由右而左）會自動判斷，結果照由右往左的順序排。直書的頓號、句號常常認不到，請特別檢查。</li>
+    <li>結果可以直接在右邊的校對框修改，再「複製文字」、「存成文字檔」（UTF-8），在首頁裡還可以「送到文字轉點字」。</li>
+  </ul>
+  <h3 id="ocr-算式">算式</h3>
+  <ul>
+    <li>「辨識成」選「算式」，截圖只框一個算式（一行）。一張圖辨識成一行 LaTeX（用 <code>\( \)</code> 包著），校對框下面有預覽，對照左邊的原圖檢查。</li>
+    <li>可以一次選好幾張圖，一張一行。按「送到數學點字」會切到數學點字的 LaTeX 輸入框（取代原本的內容），直接看 Nemeth 點字；「送到文字轉點字」也可以，算式會自動轉 Nemeth。</li>
+    <li>太寬、夾很多中文、好幾行的圖會認不好；整份試卷的算式請用版面整理。</li>
+  </ul>
+  <h3 id="ocr-樂譜">樂譜（要辨識套件）</h3>
+  <ul>
+    <li>要先打開 <a href="#recognizer">vi-tools 辨識套件</a>（完整版，0.4.2 以上；試卷版沒有樂譜辨識），再按「找本機辨識套件」，「辨識成」才會出現「樂譜」。這台瀏覽器連上過一次，之後打開頁面會自動找。</li>
+    <li>一張圖一段譜例（單行旋律、鋼琴大譜表、總譜都可以）。辨識套件同時用 Audiveris 和 homr 兩種方式辨識，大約 10～20 秒，兩個結果都列在校對框下面：聲部、小節數、音的數量、調號、拍號。</li>
+    <li>挑比較像原圖的按「送到音樂點字」，會切到音樂點字並匯入（跟開 MusicXML 檔一樣），在那裡對照原圖改；也可以「下載 MusicXML」。</li>
+    <li>辨識結果只是草稿：試題上的方框、箭頭會被當成小節線或音符，調號、拍號、附點常常漏，請逐小節對照原圖。</li>
+  </ul>
+  <p>手寫字、很小的字、模糊或歪斜的照片容易認錯，請對照左邊的原圖，在右邊的校對框修改。整份試卷（版面、算式、附圖）請用<a href="#layout">版面整理</a>。</p>
 </section>
 
 

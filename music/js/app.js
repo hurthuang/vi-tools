@@ -1439,6 +1439,16 @@
   });
   // 點字區：選到的聲部（可編輯），或合奏總譜、全部聲部分譜（唯讀）
   $('brl-scope').addEventListener('change', () => convertFromAbc());
+  // 首頁轉來的 MusicXML（文字辨識頁的樂譜辨識「送到音樂點字」）：跟開檔一樣匯入
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.type !== 'setMusicXml' || typeof e.data.xml !== 'string') return;
+    try {
+      importMusicXML(e.data.xml, e.data.name || '辨識的樂譜.musicxml');
+    } catch (err) {
+      console.error(err);
+      showMessages([{ msg: '無法讀取 MusicXML：' + err.message, where: 'xml' }]);
+    }
+  });
   $('btn-open').addEventListener('click', () => $('file').click());
   $('file').addEventListener('change', async (e) => {
     const f = e.target.files[0];

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文字辨識</title>
+<link rel="icon" href="favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="把圖片裡的字或算式辨識出來：開啟圖檔、貼上剪貼簿裡的截圖，在瀏覽器裡辨識，不用上傳。">
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --text: #1d2125; --muted: #5b636b; --border: #d6dbe0;
+  --accent: #6d28d9; --accent-soft: #ede9fe; --warn-bg: #fff8e1; --warn-border: #f0c36d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181b; --surface: #1e2226; --text: #e6e9ec; --muted: #a3abb3; --border: #3a4148;
+    --accent: #c4b5fd; --accent-soft: #2e2645; --warn-bg: #2e2a1c; --warn-border: #7a6a35;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181b; --surface: #1e2226; --text: #e6e9ec; --muted: #a3abb3; --border: #3a4148;
+  --accent: #c4b5fd; --accent-soft: #2e2645; --warn-bg: #2e2a1c; --warn-border: #7a6a35;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; line-height: 1.7;
+}
+.wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 48px; }
+header h1 { margin: 0; font-size: 1.8rem; }
+header .sub { margin: 4px 0 12px; color: var(--muted); }
+a { color: var(--accent); }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-top: 16px; }
+h2 { margin: 0 0 10px; font-size: 1.25rem; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+button, select { font: inherit; }
+button {
+  padding: 6px 14px; border: 1px solid var(--accent); border-radius: 6px;
+  background: var(--accent); color: #fff; cursor: pointer;
+}
+:root[data-theme="dark"] button { color: #1b1530; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button { color: #1b1530; } }
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+#drop {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted);
+}
+#drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.status { min-height: 1.7em; margin: 10px 0 0; color: var(--muted); }
+.result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .result { grid-template-columns: 1fr; } #imgs { height: auto; max-height: 50vh; } textarea { height: 50vh; } }
+#imgs { height: 70vh; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+#imgs figure { margin: 0; padding: 8px; }
+#imgs figcaption { font-size: .9rem; color: var(--muted); }
+#imgs img { max-width: 100%; display: block; }
+textarea {
+  width: 100%; height: 70vh; resize: vertical; padding: 10px; font: inherit; font-size: 1.1rem; line-height: 1.8;
+  color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+}
+.notice { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px; padding: 8px 12px; margin-top: 12px; }
+.notice p { margin: 0; }
+label { cursor: pointer; }
+fieldset.mode { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+fieldset.mode legend { float: left; font-weight: bold; margin-right: 6px; padding: 0; }
+#prev { margin-top: 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-height: 30vh; overflow: auto; font-size: 1.15rem; }
+#prev p { margin: .3em 0; }
+#scores { margin-top: 10px; }
+#scores ul { margin: 0; padding-left: 1.2em; }
+#scores li { margin: 6px 0; }
+#scores li button { margin: 2px 6px 2px 0; padding: 3px 10px; font-size: .95rem; }
+.hd { color: var(--muted); font-size: .95rem; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
+    macros: { ratio: ['\\mathrel{\\unicode{x2236}}', 0], proportion: ['\\mathrel{\\unicode{x2237}}', 0] } },
+  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] },
+  startup: { typeset: false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+<script>try { const t = localStorage.getItem('site-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+// 放在 vi-tools 首頁框架裡時：主題跟著首頁切換
+window.addEventListener('message', e => { if (e.data && e.data.type === 'setTheme') document.documentElement.setAttribute('data-theme', e.data.theme === 'dark' ? 'dark' : 'light'); });</script>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p id="home-link" style="margin:0 0 8px;"><a href="index.html">← vi-tools 首頁</a></p>
+  <h1>文字辨識</h1>
+  <p class="sub">把圖片裡的字或算式辨識出來。開啟圖檔，或直接按 Ctrl+V 貼上剪貼簿裡的截圖；辨識在瀏覽器裡做，圖片不會上傳。</p>
+</header>
+
+<main>
+<section aria-labelledby="h-in">
+  <h2 id="h-in">圖片</h2>
+  <div class="controls" style="margin-bottom:10px">
+    <fieldset class="mode"><legend>辨識成</legend>
+      <label><input type="radio" name="mode" value="text" checked> 文字</label>
+      <label><input type="radio" name="mode" value="math"> 算式（一張圖一個算式，轉成 LaTeX）</label>
+      <label id="mode-score-w" hidden><input type="radio" name="mode" value="score"> 樂譜（用本機辨識套件，結果是草稿）</label>
+    </fieldset>
+    <span class="hd" id="hd-st"></span>
+    <button type="button" id="btn-hd" class="ghost" title="打開 vi-tools 辨識套件（完整版）之後按這個，就可以辨識樂譜">找本機辨識套件</button>
+    <a href="guide.html#recognizer" id="lnk-hd" class="hd">什麼是辨識套件？</a>
+  </div>
+  <div class="controls">
+    <button type="button" id="btn-open">開啟圖檔…</button>
+    <button type="button" id="btn-paste" class="ghost">貼上剪貼簿的圖（Ctrl+V）</button>
+    <label><input type="checkbox" id="opt-join" checked> 同一段的行接起來</label>
+    <label><input type="checkbox" id="opt-append"> 新的結果接在後面（不取代）</label>
+  </div>
+  <input type="file" id="file" accept="image/*" multiple hidden>
+  <div id="drop" style="margin-top:12px">也可以把圖檔拖到這裡。可以一次選好幾張，照順序辨識。</div>
+  <p class="status" id="st" role="status" aria-live="polite"></p>
+  <div class="notice">
+    <p>第一次使用會下載辨識模型（文字約 8 MB、算式約 33 MB），之後存在瀏覽器裡。手寫字、很小的字、模糊的照片容易認錯，請對照原圖檢查。
+      算式：截圖只框一個算式（一行），太寬、夾很多中文的會認不好。
+      樂譜：要先打開 vi-tools 辨識套件（完整版），一張圖一段譜例；試題上的方框、箭頭會被當成小節線或音符，調號、拍號常常漏，結果送到音樂點字再對照原圖改。
+      要辨識整份試卷（含算式、版面）請用<a href="layout.html" id="lnk-layout">版面整理</a>。</p>
+  </div>
+</section>
+
+<section aria-labelledby="h-out">
+  <h2 id="h-out">辨識結果</h2>
+  <div class="controls" style="margin-bottom:10px">
+    <button type="button" id="btn-copy" disabled>複製文字</button>
+    <button type="button" id="btn-save" class="ghost" disabled>存成文字檔</button>
+    <button type="button" id="btn-bt" class="ghost" disabled hidden>送到文字轉點字</button>
+    <button type="button" id="btn-nc" class="ghost" disabled hidden>送到數學點字</button>
+    <button type="button" id="btn-clear" class="ghost" disabled>清除</button>
+  </div>
+  <div class="result">
+    <div>
+      <p style="margin:0;font-weight:bold" id="imgs-label">原圖</p>
+      <div id="imgs" role="group" aria-labelledby="imgs-label"></div>
+    </div>
+    <div>
+      <label for="out" style="font-weight:bold">校對（辨識出來的文字，可以直接修改）</label>
+      <textarea id="out" spellcheck="false"></textarea>
+      <div id="scores" hidden>
+        <p style="margin:8px 0 4px;font-weight:bold" id="scores-label">樂譜辨識結果（兩種辨識方式，挑比較像的）</p>
+        <ul aria-labelledby="scores-label"></ul>
+      </div>
+      <div id="prev-w" hidden>
+        <p style="margin:8px 0 0;font-weight:bold" id="prev-label">算式預覽（對照左邊的原圖）</p>
+        <div id="prev" role="group" aria-labelledby="prev-label"></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+
+<script src="ocr-web.js"></script>
+<script src="mfr-web.js"></script>
+<script src="haodian-ocr.js"></script>
+<script src="vtdoc-build.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const inFrame = window.self !== window.top;
+  if (inFrame) {
+    $('home-link').hidden = true;   // 在首頁框架裡不需要回首頁的連結
+    $('btn-bt').hidden = false;
+    $('btn-nc').hidden = false;
+    $('lnk-layout').addEventListener('click', e => { e.preventDefault(); try { window.parent.switchTo('frame-layout'); } catch (ex) { location.href = 'layout.html'; } });
+  }
+  const st = s => { $('st').textContent = s || ''; };
+  let busy = false, nImg = 0;
+
+  vitoolsOcr.onprogress = m => {
+    if (m.stage === 'download') st('下載辨識模型：' + (m.total ? Math.round(m.loaded / m.total * 100) + '%' : Math.round(m.loaded / 1048576) + ' MB'));
+    else if (m.stage === 'init') st('準備辨識程式…');
+  };
+  vitoolsMfr.onprogress = m => {
+    if (m.stage === 'download' && !m.local) st('下載算式辨識模型（只有第一次，約 33 MB）：' + (m.total ? Math.round(m.loaded / m.total * 100) + '%' : Math.round(m.loaded / 1048576) + ' MB'));
+    else st('載入算式辨識模型…');
+  };
+  const mode = () => (document.querySelector('input[name="mode"]:checked') || {}).value || 'text';
+  function modeChanged() {
+    const m = mode() !== 'text';
+    $('opt-join').disabled = m;   // 算式、樂譜一張圖一個，不用接段落
+    try { localStorage.setItem('vi-ocr-mode', mode()); } catch (e) {}
+  }
+  document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', modeChanged));
+  try { const m0 = localStorage.getItem('vi-ocr-mode'); if (m0 === 'math') { document.querySelector('input[name="mode"][value="math"]').checked = true; } } catch (e) {}
+  modeChanged();
+
+  // 本機辨識套件（樂譜）：打開頁面時，這台瀏覽器連上過才自動找（同版面整理）；找到而且有樂譜辨識才出現「樂譜」
+  let wantScore = false;
+  try { wantScore = localStorage.getItem('vi-ocr-mode') === 'score'; } catch (e) {}
+  function showHd(f) {
+    const ok = !!(f && f.omr);
+    $('mode-score-w').hidden = !ok;
+    // 找到辨識套件（不管哪一版）就收起「找本機辨識套件」；試卷版（沒有樂譜辨識）什麼都不提，跟沒裝一樣只有文字、算式
+    $('btn-hd').hidden = !!f;
+    $('lnk-hd').hidden = !!f;
+    $('hd-st').textContent = ok ? '已連上辨識套件，可以辨識樂譜' : '';
+    const r = document.querySelector('input[name="mode"][value="score"]');
+    if (ok && wantScore) { r.checked = true; wantScore = false; modeChanged(); }
+    if (!ok && r.checked) { document.querySelector('input[name="mode"][value="text"]').checked = true; modeChanged(); }
+  }
+  vitoolsHaodian.detect({ auto: true }).then(showHd).catch(() => showHd(null));
+  $('btn-hd').addEventListener('click', () => {
+    $('btn-hd').disabled = true;
+    st('尋找本機的辨識套件…');
+    vitoolsHaodian.detect().then(f => {
+      showHd(f);
+      st(!f ? '沒找到本機的 vi-tools 辨識套件：要先雙擊「vi-tools辨識套件.cmd」打開它' : f.omr ? '找到辨識套件，「辨識成」多了「樂譜」' :
+        '找到辨識套件，但這個版本沒有樂譜辨識（試卷版或比較舊的版本），要辨識樂譜請改用完整版');
+    }).catch(e => st('找辨識套件失敗：' + e.message)).finally(() => { $('btn-hd').disabled = false; });
+  });
+  if (inFrame) $('lnk-hd').addEventListener('click', e => { e.preventDefault(); try { window.parent.switchTo('frame-guide'); } catch (ex) { location.href = 'guide.html#recognizer'; } });
+
+  // 樂譜結果：一張圖兩個引擎，各一列（摘要、送到音樂點字、下載 MusicXML）
+  const scores = [];
+  const xmlSummary = vitoolsHaodian.omrSummary;
+  const ENGINE = vitoolsHaodian.ENGINE;
+  function drawScores() {
+    const ul = $('scores').querySelector('ul');
+    ul.textContent = '';
+    $('scores').hidden = !scores.length;
+    scores.forEach(s => {
+      const li = document.createElement('li');
+      const t = document.createElement('span');
+      t.textContent = '圖 ' + s.n + '，' + ENGINE[s.engine] + '：' + (s.xml ? xmlSummary(s.xml) : '失敗（' + s.error + '）') + ' ';
+      li.appendChild(t);
+      if (s.xml) {
+        const name = '圖' + s.n + '_' + ENGINE[s.engine] + '.musicxml';
+        if (inFrame) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = '送到音樂點字';
+          b.setAttribute('aria-label', '圖 ' + s.n + ' ' + ENGINE[s.engine] + ' 的結果送到音樂點字');
+          b.addEventListener('click', () => window.parent.postMessage({ type: 'sendToMusic', xml: s.xml, name }, location.origin));
+          li.appendChild(b);
+        }
+        const d = document.createElement('button');
+        d.type = 'button'; d.className = 'ghost';
+        d.textContent = '下載 MusicXML';
+        d.setAttribute('aria-label', '下載圖 ' + s.n + ' ' + ENGINE[s.engine] + ' 的 MusicXML');
+        d.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(new Blob([s.xml], { type: 'application/vnd.recordare.musicxml+xml' }));
+          a.download = name;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+        li.appendChild(d);
+      }
+      ul.appendChild(li);
+    });
+  }
+  const toDataURL = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('讀不出這張圖')); r.readAsDataURL(blob); });
+
+  // 算式：截圖原本的大小（太小放大到長邊 400，最多 3 倍；太大縮到 2000），灰階、淺色變白（同版面整理）
+  function mathCanvas(img) {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const L = Math.max(w, h);
+    const k = L > 2000 ? 2000 / L : L < 400 ? Math.min(3, 400 / L) : 1;
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(4, Math.round(w * k)); cv.height = Math.max(4, Math.round(h * k));
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    return vitoolsMfr.clean(cv);
+  }
+  // 預覽：校對框裡有 \( \) 的行用 MathJax 畫出來
+  let prevT = null;
+  function preview() {
+    clearTimeout(prevT);
+    prevT = setTimeout(() => {
+      const lines = $('out').value.split('\n').filter(l => /\\\(/.test(l));
+      $('prev-w').hidden = !lines.length;
+      const box = $('prev');
+      box.textContent = '';
+      lines.forEach(l => { const p = document.createElement('p'); p.textContent = l; box.appendChild(p); });
+      if (lines.length && window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([box]).catch(() => {});
+    }, 300);
+  }
+
+  // 圖 → canvas：長邊最多 2000（同版面整理的掃描頁）；截圖太小（長邊不到 1000）放大到 1000，最多 3 倍
+  function toCanvas(img) {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const L = Math.max(w, h);
+    const k = L > 2000 ? 2000 / L : L < 1000 ? Math.min(3, 1000 / L) : 1;
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);   // 透明的截圖底色當白色
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    return cv;
+  }
+  function loadImage(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const im = new Image();
+      im.onload = () => resolve({ im, url });
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('讀不出這張圖')); };
+      im.src = url;
+    });
+  }
+
+  // 直書：大部分（兩個字以上的）字框是瘦長的直條
+  function isVertical(res) {
+    let v = 0, h = 0;
+    res.forEach(r => {
+      if ([...r.text].length < 2) return;
+      const w = r.box[2] - r.box[0], ht = r.box[3] - r.box[1];
+      if (ht > w * 1.3) v++; else if (w > ht * 1.3) h++;
+    });
+    return v > h;
+  }
+  // 直書：整張圖逆時針轉 90 度（每一欄變成一行，最右邊的欄在最上面），再整頁辨識；
+  //   比一欄一欄轉的準（字框接得完整），排列、接段落就跟橫書一樣
+  function rotateCCW(cv) {
+    const r = document.createElement('canvas');
+    r.width = cv.height; r.height = cv.width;
+    const cx = r.getContext('2d');
+    cx.translate(0, cv.width);
+    cx.rotate(-Math.PI / 2);
+    cx.drawImage(cv, 0, 0);
+    return r;
+  }
+
+  // 行 → 文字。join：同一段的行接起來（上下靠近、上一行排到接近右邊、下一行不是題號／選項／條列開頭）
+  const RE_START = /^(\(?\s*[0-9０-９]{1,3}\s*[.．、)）]|[（(]\s*[A-Ea-eＡ-Ｅ一二三四五六七八九十]\s*[)）]|[一二三四五六七八九十]+、|[①-⑳]|[•●○■□◆◇▪\-–—*])/;
+  function toText(lines, join) {
+    if (!join) return lines.map(l => l.text).join('\n');
+    const out = [];
+    let prev = null;
+    const right = Math.max(...lines.map(l => l.box[2]));
+    lines.forEach(l => {
+      const h = l.box[3] - l.box[1];
+      const cont = prev && prev.col === l.col && l.box[1] - prev.box[3] < 0.8 * Math.max(h, prev.box[3] - prev.box[1]) &&
+        prev.box[2] > right - 0.08 && !RE_START.test(l.text);   // 中文段落中間的行也常以「。」結尾，只看有沒有排到右邊
+      if (cont) {
+        const a = out[out.length - 1];
+        out[out.length - 1] = a + (/[A-Za-z0-9,.;]$/.test(a) && /^[A-Za-z0-9]/.test(l.text) ? ' ' : '') + l.text;
+      } else out.push(l.text);
+      prev = l;
+    });
+    return out.join('\n');
+  }
+
+  async function run(blobs) {
+    if (busy) { st('上一批還在辨識，請等一下'); return; }
+    blobs = blobs.filter(b => b && /^image\//.test(b.type));
+    if (!blobs.length) { st('沒有圖片（可以開 PNG、JPG、GIF、BMP、WebP；PDF 請用版面整理）'); return; }
+    busy = true;
+    ['btn-open', 'btn-paste'].forEach(id => { $(id).disabled = true; });
+    if (!$('opt-append').checked) { $('out').value = ''; $('imgs').innerHTML = ''; nImg = 0; scores.length = 0; drawScores(); }
+    const parts = [];
+    let nVert = 0;
+    const math = mode() === 'math', score = mode() === 'score';
+    try {
+      if (math && !vitoolsMfr.loaded()) st((await vitoolsMfr.cached()) ? '載入算式辨識模型…' : '下載算式辨識模型（只有第一次，約 33 MB）…');
+      for (let k = 0; k < blobs.length; k++) {
+        const { im, url } = await loadImage(blobs[k]);
+        nImg++;
+        const fig = document.createElement('figure');
+        const cap = document.createElement('figcaption');
+        cap.textContent = '圖 ' + nImg + (blobs[k].name ? '：' + blobs[k].name : '（剪貼簿）');
+        const shown = document.createElement('img');
+        shown.src = url; shown.alt = '圖 ' + nImg;
+        fig.append(cap, shown);
+        $('imgs').appendChild(fig);
+        if (score) {
+          st('辨識樂譜 ' + nImg + (blobs.length > 1 ? '（' + (k + 1) + '／' + blobs.length + '）' : '') + '：辨識套件用 Audiveris、homr 一起辨識，大約 10～20 秒…');
+          await vitoolsHaodian.ensure(st);
+          if (!(vitoolsHaodian.found || {}).omr) {   // 桌面版背景啟動後才知道是試卷版
+            showHd(vitoolsHaodian.found);
+            throw new Error('這個辨識套件是試卷版（或比較舊的版本），沒有樂譜辨識，已經收起「樂譜」選項');
+          }
+          const r = await vitoolsHaodian.omr(await toDataURL(blobs[k]));
+          r.results.forEach(x => scores.push({ n: nImg, engine: x.engine, xml: x.musicxml || '', error: x.error || '' }));
+          const ok = r.results.filter(x => x.musicxml);
+          shown.alt = '圖 ' + nImg + (ok.length ? '' : '（沒有辨識出樂譜）');
+          parts.push({ n: nImg, text: '圖 ' + nImg + ' 樂譜：' + r.results.map(x => ENGINE[x.engine] + (x.musicxml ? ' ' + xmlSummary(x.musicxml) : ' 失敗')).join('；'), sec: r.sec });
+          continue;
+        }
+        if (math) {
+          const mc = mathCanvas(im);
+          await vitoolsMfr.load();
+          st('辨識算式 ' + nImg + (blobs.length > 1 ? '（' + (k + 1) + '／' + blobs.length + '）' : '') + '…');
+          const t1 = performance.now();
+          const r = await vitoolsMfr.recognize(mc);
+          mc.width = mc.height = 0;
+          const tex = (r.tex || '').trim();
+          shown.alt = '圖 ' + nImg + (tex ? '' : '（沒有辨識到算式）');
+          parts.push({ n: nImg, text: tex ? '\\(' + tex + '\\)' : '', score: r.score, sec: (performance.now() - t1) / 1000 });
+          continue;
+        }
+        st('辨識圖 ' + nImg + (blobs.length > 1 ? '（' + (k + 1) + '／' + blobs.length + '）' : '') + '…');
+        const cv = toCanvas(im);
+        const t0 = performance.now();
+        const res = await vitoolsOcr.recognize(cv);
+        let use = cv, r = res;
+        if (isVertical(res)) {
+          nVert++;
+          st('圖 ' + nImg + ' 是直書，轉成橫的再辨識一次…');
+          use = rotateCCW(cv);
+          r = await vitoolsOcr.recognize(use);
+        }
+        const { lines } = vitoolsVtdocBuild.ocrLines(r, use.width, use.height);
+        cv.width = cv.height = 0; use.width = use.height = 0;
+        const text = lines.length ? toText(lines, $('opt-join').checked) : '';
+        shown.alt = '圖 ' + nImg + (text ? '' : '（沒有辨識到字）');
+        parts.push({ n: nImg, text, sec: (performance.now() - t0) / 1000 });
+      }
+      const o = $('out');
+      if (score) {   // 樂譜：校對框只寫摘要，結果在下面的清單（送到音樂點字再改）
+        const add = parts.map(p => p.text).join('\n');
+        o.value = o.value ? o.value.replace(/\s+$/, '') + '\n' + add : add;
+        drawScores();
+        st('辨識完成：' + parts.length + ' 段譜例（' + parts.reduce((a, p) => a + p.sec, 0).toFixed(1) + ' 秒）。兩種辨識方式的結果在右邊校對框下面的清單，挑比較像原圖的「送到音樂點字」再對照修改。');
+        return;
+      }
+      if (math) {   // 算式：一張圖一行，不加標題（數學點字一行一個）
+        const add = parts.map(p => p.text || '（圖 ' + p.n + ' 沒有辨識到算式）').join('\n');
+        o.value = o.value ? o.value.replace(/\s+$/, '') + '\n' + add : add;
+        const low = parts.filter(p => p.score != null && p.score < 0.6).map(p => '圖 ' + p.n);
+        st('辨識完成：' + parts.length + ' 個算式（' + parts.reduce((a, p) => a + p.sec, 0).toFixed(1) + ' 秒）' +
+          (low.length ? '；' + low.join('、') + ' 信心比較低，請特別檢查' : '') + '。LaTeX 在右邊的校對框，下面有預覽，請對照左邊的原圖檢查。');
+        return;
+      }
+      const many = parts.length > 1 || nImg > parts.length;
+      const add = parts.map(p => (many ? '【圖 ' + p.n + '】\n' : '') + (p.text || '（沒有辨識到字）')).join('\n\n');
+      // 接在後面：原本只有一張圖的結果（沒有標題），補上「【圖 1】」
+      if (o.value && many && !/^【圖 \d+】/.test(o.value)) o.value = '【圖 1】\n' + o.value;
+      o.value = o.value ? o.value.replace(/\s+$/, '') + '\n\n' + add : add;
+      const chars = parts.reduce((a, p) => a + p.text.replace(/\s/g, '').length, 0);
+      st('辨識完成：' + parts.length + ' 張圖、' + chars + ' 個字（' + parts.reduce((a, p) => a + p.sec, 0).toFixed(1) + ' 秒）' +
+        (nVert ? '，' + (parts.length > 1 ? nVert + ' 張' : '') + '是直書（由右往左讀）' : '') + '。結果在右邊的校對框，請對照左邊的原圖檢查。');
+    } catch (e) {
+      st('辨識失敗：' + e.message);
+    } finally {
+      busy = false;
+      ['btn-open', 'btn-paste'].forEach(id => { $(id).disabled = false; });
+      const has = !!$('out').value;
+      ['btn-copy', 'btn-save', 'btn-bt', 'btn-nc', 'btn-clear'].forEach(id => { $(id).disabled = !has; });
+      preview();
+    }
+  }
+
+  // 開檔、拖放
+  $('btn-open').addEventListener('click', () => { $('file').value = ''; $('file').click(); });
+  $('file').addEventListener('change', e => run([...e.target.files]));
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+  drop.addEventListener('drop', e => { e.preventDefault(); run([...e.dataTransfer.files]); });
+
+  // 貼上：Ctrl+V（文字框裡貼文字照常）；按鈕用 Clipboard API（瀏覽器會問要不要允許讀剪貼簿）
+  document.addEventListener('paste', e => {
+    const items = [...(e.clipboardData ? e.clipboardData.items : [])].filter(i => i.kind === 'file' && /^image\//.test(i.type));
+    if (!items.length) {
+      if (document.activeElement !== $('out')) st('剪貼簿裡沒有圖片（先用剪取工具或 PrintScreen 截圖，再按 Ctrl+V）');
+      return;
+    }
+    e.preventDefault();
+    run(items.map(i => i.getAsFile()));
+  });
+  $('btn-paste').addEventListener('click', async () => {
+    if (!navigator.clipboard || !navigator.clipboard.read) { st('這個瀏覽器不能用按鈕讀剪貼簿，請直接按 Ctrl+V'); return; }
+    try {
+      const items = await navigator.clipboard.read();
+      const blobs = [];
+      for (const it of items) {
+        const t = it.types.find(x => /^image\//.test(x));
+        if (t) blobs.push(await it.getType(t));
+      }
+      if (!blobs.length) { st('剪貼簿裡沒有圖片（先用剪取工具或 PrintScreen 截圖）'); return; }
+      run(blobs);
+    } catch (e) {
+      st('讀不到剪貼簿（' + (e.name === 'NotAllowedError' ? '沒有允許讀取剪貼簿' : e.message) + '），請直接按 Ctrl+V');
+    }
+  });
+
+  // 結果
+  $('btn-copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('out').value); st('已複製文字'); }
+    catch (e) { $('out').select(); document.execCommand('copy'); st('已複製文字'); }
+  });
+  $('btn-save').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + $('out').value.replace(/\r?\n/g, '\r\n')], { type: 'text/plain;charset=utf-8' }));
+    a.download = '文字辨識.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    st('已存成「文字辨識.txt」（UTF-8）');
+  });
+  $('btn-bt').addEventListener('click', () => {
+    window.parent.postMessage({ type: 'sendToBt', text: $('out').value }, location.origin);
+  });
+  // 數學點字的 LaTeX 輸入框：算式用 \( \) 包著，其他照原樣當文字
+  $('btn-nc').addEventListener('click', () => {
+    window.parent.postMessage({ type: 'sendToNc', text: $('out').value }, location.origin);
+  });
+  $('btn-clear').addEventListener('click', () => {
+    $('out').value = ''; $('imgs').innerHTML = ''; nImg = 0; scores.length = 0; drawScores();
+    ['btn-copy', 'btn-save', 'btn-bt', 'btn-nc', 'btn-clear'].forEach(id => { $(id).disabled = true; });
+    preview();
+    st('已清除');
+    $('btn-open').focus();
+  });
+  $('out').addEventListener('input', () => {
+    const has = !!$('out').value;
+    ['btn-copy', 'btn-save', 'btn-bt', 'btn-nc', 'btn-clear'].forEach(id => { $(id).disabled = !has; });
+    preview();
+  });
+})();
+</script>
+</body>
+</html>
