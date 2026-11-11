@@ -3359,6 +3359,8 @@ const MUSIC_BLOCK_RE = /^[ \t]*[【\[]樂譜[】\]][ \t]*\n([\s\S]*?)\n[ \t]*[�
 const MUSIC_PH = '\uE0A0', MUSIC_PH_FILL = '\uE0A1', MUSIC_PH_BASE = 0xE0B0;
 let _musicBlocks = [];
 let _musicLoading = null;
+// 中繼檔的譜例：ABC → 音樂點字存的點字（vitoolsVtdoc.scoreBrl；開中繼檔時設定，關掉清空）
+let _btScoreHand = new Map();
 function _musicReady() { return !!(window.MB && MB.toBraille && MB.parseAbc && MB.brf); }
 function _loadMusic() {
     if (_musicLoading) return _musicLoading;
@@ -3378,6 +3380,11 @@ function _extractMusicBlocks(input, max) {
         const k = _musicBlocks.length;
         if (k > 79) return whole;
         let lines = [], warnings = [];
+        const hand = _btScoreHand.get(abc.replace(/\r\n?/g, '\n').trim());
+        if (hand) {   // 音樂點字存的點字：照它的換行，不重新斷行
+            _musicBlocks.push({ abc, lines: hand.split('\n'), warnings: [], hand: true });
+            return MUSIC_PH + String.fromCharCode(MUSIC_PH_BASE + k) + MUSIC_PH_FILL.repeat(Math.max(0, whole.length - 2));
+        }
         if (!_musicReady()) _loadMusic();
         else {
             try {
@@ -5230,10 +5237,13 @@ let _btVtdoc = null;   // { v, t（開啟時的純文字與行對應）, name }
 function btVtdocOpen(html, name) {
     const v = vitoolsVtdoc.parse(html);
     if (!v) throw new Error('不是中繼檔');
-    const t = vitoolsVtdoc.toText(v);
+    const t = vitoolsVtdoc.toText(v, { scores: 'block' });
     _btVtdoc = { v, t, name };
     const mb = vitoolsVtdoc.mathBrl(v);
     _btMath.hand = mb.hand; _btMath.stale = mb.stale; _btMath.version++;
+    const sb = vitoolsVtdoc.scoreBrl(v);
+    _btScoreHand = sb.hand;
+    _btVtdoc.score = sb;
     document.getElementById('input-text').value = t.text;
     _btZhEdits.clear();
     _btZhEditsVersion++;
@@ -5260,8 +5270,11 @@ function _btVtdocReadings(v, name) {
     const st = _btMath.stale;
     _btVtdocBar(`中繼檔「${vitoolsVtdoc.title(v) || name}」` + (n ? `，讀音修正 ${n} 個` : '') + (bad ? `（${bad} 個讀音看不懂，沒有套用）` : '') +
         (_btMath.hand.size ? `，算式手改點字 ${_btMath.hand.size} 個` : '') +
+        (_btVtdoc && _btVtdoc.score && _btVtdoc.score.total ? `，譜例 ${_btVtdoc.score.total} 塊（點字樂譜 ${_btVtdoc.score.hand.size} 塊` +
+            (_btVtdoc.score.draft ? `；${_btVtdoc.score.draft} 塊是辨識草稿，還沒在音樂點字確認，先標［譜例］` : '') +
+            (_btVtdoc.score.stale ? `；${_btVtdoc.score.stale} 塊的點字是舊的（音符後來改過），先標［譜例］，請回音樂點字重存` : '') + '）' : '') +
         (st.length ? `。⚠ ${st.length} 個算式的手改點字是舊的（算式後來改過），改用自動轉的：${st.slice(0, 3).join('、')}${st.length > 3 ? '…' : ''}；要用手改的，請回數學點字的「整份算式校對」重改` : '') +
-        '。改字、修正讀音後按「存回中繼檔」。');
+        '。改字、修正讀音後按「存回中繼檔」' + (_btVtdoc && _btVtdoc.score && _btVtdoc.score.total ? '（譜例在這裡改不會存回，要到音樂點字改）' : '') + '。');
 }
 
 function _btVtdocBar(msg) {
@@ -5273,6 +5286,7 @@ function _btVtdocBar(msg) {
 function btVtdocClose() {
     _btVtdoc = null;
     _btMath.hand = new Map(); _btMath.stale = []; _btMath.version++;
+    _btScoreHand = new Map();
     _btVtdocBar('');
 }
 
@@ -5293,7 +5307,7 @@ function btVtdocSave() {
     });
     const note = `文字 ${r.changed} 行修改、${r.added} 行新增、${r.removed} 行刪除；讀音 ${nRead} 個`;
     const html = vitoolsVtdoc.serialize(v, '文字轉點字', note);
-    _btVtdoc.t = vitoolsVtdoc.toText(v);   // 之後再存，以現在的內容為準
+    _btVtdoc.t = vitoolsVtdoc.toText(v, { scores: 'block' });   // 之後再存，以現在的內容為準
     const fname = /\.vtdoc\.html?$/i.test(name) ? name : name.replace(/\.html?$/i, '') + '.vtdoc.html';
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));

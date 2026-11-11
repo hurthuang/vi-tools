@@ -6,8 +6,8 @@
   <title>點字樂譜轉換器</title>
   <link rel="icon" href="../favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
-  <script src="js/theme.js?v=63"></script>
-  <link rel="stylesheet" href="css/style.css?v=63">
+  <script src="js/theme.js?v=64"></script>
+  <link rel="stylesheet" href="css/style.css?v=64">
 </head>
 <body>
   <header class="site-header">
@@ -19,8 +19,8 @@
     <label>範例
       <select id="sample"></select>
     </label>
-    <button type="button" id="btn-open" title="可開啟 ABC、點字（BRF）、MusicXML（.musicxml、.xml、.mxl）">開啟檔案…</button>
-    <input type="file" id="file" accept=".abc,.brf,.brl,.txt,.musicxml,.xml,.mxl" hidden>
+    <button type="button" id="btn-open" title="可開啟 ABC、點字（BRF）、MusicXML（.musicxml、.xml、.mxl）、版面整理存的中繼檔（.vtdoc.html）">開啟檔案…</button>
+    <input type="file" id="file" accept=".abc,.brf,.brl,.txt,.musicxml,.xml,.mxl,.html,.htm" hidden>
     <label id="part-wrap" hidden title="有多個聲部時，選擇要轉成點字的聲部（鋼琴雙手算一個）">聲部
       <select id="part-select"></select>
     </label>
@@ -30,6 +30,20 @@
     <button type="button" id="btn-save-xml" title="可用 MuseScore、BME、Finale 等軟體開啟">下載 MusicXML</button>
     <button type="button" id="btn-save-midi">下載 MIDI</button>
   </nav>
+
+  <section id="vt-bar" aria-labelledby="vt-h" hidden style="margin:10px 16px;padding:10px 14px;border:1px solid var(--border,#ccc);border-radius:8px">
+    <h2 id="vt-h" style="margin:0 0 6px;font-size:1.1rem">中繼檔的譜例：<span id="vt-name"></span></h2>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center">
+      <label>譜例 <select id="vt-pick"></select></label>
+      <button type="button" id="vt-prev">上一塊</button>
+      <button type="button" id="vt-next">下一塊</button>
+      <button type="button" id="vt-save" title="改好的譜例（MusicXML、ABC、點字）寫回中繼檔，下載新的 .vtdoc.html">存回中繼檔</button>
+      <button type="button" id="vt-close">關閉中繼檔</button>
+    </div>
+    <p id="vt-msg" role="status" aria-live="polite" style="margin:6px 0"></p>
+    <figure style="margin:0"><figcaption id="vt-img-cap" style="font-size:.9rem">原卷</figcaption>
+      <img id="vt-img" alt="" style="max-width:100%;max-height:40vh;background:#fff;border:1px solid var(--border,#ccc)"></figure>
+  </section>
 
   <main>
     <div class="editors">
@@ -301,27 +315,28 @@
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.7.1/abcjs-basic-min.js"></script>
-  <script src="js/brf.js?v=63"></script>
-  <script src="js/model.js?v=63"></script>
-  <script src="js/durations.js?v=63"></script>
-  <script src="js/abc-parse.js?v=63"></script>
-  <script src="js/braille-write.js?v=63"></script>
-  <script src="js/braille-parse.js?v=63"></script>
-  <script src="js/abc-write.js?v=63"></script>
-  <script src="js/annotate.js?v=63"></script>
-  <script src="js/dualview.js?v=63"></script>
-  <script src="js/xml.js?v=63"></script>
-  <script src="js/musicxml.js?v=63"></script>
-  <script src="js/describe.js?v=63"></script>
-  <script src="js/exam-marks.js?v=63"></script>
-  <script src="js/zh-braille.js?v=63"></script>
-  <script src="js/samples.js?v=63"></script>
+  <script src="js/brf.js?v=64"></script>
+  <script src="js/model.js?v=64"></script>
+  <script src="js/durations.js?v=64"></script>
+  <script src="js/abc-parse.js?v=64"></script>
+  <script src="js/braille-write.js?v=64"></script>
+  <script src="js/braille-parse.js?v=64"></script>
+  <script src="js/abc-write.js?v=64"></script>
+  <script src="js/annotate.js?v=64"></script>
+  <script src="js/dualview.js?v=64"></script>
+  <script src="js/xml.js?v=64"></script>
+  <script src="js/musicxml.js?v=64"></script>
+  <script src="js/describe.js?v=64"></script>
+  <script src="js/exam-marks.js?v=64"></script>
+  <script src="js/zh-braille.js?v=64"></script>
+  <script src="js/samples.js?v=64"></script>
   <!-- 放在視障輔助工具集（vi-tools）的 music/ 時，載入共用的六點輸入面板與「🔊 報讀」區塊；單獨使用時這些檔案不存在，頁面照常運作 -->
   <script src="../shared.js"></script>
   <script src="../desktop-audio.js"></script>
   <script src="../lang-segments.js"></script>
   <script src="../voice-settings.js"></script>
   <script src="../speech-block.js"></script>
-  <script src="js/app.js?v=63"></script>
+  <script src="../vtdoc.js"></script>
+  <script src="js/app.js?v=64"></script>
 </body>
 </html>

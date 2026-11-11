@@ -268,7 +268,7 @@
       const sc = b.type === 'score', how = el.dataset.how || (sc ? 'braille' : 'mark');
       const p = document.createElement('div');
       p.textContent = (cap ? cap.textContent + '　' : '') + '輸出：' + (((sc ? SCORE_HOW : FIG_HOW).find(x => x[0] === how) || [0, how])[1]) +
-        (sc && how === 'braille' && !el.querySelector('script') ? '（還沒有音符）' : '') +
+        (sc && how === 'braille' ? (scoreXml(el) ? '（音符：' + (({ homr: 'homr', audiveris: 'Audiveris' })[scoreXml(el).dataset.engine] || '已打好') + (scoreXml(el).dataset.engine ? ' 辨識的草稿' : '') + '）' : '（還沒有音符）') : '') +
         (el.dataset.tactile === '1' ? '，做觸圖' : '') + (img && img.alt && !sc && img.alt !== '附圖' ? '　' + img.alt : '');
       p.style.fontSize = '.8rem'; p.style.color = '#555';
       tx.appendChild(p);
@@ -399,6 +399,8 @@
     const isT = b && b.type === 'table', isF = b && b.type === 'fig', isS = b && b.type === 'score';
     $('ly-how-w').hidden = !(isT || isF || isS);
     $('ly-tac-w').hidden = !isF;
+    $('ly-omr').hidden = !(isS && hdOn() && vitoolsHaodian.found.omr);
+    if (isS) fillOmrPick(b.el); else $('ly-omr-w').hidden = true;
     if (isT || isF || isS) {
       const L = isT ? TBL_HOW : isS ? SCORE_HOW : FIG_HOW, kind = isT ? 't' : isS ? 's' : 'f';
       if (how.dataset.kind !== kind) {
@@ -1105,6 +1107,66 @@
       $('ly-bx').hidden = false;
     } else status(b.type === 'fig' ? '附圖照新的框重新裁切了（框外的圖中文字拿掉）' : b.type === 'score' ? '譜例照新的框重新裁切了' : '框改好了');
   }
+  // ---------- 譜例的音符（MusicXML，規格 3.7）----------
+  //   「辨識樂譜」：裁原卷這塊（300 DPI）送辨識套件 /api/omr，Audiveris、homr 兩個結果；預設用音比較多的，「音符」選單可以換或清掉。
+  //   兩個結果只記在這次開著的頁面（沒存進中繼檔），中繼檔只存選定的一個（data-engine 記是哪一個）
+  const MXL = 'application/vnd.recordare.musicxml+xml';
+  const omrRes = new WeakMap();
+  const scoreXml = el => el.querySelector('script[type="' + MXL + '"]');
+  // 放進 <script>：XML 註解、DOCTYPE 拿掉（<!-- 會讓 HTML 解析 script 的方式改變），</script 不可能出現在 MusicXML，保險起見擋掉
+  //   換行統一成 LF（HTML 解析時本來就會換，先換好，存檔前後 data-brlsrc 的雜湊才對得上）
+  const cleanXml = x => x.replace(/\r\n?/g, '\n').replace(/<!DOCTYPE[^>]*>/i, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<\/script/gi, '<\\/script').trim();
+  const nNotes = x => (x.match(/<pitch>/g) || []).length;
+  function setScoreXml(el, res) {
+    snap();
+    let s = scoreXml(el);
+    if (!res) { if (s) s.remove(); }
+    else {
+      if (!s) { s = el.ownerDocument.createElement('script'); s.setAttribute('type', MXL); el.appendChild(s); }
+      s.textContent = cleanXml(res.musicxml);
+      s.dataset.engine = res.engine;
+    }
+    changed(); rowOf.delete(el); render();
+  }
+  function fillOmrPick(el) {
+    const rs = (omrRes.get(el) || []).filter(x => x.musicxml);
+    $('ly-omr-w').hidden = !rs.length;
+    if (!rs.length) return;
+    const sel = $('ly-omr-pick');
+    sel.innerHTML = '';
+    rs.forEach(x => { const o = document.createElement('option'); o.value = x.engine; o.textContent = vitoolsHaodian.ENGINE[x.engine] + '：' + vitoolsHaodian.omrSummary(x.musicxml); sel.appendChild(o); });
+    const o = document.createElement('option'); o.value = ''; o.textContent = '不用辨識結果（清掉音符）'; sel.appendChild(o);
+    const s = scoreXml(el);
+    sel.value = s && s.dataset.engine && rs.some(x => x.engine === s.dataset.engine) ? s.dataset.engine : '';
+  }
+  async function omrBlock() {
+    const b = blocks[cur];
+    if (!b || b.type !== 'score') return;
+    const bx = boxOf(b);
+    if (!bx || !sv.has()) { status('這塊譜例沒有原卷的位置，不能辨識'); return; }
+    if (scoreXml(b.el) && !scoreXml(b.el).dataset.engine && !confirm('這塊譜例已經有打好的音符，辨識結果會蓋掉它，要繼續嗎？')) return;
+    const el = b.el;
+    $('ly-omr').disabled = true;
+    try {
+      await vitoolsHaodian.ensure(status);
+      if (!vitoolsHaodian.found.omr) { mark(false); throw new Error('這個辨識套件是試卷版（或比較舊的版本），沒有樂譜辨識'); }
+      status('辨識樂譜：辨識套件用 Audiveris、homr 一起辨識，大約 10～30 秒…');
+      const cv = await sv.cropCanvas(bx.page, [bx.x0, bx.y0, bx.x1, bx.y1], 3, true);
+      const r = await vitoolsHaodian.omr(cv.toDataURL('image/png'));
+      cv.width = cv.height = 0;
+      const ok = r.results.filter(x => x.musicxml);
+      if (!ok.length) { status('兩種方式都沒有辨識出樂譜（' + r.results.map(x => x.error).join('；') + '）'); return; }
+      omrRes.set(el, r.results);
+      const best = ok.slice().sort((a, c) => nNotes(c.musicxml) - nNotes(a.musicxml))[0];
+      setScoreXml(el, best);
+      if (blocks[cur] && blocks[cur].el === el) mark(false);
+      status('辨識完成（' + r.sec + ' 秒）：先用音比較多的 ' + vitoolsHaodian.ENGINE[best.engine] + '（' + vitoolsHaodian.omrSummary(best.musicxml) + '）；' +
+        '「音符」選單可以換另一個。這只是草稿，存檔後到音樂點字對照原卷改。');
+    } catch (e) {
+      status('樂譜辨識失敗：' + e.message);
+    } finally { $('ly-omr').disabled = false; }
+  }
+
   // 附圖 ↔ 譜例：換 class 與輸出方式；附圖衍生的文字（圖中文字、文字敘述）拿掉
   function swapFigScore(b, to) {
     if (b.type === to || !(b.type === 'fig' || b.type === 'score')) return;
@@ -1771,6 +1833,14 @@
     $('ly-drop').addEventListener('click', toggleDrop);
     $('ly-grp').addEventListener('click', toggleGroup);
     $('ly-how').addEventListener('change', e => setHow(e.target.value));
+    $('ly-omr').addEventListener('click', omrBlock);
+    $('ly-omr-pick').addEventListener('change', e => {
+      const b = blocks[cur];
+      if (!b || b.type !== 'score') return;
+      const r = (omrRes.get(b.el) || []).find(x => x.engine === e.target.value);
+      setScoreXml(b.el, r || null);
+      status(r ? '音符改用 ' + vitoolsHaodian.ENGINE[r.engine] + ' 的辨識結果' : '清掉了這塊譜例的音符（文字轉點字會標「［譜例］」）');
+    });
     $('ly-tac').addEventListener('change', e => {
       const b = blocks[cur]; if (!b) return;
       snap();

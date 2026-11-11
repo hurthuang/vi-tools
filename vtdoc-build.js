@@ -317,8 +317,8 @@
   }
   // 一頁裡的五線譜 → 譜例的框 [x0,y0,x1,y1]（頁面比例）＋譜表數
   //   整頁算成長邊 3000 的圖（掃描進來的譜線粗、有點歪，解析度低會漏），找「夠長的細橫線」，五條等距（線距 2.5～14 pt；縮小的譜例線距只有 3 pt 多）一組＝一個譜表；
-  //   上下靠近、左邊差不多齊的譜表（總譜、鋼琴的大譜表）併成一塊。框往上多留 4 個線距（速度、標題、題目的方框記號），
-  //   往下 4 個（力度、歌詞），左右 1 個。線距太大（作答格線）、線不等距（表格）的不算
+  //   上下靠近、左邊差不多齊的譜表（總譜、鋼琴的大譜表）併成一塊。框往上多留 5 個線距（速度、標題、題目的方框記號、連音數字；4 個會切到符槓下方的連音數字，110 視唱題庫），
+  //   往下 5 個（力度、歌詞、連音數字），左右 1 個。線距太大（作答格線）、線不等距（表格）的不算
   async function staffBoxes(pg) {
     const vp1 = pg.getViewport({ scale: 1 });
     const sc = 3000 / Math.max(vp1.width, vp1.height);
@@ -363,7 +363,17 @@
     const thin = lines.filter(l => l.y1 - l.y0 <= Math.max(3, sc * 2));   // 譜線很細；粗的是色塊、表格外框
     const ys = thin.map(l => (l.y0 + l.y1) / 2);
     const staves = [];
-    for (let i = 0; i + 4 < thin.length;) {
+    // i 起 4 條線：三個間距裡一個約是另外兩個的兩倍（少抓一條），另外兩個差不多；前後沒有等距的線（不是表格）
+    const missingOne = i => {
+      const g = [1, 2, 3].map(k => ys[i + k] - ys[i + k - 1]);
+      const big = g.indexOf(Math.max(...g));
+      const small = g.filter((_, k) => k !== big);
+      const u = (small[0] + small[1]) / 2, tol = Math.max(3, u * 0.25);
+      if (u < sc * 2.5 || u > sc * 14 || Math.abs(small[0] - small[1]) > tol || Math.abs(g[big] - 2 * u) > tol) return false;
+      const near = k => k >= 0 && k + 1 < ys.length && Math.abs(ys[k + 1] - ys[k] - u) <= tol;
+      return !near(i - 1) && !near(i + 3);
+    };
+    for (let i = 0; i + 3 < thin.length;) {
       const g = [1, 2, 3, 4].map(k => ys[i + k] - ys[i + k - 1]);
       const mn = Math.min(...g), mx = Math.max(...g), avg = g.reduce((a, b) => a + b) / 4;
       const tol = Math.max(3, avg * 0.25);
@@ -380,6 +390,12 @@
         const st = { y0: grp[0].y0, y1: grp[4].y1, x0: Math.min(...grp.map(l => l.x0)), x1: Math.max(...grp.map(l => l.x1)), sp: avg };
         if (!reject || !reject(st)) staves.push(st);
         i += 5;
+      } else if (i + 3 < thin.length && missingOne(i)) {
+        // 掃描的譜，中間一條線斷得太碎沒抓到：4 條線，其中一個間距是其他的兩倍
+        const grp = thin.slice(i, i + 4), sp = (ys[i + 3] - ys[i]) / 4;
+        const st = { y0: grp[0].y0, y1: grp[3].y1, x0: Math.min(...grp.map(l => l.x0)), x1: Math.max(...grp.map(l => l.x1)), sp };
+        if (!reject || !reject(st)) staves.push(st);
+        i += 4;
       } else i++;
     }
     const blocks = [];
@@ -390,7 +406,7 @@
       } else blocks.push(Object.assign({ n: 1 }, s));
     });
     return blocks.map(b => ({
-      box: [Math.max(0, b.x0 - b.sp) / W, Math.max(0, b.y0 - b.sp * 4) / H, Math.min(W, b.x1 + b.sp) / W, Math.min(H, b.y1 + b.sp * 4) / H],
+      box: [Math.max(0, b.x0 - b.sp) / W, Math.max(0, b.y0 - b.sp * 5) / H, Math.min(W, b.x1 + b.sp) / W, Math.min(H, b.y1 + b.sp * 5) / H],
       staves: b.n
     }));
   }
@@ -573,14 +589,26 @@
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
       if (r.chars < 20) {
-        if (!ocr) { scanned.push(n); continue; }
-        // 掃描頁：整頁算成圖（長邊 2000，跟辨識套件 RapidOCR 一樣）用網頁版文字辨識
+        // 掃描頁：先找五線譜（掃描的樂譜、題庫），有的話裁成譜例
+        const sf = await withScores(pg, []);
+        if (sf.length) {
+          progress('第 ' + n + '／' + pdf.numPages + ' 頁是掃描頁：裁譜例（' + sf.length + ' 塊）');
+          await cropFigures(pg, sf);
+          nfig += sf.length; nscore += sf.length;
+        }
+        const figParas = sf.map(f => ({ text: '', box: f.box, fig: f, col: 0 }));
+        if (!ocr) {
+          if (sf.length) paras.push(...joinLines(order(figParas), n)); else scanned.push(n);
+          continue;
+        }
+        // 整頁算成圖（長邊 2000，跟辨識套件 RapidOCR 一樣）用網頁版文字辨識；譜例框裡的字（譜上的記號）收進譜例
         progress('第 ' + n + '／' + pdf.numPages + ' 頁是掃描頁：網頁版文字辨識中（一頁大約 10～20 秒）');
         const cv = await pageCanvas(pg, 2000);
         const res = await ocr(cv, 'page');
         const o = ocrLines(res, cv.width, cv.height);
         cv.width = cv.height = 0;
-        if (o.lines.length) { paras.push(...joinLines(o.lines, n)); ocrd.push(n); } else scanned.push(n);
+        const ls = sf.length ? attachLabels(o.lines, sf) : o.lines;
+        if (ls.length || sf.length) { paras.push(...joinLines(order(ls.concat(figParas)), n)); if (ls.length) ocrd.push(n); } else scanned.push(n);
         continue;
       }
       const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));

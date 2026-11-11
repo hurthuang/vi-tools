@@ -6,6 +6,9 @@
 //     src：vtdoc-view 的 regionSource(p, box)；box：[x0,y0,x1,y1]（頁面比例）
 //     type：q 題目、opt 選項、其他照文字；mode：auto（文字＋算式）／math（整塊一個算式）
 //     → { lines:[…] }（算式寫成 \( \)）或 { tex, score }
+//   await vitoolsHaodian.omr(dataURL)（found.omr，辨識套件 0.4.2 起、完整版才有）
+//     → { results:[{ engine:'homr'|'audiveris', musicxml | error, sec }], spacing, scale, sec }
+//   vitoolsHaodian.omrSummary(musicxml) → 「1 個聲部、8 小節、17 個音；沒認出調號；4/8 拍」（給使用者挑結果）
 (function () {
   'use strict';
   const PORTS = [];
@@ -19,7 +22,7 @@
     const base = 'http://127.0.0.1:' + port + '/';
     return Promise.race([fetch(base + 'api/ocr', { cache: 'no-store' }), timeout(1500)])
       .then(r => r.ok ? r.json() : null)
-      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc, word: !!j.word, music: j.music !== false } : null)
+      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc, word: !!j.word, music: j.music !== false, omr: !!j.omr } : null)
       .catch(() => null);
   }
 
@@ -54,7 +57,8 @@
     if (found) { try { localStorage.setItem(SEEN, '1'); } catch (e) { /* 存不了就每次按 */ } return found; }
     if (d) {
       const st = await d.recognizer.status().catch(() => null);
-      if (st && st.found) found = { lazy: true, base: '', version: st.version, modes: ['auto', 'math', 'text'], doc: true, desktop: true, path: st.path };
+      // 還沒啟動，不知道是不是完整版：樂譜先當成有，辨識時辨識套件會回「試卷版沒有樂譜辨識」
+      if (st && st.found) found = { lazy: true, base: '', version: st.version, modes: ['auto', 'math', 'text'], doc: true, desktop: true, path: st.path, omr: true };
     }
     return found;
   }
@@ -167,5 +171,26 @@
     return { pdf: new File([bin(r.pdf)], base + '.pdf', { type: 'application/pdf' }), docx: new File([bin(r.docx)], base + '.docx') };
   }
 
-  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, get found() { return found; } };
+  // 一塊譜例的圖 → 兩個引擎的 MusicXML（辨識套件 0.4.2 起的 /api/omr；試卷版回 409）
+  async function omr(image) {
+    if (!found) throw new Error('沒有連上辨識套件');
+    if (!found.omr) throw new Error('這個辨識套件不能辨識樂譜（要 0.4.2 以上的完整版）');
+    return api('api/omr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+  }
+
+  const ENGINE = { homr: 'homr', audiveris: 'Audiveris' };
+  function omrSummary(xml) {
+    try {
+      const d = new DOMParser().parseFromString(xml, 'application/xml');
+      const parts = d.querySelectorAll('part');
+      if (!parts.length) return '沒有內容';
+      const ms = parts[0].querySelectorAll('measure').length;
+      const notes = d.querySelectorAll('note pitch').length;
+      const f = d.querySelector('key fifths'), beats = d.querySelector('time beats'), bt = d.querySelector('time beat-type');
+      const key = f ? (+f.textContent === 0 ? '無升降記號' : Math.abs(+f.textContent) + ' 個' + (+f.textContent > 0 ? '升記號' : '降記號')) : '沒認出調號';
+      return parts.length + ' 個聲部、' + ms + ' 小節、' + notes + ' 個音；' + key + '；' + (beats && bt ? beats.textContent + '/' + bt.textContent + ' 拍' : '沒認出拍號');
+    } catch (e) { return '讀不出內容'; }
+  }
+
+  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, omr, omrSummary, ENGINE, get found() { return found; } };
 })();

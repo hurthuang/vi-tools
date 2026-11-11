@@ -19,7 +19,8 @@
   const ATTRS = new Set(['class', 'id', 'lang', 'hidden', 'aria-hidden', 'alt', 'src', 'colspan', 'rowspan', 'charset',
     'name', 'content', 'type']);
   // 原卷（application/pdf、image/*）是 base64 資料，瀏覽器不會執行
-  const SCRIPT_TYPES = new Set(['application/json', 'application/vnd.recordare.musicxml+xml', 'application/pdf',
+  // text/vnd.abc：音樂點字存回譜例時一起存的 ABC 原文（試題方框等 MusicXML 存不下的寫法）
+  const SCRIPT_TYPES = new Set(['application/json', 'application/vnd.recordare.musicxml+xml', 'text/vnd.abc', 'application/pdf',
     'image/jpeg', 'image/png']);
 
   // 原卷：{ kind:'pdf', data:Uint8Array, pageMap:[原始檔頁碼…] } 或 { kind:'pages', pages:{頁:dataURL} }；沒帶原卷 → null
@@ -411,12 +412,24 @@
   const BLOCKS = 'h1,h2,h3,p,table';
 
   // 規格第 4 節：看得到的內容＝純文字；大題前後、每題前面空一行（跟辨識套件的 試卷.txt 一樣）
-  function toText(v) {
+  //   opt.scores：'block'＝確認過的譜例輸出 🎼 樂譜區塊（文字轉點字用）；預設一律「［譜例］」（朗讀、版面整理）
+  function toText(v, opt) {
+    const blocks = !!(opt && opt.scores === 'block');
     const main = v.doc.querySelector('main') || v.doc.body;
     const lines = [];
     const blank = () => { if (lines.length && lines[lines.length - 1].text !== '') lines.push({ text: '', el: null }); };
-    for (const el of main.querySelectorAll(BLOCKS)) {
+    for (const el of main.querySelectorAll(BLOCKS + ',figure.vt-score')) {
       if (hiddenUp(el)) continue;
+      // 譜例（規格第 4 節、3.7）：在音樂點字確認過的（有 ABC 原文、點字，雜湊對得上）→ 🎼 樂譜區塊（【樂譜】ABC【/樂譜】，
+      //   文字轉點字照 scoreBrl 用音樂點字存的點字）；辨識草稿、只標的 →「［譜例］」。這些行不綁元素、標 fixed，
+      //   文字轉點字存回（applyText）時不寫回，譜例要到音樂點字改
+      if (el.tagName === 'FIGURE') {
+        if (el.dataset.how === 'none') continue;
+        const abc = blocks && el.dataset.how === 'braille' && scoreAbc(el);
+        if (abc) ['【樂譜】', ...abc.split('\n'), '【/樂譜】'].forEach(t => lines.push({ text: t, el: null, score: el, fixed: true }));
+        else lines.push({ text: '［譜例］', el: null, score: el, fixed: true });
+        continue;
+      }
       if (el.closest('table') && el.tagName !== 'TABLE') continue;
       if (el.closest('figure')) continue;
       const tag = el.tagName.toLowerCase();
@@ -506,8 +519,12 @@
   }
 
   // 行的對應（最長共同子序列），改過的行寫回元素；多出來的行加 <p>，少掉的行刪掉元素
+  const MUSIC_BLOCK_RE = /^[ \t]*[【\[]樂譜[】\]][ \t]*\n[\s\S]*?\n[ \t]*[【\[]\/樂譜[】\]][ \t]*$/gm;
   function applyText(v, t, newText) {
-    const A = t.lines, B = newText.replace(/\r\n?/g, '\n').replace(/\n+$/, '').split('\n');
+    // 譜例的行（樂譜區塊、［譜例］）不寫回：比對前兩邊都拿掉
+    const A = t.lines.filter(l => !l.fixed);
+    const B = newText.replace(/\r\n?/g, '\n').replace(MUSIC_BLOCK_RE, '\u0000').replace(/\n+$/, '').split('\n')
+      .filter(l => l !== '\u0000' && l.trim() !== '［譜例］');
     const n = A.length, m = B.length;
     const L = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
     for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
@@ -687,5 +704,30 @@
     return { hand, stale };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline };
+  // 譜例在音樂點字確認過的 ABC 原文（ABC、點字的 data-src／data-brlsrc 都等於現在 MusicXML 的雜湊）；沒有 → ''
+  function scoreAbc(fig) {
+    const x = fig.querySelector('script[type="application/vnd.recordare.musicxml+xml"]');
+    const a = fig.querySelector('script[type="text/vnd.abc"]');
+    if (!x || !a || !fig.dataset.brl) return '';
+    const h = hash(x.textContent);
+    if (a.dataset.src !== h || fig.dataset.brlsrc !== h) return '';
+    return a.textContent.replace(/<\\\/script/gi, '</script').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+  }
+  // 譜例的點字：{ hand: Map(ABC → 點字（換行分行）), draft: 辨識草稿還沒在音樂點字確認的塊數, stale: 點字是舊的（MusicXML 後來被改過）的塊數, total }
+  function scoreBrl(v) {
+    const hand = new Map();
+    let draft = 0, stale = 0, total = 0;
+    (v.doc.querySelector('main') || v.doc.body).querySelectorAll('figure.vt-score').forEach(fig => {
+      if (fig.closest('template') || hiddenUp(fig) || fig.dataset.how === 'none') return;
+      total++;
+      const abc = scoreAbc(fig);
+      if (abc) { if (fig.dataset.how === 'braille' && !hand.has(abc.trim())) hand.set(abc.trim(), fig.dataset.brl); return; }
+      const x = fig.querySelector('script[type="application/vnd.recordare.musicxml+xml"]');
+      if (x && x.dataset.engine) draft++;
+      else if (x && fig.dataset.brl) stale++;
+    });
+    return { hand, draft, stale, total };
+  }
+
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline };
 })();
