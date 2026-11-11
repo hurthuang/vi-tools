@@ -3462,10 +3462,20 @@ function render() {
 
     let resultUnicode = '', lineCells = 0;
     const renderTokens = [];
+    // 空方剛好排不下而自動換行時，記下插了幾個換行；後面緊接原文換行或全文結束，
+    // 這個自動換行就是多的（會多出一個空行），拿掉
+    let spaceBreak = 0;
+    const dropSpaceBreak = () => {
+        if (!spaceBreak) return;
+        resultUnicode = resultUnicode.slice(0, -spaceBreak);
+        renderTokens.splice(renderTokens.length - spaceBreak, spaceBreak);
+        spaceBreak = 0;
+    };
 
     tokens.forEach((t, idx) => {
         // ── 明確換行（\n 在原文中）──
         if (t.braille === '\n') {
+            dropSpaceBreak();
             resultUnicode += '\n'; lineCells = 0;
             renderTokens.push({ ...t, isLineBreak: true, isExplicitBreak: true });
             return;
@@ -3519,13 +3529,15 @@ function render() {
             }
 
             // Bug 1 修正：若目前 token 是空格（行首），跳過它
-            if (t.isSpace) return;
+            if (t.isSpace) { spaceBreak = lgMode ? 2 : 1; return; }
         }
 
+        spaceBreak = 0;
         renderTokens.push({ ...t });
         resultUnicode += t.braille;
         lineCells += bLen;
     });
+    dropSpaceBreak();
 
     // 標記低年級可切換標點（僅空行空方模式才有空方可切換）
     if (lgSpaceMode && _lgCurrentRawMap && _lgPunctPositions) {
