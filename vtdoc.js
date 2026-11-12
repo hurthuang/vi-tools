@@ -114,7 +114,7 @@
             flushMath(); addText(m[1].trim()); i += m[0].length; continue;
           }
         }
-        const m = /^\\(?:[A-Za-z]+|[\s\S])/.exec(tex.slice(i));
+        const m = /^\\(?:[A-Za-z]+|[\s\S])?/.exec(tex.slice(i));   // 結尾單獨一個 \ 也要接得住
         buf += m[0]; i += m[0].length; continue;
       }
       if (c === '{') depth++;
