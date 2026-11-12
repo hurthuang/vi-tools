@@ -232,7 +232,8 @@
     const fx = vitoolsVtdoc.splitMathEls(main);
     const fixes = [fx.split && fx.split + ' 個算式中間夾中文的拆開', fx.joined && fx.joined + ' 個斷行後半收回算式',
       fx.promoted && fx.promoted + ' 段像算式的文字（變數、數字、b > a > c）變成算式',
-      fx.labels && fx.labels + ' 行的題號、選項標記（拿掉作答括號、選項改成「(A) 」）'].filter(Boolean);
+      fx.labels && fx.labels + ' 行的題號、選項標記（拿掉作答括號、選項改成「(A) 」）',
+      fx.arcs && fx.arcs + ' 個弧（\\widehat 改成弧的寫法）'].filter(Boolean);
     if (fixes.length) dirty = true;
     rowOf = new WeakMap();
     flatten();
@@ -934,6 +935,11 @@
     hdBusy = true;
     status('辨識中…（辨識套件第一次辨識要載入模型，大約 20 秒）');
     return sv.regionSource(page, box).then(src => vitoolsHaodian.recognize(src, box, opt))
+      .then(r => {   // 弧：\widehat{AB} → \overset{\frown}{AB}（舊版辨識套件沒改）
+        if (r && r.tex) r.tex = vitoolsVtdoc.arcTex(r.tex);
+        if (r && Array.isArray(r.lines)) r.lines = r.lines.map(t => typeof t === 'string' ? vitoolsVtdoc.arcTex(t) : t);
+        return r;
+      })
       .finally(() => { hdBusy = false; });
   }
   // 辨識出來的一行 → 類型：題號開頭＝題目、(A) 開頭＝選項，其他照 dflt

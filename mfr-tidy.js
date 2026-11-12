@@ -161,6 +161,9 @@
     t = t.replace(/\s+\}/g, '}');
     t = t.replace(R.sup, '^$1');
     t = t.replace(R.sub, '_$1');
+    // 弧 AB：\widehat{AB}（2～3 個大寫字母）、\overparen{…} → \overset{\frown}{AB}（vtdoc.js arcTex 同規則）
+    t = t.replace(/\\(?:overparen|wideparen|overarc|arc)\s*\{\s*([^{}]+?)\s*\}|\\widehat\s*\{\s*([A-Z](?:\s*[A-Z]){1,2})\s*\}/g,
+      (m, a, b) => '\\overset{\\frown}{' + (a || b).replace(/\s+/g, '') + '}');
     return t;
   }
 

@@ -140,8 +140,20 @@
   // 中繼檔裡的算式元素整理（nc 開檔時）：夾中文的拆開、被斷行切開的後半收回來。
   //   新的算式沿用原本的信心、裁圖、位置；確認標記、MathML 不留；
   //   手改的點字留在第一個算式（data-brlsrc 是原本 LaTeX 的，各工具會當成「舊的」提醒，不會直接用）→ { split, joined }
+  // 弧 AB：算式辨識常認成 \widehat{AB}（或 \overparen 之類），改成 nc 認得的 \overset{\frown}{AB}。
+  //   \widehat 只改 2～3 個大寫字母的（單一字母可能真的是 hat）
+  const ARC_RE = /\\(?:overparen|wideparen|overarc|arc)\s*\{\s*([^{}]+?)\s*\}|\\widehat\s*\{\s*([A-Z](?:\s*[A-Z]){1,2})\s*\}/g;
+  function arcTex(tex) {
+    return tex.replace(ARC_RE, (m, a, b) => '\\overset{\\frown}{' + (a || b).replace(/\s+/g, '') + '}');
+  }
   function splitMathEls(root) {
-    let split = 0, joined = 0;
+    let split = 0, joined = 0, arcs = 0;
+    root.querySelectorAll('.vt-math').forEach(el => {
+      if (el.closest('template')) return;
+      const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
+      const t2 = arcTex(tex);
+      if (t2 !== tex) { el.replaceWith(mathLike(el, t2)); arcs++; }
+    });
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
       const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
@@ -170,7 +182,7 @@
     });
     const labels = tidyLabels(root);
     const promoted = isMathDoc(root) ? promoteMath(root) : 0;
-    return { split, joined, promoted, labels };
+    return { split, joined, promoted, labels, arcs };
   }
 
   // 標號整理（2026-11-10 使用者定）：題號前後的作答括號「( )1.」「1.( )」拿掉；選項標記一律半形「(A) 」，後面空一格
@@ -729,5 +741,5 @@
     return { hand, draft, stale, total };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex };
 })();
