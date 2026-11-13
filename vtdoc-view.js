@@ -55,6 +55,7 @@
       }).catch(e => { SRC = null; console.warn('原卷打不開', e); return false; });
     };
     sv.has = () => !!SRC;
+    sv.isPdf = () => !!SRC && SRC.kind === 'pdf';   // 圖檔來源沒有文字層
 
     function width(asp) {
       const sc = o.scroll, mode = o.fit ? o.fit.value : 'page';

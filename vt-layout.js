@@ -393,7 +393,8 @@
     $('ly-drop').disabled = !b || (b.type !== 'q' && b.type !== 'h2');
     $('ly-grp').disabled = !b;
     $('ly-grp').textContent = b && b.grp && selRange().length === 1 ? '取消題組' : '設成題組';
-    $('ly-reocr').hidden = !hdOn();
+    $('ly-reocr').hidden = !canReread();
+    $('ly-reocr').title = hdOn() ? '用本機的辨識套件重新辨識這一塊（R）' : '用網頁版文字辨識重新辨識這一塊（R；只有文字，算式不會變成 LaTeX）';
     $('ly-reocr').disabled = !S.some(x => TEXT.has(x.type) && boxOf(x));
     $('ly-drop').textContent = b && b.type === 'h2' ? (b.el.hasAttribute('data-drop') ? '恢復這個大題' : '刪掉整個大題')
       : b && b.sec && b.sec.hasAttribute('data-drop') ? '恢復這一題' : '刪題';
@@ -987,7 +988,7 @@
 
   // 重新辨識選到的區塊（R）：內容換成辨識結果；多出來的行（題目拆出來的選項…）加在後面
   async function reocr() {
-    if (!hdOn() || hdBusy) return;
+    if (!canReread() || hdBusy) return;
     const S = selRange().filter(i => TEXT.has(blocks[i].type) && boxOf(blocks[i]));
     if (!S.length) { status('選有原卷位置的文字區塊，再按重新辨識'); return; }
     const els = S.map(i => blocks[i]);
@@ -1005,11 +1006,13 @@
         // 辨識套件的一個區塊在中繼檔裡可能拆成好幾個元素（題目行＋題幹、幾個選項），框一樣：一起換掉
         const blkOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.blk || '';
         const boxAttrOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.box || '';
-        const grp = blocks.filter(x => TEXT.has(x.type) && boxAttrOf(x) === boxAttr && blkOf(x) === blkOf(b));
+        // 網頁版辨識的文件，題目的框是整題（題目＋選項），選項各有自己的框：中心落在這個框裡的文字區塊也一起換掉，不然選項會重複
+        const region = [bx.x0, bx.y0, bx.x1, bx.y1];
+        const grp = blocks.filter(x => TEXT.has(x.type) && (x === b || (boxAttrOf(x) === boxAttr && blkOf(x) === blkOf(b)) || inRegion(x, bx.page, region)));
         grp.forEach(x => done.add(x));
         const head = grp[0];
-        const r = await hd(bx.page, [bx.x0, bx.y0, bx.x1, bx.y1], { type: head.type });
-        const lines = r.lines || [];
+        // 沒有辨識套件：網頁版文字辨識（web=true，不讀文字層：要重新辨識就是文字層不對）
+        const { lines } = await boxLines(bx.page, region, head.type, true);
         if (!lines.length) continue;
         setInline(head.el, lines[0]);
         if (head.type === 'opt') retypeLabel(head.el);
@@ -1028,7 +1031,7 @@
     build(); changed();
     render();
     mark(false);
-    status('重新辨識了 ' + n + ' 塊（辨識套件；算式記得到 nc 校對）');
+    status('重新辨識了 ' + n + ' 塊' + (hdOn() ? '（辨識套件；算式記得到 nc 校對）' : '（網頁版文字辨識，只有文字；算式用拉框「辨識成一個算式」）'));
   }
 
   // 拉框「框成附圖」：裁原卷那一塊當附圖（輸出方式＝標附圖、做觸圖），框裡的字當圖中文字（標籤，觸圖製作放原位）；
@@ -1098,6 +1101,13 @@
   const boxAttrOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.box || '';
   const blkOf = x => (x.type === 'q' && x.sec ? x.sec : x.el).dataset.blk || '';
   // 同一個框的幾個元素（辨識套件一個區塊拆出的題目行＋題幹、幾個選項；表格、附圖後面的文字）
+  // 區塊自己的框（題目沒有就看整題的框）中心在 r 裡（同一頁）
+  function inRegion(x, page, r) {
+    const o = vitoolsVtdoc.box(x.el) || (x.sec && vitoolsVtdoc.box(x.sec));
+    if (!o || o.page !== page) return false;
+    const cx = (o.x0 + o.x1) / 2, cy = (o.y0 + o.y1) / 2;
+    return cx >= r[0] && cx <= r[2] && cy >= r[1] && cy <= r[3];
+  }
   function boxGroup(b) {
     const a = boxAttrOf(b), k = blkOf(b);
     return a ? blocks.filter(x => x.type !== 'page' && boxAttrOf(x) === a && blkOf(x) === k) : [b];
@@ -1118,7 +1128,8 @@
     render();
     if (TEXT.has(b.type)) {
       bxPending = b;
-      $('ly-bx-text').textContent = '框改好了。要照新的框重新讀這一塊的字嗎？（' + (hdOn() ? '用辨識套件' : '讀 PDF 文字層') + '）';
+      $('ly-bx-text').textContent = '框改好了。要照新的框重新讀這一塊的字嗎？（' + (hdOn() ? '用辨識套件' :
+        webReadable() ? (sv.isPdf && !sv.isPdf() ? '用網頁版文字辨識' : '讀 PDF 文字層，沒有字的話用網頁版文字辨識') : '讀 PDF 文字層') + '）';
       $('ly-bx').hidden = false;
     } else status(b.type === 'fig' ? '附圖照新的框重新裁切了（框外的圖中文字拿掉）' : b.type === 'score' ? '譜例照新的框重新裁切了' : '框改好了');
   }
@@ -1225,28 +1236,81 @@
     });
     img.src = out.toDataURL('image/jpeg', 0.85);
   }
-  // 照框重新讀字：有辨識套件用辨識套件（文字＋算式），沒有就讀 PDF 文字層（一行一行接成段落，題號、選項開頭的另起一段）
+  // 一行一行接成段落：題號、選項開頭的另起一段，選項拆開
+  function joinLines(texts) {
+    const lines = [];
+    texts.forEach(t => {
+      const k = vitoolsVtdocBuild.kindOf(t);
+      if (lines.length && k === 'p') {
+        const last = lines[lines.length - 1];
+        lines[lines.length - 1] = last + (/[A-Za-z0-9,.]$/.test(last) && /^[A-Za-z0-9]/.test(t) ? ' ' : '') + t;
+      } else lines.push(...splitOpts(t));
+    });
+    return lines;
+  }
+  // 沒有辨識套件時，網頁版文字辨識也能重新讀字（只有文字，算式不會變成 LaTeX）
+  function webReadable() { return !!(window.vitoolsOcr && sv && sv.has()); }
+  function canReread() { return hdOn() || webReadable(); }
+  // 整頁辨識一次（長邊 2000，跟開檔時的整頁辨識一樣），每份原卷每頁記住；框裡的字從這裡挑。
+  //   只裁框去辨識的話，字貼著邊、少了上下文，常漏字（「一」）、標點認錯，比開檔時的結果差
+  const pageOcrs = new WeakMap();
+  function pageOcr(page) {
+    let m = pageOcrs.get(sv);
+    if (!m) { m = new Map(); pageOcrs.set(sv, m); }
+    if (!m.has(page)) {
+      const pr = (async () => {
+        const c0 = await sv.cropCanvas(page, [0, 0, 1, 1], 0, true);
+        const s = 2000 / Math.max(c0.width, c0.height);
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(c0.width * s); cv.height = Math.round(c0.height * s);
+        cv.getContext('2d').drawImage(c0, 0, 0, cv.width, cv.height);
+        c0.width = c0.height = 0;
+        try {
+          status('網頁版文字辨識中（這一頁第一次，大約 10～20 秒；之後同一頁很快）…');
+          return { res: await webOcr(cv), W: cv.width, H: cv.height };
+        } finally { cv.width = cv.height = 0; }
+      })();
+      pr.catch(() => m.delete(page));
+      m.set(page, pr);
+    }
+    return m.get(page);
+  }
+  async function webLines(page, box) {
+    const p = $('ly-st').textContent;
+    try {
+      const { res, W, H } = await pageOcr(page);
+      const inBox = r => { const cx = (r.box[0] + r.box[2]) / 2 / W, cy = (r.box[1] + r.box[3]) / 2 / H; return cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]; };
+      const o = vitoolsVtdocBuild.ocrLines(res.filter(inBox), W, H);
+      return joinLines(o.lines.map(l => l.text));
+    } finally { status(p); }
+  }
+  // 照框讀字：有辨識套件用辨識套件（文字＋算式）；沒有就讀 PDF 文字層，讀不到（掃描頁、圖檔）或 web=true 時用網頁版文字辨識
+  //   → { lines, how }
+  async function boxLines(page, box, type, web) {
+    if (hdOn()) return { lines: (await hd(page, box, { type })).lines || [], how: 'hd' };
+    if (!web) {
+      const t = await sv.textIn(page, box);
+      const lines = joinLines((t || []).map(l => l.text));
+      if (lines.length || !webReadable()) return { lines, how: 'layer' };
+    }
+    if (hdBusy) throw new Error('還在辨識上一塊，請稍等');
+    hdBusy = true;
+    status('網頁版文字辨識中…');
+    try { return { lines: await webLines(page, box), how: 'web' }; } finally { hdBusy = false; }
+  }
+  const HOW_NOTE = { hd: '；算式記得到 nc 校對', layer: '（讀 PDF 文字層）', web: '（網頁版文字辨識，算式要自己檢查或拉框辨識成算式）' };
+  // 照框重新讀字（改框之後）
   async function rereadBlock(b) {
     const bx = boxOf(b);
     if (!bx || blocks.indexOf(b) < 0) return;
-    const grp = boxGroup(b).filter(x => TEXT.has(x.type));
-    const head = grp[0] || b;
     const box = [bx.x0, bx.y0, bx.x1, bx.y1];
-    let lines;
-    try {
-      if (hdOn()) lines = (await hd(bx.page, box, { type: head.type })).lines || [];
-      else {
-        lines = [];
-        (await sv.textIn(bx.page, box)).forEach(l => {
-          const k = vitoolsVtdocBuild.kindOf(l.text);
-          if (lines.length && k === 'p') {
-            const last = lines[lines.length - 1];
-            lines[lines.length - 1] = last + (/[A-Za-z0-9,.]$/.test(last) && /^[A-Za-z0-9]/.test(l.text) ? ' ' : '') + l.text;
-          } else lines.push(...splitOpts(l.text));
-        });
-      }
-    } catch (e) { status('讀字失敗：' + e.message); return; }
-    if (!lines.length) { status('新的框裡讀不到字' + (hdOn() ? '' : '（PDF 文字層沒有字；掃描頁要用辨識套件）')); return; }
+    // 框拉大吃進下一行時，那一行的區塊也一起換掉（不然重複）
+    const g0 = boxGroup(b);
+    const grp = blocks.filter(x => TEXT.has(x.type) && (g0.includes(x) || inRegion(x, bx.page, box)));
+    const head = grp[0] || b;
+    let lines, how;
+    try { ({ lines, how } = await boxLines(bx.page, box, head.type)); } catch (e) { status('讀字失敗：' + e.message); return; }
+    if (!lines.length) { status('新的框裡讀不到字' + (canReread() ? '' : '（PDF 文字層沒有字；掃描頁要用辨識套件）')); return; }
     snap();
     setInline(head.el, lines[0]);
     if (head.type === 'opt') retypeLabel(head.el);
@@ -1257,7 +1321,7 @@
     cur = anchor = blocks.indexOf(head);
     build(); changed();
     render();
-    status('照新的框重新讀了字（' + lines.length + ' 段）' + (hdOn() ? '；算式記得到 nc 校對' : ''));
+    status('照新的框重新讀了字（' + lines.length + ' 段）' + HOW_NOTE[how]);
   }
   // 刪除選到的區塊（真的拿掉；只是不要輸出請用 0 略過）
   function delBlocks() {
@@ -2042,7 +2106,7 @@
       if (k === 'd' || k === 'D') { e.preventDefault(); toggleDrop(); return; }
       if (k === 't' || k === 'T') { e.preventDefault(); toggleGroup(); return; }
       if (k === 'o' || k === 'O') { e.preventDefault(); toggleOrder(); return; }
-      if ((k === 'r' || k === 'R') && hdOn()) { e.preventDefault(); reocr(); return; }
+      if ((k === 'r' || k === 'R') && canReread()) { e.preventDefault(); reocr(); return; }
       if (k === 'Escape' && orderSeq) { e.preventDefault(); toggleOrder(); return; }
     });
     // 編輯中的算式點兩下
