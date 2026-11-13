@@ -874,6 +874,13 @@
     $('ly-hd').hidden = !f;
     $('ly-hd-find').hidden = !!f;
     $('ly-hd-what').hidden = !!f;
+    // 桌面版 0.5.1 起：沒有辨識套件就直接給「安裝」按鈕（haodian-ocr.js installPanel）
+    const inst = $('ly-hd-inst');
+    if (f) inst.hidden = true;
+    else if (!inst.childElementCount && !inst.dataset.asked && window.vitoolsHaodian && vitoolsHaodian.installPanel) {
+      inst.dataset.asked = '1';
+      vitoolsHaodian.installPanel(inst, status, () => { inst.textContent = ''; delete inst.dataset.asked; showHd(); });
+    } else inst.hidden = !inst.childElementCount;
     if (f) $('ly-hd-name').textContent = f.lazy ? '已找到辨識套件 ' + (f.version || '') + '（桌面版，用到時在背景開啟）'
       : '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
     // GitHub 上有新版：提示（0.4.3 起可以直接按「更新辨識套件」）；同一個版本只查一次

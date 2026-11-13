@@ -22,6 +22,8 @@ static class Program
         ApplicationConfiguration.Initialize();
         // 上次自動更新換下來的舊執行檔、沒清掉的暫存檔
         Updater.CleanupOldExe();
+        // 上次安裝辨識套件沒做完、換下來的舊辨識套件（背景刪，很大）
+        _ = Task.Run(() => RecognizerInstall.CleanupLeftovers());
 
         string? webRoot = FindWebRoot(args);
         if (webRoot == null)

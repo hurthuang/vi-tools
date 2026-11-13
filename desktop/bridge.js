@@ -50,12 +50,13 @@
       case 'progress': if (w.onProgress) w.onProgress({ stage: 'synthesize', done: m.done, total: m.total }); return;
       case 'encoding': if (w.onProgress) w.onProgress({ stage: 'encode' }); return;
       case 'batchProgress': if (w.onProgress) w.onProgress({ stage: 'file', done: m.done, total: m.total, name: m.name }); return;
+      case 'recognizerProgress': if (w.onProgress) w.onProgress({ stage: m.stage, done: m.done, total: m.total }); return;
       case 'voices': w.resolve(m.voices); break;
       case 'previewAudio': w.resolve(m.data); break;
       case 'exportDone': w.resolve({ saved: true, path: m.path }); break;
       case 'batchDone': w.resolve({ saved: true, path: m.path, count: m.count }); break;
       case 'exportCancelled': w.resolve({ saved: false }); break;
-      case 'recognizer': w.resolve({ found: m.found, path: m.path || '', version: m.version || '', running: !!m.running, cancelled: !!m.cancelled }); break;
+      case 'recognizer': w.resolve({ found: m.found, path: m.path || '', version: m.version || '', running: !!m.running, cancelled: !!m.cancelled, edition: m.edition || '', installing: !!m.installing }); break;
       case 'recognizerStarted': w.resolve({ base: m.base }); break;
       case 'error': w.reject(new Error(m.message)); break;
       default: return;
@@ -76,15 +77,22 @@
     //   'segments' exportAudio 可傳 segments（中英分語音，每段指定語音）與 pause
     //   'batch'    exportAudioBatch（分段匯出：一段一個音檔，存進同一個資料夾）
     //   'recognizer' recognizer.status()／start()／pick()（vi-tools 辨識套件放在 ViTools 資料夾裡，用到才在背景啟動，0.5.0 起）
-    features: Object.freeze(['segments', 'batch', 'recognizer']),
+    //   'recognizerInstall' recognizer.install()／cancel()（0.5.1 起）
+    features: Object.freeze(['segments', 'batch', 'recognizer', 'recognizerInstall']),
     // vi-tools 辨識套件：
-    //   status() → { found, path, version, running }（找的是 ViTools 資料夾裡、底下兩層，或 pick() 選過的）
+    //   status() → { found, path, version, running, edition: 'exam'|'full'|'', installing }（找的是 ViTools 資料夾裡、底下兩層，或 pick() 選過的）
     //   start()  → { base }（已經在跑的直接用；沒有就在背景啟動，等到回應，最多 60 秒；app 關掉時一起關）
     //   pick()   → 選資料夾，回傳同 status()（取消時 cancelled: true）
+    //   install({ edition: 'exam'|'full'|'', file }, onProgress) → 同 status()
+    //     從 GitHub 最新版下載（file: true 改成選已下載的 zip，取消時 cancelled: true）、核對 sha256、解壓縮、換上；
+    //     已經有就整包換新（輸出資料夾搬過去），edition '' 照原本的版本
+    //     onProgress({ stage: 'download'|'extract'|'replace', done, total })；失敗或 cancel() → reject
     recognizer: Object.freeze({
       status: () => call('recognizerStatus', {}),
       start: () => call('recognizerStart', {}),
       pick: () => call('recognizerPick', {}),
+      install: (opt, onProgress) => call('recognizerInstall', { edition: (opt && opt.edition) || '', file: !!(opt && opt.file) }, onProgress),
+      cancel: () => { send({ type: 'recognizerCancel' }); },
     }),
     // Windows 語音清單：[{ id, name, lang, isDefault }]
     getVoices: () => call('getVoices', {}),

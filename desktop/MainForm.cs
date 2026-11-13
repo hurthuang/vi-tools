@@ -457,6 +457,13 @@ public class MainForm : Form
                 case "recognizerPick":
                     Reply(PickRecognizer());
                     break;
+                // 安裝、整包更新（RecognizerInstall.cs，0.5.1 起）：edition exam｜full｜''；file: true 選已下載的 zip
+                case "recognizerInstall":
+                    await InstallRecognizerAsync(msg, Reply);
+                    break;
+                case "recognizerCancel":
+                    RecognizerInstall.Cancel();
+                    break;
             }
         }
         catch (Exception ex)
@@ -468,7 +475,49 @@ public class MainForm : Form
     static object RecognizerStatus()
     {
         string? dir = Recognizer.Find();
-        return new { type = "recognizer", found = dir != null, path = dir ?? "", version = dir != null ? Recognizer.Version(dir) : "", running = Recognizer.Running };
+        return new
+        {
+            type = "recognizer", found = dir != null, path = dir ?? "", version = dir != null ? Recognizer.Version(dir) : "", running = Recognizer.Running,
+            edition = dir == null ? "" : RecognizerInstall.IsFull(dir) ? "full" : "exam", installing = RecognizerInstall.Busy,
+        };
+    }
+
+    async Task InstallRecognizerAsync(JsonElement msg, Action<object> reply)
+    {
+        string edition = msg.TryGetProperty("edition", out var ed) ? ed.GetString() ?? "" : "";
+        string? zip = null;
+        if (msg.TryGetProperty("file", out var fl) && fl.ValueKind == JsonValueKind.True)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = "選擇下載好的辨識套件 zip（vi-tools-recognizer-…-portable.zip）",
+                Filter = "辨識套件 zip|*.zip|所有檔案|*.*",
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK) { reply(new { type = "recognizer", found = Recognizer.Find() != null, cancelled = true }); return; }
+            zip = dlg.FileName;
+        }
+        int lastPct = -1;
+        string lastStage = "";
+        var progress = new Progress<RecognizerInstall.Progress>(p =>
+        {
+            int pct = p.Total > 0 ? (int)(p.Done * 100 / p.Total) : 0;
+            if (pct == lastPct && p.Stage == lastStage) return;
+            lastPct = pct; lastStage = p.Stage;
+            reply(new { type = "recognizerProgress", stage = p.Stage, done = p.Done, total = p.Total });
+            _updateNote = p.Stage switch
+            {
+                "download" => $"（下載辨識套件 {pct}%）",
+                "extract" => $"（解壓縮辨識套件 {pct}%）",
+                _ => "（換上辨識套件）",
+            };
+            UpdateTitle();
+        });
+        try
+        {
+            await RecognizerInstall.RunAsync(edition, zip, $"ViTools/{AppVersion}", progress);
+        }
+        finally { _updateNote = ""; UpdateTitle(); }
+        reply(RecognizerStatus());
     }
 
     // 辨識套件放在別的地方：讓使用者選資料夾（選到外層也可以，往下找兩層），記住

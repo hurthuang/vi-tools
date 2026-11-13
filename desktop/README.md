@@ -125,7 +125,7 @@ function onDesktop(fn) {
 |---|---|
 | `apiVersion` | 目前 `1`。只有不相容的改變才加 1；新增功能不加，網頁用 `'功能名' in vitoolsDesktop` 判斷 |
 | `appVersion` | app 版本（`ViTools.csproj` 的 `<Version>`），例如 `'0.1.0'` |
-| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（中英分語音匯出）、`'batch'`（`exportAudioBatch`）、`'recognizer'`（`recognizer`，0.5.0 起） |
+| `features` | 新增功能的清單，網頁用 `vitoolsDesktop.features?.includes('segments')` 判斷。目前：`'segments'`（中英分語音匯出）、`'batch'`（`exportAudioBatch`）、`'recognizer'`（`recognizer`，0.5.0 起）、`'recognizerInstall'`（`recognizer.install`／`cancel`，0.5.1 起） |
 | `getVoices()` | → `[{ id, name, lang, isDefault }]`，Windows 內建語音 |
 | `previewAudio({ text, voiceId, rate, volume })` | 合成前 300 字 → WAV 的 base64（`new Audio('data:audio/wav;base64,' + 結果)`）。播放要在使用者操作之後，否則瀏覽器會擋 |
 | `exportAudio({ text, voiceId, rate, volume, fileName }, onProgress)` | 跳出存檔視窗（MP3／WAV）→ `{ saved: true, path }` 或 `{ saved: false }`（取消）。有 `segments: [{ text, voiceId }]` 時忽略 `text`、`voiceId`，逐段用各自的語音合成再接起來，`pause`（`natural`／`original`／`min`）決定段落交界的靜音長度。`onProgress({ stage: 'synthesize', done, total })`、`onProgress({ stage: 'encode' })` |
@@ -135,6 +135,8 @@ function onDesktop(fn) {
 | `recognizer.status()` | vi-tools 辨識套件（`'recognizer'`）：→ `{ found, path, version, running }`。找的位置：`recognizer.pick()` 選過的（`%LOCALAPPDATA%\ViTools\recognizer-path.txt`）→ ViTools 資料夾本身、底下一層、兩層（解壓縮常多一層：`vi-tools-recognizer-0.4.0-portable\vi-tools辨識套件\`）；認得的資料夾有 `runtime\python\python.exe` 與 `app\main.py` |
 | `recognizer.start()` | 已經有辨識套件在跑（使用者自己開的也算）就直接用；沒有就在背景啟動（不開黑色視窗），等到它回應 → `{ base }`（最多 60 秒）。app 關掉時一起關；app 當掉或被強制結束也會關（Windows Job 物件 KILL_ON_JOB_CLOSE）。只關自己開的 |
 | `recognizer.pick()` | 選資料夾（選到外層也可以，往下找兩層），記住 → 同 `status()`；取消時多 `cancelled: true` |
+| `recognizer.install({ edition, file }, onProgress)` | 0.5.1 起（`'recognizerInstall'`）：安裝或整包更新辨識套件（`RecognizerInstall.cs`）。`edition`：`'exam'` 試卷版、`'full'` 完整版、`''` 照原本的（沒有就試卷版）；`file: true` 改成選已下載的 zip（取消 → `cancelled: true`）。從 GitHub API `releases/latest` 找 `-exam-portable.zip`／`-portable.zip`，一邊下載一邊算 sha256，跟附檔的 `digest` 與大小核對；檢查 zip 每個檔都在 `vi-tools辨識套件/` 底下、有 `runtime/python/python.exe` 和 `app/main.py`；解壓縮到 `vi-tools辨識套件.new` 再換上。已經有 → 先關掉 app 開的辨識套件，舊的改名 `.old`、新的換上、`輸出` 搬過去、背景刪 `.old`（刪不掉下次啟動再刪）；沒有 → 放 ViTools 資料夾（不能寫入時 `%LOCALAPPDATA%\ViTools`）。磁碟空間不夠先擋。`onProgress({ stage: 'download'\|'extract'\|'replace', done, total })`，視窗標題也顯示百分比。→ 同 `status()`（多 `edition`、`installing`）。測試用環境變數：`VITOOLS_RECOGNIZER_API`（假的 Release JSON）、`VITOOLS_RECOGNIZER_INSTALL_DIR` |
+| `recognizer.cancel()` | 停止下載或解壓縮（`install()` reject「已停止，沒有安裝」），原本的辨識套件不變 |
 
 錯誤（例如沒有文字）以 Promise reject 回報。原生層只接受本工具網頁（`https://vitools.local/`、`https://hurthuang.github.io/vi-tools/`）送來的訊息。
 

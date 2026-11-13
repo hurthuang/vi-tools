@@ -10,6 +10,7 @@
 //     → { results:[{ engine:'homr'|'audiveris', musicxml | error, sec }], spacing, scale, sec }
 //   vitoolsHaodian.updateNotice(el, onStatus)：GitHub 上有新版就在 el 裡放提示（0.4.3 起的辨識套件有「更新」按鈕，
 //     只換 app\ 約 1 MB、自己重新啟動；比較舊的給下載連結，要換整個資料夾）；沒有新版、查不到 → el 清空
+//   桌面版 0.5.1 起：canInstall()、install()、installPanel(el, onStatus, onDone)：在 app 裡下載安裝、整包更新辨識套件（見下面）
 //   vitoolsHaodian.omrSummary(musicxml) → 「1 個聲部、8 小節、17 個音；沒認出調號；4/8 拍」（給使用者挑結果）
 (function () {
   'use strict';
@@ -60,7 +61,7 @@
     if (d) {
       const st = await d.recognizer.status().catch(() => null);
       // 還沒啟動，不知道是不是完整版：樂譜先當成有，辨識時辨識套件會回「試卷版沒有樂譜辨識」
-      if (st && st.found) found = { lazy: true, base: '', version: st.version, modes: ['auto', 'math', 'text'], doc: true, desktop: true, path: st.path, omr: true };
+      if (st && st.found) found = { lazy: true, base: '', version: st.version, modes: ['auto', 'math', 'text'], doc: true, desktop: true, path: st.path, omr: st.edition !== 'exam', edition: st.edition || '' };
     }
     return found;
   }
@@ -231,6 +232,7 @@
     if (!el) return Promise.resolve(null);
     return checkUpdate().catch(() => null).then(u => {
       el.textContent = '';
+      delete el.dataset.whole;
       el.hidden = !u;
       if (!u) return null;
       const t = document.createElement('span');
@@ -243,7 +245,20 @@
         return a;
       };
       el.appendChild(document.createTextNode(' '));
-      if (!u.self) { el.appendChild(link()); return u; }
+      // 要換整包（0.4.3 以前的版本，或執行環境也換了）：桌面版 0.5.1 起可以直接下載換上，其他給下載連結
+      const whole = () => installer().then(d => {
+        if (!d) { el.appendChild(link()); return; }
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn';
+        b.textContent = '下載整包更新（' + sizeOf(found && found.edition) + '）';
+        b.title = '下載新版整個辨識套件、換掉舊的；「輸出」資料夾（辨識結果）會搬過去';
+        b.addEventListener('click', () => installRun(b, el, { edition: '' }, onStatus, f => {
+          el.textContent = '辨識套件已更新到 ' + (f && f.version || '');
+          if (el.onupdated) el.onupdated(f);
+        }));
+        el.appendChild(b);
+      });
+      if (!u.self) { whole(); return u; }
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'btn';
       b.textContent = '更新辨識套件';
@@ -257,11 +272,81 @@
         }).catch(e => {
           b.disabled = false;
           if (onStatus) onStatus('更新失敗：' + e.message);
-          if (/整包/.test(e.message) && !el.querySelector('a')) { el.appendChild(document.createTextNode(' ')); el.appendChild(link()); }
+          if (/整包/.test(e.message) && !el.querySelector('a') && !el.dataset.whole) { el.dataset.whole = '1'; b.remove(); whole(); }
         });
       });
       el.appendChild(b);
       return u;
+    });
+  }
+
+  // ── 桌面版 0.5.1 起：在 app 裡安裝、整包更新辨識套件（desktop/RecognizerInstall.cs）
+  //   canInstall() → Promise<bool>
+  //   install({ edition: 'exam'|'full'|'', file }, onStatus) → 裝好後的 detect() 結果；選 zip 時取消 → null；失敗 → reject
+  //   installPanel(el, onStatus, onDone(found))：在 el 放「安裝試卷版／完整版／選已下載的 zip」按鈕（沒裝辨識套件時用）
+  function installer() {
+    return desktop().then(d => d && d.features.includes('recognizerInstall') ? d : null);
+  }
+  const canInstall = () => installer().then(Boolean);
+  const sizeOf = ed => ed === 'full' ? '約 530 MB' : ed === 'exam' ? '約 300 MB' : '300～530 MB';
+  const MB = b => Math.round(b / 1e6) + ' MB';
+  async function install(opt, onStatus) {
+    const d = await installer();
+    if (!d) throw new Error('這個版本的桌面版不能安裝辨識套件，請先更新桌面版');
+    let lastStep = -1, lastStage = '';
+    const st = await d.recognizer.install(opt || {}, p => {
+      if (!onStatus) return;
+      const pct = p.total ? Math.floor(p.done * 100 / p.total) : 0;
+      // 狀態列是 aria-live：每 10% 才更新一次，報讀軟體不會一直念（視窗標題有每 1% 的進度）
+      const step = Math.floor(pct / 10);
+      if (p.stage === lastStage && step === lastStep) return;
+      lastStep = step; lastStage = p.stage;
+      onStatus(p.stage === 'download' ? '下載辨識套件… ' + pct + '%（' + MB(p.done) + '／' + MB(p.total) + '）'
+        : p.stage === 'extract' ? '解壓縮辨識套件… ' + pct + '%' : '換上辨識套件…');
+    });
+    if (st && st.cancelled) return null;
+    found = null; starting = null;
+    return detect();
+  }
+  // 按鈕按下去：其他按鈕停用、多一個「停止」；做完呼叫 done(found)
+  function installRun(btn, box, opt, onStatus, done) {
+    const btns = [...box.querySelectorAll('button')];
+    btns.forEach(x => { x.disabled = true; });
+    const stop = document.createElement('button');
+    stop.type = 'button'; stop.className = 'btn';
+    stop.textContent = '停止下載';
+    stop.addEventListener('click', () => { stop.disabled = true; installer().then(d => d && d.recognizer.cancel()); });
+    if (!opt.file) btn.after(stop);
+    if (onStatus) onStatus(opt.file ? '選擇下載好的 zip…' : '查詢最新版的辨識套件…');
+    return install(opt, onStatus).then(f => {
+      if (f === null && opt.file) { if (onStatus) onStatus('沒有選 zip'); return; }
+      if (onStatus) onStatus(f ? '辨識套件 ' + (f.version || '') + ' 裝好了，第一次辨識時會在背景開啟' : '裝好了，但找不到辨識套件');
+      if (done) done(f);
+    }).catch(e => {
+      if (onStatus) onStatus((opt.edition === '' ? '更新' : '安裝') + '辨識套件失敗：' + e.message);
+    }).finally(() => {
+      stop.remove();
+      btns.forEach(x => { x.disabled = false; });
+    });
+  }
+  function installPanel(el, onStatus, onDone) {
+    if (!el) return Promise.resolve(false);
+    return installer().then(d => {
+      el.textContent = '';
+      el.hidden = !d;
+      if (!d) return false;
+      const add = (text, title, opt) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn';
+        b.textContent = text; b.title = title;
+        b.addEventListener('click', () => installRun(b, el, opt, onStatus, onDone));
+        el.appendChild(b);
+        el.appendChild(document.createTextNode(' '));
+      };
+      add('安裝辨識套件（試卷版，約 300 MB）', '從 GitHub 下載 vi-tools 辨識套件試卷版：文字、算式、版面，放進 ViTools 資料夾', { edition: 'exam' });
+      add('安裝完整版（約 530 MB，多樂譜辨識）', '試卷版再加上樂譜辨識（Audiveris、homr）', { edition: 'full' });
+      add('用已下載的 zip 安裝', '學校網路下載太慢時：在別的地方下載好 vi-tools-recognizer-…-portable.zip，選這個檔安裝', { edition: '', file: true });
+      return true;
     });
   }
 
@@ -280,5 +365,6 @@
   }
 
   window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, omr, omrSummary, ENGINE, checkUpdate, selfUpdate, updateNotice, newer,
+    canInstall, install, installPanel,
     get found() { return found; } };
 })();
