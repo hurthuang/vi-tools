@@ -102,6 +102,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
       <label id="mode-score-w" hidden><input type="radio" name="mode" value="score"> 樂譜（用本機辨識套件，結果是草稿）</label>
     </fieldset>
     <span class="hd" id="hd-st"></span>
+    <span class="hd" id="hd-upd" hidden></span>
     <button type="button" id="btn-hd" class="ghost" title="打開 vi-tools 辨識套件（完整版）之後按這個，就可以辨識樂譜">找本機辨識套件</button>
     <a href="guide.html#recognizer" id="lnk-hd" class="hd">什麼是辨識套件？</a>
   </div>
@@ -192,6 +193,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
   // 本機辨識套件（樂譜）：打開頁面時，這台瀏覽器連上過才自動找（同版面整理）；找到而且有樂譜辨識才出現「樂譜」
   let wantScore = false;
   try { wantScore = localStorage.getItem('vi-ocr-mode') === 'score'; } catch (e) {}
+  let hdUpdFor = null;   // 查過新版的辨識套件版本
   function showHd(f) {
     const ok = !!(f && f.omr);
     $('mode-score-w').hidden = !ok;
@@ -199,6 +201,12 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'setThem
     $('btn-hd').hidden = !!f;
     $('lnk-hd').hidden = !!f;
     $('hd-st').textContent = ok ? '已連上辨識套件，可以辨識樂譜' : '';
+    // GitHub 上有新版：提示（0.4.3 起可以直接按「更新辨識套件」）；同一個版本只查一次
+    if (f && f.version !== hdUpdFor) {
+      hdUpdFor = f.version;
+      $('hd-upd').onupdated = g => showHd(g);
+      vitoolsHaodian.updateNotice($('hd-upd'), st);
+    }
     const r = document.querySelector('input[name="mode"][value="score"]');
     if (ok && wantScore) { r.checked = true; wantScore = false; modeChanged(); }
     if (!ok && r.checked) { document.querySelector('input[name="mode"][value="text"]').checked = true; modeChanged(); }

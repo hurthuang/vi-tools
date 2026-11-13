@@ -864,6 +864,7 @@
   }
   // ---------- 本機辨識套件（偵測到才有） ----------
   function hdOn() { return !!(window.vitoolsHaodian && vitoolsHaodian.found); }
+  let hdUpdFor = null;   // 查過新版的辨識套件版本
   function showHd() {
     const f = hdOn() && vitoolsHaodian.found;
     $('ly-hd').hidden = !f;
@@ -871,6 +872,13 @@
     $('ly-hd-what').hidden = !!f;
     if (f) $('ly-hd-name').textContent = f.lazy ? '已找到辨識套件 ' + (f.version || '') + '（桌面版，用到時在背景開啟）'
       : '已連上辨識套件 ' + (f.version || '') + '（' + f.base.replace(/^http:\/\//, '').replace(/\/$/, '') + '）';
+    // GitHub 上有新版：提示（0.4.3 起可以直接按「更新辨識套件」）；同一個版本只查一次
+    if (f && f.version !== hdUpdFor && vitoolsHaodian.updateNotice) {
+      hdUpdFor = f.version;
+      const el = $('ly-hd-upd');
+      el.onupdated = () => showHd();
+      vitoolsHaodian.updateNotice(el, status);
+    }
     // 拉框方式：「文字＋算式」只有連上辨識套件才有；「一個算式」沒辨識套件時用網頁版辨識（mfr-web.js）
     const dm = $('ly-dragmode'), au = dm.querySelector('option[value="auto"]'), tx = dm.querySelector('option[value="text"]');
     const was = au.hidden;

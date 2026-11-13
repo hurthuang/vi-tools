@@ -8,6 +8,8 @@
 //     → { lines:[…] }（算式寫成 \( \)）或 { tex, score }
 //   await vitoolsHaodian.omr(dataURL)（found.omr，辨識套件 0.4.2 起、完整版才有）
 //     → { results:[{ engine:'homr'|'audiveris', musicxml | error, sec }], spacing, scale, sec }
+//   vitoolsHaodian.updateNotice(el, onStatus)：GitHub 上有新版就在 el 裡放提示（0.4.3 起的辨識套件有「更新」按鈕，
+//     只換 app\ 約 1 MB、自己重新啟動；比較舊的給下載連結，要換整個資料夾）；沒有新版、查不到 → el 清空
 //   vitoolsHaodian.omrSummary(musicxml) → 「1 個聲部、8 小節、17 個音；沒認出調號；4/8 拍」（給使用者挑結果）
 (function () {
   'use strict';
@@ -22,7 +24,7 @@
     const base = 'http://127.0.0.1:' + port + '/';
     return Promise.race([fetch(base + 'api/ocr', { cache: 'no-store' }), timeout(1500)])
       .then(r => r.ok ? r.json() : null)
-      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc, word: !!j.word, music: j.music !== false, omr: !!j.omr } : null)
+      .then(j => j && j.ocr ? { base, version: j.version, modes: j.ocr, doc: !!j.doc, word: !!j.word, music: j.music !== false, omr: !!j.omr, update: !!j.update } : null)
       .catch(() => null);
   }
 
@@ -178,6 +180,91 @@
     return api('api/omr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
   }
 
+  // ---------- 新版提示、自己更新（辨識套件 0.4.3 起的 /api/update） ----------
+  const REL_API = 'https://api.github.com/repos/hurthuang/vi-tools-recognizer/releases/latest';
+  const REL_PAGE = 'https://github.com/hurthuang/vi-tools-recognizer/releases/latest';
+  const LATEST = 'vitools-recognizer-latest';
+  const vnum = v => String(v || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  function newer(a, b) {   // a 比 b 新
+    const x = vnum(a), y = vnum(b);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  }
+  // GitHub 上最新的版本；6 小時查一次（GitHub API 沒登入一小時只能查 60 次）
+  async function latest() {
+    try {
+      const c = JSON.parse(localStorage.getItem(LATEST) || 'null');
+      if (c && Date.now() - c.t < 6 * 3600e3) return c.v;
+    } catch (e) { /* */ }
+    const r = await Promise.race([fetch(REL_API, { headers: { Accept: 'application/vnd.github+json' } }), timeout(8000)]);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const v = String((await r.json()).tag_name || '').replace(/^v/, '');
+    try { localStorage.setItem(LATEST, JSON.stringify({ t: Date.now(), v })); } catch (e) { /* */ }
+    return v;
+  }
+  // 會自己更新的辨識套件：連上的看 /api/ocr 的 update；桌面版還沒啟動的只知道版本（0.4.3 起才有）
+  const canSelf = f => !!(f && (f.update || (f.lazy && !newer('0.4.3', f.version))));
+  async function checkUpdate() {
+    if (!found || !found.version) return null;
+    const v = await latest();
+    return v && newer(v, found.version) ? { current: found.version, latest: v, self: canSelf(found), url: REL_PAGE } : null;
+  }
+  // 請辨識套件下載新版的 app\ 換上、重新啟動，等它用新版本回應（最多 60 秒）
+  async function selfUpdate(onStatus) {
+    await ensure(onStatus);
+    if (onStatus) onStatus('下載新版的辨識套件程式（約 1 MB）…');
+    const r = await fetch(found.base + 'api/update', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    if (onStatus) onStatus('已換上 ' + j.version + '，辨識套件重新啟動中…');
+    const base = found.base;
+    for (let i = 0; i < 120; i++) {
+      await new Promise(res => setTimeout(res, 500));
+      const f = await ping(+base.match(/:(\d+)\//)[1]);
+      if (f && f.version === j.version) { found = f; return f; }
+    }
+    found = await pingAll();
+    if (found && found.version === j.version) return found;
+    throw new Error('更新好了，但辨識套件沒有重新啟動；請關掉再打開辨識套件');
+  }
+  function updateNotice(el, onStatus) {
+    if (!el) return Promise.resolve(null);
+    return checkUpdate().catch(() => null).then(u => {
+      el.textContent = '';
+      el.hidden = !u;
+      if (!u) return null;
+      const t = document.createElement('span');
+      t.textContent = '辨識套件有新版 ' + u.latest + '（現在是 ' + u.current + '）';
+      el.appendChild(t);
+      const link = () => {
+        const a = document.createElement('a');
+        a.href = u.url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '下載新版（解壓縮後換掉整個「vi-tools辨識套件」資料夾，輸出資料夾記得搬過去）';
+        return a;
+      };
+      el.appendChild(document.createTextNode(' '));
+      if (!u.self) { el.appendChild(link()); return u; }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn';
+      b.textContent = '更新辨識套件';
+      b.title = '只下載換掉程式的部分（約 1 MB），辨識套件會自己重新啟動；辨識結果不會動到';
+      b.addEventListener('click', () => {
+        b.disabled = true;
+        selfUpdate(onStatus).then(f => {
+          el.textContent = '辨識套件已更新到 ' + f.version;
+          if (onStatus) onStatus('辨識套件已更新到 ' + f.version);
+          if (el.onupdated) el.onupdated(f);
+        }).catch(e => {
+          b.disabled = false;
+          if (onStatus) onStatus('更新失敗：' + e.message);
+          if (/整包/.test(e.message) && !el.querySelector('a')) { el.appendChild(document.createTextNode(' ')); el.appendChild(link()); }
+        });
+      });
+      el.appendChild(b);
+      return u;
+    });
+  }
+
   const ENGINE = { homr: 'homr', audiveris: 'Audiveris' };
   function omrSummary(xml) {
     try {
@@ -192,5 +279,6 @@
     } catch (e) { return '讀不出內容'; }
   }
 
-  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, omr, omrSummary, ENGINE, get found() { return found; } };
+  window.vitoolsHaodian = { detect, recognize, doc, ensure, pick, word, omr, omrSummary, ENGINE, checkUpdate, selfUpdate, updateNotice, newer,
+    get found() { return found; } };
 })();
