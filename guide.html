@@ -1058,10 +1058,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 <!-- ════════════ 桌面版 ════════════ -->
 <section id="app">
   <h2 class="section-title">Windows 桌面版</h2>
-  <p>桌面版就是這個網站的工具，另外多了兩件事：</p>
+  <p>桌面版就是這個網站的工具，另外多了三件事：</p>
   <ul>
     <li><b>沒有網路也能用</b>：有網路時用網站上最新的版本，沒網路時自動改用程式內附的版本。</li>
     <li><b>存成音檔</b>：報讀和朗讀與音檔的朗讀內容，可以存成 MP3 或 WAV，放到手機或播放器聽。</li>
+    <li><b>自動開啟 vi-tools 辨識套件</b>（0.5.0 起）：辨識套件要另外下載，把解壓縮的「vi-tools辨識套件」資料夾放進 ViTools 資料夾（跟 ViTools.exe 同一層），版面整理、文字辨識用到時就會在背景開啟，關掉桌面版時一起關，不用自己雙擊開。見<a href="#recognizer-桌面版">搭配桌面版</a>。</li>
   </ul>
   <p>只需要在網頁上朗讀、不需要離線或音檔的話，用網頁版就可以了。</p>
 
@@ -1070,6 +1071,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <li>到 <a href="https://github.com/hurthuang/vi-tools/releases/latest" target="_blank" rel="noopener">下載頁面</a>，下載 <b>ViTools-版本-portable.zip</b>。</li>
     <li>解壓縮到任一資料夾（例如「文件」或隨身碟），不需要安裝。</li>
     <li>執行資料夾裡的 <b>ViTools.exe</b>。</li>
+    <li>（選用）要辨識試卷的算式、掃描檔，到 <a href="https://github.com/hurthuang/vi-tools-recognizer/releases/latest" target="_blank" rel="noopener">辨識套件下載頁面</a> 下載 zip（試卷版 <b>…-exam-portable.zip</b> 就夠用），解壓縮後把「vi-tools辨識套件」資料夾放進 ViTools 資料夾。說明見 <a href="#recognizer">vi-tools 辨識套件</a>。</li>
   </ol>
   <div class="note">第一次執行時，Windows 可能顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。適用 Windows 10、11。</div>
 
