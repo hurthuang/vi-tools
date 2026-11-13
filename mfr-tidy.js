@@ -164,6 +164,8 @@
     // 弧 AB：\widehat{AB}（2～3 個大寫字母）、\overparen{…} → \overset{\frown}{AB}（vtdoc.js arcTex 同規則）
     t = t.replace(/\\(?:overparen|wideparen|overarc|arc)\s*\{\s*([^{}]+?)\s*\}|\\widehat\s*\{\s*([A-Z](?:\s*[A-Z]){1,2})\s*\}/g,
       (m, a, b) => '\\overset{\\frown}{' + (a || b).replace(/\s+/g, '') + '}');
+    // 單獨一個反斜線：`{\}`、結尾多一個 `\`（vtdoc.js loneBsTex 同規則）
+    t = t.replace(/(^|[^\\])\{\s*\\\s*\}/g, '$1').replace(/\\protect(?![A-Za-z])\s*\.?\s*/g, '').replace(/(?:\s*\\)+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
     return t;
   }
 

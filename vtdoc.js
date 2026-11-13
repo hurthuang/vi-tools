@@ -146,13 +146,23 @@
   function arcTex(tex) {
     return tex.replace(ARC_RE, (m, a, b) => '\\overset{\\frown}{' + (a || b).replace(/\s+/g, '') + '}');
   }
+  // 單獨一個反斜線（算式辨識會吐出 `{\}`、結尾多一個 `\`）：KaTeX／MathJax 畫不出來，
+  //   結尾的還會吃掉 \) 讓整段變回原始碼 → 拿掉（2026-11-13 使用者回報）
+  function loneBsTex(tex) {
+    // 前面是反斜線的 \{\}（空集合的大括號）不動
+    //   模型多吐的 \protect（「且 \protect. AB∥CD」，畫出來是紅字）也拿掉
+    return tex.replace(/(^|[^\\])\{\s*\\\s*\}/g, '$1').replace(/\\protect(?![A-Za-z])\s*\.?\s*/g, '').replace(/(?:\s*\\)+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+  }
+  function fixTex(tex) { return arcTex(loneBsTex(tex)); }
   function splitMathEls(root) {
-    let split = 0, joined = 0, arcs = 0;
+    let split = 0, joined = 0, arcs = 0, lone = 0;
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
       const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
-      const t2 = arcTex(tex);
-      if (t2 !== tex) { el.replaceWith(mathLike(el, t2)); arcs++; }
+      const t1 = loneBsTex(tex), t2 = arcTex(t1);
+      if (t1 !== tex) lone++;
+      if (t2 !== t1) arcs++;
+      if (t2 !== tex) el.replaceWith(mathLike(el, t2));
     });
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
@@ -182,7 +192,7 @@
     });
     const labels = tidyLabels(root);
     const promoted = isMathDoc(root) ? promoteMath(root) : 0;
-    return { split, joined, promoted, labels, arcs };
+    return { split, joined, promoted, labels, arcs, lone };
   }
 
   // 標號整理（2026-11-10 使用者定）：題號前後的作答括號「( )1.」「1.( )」拿掉；選項標記一律半形「(A) 」，後面空一格
@@ -741,5 +751,5 @@
     return { hand, draft, stale, total };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, fixTex };
 })();
