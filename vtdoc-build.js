@@ -165,7 +165,9 @@
     return pg.getTextContent().then(tc => {
       const its = [];
       tc.items.forEach(it => {
-        if (!it.str || !it.str.trim()) return;
+        // 空格自己一塊（Word 轉的 PDF 常這樣）：不當成字，記在前一塊後面，接行時英文字之間補回空格
+        if (it.str && !it.str.trim()) { if (its.length) its[its.length - 1].sp = true; return; }
+        if (!it.str) return;
         const e = it.transform[4], f = it.transform[5];
         const h = it.height || Math.hypot(it.transform[2], it.transform[3]);
         const r = vp.convertToViewportRectangle([e, f, e + (it.width || 0), f + h]);
@@ -209,6 +211,10 @@
         l.its.forEach(x => {
           const gap = prev ? x.b[0] - prev.b[2] : 0, h = x.b[3] - x.b[1];
           if (t && /[A-Za-z0-9]$/.test(t) && /^[A-Za-z0-9]/.test(x.s) && gap > 0.25 * h) t += ' ';
+          // 前一塊後面是空格塊：英文字、句尾標點旁邊才補（「teamwork.」「The」、「loved」「29.」）；
+          //   數學卷的「2 x」「x + 2」不補，免得像算式的文字被拆成兩個算式
+          else if (prev && prev.sp && (/(?:[A-Za-z]{2,}|[.,;:!?’”)])$/.test(t) && /^(?:[A-Za-z]{2,}|[‘“(])/.test(x.s) ||
+            /[A-Za-z]{2,}$/.test(t) && /^\d/.test(x.s) || /\d$/.test(t) && /^[A-Za-z]{2,}/.test(x.s))) t += ' ';
           t += x.s;
           prev = x;
         });
@@ -506,13 +512,19 @@
     });
     function handle(l) {
       const h = l.box[3] - l.box[1];
-      const k = kindOf(l.text);
+      let k = kindOf(l.text);
       if (k === 'grp') { cur = null; paras.push({ text: l.text, page, box: l.box.slice(), kind: 'grp' }); return; }
       const near = cur && l.box[1] - cur.last[3] < 0.9 * h && l.box[1] >= cur.last[1] &&
         Math.abs(l.box[0] - cur.box[0]) < 0.12 && Math.min(l.box[2], cur.box[2]) > Math.max(l.box[0], cur.box[0]);
-      if (near && k === 'p' && !/[。？！?!：:]$/.test(cur.text) ||
-          near && k === 'p' && cur.last[2] > cur.box[2] - 0.02 && cur.text.length > 15) {
-        const sp = /[A-Za-z0-9,.]$/.test(cur.text) && /^[A-Za-z0-9]/.test(l.text) ? ' ' : '';
+      // 英文克漏字：文章裡換行後的「28. his workers」「30. , nobody」是空格的題號，不是新的一題（後面接小寫字或標點才算）
+      if (k === 'q' && near && !cur.kind && /[A-Za-z]/.test(cur.text) && /^\s*\d{1,3}\s*\.\s*(?:[,;:!?.]|[a-z])/.test(l.text)) k = 'p';
+      // 對話：「Kelly:」「A:」「Mr. Lin:」「小明：」開頭的行是另一個人說話，不接到上一句後面（2026-11-13 使用者回報）
+      const speaker = /^\s*(?:(?:Mr|Mrs|Ms|Miss|Dr)\.\s?)?[A-Z][A-Za-z]{0,11}(?:\s[A-Z][A-Za-z]{0,11})?\s?[:：](?!\d)|^\s*[一-鿿]{1,4}[:：]/.test(l.text);
+      if (!speaker && (near && k === 'p' && !/[。？！?!：:]$/.test(cur.text) ||
+          near && k === 'p' && cur.last[2] > cur.box[2] - 0.02 && cur.text.length > 15)) {
+        // 兩邊都不是中文（英文句子換行）就空一格：「prize!」接「The」也要空
+        const HN = /[　-〿㐀-鿿＀-￯]/;
+        const sp = /\s$/.test(cur.text) || /^\s/.test(l.text) || HN.test(cur.text.slice(-1)) || HN.test(l.text.trim()[0] || '') ? '' : ' ';
         cur.text += sp + l.text;
         cur.box = [Math.min(cur.box[0], l.box[0]), cur.box[1], Math.max(cur.box[2], l.box[2]), l.box[3]];
         cur.last = l.box;

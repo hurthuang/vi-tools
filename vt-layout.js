@@ -234,7 +234,10 @@
       fx.promoted && fx.promoted + ' 段像算式的文字（變數、數字、b > a > c）變成算式',
       fx.labels && fx.labels + ' 行的題號、選項標記（拿掉作答括號、選項改成「(A) 」）',
       fx.arcs && fx.arcs + ' 個弧（\\widehat 改成弧的寫法）',
-      fx.lone && fx.lone + ' 個算式拿掉多出來的單獨反斜線'].filter(Boolean);
+      fx.lone && fx.lone + ' 個算式拿掉多出來的單獨反斜線',
+      fx.tris && fx.tris + ' 個三角形、角改成 \\triangle ABC 的寫法',
+      fx.cloze && fx.cloze + ' 段克漏字空格改成「--題號.--」',
+      fx.spaced && fx.spaced + ' 段中文和英數之間補空格'].filter(Boolean);
     if (fixes.length) dirty = true;
     rowOf = new WeakMap();
     flatten();

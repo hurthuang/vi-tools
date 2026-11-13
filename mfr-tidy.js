@@ -147,6 +147,9 @@
     t = t.replace(R.cdot, ',');
     t = t.replace(R.par, '\\parallel ').split('\\bot').join('\\perp');
     t = t.replace(R.tri, '\\$1 ');
+    // 「{\triangle} A B C」→「\triangle ABC」（vtdoc.js triTex 同規則）
+    t = t.replace(/\{\s*\\(triangle|angle)\s*\}/g, '\\$1 ').replace(/\\(triangle|angle)\s*\{\s*([A-Z](?:\s*[A-Z]){0,2})\s*\}/g, '\\$1 $2')
+      .replace(/\\(triangle|angle)(?![A-Za-z])\s*([A-Z](?:\s*[A-Z]){0,2})(?![A-Za-z])/g, (m, c, l) => '\\' + c + ' ' + l.replace(/\s+/g, ''));
     t = t.replace(R.cases, (m, g) => '\\begin{cases}' + g + '\\end{cases}');
     t = t.replace(R.casesIn, '$1');
     t = t.replace(R.casesHead, '');

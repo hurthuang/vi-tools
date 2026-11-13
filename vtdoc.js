@@ -153,16 +153,23 @@
     //   模型多吐的 \protect（「且 \protect. AB∥CD」，畫出來是紅字）也拿掉
     return tex.replace(/(^|[^\\])\{\s*\\\s*\}/g, '$1').replace(/\\protect(?![A-Za-z])\s*\.?\s*/g, '').replace(/(?:\s*\\)+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
   }
-  function fixTex(tex) { return arcTex(loneBsTex(tex)); }
+  // 三角形、角：算式辨識吐出「{\triangle} A B C」→「\triangle ABC」（同手打試卷的寫法；2026-11-13 使用者回報）
+  function triTex(tex) {
+    return tex.replace(/\{\s*\\(triangle|angle)\s*\}/g, '\\$1 ').replace(/\\(triangle|angle)\s*\{\s*([A-Z](?:\s*[A-Z]){0,2})\s*\}/g, '\\$1 $2')
+      .replace(/\\(triangle|angle)(?![A-Za-z])\s*([A-Z](?:\s*[A-Z]){0,2})(?![A-Za-z])/g, (m, c, l) => '\\' + c + ' ' + l.replace(/\s+/g, ''))
+      .replace(/\s{2,}/g, ' ').trim();
+  }
+  function fixTex(tex) { return triTex(arcTex(loneBsTex(tex))); }
   function splitMathEls(root) {
-    let split = 0, joined = 0, arcs = 0, lone = 0;
+    let split = 0, joined = 0, arcs = 0, lone = 0, tris = 0;
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
       const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
-      const t1 = loneBsTex(tex), t2 = arcTex(t1);
+      const t1 = loneBsTex(tex), t2 = arcTex(t1), t3 = triTex(t2);
       if (t1 !== tex) lone++;
       if (t2 !== t1) arcs++;
-      if (t2 !== tex) el.replaceWith(mathLike(el, t2));
+      if (t3 !== t2) tris++;
+      if (t3 !== tex) el.replaceWith(mathLike(el, t3));
     });
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
@@ -191,8 +198,62 @@
       joined++;
     });
     const labels = tidyLabels(root);
-    const promoted = isMathDoc(root) ? promoteMath(root) : 0;
-    return { split, joined, promoted, labels, arcs, lone };
+    const math = isMathDoc(root);
+    const cloze = math ? 0 : clozeBlanks(root);
+    const promoted = math ? promoteMath(root) : 0;
+    const spaced = cjkSpace(root);
+    return { split, joined, promoted, labels, arcs, lone, tris, cloze, spaced };
+  }
+
+  // 要整理的文字：題目、文章、選項裡的文字節點（算式、附圖、程式以外）
+  function textNodes(root) {
+    const w = root.ownerDocument.createTreeWalker(root, 4), out = [];
+    for (let t = w.nextNode(); t; t = w.nextNode()) {
+      const p = t.parentElement;
+      if (p && !p.closest('.vt-math, template, script, style, figure, title')) out.push(t);
+    }
+    return out;
+  }
+  // 中文和英數之間空一格（2026-11-13 使用者定，同手打試卷：「114 學年度」「若 \(A\) 為」）。
+  //   只在中文字（不含標點）跟英文字母、數字、算式相接的地方加
+  const HAN = '\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff';
+  const HAN_AN = new RegExp('([' + HAN + '])(?=[A-Za-z0-9])|([A-Za-z0-9])(?=[' + HAN + '])', 'g');
+  const HAN_END = new RegExp('[' + HAN + ']$'), HAN_START = new RegExp('^[' + HAN + ']');
+  const isMath = n => n && n.nodeType === 1 && n.classList.contains('vt-math');
+  function cjkSpace(root) {
+    let n = 0;
+    for (const t of textNodes(root)) {
+      let v = t.nodeValue.replace(HAN_AN, (m, a, b) => (a || b) + ' ');
+      if (HAN_END.test(v) && isMath(t.nextSibling)) v += ' ';
+      if (HAN_START.test(v) && isMath(t.previousSibling)) v = ' ' + v;
+      if (v !== t.nodeValue) { t.nodeValue = v; n++; }
+    }
+    // 算式直接接中文的元素（題目開頭就是算式、後面是中文）：上面已處理；算式後面直接是另一個元素的不管
+    return n;
+  }
+  // 英文克漏字的空格（2026-11-13 使用者定）：寫成「--28.--」（同手打試卷）。
+  //   PDF 文字層只剩題號「29.」（底線是畫的線）：英文段落裡「數字＋句點」後面接標點或小寫字才算（「28. (A)」「33. What」是題目）；
+  //   底線包著題號的「__28__」「___(28)___」也改
+  function clozeBlanks(root) {
+    let n = 0;
+    root.querySelectorAll('p, li, td, h3').forEach(el => {
+      if (el.closest('template, figure')) return;
+      const all = el.textContent;
+      const lat = (all.match(/[A-Za-z]/g) || []).length, han = (all.match(new RegExp('[' + HAN + ']', 'g')) || []).length;
+      if (lat < 20 || han * 2 > lat) return;
+      const first = textNodes(el)[0];
+      for (const t of textNodes(el)) {
+        let v = t.nodeValue.replace(/_{2,}\s*[(（]?\s*(\d{1,3})\s*\.?\s*[)）]?\s*_{2,}/g, '--$1.--');
+        // 題目那一行最前面的題號不算
+        const skip = el.tagName === 'H3' && t === first ? ((/^\s*\d{1,3}\s*[.．]/.exec(v) || [''])[0].length) : 0;
+        // 後面接標點：緊接（「--29.--, not」）；接小寫字：空一格（「--28.-- his」）
+        //   文字層少了空格的「goal.31.,」「32.about」也算（前面是句點等標點時補一個空格）
+        v = v.slice(0, skip) + v.slice(skip).replace(/(^|[\s(“"‘'.!?,;])(\d{1,3})\s*\.(?:\s*(?=[,;:!?.])|(\s*)(?=[a-z]))/g,
+          (m, pre, d, sp) => pre + (/[.!?,;]/.test(pre) ? ' ' : '') + '--' + d + '.--' + (sp != null ? ' ' : ''));
+        if (v !== t.nodeValue) { t.nodeValue = v; n++; }
+      }
+    });
+    return n;
   }
 
   // 標號整理（2026-11-10 使用者定）：題號前後的作答括號「( )1.」「1.( )」拿掉；選項標記一律半形「(A) 」，後面空一格
@@ -751,5 +812,5 @@
     return { hand, draft, stale, total };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, fixTex };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, triTex, fixTex, cjkSpace, clozeBlanks };
 })();
