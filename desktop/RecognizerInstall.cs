@@ -6,7 +6,9 @@ using System.Text.Json;
 namespace ViTools;
 
 // 從桌面版安裝、整包更新 vi-tools 辨識套件（0.5.1 起）：
-//   1. 下載：GitHub Release 最新版的試卷版（-exam-portable.zip，約 330 MB）或完整版（-portable.zip，約 560 MB），
+//   1. 下載：GitHub Release 試卷版（-exam-portable.zip，約 330 MB）或完整版（-portable.zip，約 560 MB），
+//      從最新的 Release 往舊的找，用第一個有這個 zip 的（0.5.2 起：只改程式的小版本只附 app zip＋update.json，
+//      大 zip 留在前一個完整版；裝好後網頁會接著「更新辨識套件」補到最新的程式），
 //      一邊下載一邊算 sha256，和 GitHub API 附檔的 digest（"sha256:…"）、大小核對；或使用者選已經下載好的 zip
 //   2. 檢查 zip：每個檔都在「vi-tools辨識套件/」底下、沒有 .. 或磁碟代號、有 runtime/python/python.exe 和 app/main.py
 //   3. 解壓縮到「vi-tools辨識套件.new」，好了才換上：
@@ -14,11 +16,11 @@ namespace ViTools;
 //      已經有（整包更新）→ 先關掉 app 開的辨識套件，舊的改名「vi-tools辨識套件.old」、新的換上，
 //      舊的「輸出」資料夾（辨識結果）搬到新的裡面，最後刪掉 .old（刪不掉下次再刪）
 //   裝在哪裡：已經有 → 原地換；沒有 → ViTools 資料夾（不能寫入時改放 %LOCALAPPDATA%\ViTools）
-//   測試用：VITOOLS_RECOGNIZER_API（假的 Release JSON）、VITOOLS_RECOGNIZER_INSTALL_DIR（裝在哪裡）
+//   測試用：VITOOLS_RECOGNIZER_API（假的 Release JSON：一個 Release 物件，或 Release 陣列＝/releases 清單）、VITOOLS_RECOGNIZER_INSTALL_DIR（裝在哪裡）
 static class RecognizerInstall
 {
     public const string KitName = "vi-tools辨識套件";
-    const string Api = "https://api.github.com/repos/hurthuang/vi-tools-recognizer/releases/latest";
+    const string Api = "https://api.github.com/repos/hurthuang/vi-tools-recognizer/releases?per_page=30";   // 新的在前
     static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };   // 大檔：用 CancellationToken 控制
     static CancellationTokenSource? _cts;
     public static bool Busy => _cts != null;
@@ -190,17 +192,25 @@ static class RecognizerInstall
         using var res = await Http.SendAsync(req, cts.Token);
         if (!res.IsSuccessStatusCode) throw new HttpRequestException($"查不到辨識套件的最新版（GitHub 回 {(int)res.StatusCode}）");
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(cts.Token));
-        foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray())
+        // /releases 是陣列（新的在前）；測試用的假資料也可以是單一個 Release
+        var releases = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.EnumerateArray().ToList() : [doc.RootElement];
+        foreach (var rel in releases)
         {
-            string name = a.GetProperty("name").GetString() ?? "";
-            bool exam = name.EndsWith("-exam-portable.zip", StringComparison.Ordinal);
-            if (!name.EndsWith("-portable.zip", StringComparison.Ordinal) || exam == full) continue;
-            string digest = a.TryGetProperty("digest", out var dg) && dg.ValueKind == JsonValueKind.String ? dg.GetString() ?? "" : "";
-            return (a.GetProperty("browser_download_url").GetString()!, a.GetProperty("size").GetInt64(),
-                digest.StartsWith("sha256:") ? digest[7..].ToLowerInvariant() : "");
+            if (Flag(rel, "draft") || Flag(rel, "prerelease") || !rel.TryGetProperty("assets", out var assets)) continue;
+            foreach (var a in assets.EnumerateArray())
+            {
+                string name = a.GetProperty("name").GetString() ?? "";
+                bool exam = name.EndsWith("-exam-portable.zip", StringComparison.Ordinal);
+                if (!name.EndsWith("-portable.zip", StringComparison.Ordinal) || exam == full) continue;
+                string digest = a.TryGetProperty("digest", out var dg) && dg.ValueKind == JsonValueKind.String ? dg.GetString() ?? "" : "";
+                return (a.GetProperty("browser_download_url").GetString()!, a.GetProperty("size").GetInt64(),
+                    digest.StartsWith("sha256:") ? digest[7..].ToLowerInvariant() : "");
+            }
         }
-        throw new InvalidDataException("最新版的辨識套件沒有" + (full ? "完整版" : "試卷版") + "的 zip");
+        throw new InvalidDataException("GitHub 上的辨識套件沒有" + (full ? "完整版" : "試卷版") + "的 zip");
     }
+
+    static bool Flag(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
     static async Task DownloadAsync(string url, string file, long size, string sha, string userAgent, IProgress<Progress>? progress, CancellationToken ct)
     {

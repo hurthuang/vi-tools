@@ -49,27 +49,33 @@ export default {
       '0.9.1': { exam: kitZip('0.9.1', false, { [`${KIT}/padding.bin`]: 'x'.repeat(3_000_000) }), full: kitZip('0.9.1', true, { [`${KIT}/padding.bin`]: 'y'.repeat(3_000_000) }) },
       bad: { exam: makeZip({ 'other/app/main.py': "VERSION = '1.0.0'\n" }), full: makeZip({ 'x.txt': '' }) },
     };
-    const state = { ver: '0.9.0', corrupt: false, slow: false, hits: 0 };
+    const state = { ver: '0.9.0', corrupt: false, slow: false, hits: 0, list: false };
     const name = (v, ed) => `vi-tools-recognizer-${v}-${ed === 'exam' ? 'exam-' : ''}portable.zip`;
     const server = createServer(async (req, res) => {
       state.hits++;
       const port = server.address().port;
+      const rel = v => ({
+        tag_name: 'v' + v,
+        assets: ['exam', 'full'].map(ed => ({
+          name: name(v, ed), size: zips[v][ed].length,
+          digest: 'sha256:' + createHash('sha256').update(zips[v][ed]).digest('hex'),
+          browser_download_url: `http://127.0.0.1:${port}/dl/${ed}`,
+        })),
+      });
       if (req.url === '/latest') {
-        const z = zips[state.ver];
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          tag_name: 'v' + state.ver,
-          assets: ['exam', 'full'].map(ed => ({
-            name: name(state.ver, ed), size: z[ed].length,
-            digest: 'sha256:' + createHash('sha256').update(z[ed]).digest('hex'),
-            browser_download_url: `http://127.0.0.1:${port}/dl/${ed}`,
-          })),
-        }));
+        // list：像 GitHub 的 /releases（0.5.2 起）：最上面是草稿、再來是只改程式的小版本（只有 app zip），大 zip 在 0.9.1
+        res.end(JSON.stringify(!state.list ? rel(state.ver) : [
+          { ...rel('0.9.0'), tag_name: 'v0.9.3', draft: true },
+          { tag_name: 'v0.9.2', assets: [{ name: 'vi-tools-recognizer-0.9.2-app.zip', size: 10, browser_download_url: `http://127.0.0.1:${port}/none` },
+            { name: 'update.json', size: 10, browser_download_url: `http://127.0.0.1:${port}/none` }] },
+          rel('0.9.1'), rel('0.9.0'),
+        ]));
         return;
       }
       const m = req.url.match(/^\/dl\/(exam|full)$/);
       if (!m) { res.writeHead(404); res.end(); return; }
-      let data = Buffer.from(zips[state.ver][m[1]]);
+      let data = Buffer.from(zips[state.list ? '0.9.1' : state.ver][m[1]]);
       if (state.corrupt) data[data.length - 30] ^= 0xff;   // 大小一樣，內容壞掉
       res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': data.length });
       if (!state.slow) { res.end(data); return; }
@@ -169,5 +175,23 @@ export default {
     state.ver = '0.9.1';
     st = await cdp.ev(`${W}.vitoolsDesktop.recognizer.install({ edition: 'full' })`);
     check('換成完整版', st.edition === 'full' && st.version === '0.9.1' && existsSync(join(kit, '輸出', '我的結果.txt')), JSON.stringify(st));
+
+    // 0.5.2：最新的 Release 只有 app zip（只改程式的小版本）→ 往舊的找有大 zip 的（略過草稿）
+    state.list = true;
+    st = await cdp.ev(`${W}.vitoolsDesktop.recognizer.install({ edition: 'exam' })`).catch(e => ({ error: String(e) }));
+    check('Release 清單：最新的只有 app zip、上面還有草稿 → 用 0.9.1 的試卷版 zip', st.version === '0.9.1' && st.edition === 'exam', JSON.stringify(st));
+
+    // 網頁：裝好後 GitHub 上有更新的程式 → 接著「更新辨識套件」（假的辨識套件跑不起來，要顯示沒更新到、不能當掉）
+    const msg = await cdp.ev(`(async () => {
+      const w = ${W}, f0 = w.fetch;
+      w.fetch = (u, o) => /api\.github\.com/.test(String(u)) ? Promise.resolve(new Response(JSON.stringify({ tag_name: 'v0.9.9' }), { status: 200 })) : f0(u, o);
+      const seen = [];
+      try { const f = await w.vitoolsHaodian.install({ edition: 'exam' }, s => seen.push(s)); return { f, seen }; }
+      catch (e) { return { err: e.message, seen }; }
+      finally { w.fetch = f0; }
+    })()`);
+    check('裝好後有新版：狀態說「接著更新到 0.9.9」', msg.seen && msg.seen.some(s => /接著更新到 0\.9\.9/.test(s)), JSON.stringify(msg.seen));
+    check('更新不成功：install() 還是回裝好的辨識套件、帶著原因（不當掉）', msg.f && msg.f.version === '0.9.1' && !!msg.f.catchUpError, JSON.stringify(msg));
+    state.list = false;
   },
 };

@@ -384,3 +384,10 @@
 - nc 自己的數學編輯器（整份文件用）沒動；nc「整份算式校對」之後可以改用這個編輯器。
 - 瀏覽器試過（113 青年 1a2）：M → 分數按鈕＋鍵盤打 `\frac{1}{2}+x\ge 3`，點字 ⠹⠂⠌⠆⠼⠬⠭⠀⠨⠂⠱⠀⠼⠒、念法「2 分之 1 加 x, 大於或等於 3」；點兩下改、Esc 取消不變、改字中 Ctrl＋Shift＋M、Ctrl＋Z 復原、改字中同時改文字和算式都留著。
 - 化學式（使用者回報）：版面整理的 MathJax 設定一開始就載入 mhchem（layout.html `loader.load`＋`tex.packages`）。原本靠 autoload，但同步的 `tex2mml` 第一次遇到 `\ce` 會丟 MathJax retry、之後 `\ce` 一直是紅字，念法也跟著念成「\ce, 大寫 h 2…」；編輯器的預覽也改用 `tex2mmlPromise`。修好後 H₂O 念「大寫 h, 下標 2; 大寫 o」、箭頭念「反應形成」，點字 ⠠⠓⠆⠠⠕（點字本來就對）。
+
+## 辨識套件：大 zip 不在最新的 Release 時（2026-11-14，`recognizer-findzip` 分支，桌面版 0.5.2 起）
+- 為什麼：只改程式的小版本想只附 app zip＋update.json（約 1 MB），大 zip（330／560 MB）留在前一個完整版。
+- 桌面版 `RecognizerInstall.cs`：查 `releases?per_page=30`（新的在前），用第一個附了要的 zip 的 Release（略過草稿、預先發行）。按鈕名稱不變。測試用的 `VITOOLS_RECOGNIZER_API` 可以是單一 Release 或陣列。
+- 網頁 `haodian-ocr.js`：`install()` 裝好後呼叫 `catchUp()`：GitHub 最新版（`latest(true)`，不用 6 小時的快取）比裝好的新、而且能自己更新 → 接著 `selfUpdate()`（狀態列「辨識套件 X 裝好了，接著更新到 Y（約 1 MB）…」）。更新不成功不算安裝失敗：回傳的物件帶 `catchUpError`，狀態列說「之後可以按『更新辨識套件』」。
+- 桌面版 0.5.1 只看 `releases/latest`：要等大部分老師的桌面版更新到 0.5.2，才能開始發只有 app zip 的辨識套件；在那之前每版照舊附大 zip。
+- 測試：`desktop/tests/cases/recognizer-install.mjs` 加 Release 清單（最上面草稿、再來只有 app zip 的 0.9.2 → 裝 0.9.1）與裝好後補更新（假的辨識套件跑不起來 → 帶 catchUpError、不當掉）。

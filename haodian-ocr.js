@@ -192,11 +192,11 @@
     for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
     return false;
   }
-  // GitHub 上最新的版本；6 小時查一次（GitHub API 沒登入一小時只能查 60 次）
-  async function latest() {
+  // GitHub 上最新的版本；6 小時查一次（GitHub API 沒登入一小時只能查 60 次）；fresh：不用記住的（剛裝好時）
+  async function latest(fresh) {
     try {
       const c = JSON.parse(localStorage.getItem(LATEST) || 'null');
-      if (c && Date.now() - c.t < 6 * 3600e3) return c.v;
+      if (!fresh && c && Date.now() - c.t < 6 * 3600e3) return c.v;
     } catch (e) { /* */ }
     const r = await Promise.race([fetch(REL_API, { headers: { Accept: 'application/vnd.github+json' } }), timeout(8000)]);
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -307,7 +307,20 @@
     });
     if (st && st.cancelled) return null;
     found = null; starting = null;
-    return detect();
+    return catchUp(await detect(), onStatus);
+  }
+  // 裝好的 zip 不一定是最新版：只改程式的小版本，Release 只附 app zip（約 1 MB），大 zip 留在前一個完整版
+  //   （桌面版 0.5.2 起會往舊的 Release 找大 zip）→ 裝好後接著「更新辨識套件」，補到最新的程式
+  async function catchUp(f, onStatus) {
+    if (!f || !canSelf(f)) return f;
+    try {
+      const v = await latest(true);
+      if (!v || !newer(v, f.version)) return f;
+      if (onStatus) onStatus('辨識套件 ' + f.version + ' 裝好了，接著更新到 ' + v + '（約 1 MB）…');
+      return await selfUpdate(onStatus);
+    } catch (e) {
+      return Object.assign({}, found || f, { catchUpError: e.message });
+    }
   }
   // 按鈕按下去：其他按鈕停用、多一個「停止」；做完呼叫 done(found)
   function installRun(btn, box, opt, onStatus, done) {
@@ -321,7 +334,9 @@
     if (onStatus) onStatus(opt.file ? '選擇下載好的 zip…' : '查詢最新版的辨識套件…');
     return install(opt, onStatus).then(f => {
       if (f === null && opt.file) { if (onStatus) onStatus('沒有選 zip'); return; }
-      if (onStatus) onStatus(f ? '辨識套件 ' + (f.version || '') + ' 裝好了，第一次辨識時會在背景開啟' : '裝好了，但找不到辨識套件');
+      if (onStatus) onStatus(!f ? '裝好了，但找不到辨識套件'
+        : f.catchUpError ? '辨識套件 ' + (f.version || '') + ' 裝好了，但沒有更新到最新版：' + f.catchUpError + '（之後可以按「更新辨識套件」）'
+        : '辨識套件 ' + (f.version || '') + ' 裝好了' + (f.lazy ? '，第一次辨識時會在背景開啟' : ''));
       if (done) done(f);
     }).catch(e => {
       if (onStatus) onStatus((opt.edition === '' ? '更新' : '安裝') + '辨識套件失敗：' + e.message);
