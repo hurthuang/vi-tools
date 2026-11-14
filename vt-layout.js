@@ -1016,6 +1016,9 @@
   function mathBlock(page, box, r) {
     const el = main.ownerDocument.createElement('p');
     el.dataset.box = page + ' ' + box.map(x => (+x).toFixed(4)).join(' ');
+    // 「AB=8, BC=5」「A, B」：算式裡的逗號、頓號拆到算式外（mfr-tidy.js splitList，辨識套件同規則）
+    const list = window.vitoolsMfrTidy && vitoolsMfrTidy.splitList(r.tex);
+    if (list) { setInline(el, list); return el; }
     const s = main.ownerDocument.createElement('span');
     s.className = 'vt-math';
     s.dataset.tex = r.tex;

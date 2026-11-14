@@ -172,7 +172,56 @@
     return t;
   }
 
-  const api = { post, tidy, clean: raw => tidy(post(raw)) };
+  // ---------- 算式裡的逗號、頓號拆到算式外（辨識套件 mathocr.list_cuts 同規則，沒有文字層的版本） ----------
+  // 前後兩段都有關係符號 → 拆，用「，」；每一項都很短（字母、點、線段、角、座標）的列舉 → 拆，猜成「、」；
+  // 括號裡的逗號（座標、集合、函數參數）不動。朗讀、點字才會把它當中文標點，不念「逗號」、不用數學逗號
+  const LIST_REL = /[=<>≤≥≠≈]|\\(?:leq?|geq?|neq?|approx|equiv|parallel|perp|sim|cong|leqslant|geqslant|lt|gt)(?![a-zA-Z])/;
+  const LIST_OP = /[-+*/×÷]|\\(?:times|div|frac|sqrt|pm|cdot)(?![a-zA-Z])/;
+  function listParts(tex) {
+    const segs = [], seps = [];
+    let cur = '', depth = 0, i = 0;
+    while (i < tex.length) {
+      const c = tex[i];
+      if (c === '\\') {
+        const tok = tex.slice(i).match(/^\\(?:[A-Za-z]+|[\s\S])?/)[0];
+        if (tok === '\\{' || tok === '\\langle') depth++;
+        else if (tok === '\\}' || tok === '\\rangle') depth--;
+        cur += tok; i += tok.length; continue;
+      }
+      if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) depth--;
+      if (depth <= 0 && ',、，'.includes(c)) { segs.push(cur); seps.push(c); cur = ''; } else cur += c;
+      i++;
+    }
+    segs.push(cur);
+    return { segs, seps };
+  }
+  function topLevel(s) {
+    let out = '', d = 0;
+    for (const c of s) { if (c === '(' || c === '[') d++; else if (c === ')' || c === ']') d--; else if (d <= 0) out += c; }
+    return out;
+  }
+  function shortItem(s) {
+    const top = topLevel(s);
+    if (LIST_REL.test(s) || LIST_OP.test(top)) return false;
+    const bare = top.replace(/\\[A-Za-z]+|[{}\s]/g, '');
+    return (bare.length > 0 && bare.length <= 6) || (!bare && s.includes('('));
+  }
+  // → null（不拆）或文字（\(…\)、\(…\) 寫法）
+  function splitList(tex) {
+    const { segs, seps } = listParts(tex);
+    if (!seps.length || segs.some(s => !s.trim())) return null;
+    const allShort = segs.every(shortItem);
+    let out = '', cur = segs[0], cut = false;
+    seps.forEach((sep, k) => {
+      const a = segs[k], b = segs[k + 1];
+      const p = '、，'.includes(sep) ? sep : (LIST_REL.test(a) && LIST_REL.test(b)) ? '，' : allShort ? '、' : null;
+      if (p) { out += '\\(' + cur.replace(/\s+/g, ' ').trim() + '\\)' + p; cur = b; cut = true; } else cur += sep + b;
+    });
+    return cut ? out + '\\(' + cur.replace(/\s+/g, ' ').trim() + '\\)' : null;
+  }
+
+  const api = { post, tidy, splitList, clean: raw => tidy(post(raw)) };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.vitoolsMfrTidy = api;
 })(typeof self !== 'undefined' ? self : this);
