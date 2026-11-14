@@ -519,7 +519,10 @@
       // 英文克漏字：文章裡換行後的「28. his workers」「30. , nobody」是空格的題號，不是新的一題（後面接小寫字或標點才算）
       if (k === 'q' && near && !cur.kind && /[A-Za-z]/.test(cur.text) && /^\s*\d{1,3}\s*\.\s*(?:[,;:!?.]|[a-z])/.test(l.text)) k = 'p';
       // 對話：「Kelly:」「A:」「Mr. Lin:」「小明：」開頭的行是另一個人說話，不接到上一句後面（2026-11-13 使用者回報）
-      const speaker = /^\s*(?:(?:Mr|Mrs|Ms|Miss|Dr)\.\s?)?[A-Z][A-Za-z]{0,11}(?:\s[A-Z][A-Za-z]{0,11})?\s?[:：](?!\d)|^\s*[一-鿿]{1,4}[:：]/.test(l.text);
+      //   中文的「方式如下：」接在折行（寫到右邊）的「…月租費的」後面是同一句，不算（辨識套件 layout.py 同規則）
+      const wrapped = cur && cur.last[2] > cur.box[2] - 0.02 && /[一-鿿]\s*$/.test(cur.text);
+      const speaker = /^\s*(?:(?:Mr|Mrs|Ms|Miss|Dr)\.\s?)?[A-Z][A-Za-z]{0,11}(?:\s[A-Z][A-Za-z]{0,11})?\s?[:：](?!\d)/.test(l.text) ||
+        !wrapped && /^\s*[一-鿿]{1,4}[:：]/.test(l.text);
       if (!speaker && (near && k === 'p' && !/[。？！?!：:]$/.test(cur.text) ||
           near && k === 'p' && cur.last[2] > cur.box[2] - 0.02 && cur.text.length > 15)) {
         // 兩邊都不是中文（英文句子換行）就空一格：「prize!」接「The」也要空

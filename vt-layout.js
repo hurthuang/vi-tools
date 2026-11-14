@@ -34,7 +34,48 @@
   let rowOf = new WeakMap();   // 元素 → 清單上的那一列（沒改的不重畫，算式不用重排）
   let sv = null;
 
-  function status(s) { $('ly-st').textContent = s || ''; }
+  function status(s) { $('ly-st').textContent = s || ''; if (runTimer) runProg(s || ''); }
+
+  // 開啟、整份辨識：對話框顯示現在做到哪一步（報讀軟體會念）、進度條、經過時間（每秒更新、不念）；
+  //   對話框開著時不能再開檔；單一塊的辨識在工具列顯示「辨識中，已經過 N 秒」，還沒做完再按會說還在做
+  //   （2026-11-13 使用者要求：舊電腦辨識很慢，要讓人知道還在做，避免以為當機而重複操作）
+  let runTimer = null, runT0 = 0;
+  const secText = s => (s >= 60 ? Math.floor(s / 60) + ' 分 ' : '') + (s % 60) + ' 秒';
+  function runStart(name, canStop) {
+    $('ly-dlg-name').textContent = name;
+    $('ly-dlg-ask').hidden = true; $('ly-dlg-run').hidden = false;
+    $('ly-dlg-stop').hidden = !canStop; $('ly-dlg-stop').disabled = false;
+    $('ly-dlg-bar').removeAttribute('value');   // 還不知道進度：跑動的長條
+    $('ly-dlg-prog').textContent = '';
+    runT0 = Date.now();
+    const tick = () => { $('ly-dlg-time').textContent = '已經過 ' + secText(Math.round((Date.now() - runT0) / 1000)) + '，還在進行中'; };
+    tick();
+    clearInterval(runTimer);
+    runTimer = setInterval(tick, 1000);
+    if (!$('ly-dlg').open) $('ly-dlg').showModal();
+    (canStop ? $('ly-dlg-stop') : $('ly-dlg-prog')).focus();
+  }
+  // 步驟文字；「第 3／17 頁」這類訊息順便更新進度條（done、total 有給就照給的）
+  function runProg(msg, done, total) {
+    $('ly-dlg-prog').textContent = msg;
+    const bar = $('ly-dlg-bar'), m = /(\d+)／(\d+)/.exec(msg);
+    if (total) { bar.max = total; bar.value = done; } else if (m) { bar.max = +m[2]; bar.value = +m[1]; }
+  }
+  function runEnd() {
+    clearInterval(runTimer); runTimer = null;
+    if ($('ly-dlg').open) $('ly-dlg').close();
+  }
+  let busyTimer = null, busyLabel = '';
+  function busyOn(label) {
+    busyLabel = label.replace(/：$/, '');
+    const t0 = Date.now(), el = $('ly-busy');
+    const tick = () => { el.textContent = '⏳ ' + busyLabel + '，已經過 ' + secText(Math.round((Date.now() - t0) / 1000)); };
+    tick(); el.hidden = false;
+    clearInterval(busyTimer);
+    busyTimer = setInterval(tick, 1000);
+  }
+  function busyOff() { clearInterval(busyTimer); busyTimer = null; $('ly-busy').hidden = true; }
+  const stillBusy = () => status('還在' + (busyLabel || '辨識') + ($('ly-busy').hidden ? '' : '（' + $('ly-busy').textContent.replace(/^.*，/, '') + '）') + '，請等它做完');
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function typeset(el) {
     if (window.MathJax && MathJax.typesetPromise) return MathJax.typesetPromise([el]).catch(() => {});
@@ -917,6 +958,7 @@
   // 網頁版辨識一個算式（沒有辨識套件時）：模型第一次用才下載
   async function webMath(page, box) {
     hdBusy = true;
+    busyOn('辨識算式中');
     try {
       const pct = m => Math.round(m.loaded / m.total * 100);
       vitoolsMfr.onprogress = m => {
@@ -932,7 +974,7 @@
       const r = await vitoolsMfr.recognize(cv);
       r.sec = (performance.now() - t0) / 1000;
       return r;
-    } finally { hdBusy = false; }
+    } finally { hdBusy = false; busyOff(); }
   }
   function findHd() {
     if (!window.vitoolsHaodian) return;
@@ -950,17 +992,20 @@
         else status('沒有選到辨識套件。把解壓縮的「vi-tools辨識套件」資料夾放進 ViTools 資料夾，或再按一次選位置（還沒下載的話，見「什麼是辨識套件？」）');
       });
   }
-  let hdBusy = false;
+  let hdBusy = false, reStep = '';   // reStep：重新辨識好幾塊時的「第 2／5 塊」
   function hd(page, box, opt) {
     hdBusy = true;
-    status('辨識中…（辨識套件第一次辨識要載入模型，大約 20 秒）');
-    return sv.regionSource(page, box).then(src => vitoolsHaodian.recognize(src, box, opt))
+    busyOn(reStep ? '重新辨識' + reStep : '辨識中');
+    const lazy = vitoolsHaodian.found && vitoolsHaodian.found.lazy;
+    status(reStep + '辨識中…（' + (lazy ? '要先開啟辨識套件、載入模型，大約 20～60 秒' : '第一次辨識要載入模型，比較久') + '）');
+    return vitoolsHaodian.ensure(s => status(s + '，之後辨識'))
+      .then(() => sv.regionSource(page, box)).then(src => vitoolsHaodian.recognize(src, box, opt))
       .then(r => {   // 弧：\widehat{AB} → \overset{\frown}{AB}（舊版辨識套件沒改）
         if (r && r.tex) r.tex = vitoolsVtdoc.fixTex(r.tex);
         if (r && Array.isArray(r.lines)) r.lines = r.lines.map(t => typeof t === 'string' ? vitoolsVtdoc.arcTex(t) : t);
         return r;
       })
-      .finally(() => { hdBusy = false; });
+      .finally(() => { hdBusy = false; busyOff(); });
   }
   // 辨識出來的一行 → 類型：題號開頭＝題目、(A) 開頭＝選項，其他照 dflt
   function lineType(t, dflt) {
@@ -998,7 +1043,8 @@
 
   // 重新辨識選到的區塊（R）：內容換成辨識結果；多出來的行（題目拆出來的選項…）加在後面
   async function reocr() {
-    if (!canReread() || hdBusy) return;
+    if (!canReread()) return;
+    if (hdBusy || reStep) { stillBusy(); return; }
     const S = selRange().filter(i => TEXT.has(blocks[i].type) && boxOf(blocks[i]));
     if (!S.length) { status('選有原卷位置的文字區塊，再按重新辨識'); return; }
     const els = S.map(i => blocks[i]);
@@ -1006,11 +1052,13 @@
         !confirm('選到的區塊裡有 nc 校對過的算式，重新辨識會換掉。確定要重新辨識？')) return;
     endEdit();
     snap();
-    let n = 0;
+    let n = 0, k = 0;
     try {
       const done = new Set();
       for (const b of els) {
+        k++;
         if (done.has(b) || blocks.indexOf(b) < 0) continue;
+        reStep = els.length > 1 ? '第 ' + k + '／' + els.length + ' 塊：' : '';
         const bx = boxOf(b);
         const boxAttr = (b.type === 'q' && b.sec ? b.sec : b.el).dataset.box;
         // 辨識套件的一個區塊在中繼檔裡可能拆成好幾個元素（題目行＋題幹、幾個選項），框一樣：一起換掉
@@ -1037,7 +1085,7 @@
     } catch (e) {
       status('辨識失敗：' + e.message);
       if (!n) { undoStack.pop(); $('ly-undo').disabled = !undoStack.length; return; }
-    }
+    } finally { reStep = ''; }
     build(); changed();
     render();
     mark(false);
@@ -1183,6 +1231,7 @@
     if (scoreXml(b.el) && !scoreXml(b.el).dataset.engine && !confirm('這塊譜例已經有打好的音符，辨識結果會蓋掉它，要繼續嗎？')) return;
     const el = b.el;
     $('ly-omr').disabled = true;
+    busyOn('辨識樂譜中');
     try {
       await vitoolsHaodian.ensure(status);
       if (!vitoolsHaodian.found.omr) { mark(false); throw new Error('這個辨識套件是試卷版（或比較舊的版本），沒有樂譜辨識'); }
@@ -1200,7 +1249,7 @@
         '「音符」選單可以換另一個。這只是草稿，存檔後到音樂點字對照原卷改。');
     } catch (e) {
       status('樂譜辨識失敗：' + e.message);
-    } finally { $('ly-omr').disabled = false; }
+    } finally { $('ly-omr').disabled = false; busyOff(); }
   }
 
   // 附圖 ↔ 譜例：換 class 與輸出方式；附圖衍生的文字（圖中文字、文字敘述）拿掉
@@ -1305,8 +1354,9 @@
     }
     if (hdBusy) throw new Error('還在辨識上一塊，請稍等');
     hdBusy = true;
-    status('網頁版文字辨識中…');
-    try { return { lines: await webLines(page, box), how: 'web' }; } finally { hdBusy = false; }
+    busyOn(reStep ? '重新辨識' + reStep : '文字辨識中');
+    status(reStep + '網頁版文字辨識中…');
+    try { return { lines: await webLines(page, box), how: 'web' }; } finally { hdBusy = false; busyOff(); }
   }
   const HOW_NOTE = { hd: '；算式記得到 nc 校對', layer: '（讀 PDF 文字層）', web: '（網頁版文字辨識，算式要自己檢查或拉框辨識成算式）' };
   // 照框重新讀字（改框之後）
@@ -1387,7 +1437,7 @@
     if ((how0 === 'auto' || how0 === 'text') && !hdOn()) how0 = 'layer';
     if (how0 === 'math' || how0 === 'auto' || how0 === 'text') {
       // 辨識套件（一個算式，或文字＋算式）；沒有辨識套件時一個算式用網頁版辨識
-      if (hdBusy) { status('還在辨識上一塊，請稍等'); return; }
+      if (hdBusy || reStep) { stillBusy(); return; }
       let r;
       try { r = web ? await webMath(page, box) : await hd(page, box, { mode: how0, type: 'q' }); } catch (e) { status('辨識失敗：' + e.message); return; }
       snap();
@@ -1412,7 +1462,7 @@
     const om = how0 === 'webtext' ? [] : ((V.meta && V.meta.omitted) || []).filter(o => o.page === page && inside(o));
     let lines, how;
     if (how0 === 'webtext') {
-      if (hdBusy) { status('還在辨識上一塊，請稍等'); return; }
+      if (hdBusy || reStep) { stillBusy(); return; }
       hdBusy = true;
       try {
         const cv = await sv.cropCanvas(page, box, 0, true);
@@ -1710,7 +1760,8 @@
   function wordOnlyPref() { try { return localStorage.getItem(WD_SKIP) === '1'; } catch (e) { return false; } }
   function initWordDlg() {
     const dlg = $('ly-wd');
-    $('ly-wd-cancel').addEventListener('click', () => dlg.close());
+    $('ly-wd-cancel').addEventListener('click', () => { if (!$('ly-wd-auto').disabled) dlg.close(); });
+    dlg.addEventListener('cancel', e => { if ($('ly-wd-auto').disabled) e.preventDefault(); });   // 轉換中按 Esc 不關
     $('ly-wd-only').addEventListener('click', () => {
       if ($('ly-wd-skip').checked) try { localStorage.setItem(WD_SKIP, '1'); } catch (e) { /* */ }
       dlg.close();
@@ -1739,14 +1790,20 @@
     $('ly-wd-auto').addEventListener('click', async () => {
       const btn = $('ly-wd-auto'), st = $('ly-wd-st');
       btn.disabled = true;
-      st.textContent = '用 Word 轉換中…（第一次要先開辨識套件，大約 10～20 秒）';
+      st.textContent = '用 Word 轉換中…（第一次要先開辨識套件，大約 10～30 秒）';
+      // 經過時間另外顯示（不放進 st：st 是報讀軟體會念的狀態，每秒變會一直念）
+      const t0 = Date.now(), tm = $('ly-wd-time');
+      const tick = () => { tm.textContent = '已經過 ' + secText(Math.round((Date.now() - t0) / 1000)) + '，還在轉換，請不要關掉這個視窗'; };
+      tick(); tm.hidden = false;
+      const iv = setInterval(tick, 1000);
       try {
-        const r = await vitoolsHaodian.word(wdFiles[0]);
+        const r = await vitoolsHaodian.word(wdFiles[0], s => { st.textContent = s; });
+        clearInterval(iv); tm.hidden = true;
         dlg.close();
         buildLocal([r.docx, r.pdf]);
       } catch (e) {
         st.textContent = '沒辦法自動轉換：' + e.message;
-      } finally { btn.disabled = false; }
+      } finally { clearInterval(iv); tm.hidden = true; btn.disabled = false; }
     });
     $('ly-file-pdf').addEventListener('change', e => {
       const f = e.target.files[0];
@@ -1772,6 +1829,7 @@
   }
 
   function openFiles(fl) {
+    if (runTimer) { status('還在開啟上一個檔案，請等它做完'); return; }
     const files = [...fl];
     // 舊式 .doc：網頁讀不了，請老師另存 .docx 與 PDF
     if (files.some(f => /\.doc$/i.test(f.name))) { askWord(files, true); return; }
@@ -1793,41 +1851,48 @@
     $('ly-dlg-hd').focus();
   }
   async function buildLocal(files) {
+    runStart(files[0].name, false);
     status('讀檔中…');
+    let r;
     try {
       // 沒有辨識套件、或選了不用辨識套件：掃描頁、圖檔、附圖裡的字用網頁版文字辨識
       const ocr = window.vitoolsOcr ? (cv => { const p = $('ly-st').textContent; return webOcr(cv).finally(() => status(p)); }) : null;
-      const r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status, ocr });
-      let note = '已開啟「' + files[0].name + '」：' + r.note;
-      if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（整頁辨識算式要用 vi-tools 辨識套件，見「什麼是辨識套件？」）';
-      load(r.html, r.name, note);
-    } catch (e) { status('開不了：' + e.message); alert('開不了「' + files[0].name + '」：' + e.message); }
+      r = await vitoolsVtdocBuild.fromFiles(files, { onProgress: status, ocr });
+    } catch (e) {
+      runEnd();
+      status('開不了：' + e.message); alert('開不了「' + files[0].name + '」：' + e.message);
+      return;
+    }
+    status('排版中…');
+    let note = '已開啟「' + files[0].name + '」：' + r.note;
+    if ((r.scanned && r.scanned.length) || r.images) note += hdOn() ? '' : '（整頁辨識算式要用 vi-tools 辨識套件，見「什麼是辨識套件？」）';
+    runEnd();
+    load(r.html, r.name, note);
   }
   async function runHd() {
     const files = dlgFiles, pages = $('ly-dlg-pages').value.trim();
-    $('ly-dlg-ask').hidden = true; $('ly-dlg-run').hidden = false;
-    $('ly-dlg-stop').disabled = false;
-    $('ly-dlg-stop').focus();
     dlgAbort = new AbortController();
+    runStart(files[0].name, true);
     let lastDone = -1;
-    const prog = $('ly-dlg-prog'), bar = $('ly-dlg-bar');
-    prog.textContent = '送到辨識套件…（第一次辨識要載入模型，大約 20 秒）';
     try {
+      await vitoolsHaodian.ensure(s => runProg(s));
+      runProg('送出檔案，辨識套件準備中（第一次辨識要載入模型，比較久）…');
       const html = await vitoolsHaodian.doc(files[0], { pages, signal: dlgAbort.signal, onProgress: st => {
-        if (st.total) { bar.max = st.total; bar.value = st.done; }
-        if (st.done === lastDone) return;   // 換頁時才更新文字，報讀軟體不會一直念
+        if (st.done === lastDone || !st.total) return;   // 換頁時才更新文字，報讀軟體不會一直念
         lastDone = st.done;
-        prog.textContent = st.total ? '辨識中：做完 ' + st.done + '／' + st.total + ' 頁' + (st.eta ? '，大約還要 ' + Math.ceil(st.eta / 60) + ' 分鐘' : '') +
-          (st.stopping ? '（停止中，做完這頁就停）' : '') : '辨識中…';
+        const stop = dlgAbort && dlgAbort.signal.aborted ? '（停止中，做完這頁就停）' : '';
+        runProg(st.done < st.total
+          ? '辨識第 ' + (st.done + 1) + ' 頁，共 ' + st.total + ' 頁（做完 ' + st.done + ' 頁' + (st.eta ? '，大約還要 ' + Math.ceil(st.eta / 60) + ' 分鐘' : '') + '）' + stop
+          : '辨識完了，整理結果中…', st.done, st.total);
       } });
       const stopped = dlgAbort.signal.aborted;
       dlgAbort = null;
-      $('ly-dlg').close();
+      runEnd();
       load(html, files[0].name.replace(/\.[^.]+$/, '') + '.vtdoc.html',
         '已用辨識套件辨識「' + files[0].name + '」' + (stopped ? '（停止了，只有做完的頁）' : '') + '，算式記得到 nc 整份算式校對檢查');
     } catch (e) {
       dlgAbort = null;
-      $('ly-dlg').close();
+      runEnd();
       status('辨識失敗：' + e.message);
       alert('辨識失敗：' + e.message);
     }
@@ -1843,7 +1908,7 @@
       $('ly-dlg-stop').disabled = true;
       $('ly-dlg-prog').textContent += '（停止中，做完這頁就停）';
     });
-    d.addEventListener('cancel', e => { if (dlgAbort) e.preventDefault(); });   // 辨識中按 Esc 不關
+    d.addEventListener('cancel', e => { if (dlgAbort || runTimer) e.preventDefault(); });   // 開啟、辨識中按 Esc 不關
   }
 
   // 選取模式拉的範圍：這一頁框的中心在範圍裡的區塊都選起來（清單上從第一塊選到最後一塊）

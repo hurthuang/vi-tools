@@ -97,7 +97,8 @@ select{font:inherit;font-size:.88rem;padding:3px}
 #ly-dlg,#ly-wd{max-width:620px;border:1px solid var(--bd);border-radius:9px;padding:14px 20px}
 #ly-dlg h2,#ly-wd h2{font-size:1.05rem;margin:0 0 8px}
 #ly-dlg progress{width:100%}
-#ly-dlg .dim{font-size:.8rem;color:var(--dim)}
+#ly-busy{font-size:.85rem;color:#8a5a00;font-weight:600}
+#ly-dlg .dim,#ly-wd .dim{font-size:.8rem;color:var(--dim)}
 kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;padding:0 3px;background:#fafafa}
 @media (prefers-reduced-motion:no-preference){.vtv-bx.cur{animation:ly-pulse .5s ease-in-out 3 alternate}}
 .ly-menu-w{position:relative;display:inline-block}
@@ -149,6 +150,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <button class="btn" id="ly-hd-find" type="button" title="打開 vi-tools 辨識套件之後按這個，就可以重新辨識、拉框辨識文字＋算式">找本機辨識套件</button>
   <span id="ly-hd-inst" hidden></span>
   <a id="ly-hd-what" href="guide.html#recognizer" style="font-size:.85rem">什麼是辨識套件？</a>
+  <span id="ly-busy" hidden aria-hidden="true"></span>
   <span id="ly-st" role="status" aria-live="polite"></span>
 </div>
 <div id="ly-name"></div>
@@ -223,15 +225,17 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <h2 id="ly-dlg-h">開啟「<span id="ly-dlg-name"></span>」</h2>
   <div id="ly-dlg-ask">
     <p>本機開著 vi-tools 辨識套件。要怎麼讀這份檔案？</p>
-    <p><button class="btn pri" id="ly-dlg-hd" type="button">用辨識套件辨識（文字＋算式，一頁約 20～60 秒）</button>
+    <p><button class="btn pri" id="ly-dlg-hd" type="button">用辨識套件辨識（文字＋算式，一頁約 10～60 秒，舊電腦比較久）</button>
       <label id="ly-dlg-pages-w">頁碼 <input id="ly-dlg-pages" size="10" placeholder="全部" aria-describedby="ly-dlg-pages-h"></label>
       <span id="ly-dlg-pages-h" class="dim">空白＝全部，例：1-3,5</span></p>
     <p><button class="btn" id="ly-dlg-local" type="button"></button></p>
     <p><button class="btn" id="ly-dlg-cancel" type="button">取消</button></p>
   </div>
   <div id="ly-dlg-run" hidden>
-    <p id="ly-dlg-prog" role="status" aria-live="polite"></p>
-    <progress id="ly-dlg-bar" max="1" value="0" aria-label="辨識進度"></progress>
+    <p id="ly-dlg-prog" role="status" aria-live="polite" tabindex="-1"></p>
+    <progress id="ly-dlg-bar" max="1" value="0" aria-label="進度"></progress>
+    <p id="ly-dlg-time" class="dim"></p>
+    <p class="dim">還在做的時候這個視窗會一直開著，經過時間每秒更新；做完會自動關掉，請不要重新開檔或關掉 vi-tools。</p>
     <p><button class="btn" id="ly-dlg-stop" type="button">停止（保留做完的頁）</button></p>
   </div>
 </dialog>
@@ -256,8 +260,8 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
     </ol>
     <p>存好後按下面的按鈕，兩個一起選（按住 <kbd>Ctrl</kbd> 點兩個檔）。</p>
   </div>
-  <p id="ly-wd-auto-w" hidden><button class="btn pri" id="ly-wd-auto" type="button">自動轉換（用這台電腦的 Word，大約 10 秒）</button>
-    <span id="ly-wd-st" role="status" aria-live="polite"></span></p>
+  <p id="ly-wd-auto-w" hidden><button class="btn pri" id="ly-wd-auto" type="button">自動轉換（用這台電腦的 Word，大約 10～30 秒）</button>
+    <span id="ly-wd-st" role="status" aria-live="polite"></span><br><span id="ly-wd-time" class="dim" hidden></span></p>
   <p><button class="btn pri" id="ly-wd-pdf" type="button">選這份的 PDF（跟 Word 一起開）</button></p>
   <p id="ly-wd-only-w"><button class="btn" id="ly-wd-only" type="button">只開 Word（沒有原卷）</button>
     <label><input type="checkbox" id="ly-wd-skip"> 以後只開 Word，不要再問</label></p>

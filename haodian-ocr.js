@@ -78,7 +78,7 @@
     if (!found) return Promise.reject(new Error('沒有連上辨識套件'));
     if (!found.lazy) return Promise.resolve(found);
     if (!starting) {
-      if (onStatus) onStatus('啟動辨識套件…（大約 5～10 秒）');
+      if (onStatus) onStatus('啟動辨識套件…（大約 5～30 秒，舊電腦比較久）');
       starting = desktop().then(d => {
         if (!d) throw new Error('沒有連上辨識套件');
         return d.recognizer.start();
@@ -164,9 +164,10 @@
   }
 
   // Word 檔 → 用這台電腦的 Word 另存 PDF（和 .docx），給版面整理當原卷（辨識套件 0.4.1 起，found.word）
-  //   await vitoolsHaodian.word(file) → { pdf: File, docx: File }
-  async function word(file) {
+  //   await vitoolsHaodian.word(file, onStatus?) → { pdf: File, docx: File }；onStatus：要先啟動辨識套件時說一聲
+  async function word(file, onStatus) {
     if (!found) throw new Error('沒有連上辨識套件');
+    await ensure(onStatus);
     const u8 = new Uint8Array(await file.arrayBuffer());
     const r = await api('api/word', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, data: b64(u8) }) });
     const bin = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -346,6 +347,12 @@
       add('安裝辨識套件（試卷版，約 300 MB）', '從 GitHub 下載 vi-tools 辨識套件試卷版：文字、算式、版面，放進 ViTools 資料夾', { edition: 'exam' });
       add('安裝完整版（約 530 MB，多樂譜辨識）', '試卷版再加上樂譜辨識（Audiveris、homr）', { edition: 'full' });
       add('用已下載的 zip 安裝', '學校網路下載太慢時：在別的地方下載好 vi-tools-recognizer-…-portable.zip，選這個檔安裝', { edition: '', file: true });
+      // 2026-11-13 使用者在 i5-5200U（2015 年筆電）上跑很久：先說清楚，免得以為當機
+      const note = document.createElement('span');
+      note.className = 'dim';
+      note.style.fontSize = '.85rem';
+      note.textContent = '辨識很吃電腦效能：舊筆電辨識有算式的試卷，一頁可能要 10～60 秒；筆電請插上電源。';
+      el.appendChild(note);
       return true;
     });
   }
