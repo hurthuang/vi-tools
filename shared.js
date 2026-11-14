@@ -417,6 +417,36 @@ function evalWordEq(instr) {
 }
 function unmark(s) { return s.replace(/[\u0003\u0004]/g, '').trim(); }
 
+// 上下標前面的「底」（同 vtdoc-build.js 讀 PDF 文字層的做法）：右括號連同左括號 (x＋8)、一串數字 10／0.1、一個字母 a；其他 → null
+function scriptBase(t) {
+    const c = t[t.length - 1];
+    const OPEN = { ')': '(', '）': '（', ']': '[' };
+    if (OPEN[c]) {
+        const isClose = ch => ch === c || (c === ')' && ch === '）') || (c === '）' && ch === ')');
+        const isOpen = ch => ch === OPEN[c] || (OPEN[c] === '(' && ch === '（') || (OPEN[c] === '（' && ch === '(');
+        let d = 0;
+        for (let i = t.length - 1; i >= 0 && t.length - i <= 40; i--) {
+            if (isClose(t[i])) d++;
+            else if (isOpen(t[i]) && !--d) return t.slice(i);
+        }
+        return c;
+    }
+    let m = /[0-9]+(?:\.[0-9]+)?$/.exec(t);
+    if (m) {
+        if (/\./.test(m[0]) && /(?:^|\n)\s*(?:[(（][\s　]*[)）])?\s*$/.test(t.slice(0, m.index))) return m[0].replace(/^\d+\./, '');   // 題號「9.」
+        return m[0];
+    }
+    m = /(?:^|[^A-Za-z])((?:c|m|k|d)m)$/.exec(t);   // 單位 cm²、km²、mm³
+    if (m) return m[1];
+    m = /(?:[A-Za-z]|[\u{1D400}-\u{1D7FF}])$/u.exec(t);
+    return m ? m[0] : null;
+}
+const SCRIPT_TEX = { '＋': '+', '－': '-', '−': '-', '（': '(', '）': ')', '＝': '=', '×': '\\times ', '÷': '\\div ', '′': "'" };
+function scriptTex(s) {
+    return unmark(s).replace(/[\u{1D400}-\u{1D7FF}０-９]/gu, c => c.normalize('NFKC'))
+        .replace(/[＋－−（）＝×÷′]/g, c => SCRIPT_TEX[c]).replace(/\s+/g, ' ').trim();
+}
+
 // 自動編號：照 numbering.xml 的格式算出每段的編號文字（同一個 abstractNum 共用計數）
 function makeDocxNumberer(numberingXml, stylesXml) {
     const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -547,10 +577,43 @@ function docxParagraphText(p) {
         out += s;
     }
     function emitOutside(f, s) { fields.pop(); emit(s); fields.push(f); }
+    let lastScript = null;   // 剛寫的上下標 { op, end }：下一個同樣的上下標 run 接在同一個大括號裡（r^{n-1} 常分成兩個 run）
+    function scriptRun(r) {
+        // 用 Word 上標／下標排的 a₁、10⁸、(x＋8)²（版面整理才做）：寫成算式，不然變成 a1、108
+        const rPr = Array.from(r.childNodes).find(n => n.localName === 'rPr');
+        const va = rPr && Array.from(rPr.childNodes).find(n => n.localName === 'vertAlign');
+        const v = va && va.getAttributeNS(W, 'val');
+        if (v !== 'superscript' && v !== 'subscript') return false;
+        const save = out;
+        out = '';
+        walk(r);
+        const s = out;
+        out = save;
+        if (!s.trim()) return true;
+        if (!/^(?:[0-9A-Za-z+\-−－＋′'*.,()（）\s]|[\u{1D400}-\u{1D7FF}]){1,8}$/u.test(s)) { out += s; lastScript = null; return true; }   // 注釋編號、國字：照原樣
+        const op = v === 'superscript' ? '^' : '_', t = scriptTex(s);
+        if (op === '^' && /^'+$/.test(t)) {   // P′：LaTeX 的撇號，不寫成上標
+            const b = out.endsWith('\u0004') ? '' : scriptBase(out);
+            if (b === null) out += s;
+            else out = b ? out.slice(0, out.length - b.length) + '\u0003' + scriptTex(b) + t + '\u0004' : out.slice(0, -1) + t + '\u0004';
+            lastScript = null;
+            return true;
+        }
+        if (lastScript && lastScript.op === op && lastScript.end === out.length) out = out.slice(0, -2) + t + '}\u0004';
+        else if (out.endsWith('\u0004')) out = out.slice(0, -1) + op + '{' + t + '}\u0004';   // a_{n}^{2}
+        else {
+            const b = scriptBase(out);
+            if (!b) { out += s; lastScript = null; return true; }
+            out = out.slice(0, out.length - b.length) + '\u0003' + scriptTex(b) + op + '{' + t + '}\u0004';
+        }
+        lastScript = { op, end: out.length };
+        return true;
+    }
     function walk(node) {
         for (const el of node.childNodes) {
             if (el.nodeType !== 1) continue;
             switch (el.localName) {
+                case 'r':         if (!(wordEqMath && !fields.length && scriptRun(el))) walk(el); break;
                 case 't':         emit(el.textContent); break;
                 case 'tab':       emit('\t'); break;
                 case 'br': case 'cr': emit('\n'); break;   // 段落內換行（勾選題、選項常這樣分行）

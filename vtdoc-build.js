@@ -175,6 +175,7 @@
           Math.max(r[0], r[2]) / vp.width, Math.max(r[1], r[3]) / vp.height] });
       });
       const chars = its.reduce((n, x) => n + x.s.trim().length, 0);
+      stackFractions(its);
       const g = gutter(its);
       its.forEach(x => { x.col = colOf(x.b, g); });
       // 跨過分界、左右兩塊緊接著（間隔不到字高的 0.4）的（置中的標題、頁尾）是同一行，不分欄
@@ -195,21 +196,65 @@
           });
         }
       }
-      const lines = [];
-      its.sort((x, y) => (x.b[1] + x.b[3]) - (y.b[1] + y.b[3])).forEach(x => {
-        // 同一行：同一欄、垂直方向重疊一半以上，而且水平方向不能隔太遠
-        const ln = lines.find(l => l.col === x.col && Math.min(l.hi, x.b[3]) - Math.max(l.lo, x.b[1]) > 0.5 * Math.min(l.hi - l.lo, x.b[3] - x.b[1]) &&
-          l.its.some(y => x.b[0] - y.b[2] < 0.06 && y.b[0] - x.b[2] < 0.06));
+      const rows = [];
+      // 正常大小的字先分行、小字（上下標、分數）最後再併進去：上標位置比較高，先拿它開一行的話，前半「1－(」會變成另一行
+      const hs = its.map(x => x.b[3] - x.b[1]).sort((p, q) => p - q), med = hs[hs.length >> 1] || 0;
+      const small = x => x.b[3] - x.b[1] < 0.85 * med ? 1 : 0;
+      its.sort((x, y) => small(x) - small(y) || (x.b[1] + x.b[3]) - (y.b[1] + y.b[3])).forEach(x => {
+        // 同一行：同一欄、垂直方向重疊一半以上；有好幾列都重疊時（公式表裡旁邊的分數比較高），選左右最靠近的那一列
+        const dx = l => Math.min(...l.its.map(y => Math.max(0, x.b[0] - y.b[2], y.b[0] - x.b[2])));
+        let ln = null, best = Infinity;
+        rows.forEach(l => {
+          if (l.col !== x.col || !(Math.min(l.hi, x.b[3]) - Math.max(l.lo, x.b[1]) > 0.5 * Math.min(l.hi - l.lo, x.b[3] - x.b[1]))) return;
+          const d = dx(l);
+          if (d < best) { best = d; ln = l; }
+        });
         if (ln) { ln.its.push(x); ln.lo = Math.min(ln.lo, x.b[1]); ln.hi = Math.max(ln.hi, x.b[3]); }
-        else lines.push({ its: [x], lo: x.b[1], hi: x.b[3], col: x.col });
+        else rows.push({ its: [x], lo: x.b[1], hi: x.b[3], col: x.col });
+      });
+      // 再照左右切開：隔太遠（頁寬 6% 以上）的是不同的行（表格的兩格、圖旁邊的字）。
+      //   原本是「靠近已經在這一行的字才併」，跟處理順序有關：斜體 a、b、c 比其他字高一點先開了行，「c＝(2³)⁴」被分到別段
+      const lines = [];
+      rows.forEach(r => {
+        r.its.sort((x, y) => x.b[0] - y.b[0]);
+        let cur = null, right = -1;
+        r.its.forEach(x => {
+          if (!cur || x.b[0] - right >= 0.06) { cur = { its: [], lo: x.b[1], hi: x.b[3], col: r.col }; lines.push(cur); right = -1; }
+          cur.its.push(x); cur.lo = Math.min(cur.lo, x.b[1]); cur.hi = Math.max(cur.hi, x.b[3]); right = Math.max(right, x.b[2]);
+        });
       });
       const out = lines.map(l => {
         l.its.sort((x, y) => x.b[0] - y.b[0]);
         let t = '';
         // 英數字之間：PDF 裡真的隔開（超過字高的 1/4）才補空白；「1 1 2學年度」這種一字一塊的接回去
-        let prev = null;
+        let prev = null, base = null, last = null;   // base：上下標前面那個正常大小的字；last：剛寫的上下標
         l.its.forEach(x => {
           const gap = prev ? x.b[0] - prev.b[2] : 0, h = x.b[3] - x.b[1];
+          // 用上下標排出來的 a₁、10⁸、(x＋8)²：寫成算式，不然文字層讀成 a1、108
+          const kind = scriptKind(base, prev, x);
+          if (kind) {
+            const s = texOf(x.s.trim());
+            if (kind === 'sup' && /^'+$/.test(s)) {   // P′：LaTeX 的撇號，不寫成上標
+              const b = /\\\)$/.test(t) ? '' : scriptBase(t);
+              if (b !== null) {
+                t = b ? t.slice(0, t.length - b.length) + '\\(' + texOf(b) + s + '\\)' : t.slice(0, -2) + s + '\\)';
+                last = null; prev = x; return;
+              }
+            }
+            if (last && last.kind === kind && prev === last.it) {   // 同一個上下標分成好幾塊（r^{n－1}）
+              t = t.slice(0, -3) + s + '}\\)';
+              last.it = x; prev = x; return;
+            }
+            const op = kind === 'sup' ? '^' : '_';
+            let done = false;
+            if (/\\\)$/.test(t)) { t = t.slice(0, -2) + op + '{' + s + '}\\)'; done = true; }   // 接在前一個算式後面（a_{n}^{2}）
+            else {
+              const b = scriptBase(t);
+              if (b) { t = t.slice(0, t.length - b.length) + '\\(' + texOf(b) + op + '{' + s + '}\\)'; done = true; }
+            }
+            if (done) { last = { kind, it: x }; prev = x; return; }
+          }
+          last = null;
           if (t && /[A-Za-z0-9]$/.test(t) && /^[A-Za-z0-9]/.test(x.s) && gap > 0.25 * h) t += ' ';
           // 前一塊後面是空格塊：英文字、句尾標點旁邊才補（「teamwork.」「The」、「loved」「29.」）；
           //   數學卷的「2 x」「x + 2」不補，免得像算式的文字被拆成兩個算式
@@ -217,6 +262,7 @@
             /[A-Za-z]{2,}$/.test(t) && /^\d/.test(x.s) || /\d$/.test(t) && /^[A-Za-z]{2,}/.test(x.s))) t += ' ';
           t += x.s;
           prev = x;
+          base = x;
         });
         const bx = [Math.min(...l.its.map(x => x.b[0])), l.lo, Math.max(...l.its.map(x => x.b[2])), l.hi].map(v => Math.max(0, Math.min(1, v)));
         return { text: t.replace(/\s+/g, ' ').trim(), box: bx, col: l.col };
@@ -224,6 +270,104 @@
       return { lines: order(out), chars, gutter: g };
     });
   }
+  // ---------- 分數（2026-11-12）----------
+  //   Word 的分數（EQ \f）在文字層是上下兩塊小字：分子比那一行高（113 青年 1a2：字 14、分子 10 往上 0.59）、分母同一個 x 往下。
+  //   分母跟那一行重疊不到一半，原本被分到另一行（「( 3＋)÷( 2＋)」，分子分母另外一行「2 3 3 5」）。
+  //   上下疊在一起、左右對齊、旁邊有比它們大的字跨過分數線的，合成一塊 \(\frac{分子}{分母}\)，放在分數線的高度
+  const FRAC_PART = /^[0-9A-Za-z+\-−－＋.()（）\s\u{1D400}-\u{1D7FF}]{1,10}$/u;
+  function stackFractions(its) {
+    const H = x => x.b[3] - x.b[1];
+    // 同一排緊接著的小塊先併成一段（分子「30」「＋」「3」是三塊）
+    const cand = its.filter(x => FRAC_PART.test(x.s) && x.s.trim()).sort((p, q) => p.b[0] - q.b[0]);
+    const parts = [];
+    for (const x of cand) {
+      const h = H(x);
+      const seg = parts.find(p => Math.abs(p.b[3] - x.b[3]) < 0.15 * h && Math.max(H(p), h) < 1.25 * Math.min(H(p), h) &&
+        x.b[0] - p.b[2] > -0.2 * h && x.b[0] - p.b[2] < 0.35 * h);
+      if (seg) { seg.s += x.s; seg.b = [seg.b[0], Math.min(seg.b[1], x.b[1]), x.b[2], Math.max(seg.b[3], x.b[3])]; seg.items.push(x); }
+      else parts.push({ s: x.s, b: x.b.slice(), items: [x] });
+    }
+    const used = new Set(), add = [];
+    for (const a of parts) {
+      if (used.has(a)) continue;
+      let best = null;
+      for (const b of parts) {
+        if (b === a || used.has(b)) continue;
+        const h = Math.min(H(a), H(b));
+        if (Math.max(H(a), H(b)) > 1.4 * h) continue;
+        const ov = Math.min(a.b[2], b.b[2]) - Math.max(a.b[0], b.b[0]);
+        if (ov < 0.5 * Math.min(a.b[2] - a.b[0], b.b[2] - b.b[0])) continue;
+        const gap = b.b[1] - a.b[3];   // a 在上：a 的基線到 b 的頂
+        if (gap < -0.3 * h || gap > 0.8 * h) continue;   // 1a2：0.54
+        if (!best || gap < best.gap) best = { b, gap };
+      }
+      if (!best) continue;
+      const b = best.b, h = Math.min(H(a), H(b));
+      const bar = (a.b[3] + b.b[1]) / 2;
+      // 旁邊要有比它們大一號、跨過分數線的字（算式那一行），不然可能是表格裡上下兩格
+      const big = its.some(c => !a.items.includes(c) && !b.items.includes(c) && H(c) >= 1.15 * h && c.b[1] < bar && c.b[3] > bar &&
+        Math.min(Math.abs(c.b[2] - Math.min(a.b[0], b.b[0])), Math.abs(c.b[0] - Math.max(a.b[2], b.b[2]))) < 3 * h);
+      if (!big) continue;
+      used.add(a); used.add(b);
+      const x0 = Math.min(a.b[0], b.b[0]), x1 = Math.max(a.b[2], b.b[2]), hh = h;
+      add.push({ s: '\\(\\frac{' + texOf(a.s) + '}{' + texOf(b.s) + '}\\)', b: [x0, bar - hh / 2, x1, bar + hh / 2], frac: true });
+    }
+    if (!used.size) return;
+    const gone = new Set([...used].flatMap(p => p.items));
+    for (let i = its.length - 1; i >= 0; i--) if (gone.has(its[i])) its.splice(i, 1);
+    its.push(...add);
+  }
+
+  // ---------- 上下標（2026-11-12）----------
+  //   Word 用上標、下標排的 a₁、Sₙ、10⁸、(x＋8)²，文字層只是小一號的字，接起來變成 a1、108。
+  //   19 份數學卷（pdf.js）量到：上標的基線比前一個字高 0.34～0.39 個字高、下標低 0.07～0.12，字級是前一個字的 6～7 成；
+  //   Word 分數（EQ）的分子高 0.59，不算。字級一樣小、基線相同的（配分、註解）也不算。
+  //   base：前面最後一個正常大小的字；prev：緊鄰的前一塊（上下標要緊貼著它）
+  function scriptKind(base, prev, x) {
+    if (!base || !prev) return null;
+    if (!/^(?:[0-9A-Za-z+\-−－＋′'*]|[\u{1D400}-\u{1D7FF}]){1,4}$/u.test(x.s.trim())) return null;
+    const bh = base.b[3] - base.b[1], h = x.b[3] - x.b[1];
+    if (!(bh > 0) || h >= 0.85 * bh || h < 0.4 * bh) return null;
+    const gap = x.b[0] - prev.b[2];
+    if (gap > 0.5 * bh || gap < -0.2 * bh) return null;
+    const dy = (base.b[3] - x.b[3]) / bh;   // 正的＝基線往上
+    if (dy >= 0.2 && dy <= 0.5) return 'sup';
+    if (dy <= -0.04 && dy >= -0.25) return 'sub';
+    // 基線沒動、字只有一半大、緊貼著字母（112 鳳山 2b1 的 R₀：12.2 → 5.8）
+    if (Math.abs(dy) < 0.04 && h < 0.6 * bh && gap < 0.15 * bh && x.s.trim().length <= 2 && /(?:[A-Za-z]|[\u{1D400}-\u{1D7FF}])$/u.test(prev.s)) return 'sub';
+    return null;
+  }
+  // 上下標前面的「底」：右括號連同它的左括號 (x＋8)、一串數字 10、一個字母 a；其他（運算符號、國字）→ null
+  function scriptBase(t) {
+    const c = t[t.length - 1];
+    const OPEN = { ')': '(', '）': '（', ']': '[' };
+    if (OPEN[c]) {
+      let d = 0;
+      for (let i = t.length - 1; i >= 0 && t.length - i <= 40; i--) {
+        const ch = t[i];
+        if (ch === c || (c === ')' && ch === '）') || (c === '）' && ch === ')')) d++;
+        else if (ch === OPEN[c] || (OPEN[c] === '(' && ch === '（') || (OPEN[c] === '（' && ch === '(')) { if (!--d) return t.slice(i); }
+      }
+      return c;
+    }
+    let m = /[0-9]+(?:\.[0-9]+)?$/.exec(t);   // 10、0.1
+    if (m) {
+      // 「( )9.5²⁰」的 9. 是題號，不是小數
+      if (/\./.test(m[0]) && /^\s*(?:[(（][\s　]*[)）])?\s*$/.test(t.slice(0, m.index))) return m[0].replace(/^\d+\./, '');
+      return m[0];
+    }
+    m = /(?:^|[^A-Za-z])((?:c|m|k|d)m)$/.exec(t);   // 單位 cm²、km²、mm³
+    if (m) return m[1];
+    m = /(?:[A-Za-z]|[\u{1D400}-\u{1D7FF}])$/u.exec(t);   // a、數學斜體 𝑥
+    return m ? m[0] : null;
+  }
+  const TEX_FW = { '＋': '+', '－': '-', '−': '-', '（': '(', '）': ')', '＝': '=', '×': '\\times ', '÷': '\\div ', '′': "'" };
+  function texOf(s) {
+    // NFKC：全形數字、數學斜體 𝑥 → x；裡面已經是算式的（(\(\frac{1}{2}\))²）拿掉 \( \)
+    return s.replace(/\\\(|\\\)/g, '').replace(/[\u{1D400}-\u{1D7FF}０-９]/gu, c => c.normalize('NFKC'))
+      .replace(/[＋－−（）＝×÷′]/g, c => TEX_FW[c]).replace(/\s+/g, ' ').trim();
+  }
+
   // 兩欄的分界（頁面比例的 x）：頁面中間找一條幾乎沒有字跨過、左右兩邊都有不少字的直線；不是兩欄 → null
   // 網頁版文字辨識的結果（canvas 像素）→ 行：同一欄、上下重疊一半以上的片段接成一行，兩欄的頁先左欄再右欄
   function ocrLines(res, W, H) {
