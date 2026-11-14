@@ -430,6 +430,7 @@
     if (b && TEXT.has(b.type)) $('ly-type').value = b.type;
     ['ly-up', 'ly-down'].forEach(id => { $(id).disabled = !b; });
     $('ly-edit').disabled = !b || !(TEXT.has(b.type) || DERIVED.has(b.type));
+    $('ly-math').disabled = $('ly-edit').disabled;
     $('ly-split').disabled = editing < 0;
     $('ly-merge').disabled = !b || cur === 0 || !(TEXT.has(b.type) || DERIVED.has(b.type));
     $('ly-new').disabled = !V;
@@ -673,7 +674,7 @@
     r.selectNodeContents(tx); r.collapse(false);
     sel.removeAllRanges(); sel.addRange(r);
     tools();
-    status('改字中：Enter 或 Esc 改完，Shift＋Enter 換行，Ctrl＋Enter 從游標處分段；點兩下算式改 LaTeX');
+    status('改字中：Enter 或 Esc 改完，Shift＋Enter 換行，Ctrl＋Enter 從游標處分段，Ctrl＋M 插入算式；點兩下算式（或游標在算式旁按 Ctrl＋Shift＋M）改算式');
   }
 
   // 編輯區 → 真正的元素內容（算式換回原本的元素，MathML、信心、裁圖都還在）
@@ -723,16 +724,101 @@
     const k = +span.dataset.mi;
     const real = editing >= 0 ? editMaths[k] : b.el.querySelectorAll('.vt-math')[[...$('ly-r' + cur).querySelectorAll('.vt-math')].indexOf(span)];
     if (!real) return;
-    const tex = prompt('算式的 LaTeX（細修請到 nc 整份算式校對）：', real.dataset.tex || '');
-    if (tex == null || tex === real.dataset.tex) return;
-    if (editing >= 0) endEdit();
-    snap();
-    real.dataset.tex = tex;
-    real.textContent = '\\(' + tex + '\\)';   // MathML 由 nc 或存檔時重轉
-    real.removeAttribute('data-checked');
-    changed();
-    rowOf.delete(b.el);
-    render();
+    const inEdit = editing >= 0;
+    const rng = inEdit ? saveCaret() : null;
+    vitoolsMathEditor.open({
+      title: '改算式', tex: real.dataset.tex || '',
+      onApply: tex => {
+        if (!tex || tex === real.dataset.tex) { if (inEdit) restoreCaret(rng); return; }
+        snap();
+        setTex(real, tex);
+        changed();
+        if (inEdit && editing >= 0) {   // 改字中：編輯區裡那個算式也換掉，繼續改字
+          span.dataset.tex = tex;
+          showTex(span, tex);
+          restoreCaret(rng);
+          status('算式改好了；繼續改字（Enter 或 Esc 改完）');
+          return;
+        }
+        rowOf.delete(b.el);
+        render();
+        status('算式改好了');
+      },
+      onCancel: () => { if (inEdit) restoreCaret(rng); },
+    });
+  }
+  // 算式元素換成新的 LaTeX（MathML 由 nc 或存檔時重轉；舊的「確認正確」標記拿掉）
+  function setTex(el, tex) {
+    el.dataset.tex = tex;
+    el.textContent = '\\(' + tex + '\\)';
+    el.removeAttribute('data-checked');
+  }
+  function showTex(el, tex) {
+    try { el.innerHTML = window.MathJax && MathJax.tex2mml ? MathJax.tex2mml(tex, { display: false }) : '\\(' + tex + '\\)'; }
+    catch (e) { el.textContent = '\\(' + tex + '\\)'; }
+  }
+  // 改字中打開對話框：先記住游標，關掉後放回去（編輯區失去焦點不算改完，見 focusout）
+  function saveCaret() {
+    const tx = editing >= 0 && $('ly-r' + editing) && $('ly-r' + editing).querySelector('.tx');
+    const s = getSelection();
+    return tx && s.rangeCount && tx.contains(s.anchorNode) ? { tx, r: s.getRangeAt(0).cloneRange() } : { tx, r: null };
+  }
+  function restoreCaret(c) {
+    if (!c || !c.tx || editing < 0) return;
+    c.tx.focus();
+    const s = getSelection();
+    s.removeAllRanges();
+    if (c.r) s.addRange(c.r);
+    else { const r = document.createRange(); r.selectNodeContents(c.tx); r.collapse(false); s.addRange(r); }
+  }
+  function editMathAtCaret() {
+    const s = getSelection();
+    if (editing < 0 || !s.rangeCount) return;
+    const r = s.getRangeAt(0), n = r.startContainer, o = r.startOffset;
+    const near = [];
+    if (n.nodeType === 1) near.push(n.childNodes[o - 1], n.childNodes[o]);
+    else {
+      if (o === 0) near.push(n.previousSibling);
+      if (o === n.length) near.push(n.nextSibling);
+      near.push(n.parentElement);
+    }
+    const m = near.map(x => x && x.closest ? x.closest('.vt-math') : null).find(Boolean);
+    if (m && m.dataset.mi != null) editMath(m);
+    else status('游標旁邊沒有算式（游標要緊貼著算式）');
+  }
+  // 插入一個新的算式（M；改字中 Ctrl＋M 插在游標處，沒有在改字就先進入改字、插在最後）
+  function insertMath() {
+    const b = blocks[cur];
+    if (!b || !(TEXT.has(b.type) || DERIVED.has(b.type))) { status('先選一段文字（題目、選項、文字…），再插入算式'); return; }
+    if (editing !== cur) startEdit();
+    if (editing < 0) return;
+    const c = saveCaret();
+    vitoolsMathEditor.open({
+      title: '插入算式',
+      onApply: tex => {
+        if (!tex || editing < 0) { restoreCaret(c); return; }
+        const real = main.ownerDocument.createElement('span');
+        real.className = 'vt-math';
+        setTex(real, tex);
+        editMaths.push(real);
+        const s = document.createElement('span');
+        s.className = 'vt-math';
+        s.dataset.tex = tex;
+        s.dataset.mi = editMaths.length - 1;
+        s.contentEditable = 'false';
+        showTex(s, tex);
+        restoreCaret(c);
+        const sel = getSelection();
+        const r = sel.rangeCount ? sel.getRangeAt(0) : null;
+        if (r && c.tx.contains(r.startContainer)) { r.deleteContents(); r.insertNode(s); }
+        else c.tx.appendChild(s);
+        const after = document.createRange();   // 游標放到算式後面，可以接著打字
+        after.setStartAfter(s); after.collapse(true);
+        sel.removeAllRanges(); sel.addRange(after);
+        status('插入了算式；繼續改字，Enter 或 Esc 改完');
+      },
+      onCancel: () => restoreCaret(c),
+    });
   }
 
   function split() {
@@ -1983,6 +2069,8 @@
     $('ly-up').addEventListener('click', () => move(-1));
     $('ly-down').addEventListener('click', () => move(1));
     $('ly-edit').addEventListener('click', startEdit);
+    $('ly-math').addEventListener('mousedown', e => e.preventDefault());   // 不要讓編輯區失去游標
+    $('ly-math').addEventListener('click', insertMath);
     $('ly-split').addEventListener('mousedown', e => e.preventDefault());   // 不要讓編輯區失去游標
     $('ly-split').addEventListener('click', split);
     $('ly-merge').addEventListener('click', merge);
@@ -2163,6 +2251,8 @@
       if (editing >= 0) {
         if (e.key === 'Escape') { e.preventDefault(); endEdit(); }
         else if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); split(); }
+        else if ((e.key === 'm' || e.key === 'M') && e.ctrlKey && e.shiftKey) { e.preventDefault(); editMathAtCaret(); }
+        else if ((e.key === 'm' || e.key === 'M') && e.ctrlKey) { e.preventDefault(); insertMath(); }
         else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); document.execCommand('insertLineBreak'); }
         else if (e.key === 'Enter') { e.preventDefault(); endEdit(); }
         return;
@@ -2179,6 +2269,7 @@
       if (ty) { e.preventDefault(); setType(ty); return; }
       if (k === 'Delete') { e.preventDefault(); delBlocks(); return; }
       if (k === 'e' || k === 'E' || k === 'Enter') { e.preventDefault(); startEdit(); return; }
+      if (k === 'm' || k === 'M') { e.preventDefault(); insertMath(); return; }
       if (k === 'g' || k === 'G') { e.preventDefault(); merge(); return; }
       if (k === 'n' || k === 'N') { e.preventDefault(); addNew(); return; }
       if (k === 'd' || k === 'D') { e.preventDefault(); toggleDrop(); return; }
@@ -2192,7 +2283,8 @@
       if (editing < 0) return;
       const tx = $('ly-r' + editing) && $('ly-r' + editing).querySelector('.tx');
       setTimeout(() => {
-        if (editing >= 0 && tx && !tx.contains(document.activeElement) && document.activeElement !== $('ly-split')) endEdit();
+        if (editing >= 0 && tx && !tx.contains(document.activeElement) && document.activeElement !== $('ly-split') &&
+          document.activeElement !== $('ly-math') && !(window.vitoolsMathEditor && vitoolsMathEditor.isOpen())) endEdit();
       }, 0);
     });
     document.addEventListener('keydown', e => {

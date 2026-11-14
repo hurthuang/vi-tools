@@ -8,7 +8,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script>
 window.MathJax = {
-  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
+  // 化學式 \ce{…}（mhchem）一開始就載入：同步的 tex2mml 遇到還沒載入的擴充會失敗（MathJax retry），之後 \ce 一直是紅字
+  loader: { load: ['[tex]/mhchem'] },
+  tex: { packages: { '[+]': ['mhchem'] }, inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
     macros: { ratio: ['\\mathrel{\\unicode{x2236}}', 0], proportion: ['\\mathrel{\\unicode{x2237}}', 0] } },
   options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
 };
@@ -192,6 +194,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-down" type="button" title="Alt＋↓">↓ 下移</button>
       <span class="sep"></span>
       <button class="btn" id="ly-edit" type="button" title="E 或 Enter">✎ 改字</button>
+      <button class="btn" id="ly-math" type="button" title="M（改字時 Ctrl＋M 插在游標處）：用算式編輯器做一個新的算式，看得到點字和念法">∑ 插入算式</button>
       <button class="btn" id="ly-split" type="button" title="改字時 Ctrl＋Enter">從游標處分段</button>
       <button class="btn" id="ly-merge" type="button" title="G">併到上一段</button>
       <button class="btn" id="ly-new" type="button" title="N">新增一段</button>
@@ -275,6 +278,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
 <script src="mfr-web.js"></script>
 <script src="mfr-tidy.js"></script>
 <script src="ocr-web.js"></script>
+<script src="math-editor.js"></script>
 <script src="vt-layout.js"></script>
 </body>
 </html>

@@ -375,3 +375,12 @@
 - 版面整理拉框「辨識成一個算式」（網頁版或辨識套件）時，`mfr-tidy.js` 的 `splitList` 把最外層的逗號、頓號拆到算式外：前後兩段都有關係符號 → 「，」；每一項都很短（字母、點、線段、角、座標）的列舉 → 猜「、」；括號裡的逗號不動。`mathBlock` 拆了就用 `setInline` 放成「\(…\)、\(…\)」。
 - 為什麼：朗讀時中文標點只停頓、不念「逗號」；點字用中文標點，數學逗號只留給座標、集合這類數學物件。
 - 辨識套件（0.4.5 起，`mathocr.list_cuts`）有 PDF 文字層時照原卷的標點判斷，開它做的中繼檔不再套用猜法（原卷印半形逗號的 x, y, z, w 會留著）。
+
+## 版面整理的算式編輯器（2026-11-14，`math-editor` 分支）
+- `math-editor.js`（`window.vitoolsMathEditor.open({ tex, title, onApply, onCancel })`、`isOpen()`）：一個算式的編輯器，`<dialog>`（Esc 取消、Ctrl＋Enter 套用、關掉後焦點回原處）。按鈕與報讀名稱取自數學點字頁數學編輯器的算式部分（層次、運算、關係、幾何、常用符號；希臘字母、三角函數、其他符號用下拉選單）；整份文件用的功能不放。插入有 `{}` 的按鈕時，選了字就包進第一個 `{}`（nc 的編輯器不會）。
+- 下面即時顯示：預覽（`MathJax.tex2mml`）、Nemeth 點字（第一次用到時在隱藏 iframe 載入 `nemeth_converter.html`，用它的 `latexToNemethAsc`＋`asc2brl`，同文字轉點字的做法）、念法（`math-speech.js` 的 `toSpeech`，MathCAT；沒載入就自己載）。
+- `vt-layout.js`：`editMath` 從 `prompt()` 改用編輯器；`insertMath()`（M、工具列「∑ 插入算式」`#ly-math`、改字時 Ctrl＋M 插在游標處，新算式元素放進 `editMaths`、編輯區用 `data-mi` 指過去）；`editMathAtCaret()`（改字時 Ctrl＋Shift＋M 改游標旁的算式）；`focusout` 在編輯器開著時不結束改字。
+- 順便修：改字中又改算式時，舊版先 `endEdit()` 再改原本的算式元素；如果文字也改過，元素已經被換成複本，算式的修改會不見。現在改字中就地改（`setTex` 改真正的元素、`showTex` 換編輯區的顯示），不結束改字。
+- nc 自己的數學編輯器（整份文件用）沒動；nc「整份算式校對」之後可以改用這個編輯器。
+- 瀏覽器試過（113 青年 1a2）：M → 分數按鈕＋鍵盤打 `\frac{1}{2}+x\ge 3`，點字 ⠹⠂⠌⠆⠼⠬⠭⠀⠨⠂⠱⠀⠼⠒、念法「2 分之 1 加 x, 大於或等於 3」；點兩下改、Esc 取消不變、改字中 Ctrl＋Shift＋M、Ctrl＋Z 復原、改字中同時改文字和算式都留著。
+- 化學式（使用者回報）：版面整理的 MathJax 設定一開始就載入 mhchem（layout.html `loader.load`＋`tex.packages`）。原本靠 autoload，但同步的 `tex2mml` 第一次遇到 `\ce` 會丟 MathJax retry、之後 `\ce` 一直是紅字，念法也跟著念成「\ce, 大寫 h 2…」；編輯器的預覽也改用 `tex2mmlPromise`。修好後 H₂O 念「大寫 h, 下標 2; 大寫 o」、箭頭念「反應形成」，點字 ⠠⠓⠆⠠⠕（點字本來就對）。
