@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace ViTools;
 
 // 從桌面版安裝、整包更新 vi-tools 辨識套件（0.5.1 起）：
-//   1. 下載：GitHub Release 最新版的試卷版（-exam-portable.zip，約 300 MB）或完整版（-portable.zip，約 530 MB），
+//   1. 下載：GitHub Release 最新版的試卷版（-exam-portable.zip，約 330 MB）或完整版（-portable.zip，約 560 MB），
 //      一邊下載一邊算 sha256，和 GitHub API 附檔的 digest（"sha256:…"）、大小核對；或使用者選已經下載好的 zip
 //   2. 檢查 zip：每個檔都在「vi-tools辨識套件/」底下、沒有 .. 或磁碟代號、有 runtime/python/python.exe 和 app/main.py
 //   3. 解壓縮到「vi-tools辨識套件.new」，好了才換上：

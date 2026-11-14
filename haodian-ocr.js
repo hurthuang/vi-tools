@@ -289,7 +289,7 @@
     return desktop().then(d => d && d.features.includes('recognizerInstall') ? d : null);
   }
   const canInstall = () => installer().then(Boolean);
-  const sizeOf = ed => ed === 'full' ? '約 530 MB' : ed === 'exam' ? '約 300 MB' : '300～530 MB';
+  const sizeOf = ed => ed === 'full' ? '約 560 MB' : ed === 'exam' ? '約 330 MB' : '330～560 MB';
   const MB = b => Math.round(b / 1e6) + ' MB';
   async function install(opt, onStatus) {
     const d = await installer();
@@ -344,8 +344,8 @@
         el.appendChild(b);
         el.appendChild(document.createTextNode(' '));
       };
-      add('安裝辨識套件（試卷版，約 300 MB）', '從 GitHub 下載 vi-tools 辨識套件試卷版：文字、算式、版面，放進 ViTools 資料夾', { edition: 'exam' });
-      add('安裝完整版（約 530 MB，多樂譜辨識）', '試卷版再加上樂譜辨識（Audiveris、homr）', { edition: 'full' });
+      add('安裝辨識套件（試卷版，約 330 MB）', '從 GitHub 下載 vi-tools 辨識套件試卷版：文字、算式、版面，放進 ViTools 資料夾', { edition: 'exam' });
+      add('安裝完整版（約 560 MB，多樂譜辨識）', '試卷版再加上樂譜辨識（Audiveris、homr）', { edition: 'full' });
       add('用已下載的 zip 安裝', '學校網路下載太慢時：在別的地方下載好 vi-tools-recognizer-…-portable.zip，選這個檔安裝', { edition: '', file: true });
       // 2026-11-13 使用者在 i5-5200U（2015 年筆電）上跑很久：先說清楚，免得以為當機
       const note = document.createElement('span');

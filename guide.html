@@ -1119,7 +1119,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       <tr><th scope="row">掃描檔、圖檔</th><td>辨識文字（一頁約 10～20 秒），算式要一個一個拉框</td><td>文字和算式一起辨識（一頁約 10～60 秒，看電腦快慢）</td></tr>
       <tr><th scope="row">直書、表格</th><td>—</td><td>直書照順序讀；有格線的表格自動轉成表格</td></tr>
       <tr><th scope="row">五線譜</th><td>—</td><td>辨識成 MusicXML（兩個工具交叉比對）</td></tr>
-      <tr><th scope="row">要下載的</th><td>用到才下載模型（文字約 8 MB、算式約 33 MB）</td><td>辨識套件：試卷版約 300 MB、完整版（含五線譜）約 530 MB（解壓縮就能用）</td></tr>
+      <tr><th scope="row">要下載的</th><td>用到才下載模型（文字約 8 MB、算式約 33 MB）</td><td>辨識套件：試卷版約 330 MB、完整版（含五線譜）約 560 MB（解壓縮就能用）</td></tr>
     </tbody>
   </table>
   <p>只是偶爾整理電子檔、算式不多的話，不裝也可以；常做數學試卷、掃描檔，建議裝。</p>
@@ -1127,11 +1127,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 
   <h3 id="recognizer-下載與開啟">下載與開啟</h3>
   <ol>
-    <li>到 <a href="https://github.com/hurthuang/vi-tools-recognizer/releases/latest" target="_blank" rel="noopener">辨識套件下載頁面</a>，下載其中一個：<b>試卷版</b> <code>vi-tools-recognizer-版本-exam-portable.zip</code>（約 300 MB，試卷、講義用，大部分老師選這個），或 <b>完整版</b> <code>vi-tools-recognizer-版本-portable.zip</code>（約 530 MB，再加上五線譜辨識）。</li>
+    <li>到 <a href="https://github.com/hurthuang/vi-tools-recognizer/releases/latest" target="_blank" rel="noopener">辨識套件下載頁面</a>，下載其中一個：<b>試卷版</b> <code>vi-tools-recognizer-版本-exam-portable.zip</code>（約 330 MB，試卷、講義用，大部分老師選這個），或 <b>完整版</b> <code>vi-tools-recognizer-版本-portable.zip</code>（約 560 MB，再加上五線譜辨識）。</li>
     <li>解壓縮到任一資料夾（解開來是「vi-tools辨識套件」資料夾），不需要安裝（Windows 10、11 64 位元）。網頁是透過本機連線找到它，放哪裡都可以，建議 <code>D:\vi-tools辨識套件</code> 或「文件」底下；有用桌面版的話，可以放進 ViTools 資料夾（跟 ViTools.exe 同一層）。要避開的位置：
       <ul>
         <li><code>C:\Program Files</code>：辨識結果存在套件資料夾裡的「輸出」，那裡沒有寫入權限。</li>
-        <li>OneDrive、Google 雲端硬碟等同步資料夾：300～530 MB 和每次的辨識結果都會被同步。</li>
+        <li>OneDrive、Google 雲端硬碟等同步資料夾：330～560 MB 和每次的辨識結果都會被同步。</li>
         <li>太深的資料夾：外層路徑超過約 100 個字，解壓縮會失敗。</li>
         <li>有還原卡的電腦的 C 槽：重開機會被還原，請放 D 槽。</li>
       </ul>
