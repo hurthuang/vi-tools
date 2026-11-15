@@ -465,6 +465,98 @@
     }
     return out;
   }
+  // 一頁的附圖：內嵌圖片＋線條畫的圖
+  async function figBoxes(pg, lines) {
+    const imgs = await imageBoxes(pg).catch(() => []);
+    const vec = await vectorBoxes(pg, lines || [], imgs).catch(() => []);
+    return imgs.concat(vec);
+  }
+  // 一頁裡用線條畫的圖（Word 的 EMF／繪圖物件存成 PDF 後是向量，不是圖片）→ 框 [x0,y0,x1,y1]（頁面比例）
+  //   畫的東西（stroke／fill）依位置靠近的併成一群；一群裡要有斜線或曲線才算圖——只有水平、垂直線的是底線、算式的上橫線、
+  //   作答空格、表格格線、分欄線。群的框裡有一行字是三個國字以上或超過 14 字的，是文字框（例：框起來的作圖步驟），不算；太小（寬或高 < 2.5%）、太大（> 半頁）不算。
+  //   框再往外收附近的短字（A、B、∠1、圖(一)，4 字以內）當圖中文字；已經是圖片的地方不重複
+  async function vectorBoxes(pg, lines, imgs) {
+    const vp = pg.getViewport({ scale: 1 });
+    const ops = await pg.getOperatorList();
+    const O = pdfjsLib.OPS;
+    const mul = (a, b) => [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+      a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
+    const PAINT = new Set([O.stroke, O.closeStroke, O.fill, O.eoFill, O.fillStroke, O.eoFillStroke, O.closeFillStroke, O.closeEOFillStroke].filter(x => x != null));
+    let ctm = [1, 0, 0, 1, 0, 0], pend = null;
+    const st = [], shapes = [];
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i], a = ops.argsArray[i];
+      if (fn === O.save) st.push(ctm);
+      else if (fn === O.restore) ctm = st.pop() || [1, 0, 0, 1, 0, 0];
+      else if (fn === O.transform) ctm = mul(ctm, a);
+      else if (fn === O.paintFormXObjectBegin) { st.push(ctm); if (a && a[0]) ctm = mul(ctm, a[0]); }
+      else if (fn === O.paintFormXObjectEnd) ctm = st.pop() || [1, 0, 0, 1, 0, 0];
+      else if (fn === O.constructPath) {
+        const [pops, pargs] = a;
+        let k = 0, cur = null, slant = false, curve = false;
+        const P = [], sl = [], hz = [];
+        const pt = (x, y) => { const p = vp.convertToViewportPoint(ctm[0] * x + ctm[2] * y + ctm[4], ctm[1] * x + ctm[3] * y + ctm[5]); return [p[0] / vp.width, p[1] / vp.height]; };
+        for (const op of pops) {
+          const n = op === O.rectangle ? 4 : op === O.curveTo ? 6 : (op === O.curveTo2 || op === O.curveTo3) ? 4 : op === O.closePath ? 0 : 2;
+          const v = pargs.slice(k, k + n); k += n;
+          if (op === O.rectangle) { const p0 = pt(v[0], v[1]), p1 = pt(v[0] + v[2], v[1] + v[3]); P.push(p0, p1); cur = p0; continue; }
+          if (op === O.closePath) continue;
+          const q = [];
+          for (let j = 0; j < v.length; j += 2) q.push(pt(v[j], v[j + 1]));
+          if (op === O.curveTo || op === O.curveTo2 || op === O.curveTo3) slant = curve = true;
+          else if (op === O.lineTo && cur) {
+            const e = q[q.length - 1], dx = Math.abs(e[0] - cur[0]) * vp.width, dy = Math.abs(e[1] - cur[1]) * vp.height;
+            if (dx > 1.5 && dy > 1.5) { slant = true; sl.push([Math.max(e[0], cur[0]), Math.min(e[1], cur[1])]); }
+            else if (dy <= 1.5 && dx > 1.5) hz.push([Math.min(e[1], cur[1]), Math.min(e[0], cur[0]), Math.max(e[0], cur[0])]);
+          }
+          P.push(...q);
+          cur = q[q.length - 1];
+        }
+        if (P.length) {
+          const b = [Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))];
+          pend = { b, slant, curve, sl, hz };
+        }
+      } else if (pend && PAINT.has(fn)) { shapes.push(pend); pend = null; }
+      else if (fn === O.endPath) pend = null;
+    }
+    // 跨大半頁的線（頁首線、分欄線）先拿掉
+    const S = shapes.filter(s => s.b[2] - s.b[0] < 0.6 && s.b[3] - s.b[1] < 0.5);
+    const near = (a, b, d) => a[0] <= b[2] + d && b[0] <= a[2] + d && a[1] <= b[3] + d && b[1] <= a[3] + d;
+    const uni = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+    let groups = S.map(s => ({ b: s.b.slice(), slant: s.slant, curve: s.curve, sl: s.sl.slice(), hz: s.hz.slice(), n: 1 }));
+    for (let changed = true; changed;) {
+      changed = false;
+      for (let i = 0; i < groups.length && !changed; i++)
+        for (let j = i + 1; j < groups.length; j++)
+          if (near(groups[i].b, groups[j].b, 0.008)) {
+            const A = groups[i], B = groups[j];
+            groups[i] = { b: uni(A.b, B.b), slant: A.slant || B.slant, curve: A.curve || B.curve, sl: A.sl.concat(B.sl), hz: A.hz.concat(B.hz), n: A.n + B.n };
+            groups.splice(j, 1); changed = true; break;
+          }
+    }
+    const inside = (l, b, d = 0) => { const cx = (l.box[0] + l.box[2]) / 2, cy = (l.box[1] + l.box[3]) / 2; return cx >= b[0] - d && cx <= b[2] + d && cy >= b[1] - d && cy <= b[3] + d; };
+    const plain = t => String(t || '').replace(/\s+/g, '');
+    const out = [];
+    for (const g of groups) {
+      const b = g.b, w = b[2] - b[0], h = b[3] - b[1];
+      // 算式的根號 √（一個或好幾個路徑，上下兩個根號也可能併成一群）：每一條斜線右上方不遠處都是一條橫線的左端（根號上面的橫線）——不是圖。
+      //   三角形、平行四邊形、梯形總有一條斜邊的右上方沒有橫線
+      if (g.slant && !g.curve && g.sl.length &&
+        g.sl.every(([x, y]) => g.hz.some(z => z[0] <= y + 0.003 && z[0] >= y - 0.04 && z[1] >= x - 0.003 && z[1] - x < 0.02))) {
+        continue;
+      }
+      if (!g.slant || w < 0.025 || h < 0.025 || w * h > 0.5) continue;
+      const tl = lines.find(l => inside(l, b) && (/[㐀-鿿]{3}/.test(l.text) || plain(l.text).length > 14));
+      if (tl) continue;
+      if (imgs.some(m => near(m, b, 0))) continue;
+      // 附近的短字（標籤）收進來
+      let box = b.slice();
+      lines.forEach(l => { if (plain(l.text).length <= 4 && plain(l.text).length && inside(l, b, 0.02)) box = uni(box, l.box); });
+      box = [Math.max(0, box[0] - 0.004), Math.max(0, box[1] - 0.004), Math.min(1, box[2] + 0.004), Math.min(1, box[3] + 0.004)];
+      out.push(box);
+    }
+    return out;
+  }
   // 一頁裡的五線譜 → 譜例的框 [x0,y0,x1,y1]（頁面比例）＋譜表數
   //   整頁算成長邊 3000 的圖（掃描進來的譜線粗、有點歪，解析度低會漏），找「夠長的細橫線」，五條等距（線距 2.5～14 pt；縮小的譜例線距只有 3 pt 多）一組＝一個譜表；
   //   上下靠近、左邊差不多齊的譜表（總譜、鋼琴的大譜表）併成一塊。框往上多留 5 個線距（速度、標題、題目的方框記號、連音數字；4 個會切到符槓下方的連音數字，110 視唱題庫），
@@ -611,9 +703,13 @@
     lines.forEach(l => {
       const cx = (l.box[0] + l.box[2]) / 2, cy = (l.box[1] + l.box[3]) / 2;
       // 譜例只收樂譜上的字（速度術語、方框代號、作答空格）；連續三個國字以上的是題目的話（「請於答案卷上作答」），留在段落
+      // \u5716\u65c1\u908a\u7684\u984c\u76ee\u6587\u5b57\uff08\u300c\u4e0b\u5217\u4f55\u8005\u932f\u8aa4\uff1f\u300d\u300c(A)\u7532\u2192\u4e59\u2192\u4e19\u2192\u4e01\u300d\uff09\u4e0d\u662f\u5716\u4e2d\u6587\u5b57\uff1a\u554f\u53e5\u4e00\u5f8b\u4e0d\u6536\uff1b\u4e09\u500b\u570b\u5b57\u4ee5\u4e0a\u3001\u5e36\u5167\u5bb9\u7684\u9078\u9805\u53ea\u6709\u6574\u884c\u5728\u5716\u88e1\u9762\u624d\u6536
+      const t = String(l.text).trim();
+      const ask = /[\uff1f?]$/.test(t), wordy = /[\u3400-\u9fff]{3}/.test(t) || /^[\uff08(][A-D\uff21-\uff24][)\uff09]\s*\S{2,}/.test(t);
+      const within = f => l.box[0] >= f.box[0] - 0.003 && l.box[2] <= f.box[2] + 0.003 && l.box[1] >= f.box[1] - 0.003 && l.box[3] <= f.box[3] + 0.003;
       const f = figs.find(f => cx >= f.box[0] - 0.01 && cx <= f.box[2] + 0.01 && cy >= f.box[1] - 0.01 && cy <= f.box[3] + 0.01 &&
         (l.text.length <= 12 || (l.box[0] >= f.box[0] - 0.01 && l.box[2] <= f.box[2] + 0.01)) &&
-        !(f.score && /[\u3400-\u9fff]{3}/.test(l.text)));
+        !(f.score && /[\u3400-\u9fff]{3}/.test(l.text)) && !ask && !(wordy && !within(f)));
       if (!f) { rest.push(l); return; }
       f.labels.push({ text: l.text, cx, cy });
     });
@@ -770,7 +866,7 @@
         if (ls.length || sf.length) { paras.push(...joinLines(order(ls.concat(figParas)), n)); if (ls.length) ocrd.push(n); } else scanned.push(n);
         continue;
       }
-      const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));
+      const figs = await withScores(pg, (await figBoxes(pg, r.lines)).map(box => ({ box, labels: [] })));
       let lines = r.lines;
       if (figs.length) {
         progress('第 ' + n + ' 頁：裁附圖（' + figs.length + ' 張）');
@@ -844,7 +940,7 @@
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
       gutters[n] = r.gutter;
-      const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));
+      const figs = await withScores(pg, (await figBoxes(pg, r.lines)).map(box => ({ box, labels: [] })));
       let ls = r.lines;
       if (figs.length) {
         ls = attachLabels(ls, figs);
