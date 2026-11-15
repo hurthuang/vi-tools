@@ -10,8 +10,8 @@
 //  從 Word、PDF、網頁複製的文字常帶全形空白、各種寬度的空格、零寬字元、軟連字號。
 //  沒處理會原樣留在點字輸出，存檔後一個字變成 2–3 個位元組，點字印表機印成好幾方非預期的點字
 // ════════════════════════════════════════════════════════════
-// 有寬度的空白：當空格（Tab、全形空白、en／em／細空格等、窄不斷行空格、數學空格、歐甘空格）
-const WIDE_SPACE_RE = /[\t\u3000\u2000-\u200A\u202F\u205F\u1680]/;
+// 有寬度的空白：當空格（Tab、不斷行空格 U+00A0、全形空白、en／em／細空格等、窄不斷行空格、數學空格、歐甘空格）
+const WIDE_SPACE_RE = /[\t\u00A0\u3000\u2000-\u200A\u202F\u205F\u1680]/;
 // 看不見的字元：刪除（零寬空格與連接符、字詞連接符、BOM、軟連字號、換行以外的控制字元）
 const ZERO_WIDTH_RE = /[\u200B-\u200D\u2060\uFEFF\u00AD\u0000-\u0008\u000B-\u001F\u007F]/;
 // 行分隔、段落分隔：換行
@@ -1595,6 +1595,7 @@ function initPanelResizer(opts) {
             <div id="fmt-tools-bar">
                 <button class="btn-ftb btn-fmt-run" onclick="fmtRunClean()" title="自動整理試卷格式、中英加空格、清除答題框等">✨ 自動調整</button>
                 <button class="btn-ftb btn-ftb-wrap" onclick="openWrapPanel()" title="分析並互動式預覽哪些換行可以合併">↵ 合併換行…</button>
+                <button class="btn-ftb shared-bt-only" id="btn-ftb-qnum" onclick="btFmtLayoutQuestions()" title="題號統一成「1. 」；語詞題去掉「。」、依每行方數排在同一行，一題不拆兩行；套用後中文字的點字保持不變" style="background:#546e7a!important;">🔢 題號排版</button>
                 <button class="btn-ftb shared-bt-only" id="btn-ftb-braille" onclick="fmtToggleBrailleInput()" title="切換點字六點直接輸入模式（Ctrl+B）" style="background:#5c6bc0!important;">⠿ 點字輸入</button>
                 <div class="ftb-sep"></div>
                 <button class="btn-ftb" id="btn-ftb-replace" style="background:#1976d2!important;" onclick="ftbToggleFindbar()" title="搜尋並取代文字">🔍 取代</button>
@@ -1792,6 +1793,16 @@ function initPanelResizer(opts) {
         _undoStack.push(ta.value);
         if (_undoStack.length > 30) _undoStack.shift();
     }
+
+    // 給各頁的工具改視窗裡的文字（可以 ↩ 復原），例：文字轉點字的題號排版
+    window.fmtTransform = function(fn) {
+        var ta = document.getElementById('fmt-textarea');
+        if (!ta) return;
+        var next = fn(ta.value);
+        if (typeof next !== 'string' || next === ta.value) return;
+        pushUndo();
+        ta.value = next;
+    };
 
     window.fmtUndo = function() {
         if (_undoStack.length === 0) { showFtbMsg('沒有可復原的操作'); return; }

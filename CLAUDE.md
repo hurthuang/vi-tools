@@ -1117,7 +1117,7 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 ## 非標準空白（2026-10-19）
 
 - 從 Word、PDF、網頁複製的文字常帶全形空白、各種寬度空格、零寬字元、軟連字號；原本 bt 會原樣留在輸出，存檔後一個字變 2–3 個位元組，點字印表機印成好幾方非預期的點字
-- `shared.js`：`WIDE_SPACE_RE`（Tab、U+3000、U+2000–200A、U+202F、U+205F、U+1680，當空格）、`ZERO_WIDTH_RE`（U+200B–200D、U+2060、U+FEFF、U+00AD、換行以外的控制字元，刪除）、`LINE_SEP_RE`（U+2028／2029，換行）、`normalizeSpaces()`（nc l2n、觸摸圖標籤用）
+- `shared.js`：`WIDE_SPACE_RE`（Tab、U+00A0（2026-11-15 補）、U+3000、U+2000–200A、U+202F、U+205F、U+1680，當空格）、`ZERO_WIDTH_RE`（U+200B–200D、U+2060、U+FEFF、U+00AD、換行以外的控制字元，刪除）、`LINE_SEP_RE`（U+2028／2029，換行）、`normalizeSpaces()`（nc l2n、觸摸圖標籤用）
 - bt 在 `tokenizeWithCustom` 分詞時處理（不能先改字串，原文位置 srcStart 會對不上）：行首的全形空白是段落縮排，一個轉一方；句中的併成一個空方（同 Rule 7.1.2）；點字空方 U+2800 是刻意輸入的點字，有幾方留幾方、不和空格合併（原本會併成一方，段首空兩方只剩一方）；行首半形空格維持併成一方（數量不固定，常是對齊用）；`render()` 只把行分隔換成換行字元（一對一，位置不變）
 - bt 輸出區下方 `#output-warn`：輸出裡還有非點字字元時列出字碼（`_showOutputWarning`）
 - 縮點對照頁不套用：它要和 NVDA 一致（zh-tw.ctb 的全形空白是兩方）
@@ -1131,7 +1131,8 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - [珠算練習](docs/notes/abacus.md)、[珠算 NVDA 實測清單](docs/notes/abacus-test.md)
 - [觸摸圖：畫的圖形是物件、編輯檔 .tactile](docs/notes/tactile-objects.md)：`pg.objs`、點選與對齊、浮動選取帶物件、編輯檔格式
 - [logo 與圖示](docs/notes/logo.md)：logo.svg／logo-small.svg、favicon 與桌面版 app.ico（tools/build-icons.mjs）、新頁面要加的 link
-- [題號排版、排版後保住中文點字](docs/notes/bt-layout.md)：文字轉點字的「🔢 題號排版」、格式調整套用時逐字比對補 zhEdit、差異報告（braille-translate.htm）
+- [輸入與輸出對照](docs/notes/bt-sync.md)：文字轉點字、點字轉文字的兩區游標連動與 Ctrl+J 跳到對應處（io-sync.js；_btSyncMap、_b2tSyncMap）；無法轉成點字的字元按一下跳過去；電腦八點模式的手打 ASCII 點字照原樣轉
+- [題號排版、排版後保住中文點字](docs/notes/bt-layout.md)：文字轉點字格式調整視窗裡的「🔢 題號排版」、格式調整套用時逐字比對補 zhEdit、差異報告（braille-translate.htm）
 - [HTML 表格](docs/notes/html-table.md)：html-table.js（條列文字：以列／以欄為軸）、文件整理預覽／朗讀／自動調整、文字轉點字轉條列；vi-tools 辨識套件「送到文件整理」（postMessage、已排版標記）
 - [中繼檔 vtdoc](docs/notes/vtdoc.md)：.vtdoc.html 規格、vtdoc.js（文字轉點字、文件整理開啟與存回：文字、讀音 data-reading）；nc「整份算式校對」（nc-vtdoc.js）；版面整理（測試版）layout.html、vt-layout.js、vtdoc-view.js；本機辨識套件 haodian-ocr.js；網頁版辨識一個算式 mfr-web.js、mfr-worker.js、mfr-tidy.js、models/mfr/；網頁版文字辨識 ocr-web.js、ocr-worker.js、models/ocr/（PP-OCRv6 int8，tools/quantize-ocr.py）
 - [開啟 Word 考卷](docs/notes/docx-exam.md)：注音標示只取國字、EQ 欄位（舊式注音、圈號）、自動編號、貼上文字去括號注音（shared.js）

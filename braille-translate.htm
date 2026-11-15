@@ -65,6 +65,7 @@
         .font-ascii { font-family: 'SimBraille', sans-serif !important; letter-spacing: 0px; }
         .font-unicode { font-family: "Apple Braille", "Segoe UI Symbol", monospace; letter-spacing: 1px; }
         .output-warn { color: #b71c1c; font-size: 0.85em; margin: 6px 0 0; }
+        .output-warn-jump { font: inherit; color: inherit; background: none; border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; margin: 2px 0; cursor: pointer; }
         html[data-theme="dark"] .output-warn { color: #ef9a9a; }
 
         /* ── 自定義規則區 ── */
@@ -549,6 +550,7 @@
     <script src="ueb-g2-rules.js"></script>
 <script src="build-no-tables-utf32.js"></script>
 <script src="mcbopomofo-service.js" async onload="_onMcBLoad()"></script>
+<script src="io-sync.js"></script>
 </head>
 <body>
     <div class="header">
@@ -694,7 +696,6 @@
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                 <label for="input-text" style="margin:0;">輸入文字：</label>
                 <button onclick="btOpenFormatModal()" title="開啟格式調整視窗，可手動編輯並選擇取代規則" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">📋 格式調整</button>
-                <button onclick="btLayoutQuestions()" title="題號統一成「1. 」；語詞題去掉「。」、依每行方數排在同一行，一題不拆兩行；排版後中文字的點字保持不變" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🔢 題號排版</button>
                 <button onclick="btInsertMusicBlock()" title="插入樂譜區塊：在【樂譜】和【/樂譜】之間寫 ABC 記譜，輸出時換成點字樂譜（BANA Music Braille Code 2015），方數照每行方數" style="padding:4px 12px;font-size:0.8em;background:#546e7a;">🎼 樂譜區塊</button>
                 <button id="bt-brl-btn" class="brlp-trigger" aria-label="點字輸入" aria-expanded="false" title="點字輸入（點擊開啟面板）&#10;Ctrl+B：開關六點鍵盤（F=1 D=2 S=3 | J=4 K=5 L=6）&#10;點陣：點選點位後按「插入」">⠿ 點字輸入</button>
             </div>
@@ -3060,23 +3061,34 @@ function btKeepZhBraille(before, newText) {
 function btOpenFormatModal() {
     const ta = document.getElementById('input-text');
     const oldText = ta.value, oldEdits = new Map(_btZhEdits), before = _btZhSeq(oldText);
+    _btFmtQnumWords = null;
     openFormatModal('input-text', function() {
         if (ta.value === oldText) { render(); return; }
         const r = btKeepZhBraille(before, ta.value);
+        const mixed = _btFmtQnumWords ? _btLayoutMixed(ta.value, _btFmtQnumWords) : [];
+        _btFmtQnumWords = null;
         render();
         btSaveSessionDebounced();
-        _btShowLayoutReport('格式調整', r, [], oldText, oldEdits);
+        _btShowLayoutReport('格式調整', r, mixed, oldText, oldEdits);
     });
 }
 
 // 題號排版：題號統一成「N. 」；一段（空行隔開）裡的題目都是語詞時，去掉題目後的「。」，
 // 依序往同一行排，超過每行方數就整題換行（一題不拆兩行）。標題行、句子題只改題號
 const BT_QNUM_RE = /^([ \t　]*)(\d{1,3})(?:[.．、][ \t　]*|[ \t　]*(?=[㐀-鿿]))/;
-function btLayoutQuestions() {
-    const ta = document.getElementById('input-text');
-    const oldText = ta.value;
-    if (!oldText.trim()) return;
-    const oldEdits = new Map(_btZhEdits), before = _btZhSeq(oldText);
+// 格式調整視窗的「🔢 題號排版」（shared.js 的按鈕，只有文字轉點字顯示）：改視窗裡的文字，可以 ↩ 復原；
+// 套用時跟格式調整一樣保住中文點字，另外列出語詞題同一個詞點字不一樣的地方
+let _btFmtQnumWords = null;
+function btFmtLayoutQuestions() {
+    fmtTransform(text => {
+        if (!text.trim()) return text;
+        const r = btLayoutQuestionsText(text);
+        _btFmtQnumWords = r.words;
+        return r.text;
+    });
+}
+
+function btLayoutQuestionsText(oldText) {
     const max = parseInt(document.getElementById('cell-limit').value) || 40;
     const modeKey = _getLineModeKey();
     const lgVal = document.getElementById('low-grade-mode').value;
@@ -3123,17 +3135,17 @@ function btLayoutQuestions() {
         }
         out.push(line);
     }
-    const newText = out.join('\n');
-    if (newText === oldText) { _btShowLayoutReport('題號排版', null, [], oldText, oldEdits); return; }
-    ta.value = newText;
-    const r = btKeepZhBraille(before, newText);
+    return { text: out.join('\n'), words };
+}
 
-    // 同一個語詞在不同地方點字不一樣（例：「掙脫」的掙一處 ㄓㄥˋ、一處 ㄓㄥ），工具判斷不了對錯，列出來
+// 同一個語詞在不同地方點字不一樣（例：「掙脫」的掙一處 ㄓㄥˋ、一處 ㄓㄥ），工具判斷不了對錯，列出來
+function _btLayoutMixed(newText, words) {
     const seq = _btZhSeq(newText);
     const zhBefore = [];   // 每個語詞在整份中文字序列裡的起點
     let pos = 0, zi = 0;
     for (const it of words) {
         const at = newText.indexOf(`${it.n}. ${it.text}`, pos);
+        if (at < 0) continue;   // 排版後又手改過
         for (; pos < at; pos++) if (_isZhChar(newText[pos])) zi++;
         const n = Array.from(it.text).filter(_isZhChar).length;
         zhBefore.push({ text: it.text, b: seq.slice(zi, zi + n).map(t => t.b) });
@@ -3143,11 +3155,7 @@ function btLayoutQuestions() {
         if (!byWord.has(w.text)) byWord.set(w.text, new Map());
         byWord.get(w.text).set(w.b.join('|'), w.b);
     });
-    const mixed = [...byWord].filter(([, m]) => m.size > 1).map(([text, m]) => ({ text, readings: [...m.values()] }));
-
-    render();
-    btSaveSessionDebounced();
-    _btShowLayoutReport('題號排版', r, mixed, oldText, oldEdits);
+    return [...byWord].filter(([, m]) => m.size > 1).map(([text, m]) => ({ text, readings: [...m.values()] }));
 }
 
 // HTML 表格（<table border="1">…</table>，豪點樂譜辨識、手打的點字試卷）：點字摸讀時改成條列文字
@@ -3565,6 +3573,7 @@ function render() {
     _parallelViewTimer = setTimeout(() => { if (!brailleInputMode) renderParallelView(renderTokens); }, 600);
     // 報讀區塊的「點字讀音」依這份 token（每段的點字、原文、中英數學類別）轉成讀音
     window._btRenderTokens = renderTokens;
+    _btSyncBuild(renderTokens, resultUnicode);
     document.dispatchEvent(new Event('bt-output-changed'));
 }
 
@@ -3572,12 +3581,62 @@ function render() {
 function _showOutputWarning(brl) {
     const el = document.getElementById('output-warn');
     if (!el) return;
+    window._btOutUnicode = brl;
     const bad = [...new Set([...brl].filter(c => c !== '\n' && (c < '\u2800' || c > '\u28ff')))];
     el.hidden = !bad.length;
-    el.textContent = bad.length
-        ? '有 ' + bad.length + ' 種字元無法轉成點字，列印時會出現非預期的點字：'
-          + bad.map(c => 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + (/\s/.test(c) ? '' : ' ' + c)).join('、')
-        : '';
+    const pos = document.getElementById('output-warn-pos');
+    if (!bad.length && pos) pos.textContent = '';
+    // 字元種類沒變就不重畫（role=status 重畫會再念一次）
+    const sig = bad.join('');
+    if (el.dataset.sig === sig) return;
+    el.dataset.sig = sig;
+    el.textContent = '';
+    if (!bad.length) return;
+    el.append('有 ' + bad.length + ' 種字元無法轉成點字，列印時會出現非預期的點字（按一下跳到原文的那個字，再按跳到下一個）：');
+    bad.forEach((c, k) => {
+        if (k) el.append('、');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'output-warn-jump';
+        b.textContent = 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + (/\s/.test(c) ? '' : ' ' + c);
+        b.title = '跳到原文裡的這個字（Ctrl+J 可再跳回點字）；再按一次跳到下一個';
+        b.addEventListener('click', () => _btWarnJump(c));
+        el.append(b);
+    });
+}
+
+// 按「無法轉成點字」的字元：輪流跳到它在原文的位置
+function _btWarnJump(c) {
+    const s = window._btOutUnicode || '';
+    const all = [];
+    for (let k = s.indexOf(c); k >= 0; k = s.indexOf(c, k + c.length)) all.push(k);
+    if (!all.length) return;
+    const st = _btWarnJump.st || (_btWarnJump.st = {});
+    st.n = st.c === c && st.len === all.length ? (st.n + 1) % all.length : 0;
+    st.c = c; st.len = all.length;
+    const o = all[st.n];
+    const inp = document.getElementById('input-text'), out = document.getElementById('output-text');
+    let r = _btSync.find(false, o, o + c.length);
+    if (r) {
+        // 同一段點字裡有好幾個這個字時，選原文裡對應的第幾個
+        const m = _btSyncMap && _btSyncMap.find(e => e.o0 <= o && o < e.o1);
+        const nth = m ? s.slice(m.o0, o).split(c).length - 1 : 0;
+        const src = inp.value.slice(r.from, r.to);
+        let at = -1;
+        for (let k = 0, q = src.indexOf(c); q >= 0; q = src.indexOf(c, q + c.length), k++) { at = q; if (k === nth) break; }
+        if (at >= 0) r = { from: r.from + at, to: r.from + at + c.length };
+    }
+    _btSync.mark(out, o, o + c.length, true);
+    if (r) _btSync.select(inp, r.from, r.to);
+    let pos = document.getElementById('output-warn-pos');
+    if (!pos) {
+        pos = document.createElement('p');
+        pos.id = 'output-warn-pos';
+        pos.className = 'output-warn';
+        pos.setAttribute('aria-live', 'polite');
+        document.getElementById('output-warn').after(pos);
+    }
+    pos.textContent = 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + ' 第 ' + (st.n + 1) + '／' + all.length + ' 個';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4051,6 +4110,24 @@ function classifyApostrophes(text) {
     return quotePositions;
 }
 
+// 手打的 ASCII 點字（電腦八點模式用）：有點字專用符號才算，一般英文、網址、算式文字不算
+const _ASCII_BRL_MARK_RE = /["~{}|`^@_]|#\d/;
+function _isAsciiBrlChunk(s) {
+    return _ASCII_BRL_MARK_RE.test(s) && !s.includes('\\(');
+}
+let _ASCII_TO_BR = null;
+function _asciiBrlToUnicode(s) {
+    if (!_ASCII_TO_BR) {
+        _ASCII_TO_BR = {};
+        for (const [u, a] of Object.entries(BR_TO_ASCII)) {
+            if (_ASCII_TO_BR[a] === undefined) _ASCII_TO_BR[a] = u;
+            const up = a.toUpperCase();
+            if (_ASCII_TO_BR[up] === undefined) _ASCII_TO_BR[up] = u;
+        }
+    }
+    return Array.from(s).map(c => _ASCII_TO_BR[c] || c).join('');
+}
+
 function tokenizeWithCustom(text) {
     const tokens = []; let i = 0;
     const apoQuotes = classifyApostrophes(text); // pre-pass：標記哪些 ' 是引號
@@ -4133,6 +4210,18 @@ function tokenizeWithCustom(text) {
             pushTok({ text:'↵', braille:'\n' }); i++;
             dqCount = 0; sqCount = 0;
             continue;
+        }
+
+        // ── 電腦八點：手打的 ASCII 點字（中文夾 Nemeth，例：",a,b<:}、#42~.*）整段一字對一方 ──
+        // 用空格或中文隔開、全是 ASCII、有點字專用符號（" ~ { } | ` ^ @ _ 或 #數字）的一段；
+        // 不然 " 會被當成引號、#42 的數字會被加數符轉成上位數字。中文句子裡的數字（每題 4 分）照舊
+        if (mode() === 'comp8' && ch > ' ' && ch <= '~' && (i === 0 || !/[\x21-\x7e]/.test(text[i - 1]))) {
+            const chunk = /^[\x21-\x7e]+/.exec(text.slice(i))[0];
+            if (_isAsciiBrlChunk(chunk)) {
+                pushTok({ text: chunk, braille: _asciiBrlToUnicode(chunk), isAsciiBrl: true });
+                i += chunk.length;
+                continue;
+            }
         }
 
         // ── 連續三個英文句號 → 省略號（中文語境用 CTB，英文語境用 UEB）──
@@ -4981,6 +5070,46 @@ document.getElementById('input-text').addEventListener('input', function() {
 document.getElementById('cell-limit').addEventListener('input', render);
 
 // ════════════════════════════════════════════════════════════
+//  輸入、輸出對應（io-sync.js；docs/notes/bt-sync.md）
+//  游標移動或點一下：另一區捲到對應處並標出來；Ctrl+J：跳到另一區的對應處
+// ════════════════════════════════════════════════════════════
+let _btSyncMap = null;   // [{ o0, o1, s0, s1 }]：輸出第 o0～o1 字 ↔ 原文第 s0～s1 字；null＝一字對一字（點字直接輸入）
+
+// render() 排好版後呼叫：照 renderTokens 算每段點字在輸出框的位置
+function _btSyncBuild(renderTokens, resultUnicode) {
+    const raw = _lgCurrentRawMap;   // 低年級模式：前處理後的位置 → 原文位置（-1 是加出來的空格、空行）
+    const map = [];
+    let o = 0;
+    for (const rt of renderTokens) {
+        // 直接跟輸出字串核對：自動換行時行尾的空方會被拿掉（_hiddenTrailingSpace 偶爾標在別的 token 上，不採用）
+        const b = rt.braille || '';
+        let len;
+        if (b === '\n') len = resultUnicode[o] === '\n' ? 1 : 0;
+        else if (resultUnicode.startsWith(b, o)) len = b.length;
+        else if (b.endsWith('⠀') && resultUnicode.startsWith(b.slice(0, -1), o)) len = b.length - 1;
+        else len = 0;
+        if (len && rt.braille !== '\n' && rt.srcStart !== undefined) {
+            let s0 = rt.srcStart, s1 = Math.max(rt.srcEnd, rt.srcStart + 1);
+            if (raw) {
+                let a = -1, b = -1;
+                for (let k = s0; k < s1 && k < raw.length; k++) if (raw[k] >= 0) { if (a < 0) a = raw[k]; b = raw[k]; }
+                s0 = a; s1 = b + 1;
+            }
+            if (s0 >= 0) map.push({ o0: o, o1: o + len, s0, s1 });
+        }
+        o += len;
+    }
+    if (o !== resultUnicode.length) console.warn('[bt-sync] 輸出位置對不上', o, resultUnicode.length);
+    _btSyncMap = map;
+}
+
+// 兩區對照的游標跟隨、底色、Ctrl+J 在 io-sync.js
+const _btSync = vitoolsIoSync({ inId: 'input-text', outId: 'output-text', getMap: () => _btSyncMap });
+// 輸出重排（打字、改每行方數、切換模式）、字級改變後，照目前游標重新對一次
+document.addEventListener('bt-output-changed', () => _btSync.refresh());
+document.getElementById('font-size-slider').addEventListener('input', () => setTimeout(() => _btSync.refresh(), 0));
+
+// ════════════════════════════════════════════════════════════
 //  點字直接輸入模式（Ctrl+B）
 //  — 與自定義規則區共用同一套六點輸入邏輯（bit map、insertRuleCell）
 // ════════════════════════════════════════════════════════════
@@ -5026,6 +5155,7 @@ function syncBrailleDirectOutput() {
         ? Array.from(val).map(c => BR_TO_ASCII[c] !== undefined ? BR_TO_ASCII[c] : c).join('')
         : val;
     outArea.className = isAscii ? 'font-ascii' : 'font-unicode';
+    _btSyncMap = null;   // 點字直接輸入：輸出跟輸入一字對一字
 }
 
 // 只更新雙視區，不動輸出區（供進入點字模式時使用）

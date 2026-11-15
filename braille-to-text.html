@@ -144,6 +144,7 @@ html[data-theme="dark"] .mcb-credit { color: #81c784; }
 </style>
 <script src="build-no-tables-utf32.js"></script>
 <script src="brl-syllables.js"></script>
+<script src="io-sync.js"></script>
 </head>
 <body>
 
@@ -721,9 +722,10 @@ function _convertLine(line) {
     const tokens = [];
     const segments = svcMcB ? _segmentLine(line) : [{ type: 'ueb', braille: line }];
     const lineParts = [];
-    let firstSeg = true;
+    let firstSeg = true, segIdx = 0;
 
     for (const seg of segments) {
+        segIdx++;
         if (!firstSeg) tokens.push({ isSpace: true, braille: '⠀' });
         firstSeg = false;
         if (seg.type === 'zh') {
@@ -739,9 +741,11 @@ function _convertLine(line) {
             lineParts.push(text);
             const brlWords = seg.braille.split('⠀').filter(w => w.length > 0);
             const txtWords = text.split(/\s+/).filter(w => w.length > 0);
+            // 點字的詞數和反向翻譯出來的字數不同時，逐字對不準：兩區對照整段對整段（grpBad）
+            const grpBad = brlWords.length !== txtWords.length;
             for (let i = 0; i < brlWords.length; i++) {
                 if (i > 0) tokens.push({ isSpace: true, braille: '⠀' });
-                tokens.push({ type: 'ueb', braille: brlWords[i], text: txtWords[i] || '', isSpace: false });
+                tokens.push({ type: 'ueb', braille: brlWords[i], text: txtWords[i] || '', isSpace: false, grp: segIdx, grpBad });
             }
         }
     }
@@ -768,11 +772,14 @@ function doConvert() {
     _lastTokens = [];
     const outLines = [];
 
+    let lineStart = 0;
     for (const line of uni.split('\n')) {
         if (_lastTokens.length > 0) _lastTokens.push({ isLineBreak: true });
+        const base = lineStart;
+        lineStart += line.length + 1;
         if (!line.trim()) { outLines.push(''); continue; }
         const { tokens: lineTokens, text: lineText } = _convertLine(line);
-        for (const t of lineTokens) _lastTokens.push(t);
+        for (const t of _b2tAlignLine(line, base, lineTokens)) _lastTokens.push(t);
         outLines.push(lineText);
     }
 
@@ -792,16 +799,79 @@ function _notifyOutputChanged() {
 // ── 從 token 重建輸出文字（套用手動修改）────────────────────────
 function _buildOutputFromTokens() {
     const lines = [];
-    let cur = '';
+    let cur = '', base = 0;
+    const map = [], groups = new Map();
     for (const t of _lastTokens) {
-        if (t.isLineBreak)        { lines.push(cur); cur = ''; }
-        else if (t.isSpace)       { cur += ' '; }
-        else if (t.type === 'zh') { cur += (_zhEdits.has(t.braille) ? _zhEdits.get(t.braille) : t.text) || ''; }
-        else                      { cur += t.text || ''; }
+        if (t.isLineBreak) { lines.push(cur); base += cur.length + 1; cur = ''; continue; }
+        let s;
+        if (t.isSpace)            s = ' ';
+        else if (t.type === 'zh') s = (_zhEdits.has(t.braille) ? _zhEdits.get(t.braille) : t.text) || '';
+        else                      s = t.text || '';
+        const o0 = base + cur.length;
+        cur += s;
+        if (t.isSpace || t.s0 === undefined) continue;
+        const e = { o0, o1: o0 + s.length, s0: t.s0, s1: t.s1 };
+        if (t.grpKey) {   // 對不準的 UEB 段：整段一筆
+            const g = groups.get(t.grpKey);
+            if (!g) { groups.set(t.grpKey, e); map.push(e); }
+            else { g.o0 = Math.min(g.o0, e.o0); g.o1 = Math.max(g.o1, e.o1); g.s0 = Math.min(g.s0, e.s0); g.s1 = Math.max(g.s1, e.s1); }
+        } else if (s) map.push(e);
     }
     lines.push(cur);
-    return lines.join('\n');
+    const out = lines.join('\n');
+    _b2tSyncMap = map.filter(e => e.o1 > e.o0);
+    _b2tOutBuilt = out;
+    return out;
 }
+
+// ── 輸入、輸出兩區對照（io-sync.js；docs/notes/bt-sync.md）────────────
+let _b2tSyncMap = [], _b2tOutBuilt = '';
+// 一行點字的 token 對回輸入框位置（s0～s1）。token 是快取共用的，複製一份再加
+function _b2tAlignLine(line, base, toks) {
+    const out = toks.map(t => ({ ...t }));
+    const SP = /[\u2800 ]/;
+    let c = 0;
+    for (const t of out) {
+        if (t.isSpace) continue;
+        if (t.grpBad) t.grpKey = base + ':' + t.grp;
+        if (!t.braille) continue;
+        while (c < line.length && SP.test(line[c])) c++;
+        // 中文標點的點字是反推的，可能跟原文不同：往後找一小段，跳過的交給下面補
+        const at = line.startsWith(t.braille, c) ? c : line.indexOf(t.braille, c);
+        if (at >= 0 && at - c <= 6) { t.s0 = base + at; t.s1 = base + at + t.braille.length; c = at + t.braille.length; }
+    }
+    // 對不上的：補成前後兩段之間的點字
+    let prevEnd = 0;
+    for (let k = 0; k < out.length; k++) {
+        const t = out[k];
+        if (t.isSpace) continue;
+        if (t.s0 !== undefined) { prevEnd = t.s1 - base; continue; }
+        let nx = line.length;
+        for (let j = k + 1; j < out.length; j++) if (out[j].s0 !== undefined) { nx = out[j].s0 - base; break; }
+        let a = prevEnd, b = nx;
+        while (a < b && SP.test(line[a])) a++;
+        while (b > a && SP.test(line[b - 1])) b--;
+        if (b > a) { t.s0 = base + a; t.s1 = base + b; prevEnd = b; }
+    }
+    return out;
+}
+// 輸出用格式調整改過（取代等）就對不上逐字位置：行數相同時一行對一行
+function _b2tGetSyncMap() {
+    const outV = document.getElementById('output-text').value;
+    if (outV === _b2tOutBuilt) return _b2tSyncMap;
+    const inL = document.getElementById('input-text').value.split('\n'), outL = outV.split('\n');
+    if (inL.length !== outL.length) return [];
+    const map = [];
+    let s = 0, o = 0;
+    inL.forEach((l, k) => {
+        if (l.length && outL[k].length) map.push({ s0: s, s1: s + l.length, o0: o, o1: o + outL[k].length });
+        s += l.length + 1; o += outL[k].length + 1;
+    });
+    return map;
+}
+const _b2tSync = vitoolsIoSync({ inId: 'input-text', outId: 'output-text', getMap: _b2tGetSyncMap });
+document.addEventListener('b2t-output-changed', () => _b2tSync.refresh());
+document.addEventListener('input', e => { if (e.target && e.target.id === 'font-size-slider') setTimeout(() => _b2tSync.refresh(), 0); });
 
 // ── Render parallel ───────────────────────────────────────────
 function renderParallel() {
