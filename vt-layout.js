@@ -14,7 +14,7 @@
     h2: { name: '大題', key: '8', tag: 'h2', cls: 'vt-section' },
     h1: { name: '標題', key: '9', tag: 'h1' },
     item: { name: '小項', tag: 'p', cls: 'vt-item' },
-    passage: { name: '文章', tag: 'p', cls: 'vt-passage' },
+    passage: { name: '題組/文章', tag: 'p', cls: 'vt-passage' },
     optfig: { name: '選項是圖', tag: 'p', cls: 'vt-optfig' },
     skip: { name: '略過', key: '0', tag: 'p', cls: 'vt-skip' },
     tbltext: { name: '表格文字' }, figtext: { name: '圖中文字' }, figdesc: { name: '圖的敘述' },
@@ -226,6 +226,7 @@
       const m = /^\s*[(（]\s*([A-Za-zＡ-Ｚ甲乙丙丁戊])\s*[)）]|^\s*([①-⑳])/.exec(el.textContent);
       if (m) el.dataset.label = m[1] || m[2];
     }
+    if (t === 'optfig') optFigText(el);
     if (t === 'h2') {
       const m = /每題\s*(\d+(?:\.\d+)?)\s*分/.exec(el.textContent);
       if (m) el.dataset.points = m[1];
@@ -239,6 +240,21 @@
     } else delete b.sec;
     b.type = t;
     return true;
+  }
+
+  // 改成「選項是圖」：放進常用詞句「(選項請參閱附圖)」（音檔念法照常用詞句的設定）。
+  // 原本只有選項記號（(A)(B)(C)(D)、①②…）就整段換掉；有別的字就接在後面；已經寫了「請參閱附圖」不動
+  const OPT_FIG = { pb: '(選項請參閱附圖)', pa: '(選項請參閱紙本試卷)' };
+  function optFigText(el) {
+    if (/請參閱/.test(el.textContent)) return;
+    const list = window.vitoolsPhrases ? vitoolsPhrases.list() : [];
+    const it = list.find(x => x.pb === OPT_FIG.pb) || OPT_FIG;
+    const s = vitoolsVtdoc.makePhrase(main.ownerDocument, it.pb, it.pa);
+    const c = el.cloneNode(true);   // 「(B) (C) (D)」可能被自動整理成算式，算式用它的 LaTeX 一起看
+    c.querySelectorAll('.vt-math').forEach(m => m.replaceWith(m.dataset.tex || ''));
+    const rest = c.textContent.replace(/[(（]\s*[A-Za-zＡ-Ｚ甲乙丙丁戊]\s*[)）]|[①-⑳]|[\s\u200b　]/g, '');
+    if (!rest && !el.querySelector('img')) el.replaceChildren(s);
+    else el.append(' ', s);
   }
 
   // ---------- 復原 ----------
