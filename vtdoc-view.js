@@ -1,4 +1,4 @@
-// 中繼檔內嵌的原卷（規格 3.9）：畫頁面、在上面畫框。版面整理用（nc 整份算式校對之後可以改用這個）。
+// 中繼檔內嵌的原卷（規格 3.9）：畫頁面、在上面畫框。版面整理用。
 //   const sv = vitoolsVtdocView.create({ scroll, host, overlay, fit, label, onPage })
 //     scroll  捲動的外框；host 放頁面的框（裡面放 overlay）；fit 顯示方式的 <select>（page 整頁／width 合寬／zoom 放大）
 //   await sv.open(v)          → 有原卷 true，沒有 false

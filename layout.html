@@ -96,6 +96,10 @@ select{font:inherit;font-size:.88rem;padding:3px}
 #ly-bx{font-size:.85rem;background:#eaf2ff;border:1px solid var(--blue);border-radius:6px;padding:6px 10px}
 #ly-om{font-size:.85rem;background:#fff7e0;border:1px solid #e6a100;border-radius:6px;padding:6px 10px}
 #ly-om[hidden],[hidden]{display:none !important}
+#ly-chk{font-size:.85rem;background:#fff7e0;color:#4a3300;border:1px solid #e6a100;border-radius:6px;padding:6px 10px;margin-bottom:6px;max-height:11em;overflow:auto}
+#ly-chk ol{margin:0;padding-left:1.6em}
+.ly-chk-go{font:inherit;color:inherit;background:none;border:0;padding:1px 2px;text-align:left;cursor:pointer}
+.ly-chk-go:hover,.ly-chk-go.cur{text-decoration:underline;font-weight:600}
 .help{font-size:.8rem;color:var(--dim);padding:0 14px 10px}
 .help summary{cursor:pointer;color:var(--blue);font-size:.85rem;padding:2px 0}
 .help p{margin:4px 0 0;line-height:1.7}
@@ -128,6 +132,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <button class="btn pri" id="ly-save" type="button" disabled>💾 存回中繼檔</button>
   <button class="btn" id="ly-undo" type="button" disabled title="Ctrl＋Z">↶ 復原</button>
   <button class="btn" id="ly-order" type="button" title="照閱讀順序在原卷上點這一頁的框（O）">排順序</button>
+  <button class="btn" id="ly-check" type="button" title="找出要看的算式：大括號沒配對、畫不出來、轉不出點字、可能漏掉的次方或算式（F8 下一個、Shift＋F8 上一個）">⚠ 檢查算式</button>
   <span class="ly-menu-w">
     <button class="btn" id="ly-out" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ly-out-menu">輸出 ▾</button>
     <span id="ly-out-menu" class="ly-menu" role="group" aria-label="輸出" hidden>
@@ -218,6 +223,10 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       </span>
       <button class="btn" id="ly-allpages" type="button" title="這一塊的位置，其他頁同樣位置的都改成同樣類型（例如頁首都略過）">套用到所有頁</button>
     </div>
+    <div id="ly-chk" role="region" aria-label="檢查算式" hidden>
+      <p style="margin:0 0 4px"><b>檢查算式</b>：<span id="ly-chk-n"></span> <button class="btn" id="ly-chk-close" type="button">關閉</button></p>
+      <ol id="ly-chk-list"></ol>
+    </div>
     <div id="ly-list" tabindex="0" role="listbox" aria-label="排好的內容（上下鍵選，數字鍵改類型）" aria-multiselectable="true"></div>
   </section>
 </div>
@@ -226,7 +235,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
   <p>  上下鍵選區塊（Shift 多選）；數字鍵改類型：<kbd>1</kbd> 題目 <kbd>2</kbd> 選項 <kbd>3</kbd> 文字 <kbd>8</kbd> 大題 <kbd>9</kbd> 標題 <kbd>0</kbd> 略過（不輸出）；<kbd>Delete</kbd> 或框右上角 ✕ 刪除區塊；新拉的框放在選到的區塊後面；選到的框拖控制點改大小、拖中間搬位置；右邊清單可以拖曳排順序；
   <kbd>Alt</kbd>＋<kbd>↑</kbd><kbd>↓</kbd> 搬移；<kbd>E</kbd>／<kbd>Enter</kbd> 改字（<kbd>Enter</kbd> 或 <kbd>Esc</kbd> 改完、<kbd>Shift</kbd>＋<kbd>Enter</kbd> 換行、<kbd>Ctrl</kbd>＋<kbd>Enter</kbd> 從游標處分段）；
   <kbd>G</kbd> 併到上一段（選了好幾塊＝全部併成一段）；<kbd>O</kbd> 排順序（在原卷上依序點框）；原卷空白處拖曳＝新增區塊；<kbd>N</kbd> 新增一段；<kbd>D</kbd> 刪題／恢復；<kbd>T</kbd> 設成題組（選文章到最後一題；只選寫著「回答第 11～13 題」的那段會自動選到第 13 題；在題組裡只選一塊再按＝取消）；<kbd>PageUp</kbd>／<kbd>PageDown</kbd> 原卷換頁；<kbd>Ctrl</kbd>＋<kbd>Z</kbd> 復原；<kbd>Ctrl</kbd>＋<kbd>S</kbd> 存檔。
-  點兩下算式改 LaTeX（細修算式請到 nc 整份算式校對）。
+  點兩下算式改 LaTeX；<kbd>F8</kbd>／<kbd>Shift</kbd>＋<kbd>F8</kbd> 跳到下一個／上一個要看的算式（「⚠ 檢查算式」列出全部）。
   </p>
 </details>
 </main>

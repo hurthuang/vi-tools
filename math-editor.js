@@ -234,5 +234,9 @@
     update();
   }
 
-  window.vitoolsMathEditor = { open, isOpen: () => !!(dlg && dlg.open), close: () => dlg && close(true) };
+  // 給版面整理的「檢查算式」：轉不出點字就 reject；數學點字頁載入失敗的錯誤帶 engine: true
+  function nemeth(tex) {
+    return ncEngine().catch(e => { e.engine = true; throw e; }).then(w => w.latexToNemethAsc(tex));
+  }
+  window.vitoolsMathEditor = { open, isOpen: () => !!(dlg && dlg.open), close: () => dlg && close(true), nemeth };
 })();

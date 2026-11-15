@@ -1134,7 +1134,7 @@ wordsign、B&B 等）做往返測試，除了上述兩個發現以外全部正�
 - [輸入與輸出對照](docs/notes/bt-sync.md)：文字轉點字、點字轉文字的兩區游標連動與 Ctrl+J 跳到對應處（io-sync.js；_btSyncMap、_b2tSyncMap）；無法轉成點字的字元按一下跳過去；電腦八點模式的手打 ASCII 點字照原樣轉
 - [題號排版、排版後保住中文點字](docs/notes/bt-layout.md)：文字轉點字格式調整視窗裡的「🔢 題號排版」、格式調整套用時逐字比對補 zhEdit、差異報告（braille-translate.htm）
 - [HTML 表格](docs/notes/html-table.md)：html-table.js（條列文字：以列／以欄為軸）、文件整理預覽／朗讀／自動調整、文字轉點字轉條列；vi-tools 辨識套件「送到文件整理」（postMessage、已排版標記）
-- [中繼檔 vtdoc](docs/notes/vtdoc.md)：.vtdoc.html 規格、vtdoc.js（文字轉點字、文件整理開啟與存回：文字、讀音 data-reading）；nc「整份算式校對」（nc-vtdoc.js）；版面整理（測試版）layout.html、vt-layout.js、vtdoc-view.js；本機辨識套件 haodian-ocr.js；網頁版辨識一個算式 mfr-web.js、mfr-worker.js、mfr-tidy.js、models/mfr/；網頁版文字辨識 ocr-web.js、ocr-worker.js、models/ocr/（PP-OCRv6 int8，tools/quantize-ocr.py）
+- [中繼檔 vtdoc](docs/notes/vtdoc.md)：.vtdoc.html 規格、vtdoc.js（文字轉點字、文件整理開啟與存回：文字、讀音 data-reading）；版面整理「檢查算式」（F8，2026-11-15 取代 nc「整份算式校對」）；版面整理（測試版）layout.html、vt-layout.js、vtdoc-view.js；本機辨識套件 haodian-ocr.js；網頁版辨識一個算式 mfr-web.js、mfr-worker.js、mfr-tidy.js、models/mfr/；網頁版文字辨識 ocr-web.js、ocr-worker.js、models/ocr/（PP-OCRv6 int8，tools/quantize-ocr.py）
 - [開啟 Word 考卷](docs/notes/docx-exam.md)：注音標示只取國字、EQ 欄位（舊式注音、圈號）、自動編號、貼上文字去括號注音（shared.js）
 - [站內搜尋（search.html）](docs/notes/site-search.md)：抓筆記本建索引（tools/build-search.mjs、data/notes.json、search-index.json）、使用者電腦每週更新、說明頁 h3 的 id 格式
 - [樂理及基礎和聲](docs/notes/music-theory.md)：樂理練習（music/theory.html）、四部和聲檢查（music/harmony.html）、點字樂譜的數字低音／級數分析／譜例方框（BANA Sec. 30、Par. 1.13）、文字轉點字的樂譜區塊、PDF 的 Wingdings 2 圈號；樂理運算以 music21 核對

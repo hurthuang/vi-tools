@@ -268,6 +268,7 @@
     const v = vitoolsVtdoc.parse(html);
     if (!v) { alert('這個檔案不是 vi-tools 中繼檔（.vtdoc.html）'); return; }
     V = v; fname = name; dirty = !!note; ops = 0; undoStack = []; omSel = null;
+    chk = []; chkPos = -1; $('ly-chk').hidden = true; $('ly-check').textContent = '⚠ 檢查算式';
     main = V.doc.querySelector('main') || V.doc.body;
     // 算式整理（同 nc 開檔）：夾中文的拆開、斷行後半收回、像算式的文字（b > a > c、變數、數字）變成算式
     const fx = vitoolsVtdoc.splitMathEls(main);
@@ -299,7 +300,9 @@
       showHd();
       const om = (V.meta.omitted || []).filter(o => o.kind === 'uncovered').length;
       const ng = new Set(blocks.map(b => b.grp).filter(Boolean)).size;
-      status((note ? note + '。' : '') + (fixes.length ? '自動整理：' + fixes.join('、') + '（請到 nc 校對，存回才會留下）。' : '') + '共 ' + blocks.length + ' 個區塊' + (ng ? '、' + ng + ' 個題組' : '') + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : ''));
+      const vv = V;
+      runCheck().then(c => { if (V === vv && c.length) status($('ly-st').textContent + '；檢查算式：' + c.length + ' 個地方要看（F8 跳過去）'); });
+      status((note ? note + '。' : '') + (fixes.length ? '自動整理：' + fixes.join('、') + '（存回才會留下）。' : '') + '共 ' + blocks.length + ' 個區塊' + (ng ? '、' + ng + ' 個題組' : '') + (om ?'；原卷上有 ' + om + ' 處字沒被收進任何區塊（紅斜線），點它可以加回來' : ''));
     });
     $('ly-list').focus();
   }
@@ -486,6 +489,152 @@
     cur = i;
     if (!ext) anchor = i;
     mark(scroll);
+  }
+
+  // ---------- 檢查算式（2026-11-15 從 nc「整份算式校對」搬過來；docs/notes/vtdoc.md）----------
+  // 算式本身：大括號、\begin／\end 沒配對、MathJax 畫不出來、轉不出點字、會改到整頁的指令；
+  // 可能漏掉的：算式後面單獨一個數字（原卷的次方被認成文字）、文字裡像算式的寫法
+  const UNSAFE_TEX = /\\(?:re)?newcommand|\\def(?![a-z])|\\let(?![a-z])|\\newenvironment|\\require/;
+  const SUSPECT = [
+    [/(?<![A-Za-z])[a-z]\d(?![\d.])/, '字母後面直接接數字，可能是上標掉了，例如 x2'],
+    [/\d\s*[+\-×÷=<>≤≥≠]\s*[\d(]/, '數字的運算'],
+    [/[√π∠△⊥∥≅∼°∞∑∫²³]/, '數學符號'],
+    [/(?<![\d/])\d+\s*\/\s*\d+(?![\d/])/, '分數寫成 a/b'],
+    [/(?<![A-Za-z])[a-zA-Z]\s*[=<>≤≥]\s*[-\d(a-zA-Z]/, '有字母的等式或不等式']
+  ];
+  const nemErr = new Map();   // LaTeX → '' 或「轉不出點字」（要等數學點字頁載入，算過就記住）
+  let chk = [], chkPos = -1, chkBusy = null;
+  function texErr(tex) {
+    if (UNSAFE_TEX.test(tex)) return '有 \\newcommand 之類的指令';
+    let d = 0;
+    for (let i = 0; i < tex.length; i++) {
+      const c = tex[i];
+      if (c === '\\') { i++; continue; }
+      if (c === '{') d++; else if (c === '}' && --d < 0) return '大括號沒配對';
+    }
+    if (d) return '大括號沒配對';
+    const env = [], re = /\\(begin|end)\s*\{([^}]*)\}/g;
+    let m;
+    while ((m = re.exec(tex))) {
+      if (m[1] === 'begin') env.push(m[2]);
+      else if (env.pop() !== m[2]) return '\\begin／\\end 沒配對';
+    }
+    if (env.length) return '\\begin／\\end 沒配對';
+    if (window.MathJax && MathJax.tex2mml) {
+      try {
+        const mm = MathJax.tex2mml(tex);
+        if (/<merror/.test(mm)) {
+          const t = /<mtext[^>]*>([^<]*)<\/mtext>/.exec(mm);
+          return 'MathJax 畫不出來' + (t ? '（' + t[1] + '）' : '');
+        }
+      } catch (e) { return 'MathJax 畫不出來（' + e.message + '）'; }
+    }
+    return nemErr.get(tex) || '';
+  }
+  function shortTex(t) { return t.length > 30 ? t.slice(0, 30) + '…' : t; }
+  // todo：還沒轉過點字的 LaTeX 放進去（之後在背景轉）
+  function findChecks(todo) {
+    const out = [];
+    blocks.forEach((b, i) => {
+      if (['skip', 'fig', 'score', 'page'].includes(b.type) || hiddenUp(b.el) || b.el.closest('section[data-drop]')) return;
+      b.el.querySelectorAll('.vt-math').forEach(s => {
+        const tex = (s.dataset.tex || '').trim();
+        if (!tex) return;
+        if (todo && !nemErr.has(tex)) todo.push(tex);
+        const e = texErr(tex);
+        if (e) out.push({ i, label: e + '：' + shortTex(tex) });
+        const nx = s.nextSibling;
+        const m = nx && nx.nodeType === 3 && /[)\]}]$/.test(tex) && /^ ?([1-9])(?![\d.,A-Za-z])/.exec(nx.nodeValue);
+        if (m) out.push({ i, label: '可能漏掉的次方：' + shortTex(tex) + ' 後面的「' + m[1] + '」' });
+      });
+      const els = b.el.matches('h1,h2,h3,h4,p,li,td,th,caption') ? [b.el] : [...b.el.querySelectorAll('td,th,caption,p,li')];
+      for (const el of els) {
+        const c = el.cloneNode(true);
+        c.querySelectorAll('.vt-math').forEach(x => x.replaceWith(' '));
+        const t = c.textContent.replace(/^\s*\d+\.\s*/, '').replace(/[(（][A-EＡ-Ｅ][)）]/g, ' ');
+        const k = SUSPECT.findIndex(s => s[0].test(t));
+        if (k < 0) continue;
+        const mm = t.match(SUSPECT[k][0]);
+        const a = Math.max(0, mm.index - 8);
+        out.push({ i, label: '可能漏掉的算式（' + SUSPECT[k][1] + '）：' + t.slice(a, mm.index + mm[0].length + 8).trim() });
+        break;
+      }
+    });
+    return out;
+  }
+  // 轉點字要用數學點字頁（math-editor.js 的隱藏 iframe），在背景一個一個轉
+  async function fillNemeth(todo) {
+    const fn = window.vitoolsMathEditor && vitoolsMathEditor.nemeth;
+    if (!fn) return;
+    for (const tex of new Set(todo)) {
+      if (nemErr.has(tex)) continue;
+      try { await fn(tex); nemErr.set(tex, ''); }
+      catch (e) {
+        if (e && e.engine) return;   // 數學點字頁載入失敗：不算算式的錯
+        nemErr.set(tex, '轉不出點字');
+      }
+    }
+  }
+  // 完整檢查（含轉點字），畫出清單；回傳要看的地方
+  function runCheck(force) {
+    if (!V) return Promise.resolve([]);
+    if (chkBusy) return chkBusy;
+    const todo = [];
+    findChecks(todo);
+    chkBusy = fillNemeth(todo).then(() => {
+      chkBusy = null;
+      chk = findChecks(null);
+      chkPos = -1;
+      showChecks(force);
+      return chk;
+    });
+    return chkBusy;
+  }
+  function showChecks(force) {
+    const box = $('ly-chk'), ol = $('ly-chk-list');
+    $('ly-chk-n').textContent = chk.length ? chk.length + ' 個地方要看（F8 下一個、Shift＋F8 上一個）' : '沒有找到要看的地方';
+    ol.textContent = '';
+    chk.forEach((c, k) => {
+      const li = document.createElement('li');
+      const bt = document.createElement('button');
+      bt.type = 'button';
+      bt.className = 'ly-chk-go';
+      bt.textContent = '第 ' + (c.i + 1) + ' 塊：' + c.label;
+      bt.addEventListener('click', () => goCheck(k));
+      li.appendChild(bt);
+      ol.appendChild(li);
+    });
+    if (force || chk.length) box.hidden = false;
+    $('ly-check').textContent = '⚠ 檢查算式' + (chk.length ? '（' + chk.length + '）' : '');
+  }
+  function goCheck(k) {
+    const c = chk[k];
+    if (!c) return;
+    chkPos = k;
+    select(c.i);
+    $('ly-list').focus();
+    $('ly-chk-list').querySelectorAll('.ly-chk-go').forEach((b, j) => b.classList.toggle('cur', j === k));
+    status('檢查算式 第 ' + (k + 1) + '／' + chk.length + ' 個，第 ' + (c.i + 1) + ' 塊：' + c.label);
+  }
+  // F8／Shift＋F8：照目前的內容重新找（改過的就不再列），跳到選到的區塊之後（之前）的下一個
+  function stepCheck(d) {
+    if (!V) return;
+    chk = findChecks(null);
+    if (!$('ly-chk').hidden) showChecks(true);
+    if (!chk.length) { status('檢查算式：沒有找到要看的地方'); return; }
+    let k;
+    if (d > 0) {
+      k = chk.findIndex((c, j) => c.i > cur || (c.i === cur && j > chkPos && chk[chkPos] && chk[chkPos].i === cur));
+      if (k < 0) k = 0;
+    } else {
+      k = -1;
+      for (let j = chk.length - 1; j >= 0; j--) {
+        const c = chk[j];
+        if (c.i < cur || (c.i === cur && chkPos >= 0 && j < chkPos && chk[chkPos] && chk[chkPos].i === cur)) { k = j; break; }
+      }
+      if (k < 0) k = chk.length - 1;
+    }
+    goCheck(k);
   }
 
   // ---------- 左邊：原卷上的框 ----------
@@ -2068,7 +2217,7 @@
       dlgAbort = null;
       runEnd();
       load(html, files[0].name.replace(/\.[^.]+$/, '') + '.vtdoc.html',
-        '已用辨識套件辨識「' + files[0].name + '」' + (stopped ? '（停止了，只有做完的頁）' : '') + '，算式記得到 nc 整份算式校對檢查');
+        '已用辨識套件辨識「' + files[0].name + '」' + (stopped ? '（停止了，只有做完的頁）' : '') + '，算式可以按「檢查算式」或 F8 一個一個看');
     } catch (e) {
       dlgAbort = null;
       runEnd();
@@ -2230,6 +2379,15 @@
     $('ly-onum').addEventListener('change', () => sv.redraw());
 
     $('ly-order').addEventListener('click', toggleOrder);
+    $('ly-check').addEventListener('click', () => {
+      if (!V) return;
+      status('檢查算式中…');
+      runCheck(true).then(c => {
+        status('檢查算式：' + (c.length ? c.length + ' 個地方要看（F8 下一個、Shift＋F8 上一個）' : '沒有找到要看的地方'));
+        if (c.length) goCheck(0);
+      });
+    });
+    $('ly-chk-close').addEventListener('click', () => { $('ly-chk').hidden = true; $('ly-list').focus(); });
     $('ly-reocr').addEventListener('click', reocr);
     $('ly-hd-find').addEventListener('click', findHd);
     if (window.vitoolsHaodian) vitoolsHaodian.detect({ auto: true }).then(showHd);
@@ -2387,6 +2545,7 @@
     });
     document.addEventListener('keydown', e => {
       if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(); }
+      if (e.key === 'F8' && !e.ctrlKey && !e.altKey && V && !(e.target.closest && e.target.closest('dialog'))) { e.preventDefault(); stepCheck(e.shiftKey ? -1 : 1); }
       // 焦點不在清單（例：剛點了原卷上的框）也可以按 Delete 刪選到的區塊
       const t = e.target;
       if (e.key === 'Delete' && V && editing < 0 && !$('ly-list').contains(t) && !(t.closest && t.closest('input,textarea,select,[contenteditable="true"],dialog'))) { e.preventDefault(); delBlocks(); }

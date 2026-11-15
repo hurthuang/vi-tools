@@ -5415,7 +5415,7 @@ function _btVtdocReadings(v, name) {
         (_btVtdoc && _btVtdoc.score && _btVtdoc.score.total ? `，譜例 ${_btVtdoc.score.total} 塊（點字樂譜 ${_btVtdoc.score.hand.size} 塊` +
             (_btVtdoc.score.draft ? `；${_btVtdoc.score.draft} 塊是辨識草稿，還沒在音樂點字確認，先標［譜例］` : '') +
             (_btVtdoc.score.stale ? `；${_btVtdoc.score.stale} 塊的點字是舊的（音符後來改過），先標［譜例］，請回音樂點字重存` : '') + '）' : '') +
-        (st.length ? `。⚠ ${st.length} 個算式的手改點字是舊的（算式後來改過），改用自動轉的：${st.slice(0, 3).join('、')}${st.length > 3 ? '…' : ''}；要用手改的，請回數學點字的「整份算式校對」重改` : '') +
+        (st.length ? `。⚠ ${st.length} 個算式的手改點字是舊的（算式後來改過），改用自動轉的：${st.slice(0, 3).join('、')}${st.length > 3 ? '…' : ''}` : '') +
         '。改字、修正讀音後按「存回中繼檔」' + (_btVtdoc && _btVtdoc.score && _btVtdoc.score.total ? '（譜例在這裡改不會存回，要到音樂點字改）' : '') + '。');
 }
 

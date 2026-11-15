@@ -432,3 +432,14 @@
 ## 比號 \ratio（2026-11-15）
 - 使用者回報：版面整理算式編輯器按「比」插入的 `\ratio`，預覽是紅字「\unicode x22365…」、念法「\unicode x 2236」。`\ratio`／`\proportion` 的巨集用 `\unicode`，跟 mhchem 一樣要等第一次用到才載入，同步的 `tex2mml` 會失敗。layout.html 的 MathJax 設定一開始就載入 `[tex]/unicode`（桌面版內附檔有）。修好後 `7\ratio 5` 點字 ⠼⠶⠀⠐⠂⠀⠼⠢、念「7 比 5」。
 - 直接打冒號 `7:5` 還是念「冒號」、點字跟比號不同；要不要把算式裡數字、字母之間的冒號自動當比號，待使用者決定。
+
+## nc「整份算式校對」拿掉，檢查搬到版面整理（2026-11-15）
+
+使用者發現在版面整理就做完了算式校對（數學編輯器看得到點字和念法、原卷對照），決定拿掉 nc 的「整份算式校對」分頁（nemeth_converter.html 的 `t-vtm`／`p-vtm`、樣式、nc-vtdoc.js，以及只給它用的 vtdoc.js、vtdoc-view.js、haodian-ocr.js、mfr-web.js 載入）。nc 回到 LaTeX ↔ Nemeth 兩個分頁。
+
+nc 校對分頁的檢查搬到版面整理（vt-layout.js `findChecks`／`runCheck`／`stepCheck`，layout.html `#ly-check`、`#ly-chk`）：
+- 算式本身：會改到整頁的指令（\newcommand 等）、大括號或 \begin／\end 沒配對、MathJax 畫不出來（`MathJax.tex2mml` 有 merror）、轉不出點字（math-editor.js 新增 `vitoolsMathEditor.nemeth(tex)`，用隱藏 iframe 的 `latexToNemethAsc`，在背景一個一個轉，結果照 LaTeX 記住）。
+- 可能漏掉的：算式結尾是括號、後面緊接單獨一個數字（次方被認成文字）；文字裡像算式的寫法（`SUSPECT`：x2、數字運算、√π∠△ 等符號、a/b、有字母的等式），一段只報第一個。
+- 略過、附圖、譜例、刪掉的題目不檢查。沒收進區塊、略過的字原本就畫在原卷上（紅斜線），不重複列。
+- 開檔時自動檢查，有問題時狀態列加「檢查算式：N 個地方要看（F8 跳過去）」並列出清單；F8／Shift＋F8 每次照目前內容重新找（改好的就不再列），從選到的區塊往後（往前）跳；工具列「⚠ 檢查算式」列出全部並跳到第一個。
+- 沒搬的：辨識信心排序、「確認過」標記（`data-checked` 舊檔照讀）、手改 Nemeth 點字（`data-brl` 舊檔文字轉點字照用；算式改過就改用自動轉的）。
