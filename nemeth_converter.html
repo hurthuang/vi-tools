@@ -1208,6 +1208,10 @@ function latexToNemethAsc(expr,insideScript,embedded,radicalDepth,scriptDepth){
   scriptDepth=scriptDepth||0;
   if(!expr||!expr.trim())return '';
   var s=expr.trim(), result='', i=0;
+  // 撇號：\prime（含 ^{\prime}、辨識吐的 ^{^{\prime}}）一律當 '（Nemeth ⠄）；原本 \prime 會被拼成 p r i m e 五個字母
+  s=s.replace(/\^\s*\{\s*\^\s*\{\s*((?:\\prime\s*)+)\}\s*\}/g,function(m,p){return "'".repeat((p.match(/\\prime/g)||[]).length);})
+     .replace(/\^\s*\{\s*((?:\\prime\s*)+)\}/g,function(m,p){return "'".repeat((p.match(/\\prime/g)||[]).length);})
+     .replace(/\^\s*\\prime(?![A-Za-z])/g,"'").replace(/\\prime(?![A-Za-z])\s*/g,"'");
   // Tracks nesting depth of literal ( )  [ ] — used to scope the Rule 3.5.1
   // Enclosed List exception (comma+space before a digit doesn't need a
   // fresh numeric indicator) to content that's actually inside grouping

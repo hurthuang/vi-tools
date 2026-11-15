@@ -421,3 +421,10 @@
 - `vt-layout.js`：`insertPhrase()`（P、工具列 `#ly-phrase`；改字中 Ctrl＋Alt＋P 插在游標處——Ctrl＋P 是列印），沒在改字就接在這一段最後面；改字時 vt-phrase 跟算式一樣 contenteditable=false。附圖工具列「音檔念」`#ly-faudio`（`setFigAudio`：照預設＝拿掉 data-audio、不念＝空字串、詞句裡的音檔說法、自訂…），附圖那列顯示「音檔念：…」。刪題、刪大題的說明改用 vt-phrase（點字卷的字照舊）。
 - `pdf-to-accessible.html`：「附圖念成」`#tts-figsay`（localStorage `vi-p2a-figsay`，請參閱紙本試卷／請參閱附圖／不念），開中繼檔、版面整理送過來、存回後重轉都用 `p2aAudioOpt()`；文字沒改過時換設定馬上重轉，改過就提示先存回再開。
 - 限制：在朗讀與音檔或文字轉點字改到有常用詞句的那一行，存回時詞句變成普通文字（音檔版存回就是音檔的字）。
+
+## 撇號 A′（2026-11-15，`prime-fix` 分支）
+- 使用者回報：辨識出 `A^{^{\prime}} B^{^{\prime}} C`，念成「大寫 a 的 prime, 次方, 乘…」、點字把 prime 拼成 p r i m e 加三層上標。查過：`A^{\prime}` 念法對，但數學點字（nc）也把 `\prime` 拼成字母；只有 `A'` 點字（⠠⠁⠄，Nemeth 撇號第 3 點）和念法都對。
+- `vtdoc.js` `primeTex`（`fixTex`、開中繼檔的 `splitMathEls`，狀態列「N 個撇號（A′）改成 A' 的寫法」）、`mfr-tidy.js`（網頁版辨識一個算式）：`^{^{\prime}}`、`^{\prime}`、`^\prime`、單獨的 `\prime` → `'`（兩個 prime → `''`）。先換撇號再整理三角形、角，`triTex` 的字母後面可以接撇號（`\triangle A'B'C'`）。
+- `nemeth_converter.html` `latexToNemethAsc` 開頭同規則，手打 `A^{\prime}` 也轉成 ⠄。
+- 19 份數學卷辨識結果 1,694 個算式新舊比較只變 5 個：3 個是 A′（變成跟手打參考檔一樣的 `\triangle A'BD`、`\angle A'DB`）、1 個本來就是亂掉的算式、1 個是辨識把逗號認成 `\prime \prime`（113 青年 1a2 第 11 題 (D)，新舊都錯，要老師校對）。
+- 辨識套件 `mathocr.tidy` 還沒加同規則（下次發辨識套件時一起；開中繼檔時網頁會修）。

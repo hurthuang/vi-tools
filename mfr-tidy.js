@@ -167,6 +167,17 @@
     // 弧 AB：\widehat{AB}（2～3 個大寫字母）、\overparen{…} → \overset{\frown}{AB}（vtdoc.js arcTex 同規則）
     t = t.replace(/\\(?:overparen|wideparen|overarc|arc)\s*\{\s*([^{}]+?)\s*\}|\\widehat\s*\{\s*([A-Z](?:\s*[A-Z]){1,2})\s*\}/g,
       (m, a, b) => '\\overset{\\frown}{' + (a || b).replace(/\s+/g, '') + '}');
+    // 撇號：`A^{^{\prime}}`、`A^{\prime}` → `A'`（vtdoc.js primeTex 同規則）
+    t = (function (tex) {
+      const n = p => "'".repeat((p.match(/\\prime/g) || []).length);
+      return tex.replace(/\^\s*\{\s*\^\s*\{\s*((?:\\prime\s*)+)\}\s*\}/g, (m, p) => n(p))
+        .replace(/\^\s*\{\s*((?:\\prime\s*)+)\}/g, (m, p) => n(p))
+        .replace(/\^\s*\\prime(?![A-Za-z])/g, "'")
+        .replace(/\\prime(?![A-Za-z])\s*/g, "'");
+    })(t);
+    // 撇號換好再整理一次三角形、角（△A'B'C'）
+    t = t.replace(/\\(triangle|angle)\s*\{\s*([A-Z]'*(?:\s*[A-Z]'*){0,2})\s*\}/g, '\\$1 $2')
+      .replace(/\\(triangle|angle)(?![A-Za-z])\s*([A-Z]'*(?:\s*[A-Z]'*){0,2})(?![A-Za-z])/g, (m, c, l) => '\\' + c + ' ' + l.replace(/\s+/g, ''));
     // 單獨一個反斜線：`{\}`、結尾多一個 `\`（vtdoc.js loneBsTex 同規則）
     t = t.replace(/(^|[^\\])\{\s*\\\s*\}/g, '$1').replace(/\\protect(?![A-Za-z])\s*\.?\s*/g, '').replace(/(?:\s*\\)+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
     return t;

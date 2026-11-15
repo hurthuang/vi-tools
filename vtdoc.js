@@ -155,21 +155,32 @@
   }
   // 三角形、角：算式辨識吐出「{\triangle} A B C」→「\triangle ABC」（同手打試卷的寫法；2026-11-13 使用者回報）
   function triTex(tex) {
-    return tex.replace(/\{\s*\\(triangle|angle)\s*\}/g, '\\$1 ').replace(/\\(triangle|angle)\s*\{\s*([A-Z](?:\s*[A-Z]){0,2})\s*\}/g, '\\$1 $2')
-      .replace(/\\(triangle|angle)(?![A-Za-z])\s*([A-Z](?:\s*[A-Z]){0,2})(?![A-Za-z])/g, (m, c, l) => '\\' + c + ' ' + l.replace(/\s+/g, ''))
+    // 字母後面可以有撇號（△A'B'C'；primeTex 先做）
+    return tex.replace(/\{\s*\\(triangle|angle)\s*\}/g, '\\$1 ').replace(/\\(triangle|angle)\s*\{\s*([A-Z]'*(?:\s*[A-Z]'*){0,2})\s*\}/g, '\\$1 $2')
+      .replace(/\\(triangle|angle)(?![A-Za-z])\s*([A-Z]'*(?:\s*[A-Z]'*){0,2})(?![A-Za-z])/g, (m, c, l) => '\\' + c + ' ' + l.replace(/\s+/g, ''))
       .replace(/\s{2,}/g, ' ').trim();
   }
-  function fixTex(tex) { return triTex(arcTex(loneBsTex(tex))); }
+  // 撇號 A′：算式辨識吐 `A^{^{\prime}}`（多一層上標，念成「次方」）、`A^{\prime}`（數學點字把 prime 拼成字母）→ `A'`
+  //   （Nemeth 撇號 ⠄，念「prime」；兩撇 \prime\prime → ''）。2026-11-15 使用者回報
+  const primeTex = function (tex) {
+    const n = p => "'".repeat((p.match(/\\prime/g) || []).length);
+    return tex.replace(/\^\s*\{\s*\^\s*\{\s*((?:\\prime\s*)+)\}\s*\}/g, (m, p) => n(p))
+      .replace(/\^\s*\{\s*((?:\\prime\s*)+)\}/g, (m, p) => n(p))
+      .replace(/\^\s*\\prime(?![A-Za-z])/g, "'")
+      .replace(/\\prime(?![A-Za-z])\s*/g, "'");
+  };
+  function fixTex(tex) { return triTex(primeTex(arcTex(loneBsTex(tex)))); }
   function splitMathEls(root) {
-    let split = 0, joined = 0, arcs = 0, lone = 0, tris = 0;
+    let split = 0, joined = 0, arcs = 0, lone = 0, tris = 0, primes = 0;
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
       const tex = el.dataset.tex || el.textContent.replace(/^\\\(|\\\)$/g, '');
-      const t1 = loneBsTex(tex), t2 = arcTex(t1), t3 = triTex(t2);
+      const t1 = loneBsTex(tex), t2 = arcTex(t1), tp = primeTex(t2), t4 = triTex(tp);
       if (t1 !== tex) lone++;
       if (t2 !== t1) arcs++;
-      if (t3 !== t2) tris++;
-      if (t3 !== tex) el.replaceWith(mathLike(el, t3));
+      if (tp !== t2) primes++;
+      if (t4 !== tp) tris++;
+      if (t4 !== tex) el.replaceWith(mathLike(el, t4));
     });
     root.querySelectorAll('.vt-math').forEach(el => {
       if (el.closest('template')) return;
@@ -202,7 +213,7 @@
     const cloze = math ? 0 : clozeBlanks(root);
     const promoted = math ? promoteMath(root) : 0;
     const spaced = cjkSpace(root);
-    return { split, joined, promoted, labels, arcs, lone, tris, cloze, spaced };
+    return { split, joined, promoted, labels, arcs, lone, tris, primes, cloze, spaced };
   }
 
   // 要整理的文字：題目、文章、選項裡的文字節點（算式、附圖、程式以外）
@@ -868,5 +879,5 @@
     return { hand, draft, stale, total };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, makePhrase, phraseLabel, AUDIO_DEFAULT, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, triTex, fixTex, cjkSpace, clozeBlanks };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, makePhrase, phraseLabel, AUDIO_DEFAULT, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, triTex, primeTex, fixTex, cjkSpace, clozeBlanks };
 })();
