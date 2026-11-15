@@ -1,4 +1,4 @@
-// 版面整理（測試版）：開中繼檔（.vtdoc.html），左邊原卷、右邊排好的內容，調區塊的類型、順序、分段合併、
+// 版面整理：開中繼檔（.vtdoc.html），左邊原卷、右邊排好的內容，調區塊的類型、順序、分段合併、
 // 刪題、表格與附圖的輸出方式，把沒輸出的地方加回來，存回中繼檔。規格：docs/notes/vtdoc.md 第 3、5 節。
 // 用到 vtdoc.js、vtdoc-view.js、html-table.js。
 //
@@ -428,7 +428,7 @@
     const anyText = S.some(x => TEXT.has(x.type));
     $('ly-type').disabled = !anyText;
     if (b && TEXT.has(b.type)) $('ly-type').value = b.type;
-    ['ly-up', 'ly-down'].forEach(id => { $(id).disabled = !b; });
+    ['ly-up', 'ly-down', 'ly-moveno'].forEach(id => { $(id).disabled = !b; });
     $('ly-edit').disabled = !b || !(TEXT.has(b.type) || DERIVED.has(b.type));
     $('ly-math').disabled = $('ly-edit').disabled;
     $('ly-split').disabled = editing < 0;
@@ -1495,10 +1495,11 @@
     return e;
   }
   // 清單上拖曳一列（或選到的幾列）放到另一列的前面／後面；拖題目會連同它的選項一起搬
-  function moveTo(from, to, after) {
+  function moveTo(from, to, after, range) {
     const S = selRange();
     let a, z;
-    if (S.includes(from) && S.length > 1) { a = unitStart(S[0]); z = unitEnd(S[S.length - 1]); }
+    if (range) [a, z] = range;
+    else if (S.includes(from) && S.length > 1) { a = unitStart(S[0]); z = unitEnd(S[S.length - 1]); }
     else { a = unitStart(from); z = qEnd(a); }
     // 放到題目「後面」＝放到那一題（含選項）的後面
     let t = after ? qEnd(unitStart(to)) + 1 : unitStart(to);
@@ -1513,6 +1514,27 @@
     build(); changed();
     render();
     status('搬好了（' + seg.length + ' 塊）');
+  }
+
+  // 搬到第幾號（B）：選到的區塊（題目連同選項、附圖連同圖中文字）搬到清單上第 N 號的位置
+  function moveToNo() {
+    const S = selRange();
+    if (!S.length) return;
+    let a = unitStart(S[0]);
+    const z = S.length > 1 ? unitEnd(S[S.length - 1]) : qEnd(a);
+    const n = z - a + 1;
+    const ans = prompt('搬到第幾號？（目前是第 ' + (a + 1) + (n > 1 ? '～' + (z + 1) : '') + ' 號，共 ' + blocks.length + ' 塊；' +
+      (n > 1 ? '連同後面的選項、圖中文字共 ' + n + ' 塊一起搬' : '') + '）', '');
+    if (ans == null || !ans.trim()) return;
+    const no = parseInt(ans.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)), 10);
+    if (!(no >= 1 && no <= blocks.length)) { status('號碼要在 1～' + blocks.length + ' 之間'); return; }
+    if (no - 1 >= a && no - 1 <= z) { status('已經在第 ' + no + ' 號'); return; }
+    // 往前搬：放到第 no 號那一塊（所在的單位）前面；往後搬：放到第 no 號那一塊（所在的單位）後面
+    const el = blocks[a].el;
+    moveTo(a, no - 1, no - 1 > z, [a, z]);
+    cur = anchor = blocks.findIndex(b => b.el === el);   // 游標回到搬過去的題目本身
+    mark();
+    status('搬到第 ' + (cur + 1) + ' 號了（' + n + ' 塊）');
   }
 
   async function newFromBox(page, box) {
@@ -2068,6 +2090,7 @@
     $('ly-type').addEventListener('change', e => setType(e.target.value));
     $('ly-up').addEventListener('click', () => move(-1));
     $('ly-down').addEventListener('click', () => move(1));
+    $('ly-moveno').addEventListener('click', moveToNo);
     $('ly-edit').addEventListener('click', startEdit);
     $('ly-math').addEventListener('mousedown', e => e.preventDefault());   // 不要讓編輯區失去游標
     $('ly-math').addEventListener('click', insertMath);
@@ -2271,6 +2294,7 @@
       if (k === 'e' || k === 'E' || k === 'Enter') { e.preventDefault(); startEdit(); return; }
       if (k === 'm' || k === 'M') { e.preventDefault(); insertMath(); return; }
       if (k === 'g' || k === 'G') { e.preventDefault(); merge(); return; }
+      if (k === 'b' || k === 'B') { e.preventDefault(); moveToNo(); return; }
       if (k === 'n' || k === 'N') { e.preventDefault(); addNew(); return; }
       if (k === 'd' || k === 'D') { e.preventDefault(); toggleDrop(); return; }
       if (k === 't' || k === 'T') { e.preventDefault(); toggleGroup(); return; }

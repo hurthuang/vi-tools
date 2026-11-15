@@ -2627,6 +2627,9 @@ function loadVoices() {
   sel.innerHTML = '';
   const zh = voices.filter(v => /zh|cmn|yue|tw|hk|cn/i.test(v.lang));
   const others = voices.filter(v => !/zh|cmn|yue|tw|hk|cn/i.test(v.lang));
+  // 預設 Hanhan（念法最穩定，桌面版匯出也是同一個 Windows 語音）；沒有就第一個臺灣中文語音
+  const isTw = v => v.lang === 'zh-TW' || v.lang === 'zh_TW';
+  const def = voices.find(v => /hanhan/i.test(v.name) && isTw(v)) || voices.find(isTw);
   const addGroup = (label, list) => {
     if (!list.length) return;
     const og = document.createElement('optgroup');
@@ -2635,7 +2638,7 @@ function loadVoices() {
       const o = document.createElement('option');
       o.value = v.name;
       o.textContent = `${v.name} (${v.lang})`;
-      if (v.lang === 'zh-TW' || v.lang === 'zh_TW') o.selected = true;
+      if (v === def) o.selected = true;
       og.appendChild(o);
     });
     sel.appendChild(og);

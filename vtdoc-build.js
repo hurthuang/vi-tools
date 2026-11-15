@@ -838,11 +838,12 @@
     // PDF 每一行的字接成一長串，記住每個字是哪一行、行內第幾個字
     let S = '';
     const at = [];   // S 的每個字 → { li, k }
-    const lines = [], figsAll = [];
+    const lines = [], figsAll = [], gutters = {};
     for (let n = 1; n <= pdf.numPages; n++) {
       progress('讀 PDF 原卷：第 ' + n + '／' + pdf.numPages + ' 頁');
       const pg = await pdf.getPage(n);
       const r = await pageLines(pg);
+      gutters[n] = r.gutter;
       const figs = await withScores(pg, (await imageBoxes(pg).catch(() => [])).map(box => ({ box, labels: [] })));
       let ls = r.lines;
       if (figs.length) {
@@ -893,10 +894,20 @@
     // 沒對到的段落：頁碼跟著前一段（換頁線位置才對）
     let lastPage = 1;
     paras.forEach(p => { if (p.page) lastPage = p.page; else p.page = lastPage; });
-    // PDF 的附圖：放在同一頁、同一欄、在它上面最近的那一段後面
+    // PDF 的附圖：放在同一頁、同一欄、在它上面最近的那一段後面（兩欄的試卷不能只看高度，
+    // 不然右欄的圖會接到左欄後面的題目、左欄的圖會接到右欄的題目）；同一欄裡圖上面沒有字（圖在欄的最上面）→ 放在這一欄第一段前面
     for (const f of figsAll.reverse()) {
       let k = -1;
-      paras.forEach((p, i) => { if (p.page === f.page && p.box && p.box[1] <= f.fig.box[1] && !p.fig) k = i; });
+      const g = gutters[f.page];
+      const same = p => p.page === f.page && p.box && !p.fig && (!f.col || colOf(p.box, g) === f.col || colOf(p.box, g) === 0 && p.box[1] <= f.fig.box[1]);
+      let bestTop = -Infinity, first = -1;
+      paras.forEach((p, i) => {
+        if (!same(p)) return;
+        if (first < 0) first = i;
+        if (p.box[1] <= f.fig.box[1] + 0.002 && p.box[1] >= bestTop) { bestTop = p.box[1]; k = i; }
+      });
+      if (k < 0 && first >= 0) k = first - 1;
+      if (k < 0) paras.forEach((p, i) => { if (p.page === f.page && p.box && p.box[1] <= f.fig.box[1] && !p.fig) k = i; });
       if (k < 0) k = paras.findIndex(p => p.page >= f.page) - 1;
       paras.splice(k + 1, 0, { fig: f.fig, page: f.page, box: f.fig.box, text: '' });
     }
