@@ -9,8 +9,9 @@
 <script>
 window.MathJax = {
   // 化學式 \ce{…}（mhchem）一開始就載入：同步的 tex2mml 遇到還沒載入的擴充會失敗（MathJax retry），之後 \ce 一直是紅字
-  loader: { load: ['[tex]/mhchem'] },
-  tex: { packages: { '[+]': ['mhchem'] }, inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
+  // \ratio、\proportion 用到 \unicode，也要一開始就載入（不然預覽、念法是紅字「\unicode x2236」；2026-11-15 使用者回報）
+  loader: { load: ['[tex]/mhchem', '[tex]/unicode'] },
+  tex: { packages: { '[+]': ['mhchem', 'unicode'] }, inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']],
     macros: { ratio: ['\\mathrel{\\unicode{x2236}}', 0], proportion: ['\\mathrel{\\unicode{x2237}}', 0] } },
   options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
 };

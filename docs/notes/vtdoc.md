@@ -428,3 +428,7 @@
 - `nemeth_converter.html` `latexToNemethAsc` 開頭同規則，手打 `A^{\prime}` 也轉成 ⠄。
 - 19 份數學卷辨識結果 1,694 個算式新舊比較只變 5 個：3 個是 A′（變成跟手打參考檔一樣的 `\triangle A'BD`、`\angle A'DB`）、1 個本來就是亂掉的算式、1 個是辨識把逗號認成 `\prime \prime`（113 青年 1a2 第 11 題 (D)，新舊都錯，要老師校對）。
 - 辨識套件 `mathocr.tidy` 還沒加同規則（下次發辨識套件時一起；開中繼檔時網頁會修）。
+
+## 比號 \ratio（2026-11-15）
+- 使用者回報：版面整理算式編輯器按「比」插入的 `\ratio`，預覽是紅字「\unicode x22365…」、念法「\unicode x 2236」。`\ratio`／`\proportion` 的巨集用 `\unicode`，跟 mhchem 一樣要等第一次用到才載入，同步的 `tex2mml` 會失敗。layout.html 的 MathJax 設定一開始就載入 `[tex]/unicode`（桌面版內附檔有）。修好後 `7\ratio 5` 點字 ⠼⠶⠀⠐⠂⠀⠼⠢、念「7 比 5」。
+- 直接打冒號 `7:5` 還是念「冒號」、點字跟比號不同；要不要把算式裡數字、字母之間的冒號自動當比號，待使用者決定。
