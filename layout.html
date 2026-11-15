@@ -79,6 +79,8 @@ select{font:inherit;font-size:.88rem;padding:3px}
 .row .gl{flex:none;font-size:.7rem;color:#fff;background:#7b3fa0;border-radius:4px;padding:2px 5px;align-self:flex-start;margin-top:2px}
 .row .vt-math{background:#eef4ff;border-radius:3px}
 .row .vt-math[contenteditable="false"]{cursor:pointer}
+.row .vt-phrase{background:#fff3c4;color:#5a3d00;border-radius:3px;padding:0 2px}
+@media (prefers-color-scheme:dark){.row .vt-phrase{background:#4a3a00;color:#ffe9a8}}
 .ty-h1{--c:#be123c}.ty-h2{--c:#7c3aed}.ty-q{--c:#2563eb}.ty-opt{--c:#0891b2}.ty-item{--c:#0e7490}.ty-p{--c:#6b7280}
 .ty-passage{--c:#4b5563}.ty-optfig{--c:#0891b2}.ty-fig{--c:#16a34a}.ty-table{--c:#65a30d}.ty-score{--c:#c026d3}
 .ty-figtext,.ty-figdesc,.ty-tbltext{--c:#ea580c}.ty-skip{--c:#9ca3af}.ty-page{--c:#bbb}.ty-other{--c:#444}
@@ -196,6 +198,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <span class="sep"></span>
       <button class="btn" id="ly-edit" type="button" title="E 或 Enter">✎ 改字</button>
       <button class="btn" id="ly-math" type="button" title="M（改字時 Ctrl＋M 插在游標處）：用算式編輯器做一個新的算式，看得到點字和念法">∑ 插入算式</button>
+      <button class="btn" id="ly-phrase" type="button" title="P（改字時 Ctrl＋Alt＋P 插在游標處）：插入常用詞句（此題型盲生不適合作答、選項請參閱附圖…），點字卷和音檔可以用不同的字">常用詞句</button>
       <button class="btn" id="ly-split" type="button" title="改字時 Ctrl＋Enter">從游標處分段</button>
       <button class="btn" id="ly-merge" type="button" title="G">併到上一段</button>
       <button class="btn" id="ly-new" type="button" title="N">新增一段</button>
@@ -205,6 +208,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
       <button class="btn" id="ly-reocr" type="button" title="用本機的辨識套件重新辨識這一塊（R）" hidden>重新辨識</button>
       <label id="ly-how-w" hidden>輸出 <select id="ly-how"></select></label>
       <label id="ly-tac-w" hidden><input type="checkbox" id="ly-tac"> 做觸圖</label>
+      <label id="ly-faudio-w" hidden title="給低視力學生的音檔裡，這張圖的地方念什麼">音檔念 <select id="ly-faudio"></select></label>
       <button class="btn" id="ly-omr" type="button" title="用本機的辨識套件（完整版）辨識這塊譜例的音符，結果是草稿，之後在音樂點字對照原卷改" hidden>辨識樂譜</button>
       <label id="ly-omr-w" hidden>音符 <select id="ly-omr-pick"></select></label>
       <span id="ly-hd-w" hidden>
@@ -280,6 +284,7 @@ kbd{font:inherit;font-size:.78rem;border:1px solid #bbb;border-radius:3px;paddin
 <script src="mfr-tidy.js"></script>
 <script src="ocr-web.js"></script>
 <script src="math-editor.js"></script>
+<script src="phrases.js"></script>
 <script src="vt-layout.js"></script>
 </body>
 </html>

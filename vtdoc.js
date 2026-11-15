@@ -454,26 +454,45 @@
     return s;
   }
 
-  function inlineText(el) {
+  // 常用詞句（span.vt-phrase）：點字版的字 data-pb、音檔版的字 data-pa（空字串＝那一邊不出現）；看得到的字是 phraseLabel 做的說明
+  function phraseLabel(pb, pa) {
+    pb = pb || ''; pa = pa || '';
+    if (pb && pb === pa) return pb;
+    if (pb && pa) return pb + '〔音檔念：' + pa + '〕';
+    if (pb) return pb + '〔音檔不念〕';
+    return '〔只在音檔：' + pa + '〕';
+  }
+  function makePhrase(doc, pb, pa) {
+    const s = doc.createElement('span');
+    s.className = 'vt-phrase';
+    s.dataset.pb = pb || '';
+    s.dataset.pa = pa || '';
+    s.textContent = phraseLabel(pb, pa);
+    return s;
+  }
+
+  // au：音檔版（toText 的 opt.audio），常用詞句用 data-pa；沒有就是點字版，用 data-pb
+  function inlineText(el, au) {
     let s = '';
     for (const n of el.childNodes) {
       if (n.nodeType === 3) s += n.nodeValue;
       else if (n.nodeType === 1) {
         const tag = n.tagName.toLowerCase();
-        if (n.classList.contains('vt-math')) {
+        if (n.classList.contains('vt-phrase')) s += (au ? n.dataset.pa : n.dataset.pb) || '';
+        else if (n.classList.contains('vt-math')) {
           const tex = n.dataset.tex || n.textContent.replace(/^\\\(|\\\)$/g, '');
           const parts = splitCjk(tex);
           s += parts ? parts.map(p => p.text != null ? p.text : '\\(' + p.math + '\\)').join('') : '\\(' + tex + '\\)';
         }
         else if (tag === 'br') s += '\n';
         else if (n.hasAttribute('hidden')) continue;
-        else s += inlineText(n);
+        else s += inlineText(n, au);
       }
     }
     return joinTail(s);
   }
 
-  function tableLine(t) {
+  function tableLine(t, au) {
     const cap = t.querySelector(':scope > caption');
     let h = '<table border="1">';
     for (const tr of t.querySelectorAll('tr')) {
@@ -481,11 +500,11 @@
       for (const c of tr.children) {
         const cs = c.colSpan > 1 ? ` colspan="${c.colSpan}"` : '';
         const rs = c.rowSpan > 1 ? ` rowspan="${c.rowSpan}"` : '';
-        h += `<td${cs}${rs}>` + esc(inlineText(c).trim()) + '</td>';
+        h += `<td${cs}${rs}>` + esc(inlineText(c, au).trim()) + '</td>';
       }
       h += '</tr>';
     }
-    return (cap ? inlineText(cap).trim() : '') + h + '</table>';
+    return (cap ? inlineText(cap, au).trim() : '') + h + '</table>';
   }
 
   function esc(s) {
@@ -496,13 +515,38 @@
 
   // 規格第 4 節：看得到的內容＝純文字；大題前後、每題前面空一行（跟辨識套件的 試卷.txt 一樣）
   //   opt.scores：'block'＝確認過的譜例輸出 🎼 樂譜區塊（文字轉點字用）；預設一律「［譜例］」（朗讀、版面整理）
+  //   opt.audio：音檔版（給低視力學生聽，手上有紙本）。{ fig, drop, secdrop } 是預設念法（沒給就用 AUDIO_DEFAULT）：
+  //     常用詞句念 data-pa；「請參閱附圖」換成這一題附圖的念法（附圖的 data-audio，沒設定用 fig；空字串＝拿掉）；
+  //     題目裡沒寫「請參閱附圖」的附圖，在附圖的位置念一句（一題一次）；刪掉的題目念題號＋drop、刪掉的大題念 secdrop
+  const AUDIO_DEFAULT = { fig: '請參閱紙本試卷', drop: '此題請參閱紙本試卷', secdrop: '此大題請參閱紙本試卷' };
   function toText(v, opt) {
     const blocks = !!(opt && opt.scores === 'block');
+    const au = opt && opt.audio ? Object.assign({}, AUDIO_DEFAULT, opt.audio === true ? {} : opt.audio) : null;
     const main = v.doc.querySelector('main') || v.doc.body;
     const lines = [];
     const blank = () => { if (lines.length && lines[lines.length - 1].text !== '') lines.push({ text: '', el: null }); };
-    for (const el of main.querySelectorAll(BLOCKS + ',figure.vt-score')) {
+    const scopeOf = el => el.closest('section.vt-q') || el.closest('section.vt-group');
+    const figSaid = new Set();
+    const figPhrase = scope => {
+      const f = scope && [...scope.querySelectorAll('figure.vt-fig')].find(f => f.dataset.how !== 'none' && !hiddenUp(f));
+      return f && f.hasAttribute('data-audio') ? f.dataset.audio : au.fig;
+    };
+    const MARK_RE = /[(（]?[^()（）\s，。]*請參閱附圖[)）]?/g;   // 不念的時候整個拿掉（含「選項」）
+    for (const el of main.querySelectorAll(BLOCKS + ',figure.vt-score' + (au ? ',figure.vt-fig' : ''))) {
       if (hiddenUp(el)) continue;
+      if (au && el.tagName === 'FIGURE' && el.classList.contains('vt-fig')) {
+        // 附圖：題目裡沒寫「請參閱附圖」才在這裡念（一題一次）
+        const how = el.dataset.how || 'mark';
+        if (how === 'none' || how === 'text' || el.parentElement.closest('figure')) continue;
+        const scope = scopeOf(el);
+        const key = scope || el;
+        if (figSaid.has(key)) continue;
+        if (scope && /請參閱附圖/.test(scope.textContent)) continue;
+        figSaid.add(key);
+        const say = el.hasAttribute('data-audio') ? el.dataset.audio : au.fig;
+        if (say) lines.push({ text: say, el: null });
+        continue;
+      }
       // 譜例（規格第 4 節、3.7）：在音樂點字確認過的（有 ABC 原文、點字，雜湊對得上）→ 🎼 樂譜區塊（【樂譜】ABC【/樂譜】，
       //   文字轉點字照 scoreBrl 用音樂點字存的點字）；辨識草稿、只標的 →「［譜例］」。這些行不綁元素、標 fixed，
       //   文字轉點字存回（applyText）時不寫回，譜例要到音樂點字改
@@ -520,7 +564,19 @@
       if (tag === 'h3' && el.closest('section.vt-q')) blank();
       const grp = el.closest('section.vt-group');
       if (grp && grp.querySelector(BLOCKS) === el) blank();   // 題組（文章＋題目）前空一行
-      const text = tag === 'table' ? tableLine(el) : inlineText(el);
+      let text = tag === 'table' ? tableLine(el, au) : inlineText(el, au);
+      if (au) {
+        const sec = el.closest('section.vt-q');
+        if (tag === 'h3' && sec && sec.hasAttribute('data-drop') && !el.querySelector('.vt-phrase')) {
+          // 舊檔的刪題（純文字「此題型盲生不適合作答」）：題號照念，後面接 drop
+          const m = text.match(/^\s*[(（]?\s*[)）]?\s*(\d+)\s*[.．、]?/);
+          text = (m ? m[1] + '. ' : '') + au.drop;
+        } else if (el.classList.contains('vt-secdrop') && !el.querySelector('.vt-phrase')) text = au.secdrop;
+        else if (/請參閱附圖/.test(text)) {
+          const say = figPhrase(scopeOf(el));
+          text = (say ? text.replace(/請參閱附圖/g, say) : text.replace(MARK_RE, '')).replace(/[ 　]{2,}/g, ' ');
+        }
+      }
       text.split('\n').forEach((t, k) => lines.push({ text: t, el, part: k }));
       if (tag === 'h2' || tag === 'h1') blank();
     }
@@ -812,5 +868,5 @@
     return { hand, draft, stale, total };
   }
 
-  window.vitoolsVtdoc = { isVtdoc, parse, toText, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, triTex, fixTex, cjkSpace, clozeBlanks };
+  window.vitoolsVtdoc = { isVtdoc, parse, toText, makePhrase, phraseLabel, AUDIO_DEFAULT, scoreBrl, applyText, applyReadings, readings, serialize, title, inlineText, source, box, hash, mathBrl, splitCjk, splitMathEls, promoteMath, setInline, arcTex, triTex, fixTex, cjkSpace, clozeBlanks };
 })();

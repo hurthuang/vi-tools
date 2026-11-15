@@ -315,7 +315,8 @@
       const p = document.createElement('div');
       p.textContent = (cap ? cap.textContent + '　' : '') + '輸出：' + (((sc ? SCORE_HOW : FIG_HOW).find(x => x[0] === how) || [0, how])[1]) +
         (sc && how === 'braille' ? (scoreXml(el) ? '（音符：' + (({ homr: 'homr', audiveris: 'Audiveris' })[scoreXml(el).dataset.engine] || '已打好') + (scoreXml(el).dataset.engine ? ' 辨識的草稿' : '') + '）' : '（還沒有音符）') : '') +
-        (el.dataset.tactile === '1' ? '，做觸圖' : '') + (img && img.alt && !sc && img.alt !== '附圖' ? '　' + img.alt : '');
+        (el.dataset.tactile === '1' ? '，做觸圖' : '') + (!sc && el.hasAttribute('data-audio') ? '，音檔念：' + (el.dataset.audio || '（不念）') : '') +
+        (img && img.alt && !sc && img.alt !== '附圖' ? '　' + img.alt : '');
       p.style.fontSize = '.8rem'; p.style.color = '#555';
       tx.appendChild(p);
       return;
@@ -431,6 +432,7 @@
     ['ly-up', 'ly-down', 'ly-moveno'].forEach(id => { $(id).disabled = !b; });
     $('ly-edit').disabled = !b || !(TEXT.has(b.type) || DERIVED.has(b.type));
     $('ly-math').disabled = $('ly-edit').disabled;
+    $('ly-phrase').disabled = $('ly-edit').disabled;
     $('ly-split').disabled = editing < 0;
     $('ly-merge').disabled = !b || cur === 0 || !(TEXT.has(b.type) || DERIVED.has(b.type));
     $('ly-new').disabled = !V;
@@ -447,6 +449,16 @@
     const isT = b && b.type === 'table', isF = b && b.type === 'fig', isS = b && b.type === 'score';
     $('ly-how-w').hidden = !(isT || isF || isS);
     $('ly-tac-w').hidden = !isF;
+    $('ly-faudio-w').hidden = !isF;
+    if (isF) {
+      const fa = $('ly-faudio'), cur0 = b.el.hasAttribute('data-audio') ? '=' + b.el.dataset.audio : '';
+      const says = [...new Set(['請參閱紙本試卷', '選項請參閱紙本試卷', ...vitoolsPhrases.list().map(x => x.pa.replace(/^[(（](.*)[)）]$/, '$1')).filter(s => s && !/^此(大)?題/.test(s))])];
+      const L = [['', '照預設（請參閱紙本試卷）'], ['=', '不念'], ...says.map(s => ['=' + s, s])];
+      if (cur0 && !L.some(x => x[0] === cur0)) L.push([cur0, cur0.slice(1)]);
+      L.push(['?', '自訂…']);
+      fa.replaceChildren(...L.map(x => new Option(x[1], x[0])));
+      fa.value = cur0;
+    }
     $('ly-omr').hidden = !(isS && hdOn() && vitoolsHaodian.found.omr);
     if (isS) fillOmrPick(b.el); else $('ly-omr-w').hidden = true;
     if (isT || isF || isS) {
@@ -668,6 +680,7 @@
     editing = cur;
     editMaths = [...b.el.querySelectorAll('.vt-math')];
     tx.querySelectorAll('.vt-math').forEach((s, k) => { s.dataset.mi = k; s.contentEditable = 'false'; });
+    tx.querySelectorAll('.vt-phrase').forEach(s => { s.contentEditable = 'false'; });
     tx.contentEditable = 'true';
     tx.focus();
     const sel = getSelection(), r = document.createRange();
@@ -785,6 +798,59 @@
     const m = near.map(x => x && x.closest ? x.closest('.vt-math') : null).find(Boolean);
     if (m && m.dataset.mi != null) editMath(m);
     else status('游標旁邊沒有算式（游標要緊貼著算式）');
+  }
+  // 插入常用詞句（P、工具列「常用詞句」）：改字中插在游標處；沒在改字就接在這一段最後面
+  function insertPhrase() {
+    const b = blocks[cur];
+    if (!b || !(TEXT.has(b.type) || DERIVED.has(b.type))) { status('先選一段文字（題目、選項、文字…），再插入常用詞句'); return; }
+    const inEdit = editing === cur;
+    const c = inEdit ? saveCaret() : null;
+    vitoolsPhrases.open({
+      onPick: it => {
+        const D = main.ownerDocument;
+        if (inEdit && editing >= 0) {
+          restoreCaret(c);
+          const s = vitoolsVtdoc.makePhrase(document, it.pb, it.pa);
+          s.contentEditable = 'false';
+          const sel = getSelection();
+          const r = sel.rangeCount ? sel.getRangeAt(0) : null;
+          if (r && c.tx.contains(r.startContainer)) { r.deleteContents(); r.insertNode(s); }
+          else c.tx.appendChild(s);
+          const after = document.createRange();
+          after.setStartAfter(s); after.collapse(true);
+          sel.removeAllRanges(); sel.addRange(after);
+          status('插入了「' + vitoolsVtdoc.phraseLabel(it.pb, it.pa) + '」；繼續改字，Enter 或 Esc 改完');
+          return;
+        }
+        snap();
+        const t = b.el.textContent;
+        if (t && !/\s$/.test(t)) b.el.appendChild(D.createTextNode(' '));
+        b.el.appendChild(vitoolsVtdoc.makePhrase(D, it.pb, it.pa));
+        changed();
+        rowOf.delete(b.el);
+        render();
+        mark(false);
+        $('ly-list').focus();
+        status('這一段最後面加上「' + vitoolsVtdoc.phraseLabel(it.pb, it.pa) + '」（Ctrl＋Z 復原）');
+      },
+      onCancel: () => { if (inEdit) restoreCaret(c); },
+    });
+  }
+  // 附圖在音檔裡的念法（data-audio；沒有＝照朗讀與音檔的設定，預設「請參閱紙本試卷」；空字串＝不念）
+  function setFigAudio(v) {
+    const b = blocks[cur];
+    if (!b || b.type !== 'fig') return;
+    if (v === '?') {
+      const t = prompt('這張附圖在音檔裡念什麼？（空白＝不念）', b.el.dataset.audio || '');
+      if (t == null) { tools(); return; }
+      v = '=' + t.trim();
+    }
+    const old = b.el.hasAttribute('data-audio') ? '=' + b.el.dataset.audio : '';
+    if (v === old) return;
+    snap();
+    if (v === '') b.el.removeAttribute('data-audio'); else b.el.dataset.audio = v.slice(1);
+    changed(); rowOf.delete(b.el); render(); mark(false);
+    status(v === '' ? '這張附圖照預設念（朗讀與音檔的設定，預設「請參閱紙本試卷」）' : v === '=' ? '這張附圖在音檔裡不念' : '這張附圖在音檔裡念「' + v.slice(1) + '」');
   }
   // 插入一個新的算式（M；改字中 Ctrl＋M 插在游標處，沒有在改字就先進入改字、插在最後）
   function insertMath() {
@@ -1696,7 +1762,7 @@
         h.appendChild(tpl);
         const note = D.createElement('p');
         note.className = 'vt-secdrop';
-        note.textContent = '「此大題盲生不適合作答」';
+        note.appendChild(vitoolsVtdoc.makePhrase(D, '「此大題盲生不適合作答」', '此大題請參閱紙本試卷'));
         h.parentNode.insertBefore(note, h.nextSibling);
         h.setAttribute('data-drop', '');
         status('刪掉整個大題了（' + nq + ' 題收進去，標題下面只寫「此大題盲生不適合作答」，按 E 可以改；再按一次 D 恢復）');
@@ -1747,7 +1813,8 @@
       mem.forEach(m => tpl.content.appendChild(m.el));
       const n = qnum(b.el) || b.sec.dataset.num || '';
       const h = D.createElement('h3');
-      h.textContent = (n ? n + '. ' : '') + '「此題型盲生不適合作答」';
+      h.textContent = n ? n + '. ' : '';
+      h.appendChild(vitoolsVtdoc.makePhrase(D, '「此題型盲生不適合作答」', '此題請參閱紙本試卷'));
       b.el = h;
       b.sec.setAttribute('data-drop', '');
       b.sec.appendChild(tpl);
@@ -2094,6 +2161,9 @@
     $('ly-edit').addEventListener('click', startEdit);
     $('ly-math').addEventListener('mousedown', e => e.preventDefault());   // 不要讓編輯區失去游標
     $('ly-math').addEventListener('click', insertMath);
+    $('ly-phrase').addEventListener('mousedown', e => e.preventDefault());
+    $('ly-phrase').addEventListener('click', insertPhrase);
+    $('ly-faudio').addEventListener('change', e => setFigAudio(e.target.value));
     $('ly-split').addEventListener('mousedown', e => e.preventDefault());   // 不要讓編輯區失去游標
     $('ly-split').addEventListener('click', split);
     $('ly-merge').addEventListener('click', merge);
@@ -2276,6 +2346,7 @@
         else if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); split(); }
         else if ((e.key === 'm' || e.key === 'M') && e.ctrlKey && e.shiftKey) { e.preventDefault(); editMathAtCaret(); }
         else if ((e.key === 'm' || e.key === 'M') && e.ctrlKey) { e.preventDefault(); insertMath(); }
+        else if ((e.key === 'p' || e.key === 'P') && e.ctrlKey && e.altKey) { e.preventDefault(); insertPhrase(); }
         else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); document.execCommand('insertLineBreak'); }
         else if (e.key === 'Enter') { e.preventDefault(); endEdit(); }
         return;
@@ -2293,6 +2364,7 @@
       if (k === 'Delete') { e.preventDefault(); delBlocks(); return; }
       if (k === 'e' || k === 'E' || k === 'Enter') { e.preventDefault(); startEdit(); return; }
       if (k === 'm' || k === 'M') { e.preventDefault(); insertMath(); return; }
+      if (k === 'p' || k === 'P') { e.preventDefault(); insertPhrase(); return; }
       if (k === 'g' || k === 'G') { e.preventDefault(); merge(); return; }
       if (k === 'b' || k === 'B') { e.preventDefault(); moveToNo(); return; }
       if (k === 'n' || k === 'N') { e.preventDefault(); addNew(); return; }
@@ -2308,7 +2380,8 @@
       const tx = $('ly-r' + editing) && $('ly-r' + editing).querySelector('.tx');
       setTimeout(() => {
         if (editing >= 0 && tx && !tx.contains(document.activeElement) && document.activeElement !== $('ly-split') &&
-          document.activeElement !== $('ly-math') && !(window.vitoolsMathEditor && vitoolsMathEditor.isOpen())) endEdit();
+          document.activeElement !== $('ly-math') && document.activeElement !== $('ly-phrase') &&
+          !(window.vitoolsMathEditor && vitoolsMathEditor.isOpen()) && !(window.vitoolsPhrases && vitoolsPhrases.isOpen())) endEdit();
       }, 0);
     });
     document.addEventListener('keydown', e => {

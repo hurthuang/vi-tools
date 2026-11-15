@@ -842,6 +842,14 @@ input[type=range] { accent-color: var(--accent2); }
             <option value="">載入中…</option>
           </select>
         </div>
+        <div class="tts-rate-row" id="tts-figsay-row">
+          <label for="tts-figsay">附圖念成</label>
+          <select id="tts-figsay" class="setting-select" style="max-width:200px;font-size:.82rem;" title="開版面整理的中繼檔時，附圖、「請參閱附圖」在音檔裡念什麼（給手上有紙本的低視力學生）；版面整理裡個別設定過的附圖照個別設定">
+            <option value="請參閱紙本試卷">請參閱紙本試卷</option>
+            <option value="請參閱附圖">請參閱附圖</option>
+            <option value="">不念</option>
+          </select>
+        </div>
       </div>
       <details id="tts-bilingual">
         <summary>中英語音設定</summary>
@@ -1112,7 +1120,7 @@ async function handleFile(file) {
       const html = decodeTextFile(await file.arrayBuffer());
       const v = window.vitoolsVtdoc && vitoolsVtdoc.parse(html);
       if (!v) { alert('這個 HTML 不是 vi-tools 中繼檔（.vtdoc.html）'); setProgress(0, ''); return; }
-      const t = vitoolsVtdoc.toText(v);
+      const t = vitoolsVtdoc.toText(v, p2aAudioOpt());
       setProgress(100, '完成');
       pushHistory('');
       setEditorText(t.text, false);
@@ -2676,7 +2684,7 @@ function p2aVtdocSave() {
   var r = vitoolsVtdoc.applyText(p2aVtdoc.v, p2aVtdoc.t, getEditorText());
   var note = '文字 ' + r.changed + ' 行修改、' + r.added + ' 行新增、' + r.removed + ' 行刪除';
   var html = vitoolsVtdoc.serialize(p2aVtdoc.v, '朗讀與音檔', note);
-  p2aVtdoc.t = vitoolsVtdoc.toText(p2aVtdoc.v);
+  p2aVtdoc.t = vitoolsVtdoc.toText(p2aVtdoc.v, p2aAudioOpt());
   var name = /\.vtdoc\.html?$/i.test(p2aVtdoc.name) ? p2aVtdoc.name : p2aVtdoc.name.replace(/\.html?$/i, '') + '.vtdoc.html';
   triggerDownload(new Blob([html], { type: 'text/html;charset=utf-8' }), name);
   setStatus('已存回中繼檔 ' + name + '：' + note);
@@ -2693,10 +2701,32 @@ function p2aSetFormatted(on) {
   if (h) h.textContent = on ? '（已排版，通常不需要；要用再展開）' : '（PDF、Word、TXT 用）';
   if (on) switchTab('tts');
 }
+// 中繼檔轉成「音檔版」文字：附圖、請參閱附圖念「附圖念成」的設定，常用詞句念音檔的字，刪掉的題目念題號＋此題請參閱紙本試卷
+function p2aFigSay() {
+  try { var s = localStorage.getItem('vi-p2a-figsay'); return s == null ? '請參閱紙本試卷' : s; } catch (e) { return '請參閱紙本試卷'; }
+}
+function p2aAudioOpt() { return { audio: { fig: p2aFigSay() } }; }
+(function () {
+  var sel = document.getElementById('tts-figsay');
+  if (!sel) return;
+  sel.value = p2aFigSay();
+  sel.addEventListener('change', function () {
+    try { localStorage.setItem('vi-p2a-figsay', sel.value); } catch (e) {}
+    // 開著中繼檔、文字沒改過：照新的設定重新轉；改過的話不動，提示重新開
+    if (!p2aVtdoc) return;
+    if (getEditorText().replace(/\r\n?/g, '\n').replace(/\n+$/, '') !== p2aVtdoc.t.text.replace(/\n+$/, '')) {
+      setStatus('附圖念法改了；文字已經改過，請先「存回中繼檔」再重新開，才會照新的念法');
+      return;
+    }
+    p2aVtdoc.t = vitoolsVtdoc.toText(p2aVtdoc.v, p2aAudioOpt());
+    setEditorText(p2aVtdoc.t.text, false);
+    setStatus('附圖改念「' + (sel.value || '（不念）') + '」');
+  });
+})();
 function p2aLoadFormatted(text, name, vtdocHtml, from) {
   var src = from === 'layout' ? '版面整理' : 'vi-tools 辨識套件';
   var v = vtdocHtml && window.vitoolsVtdoc ? vitoolsVtdoc.parse(vtdocHtml) : null;
-  var t = v ? vitoolsVtdoc.toText(v) : null;
+  var t = v ? vitoolsVtdoc.toText(v, p2aAudioOpt()) : null;
   if (t) text = t.text;  // 有中繼檔就用中繼檔轉出來的文字（存回時才對得上）
   var cur = getEditorText();
   pushHistory(cur);  // 原本的內容可以按「復原」拿回來

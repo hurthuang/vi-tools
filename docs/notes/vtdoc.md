@@ -412,3 +412,12 @@
 - 框往外收 0.02 內的短字（4 字以內：A、∠1、圖(二)）當圖中文字。
 - `attachLabels` 順便改：圖旁邊的問句（結尾？）一律不收、三個國字以上或帶內容的選項（「(A)甲→乙→丙→丁」）要整行在圖裡面才收——原本題目最後幾個字（「下列何者錯誤？」）會被收進附圖、題目少字。
 - 113、114 共 68 份試卷只開 PDF 新舊比對：多抓到 47 張（數學、理化），逐張看過都是真的圖（打勾打叉的表格也當附圖）；其他科附圖數不變。114-2-2 八年級數學 A 卷 9 → 19 張。第 12 題圖(一) 是太小的圖片（面積 < 0.003）沒抓到。
+
+## 常用詞句、音檔版文字（2026-11-15，`audio-phrases` 分支）
+- 需求（使用者）：同一份中繼檔做兩種成品——盲生的點字卷（有觸圖，「請參閱附圖」對）和低視力學生的音檔（手上有紙本，要念「請參閱紙本試卷」）。使用者定：詞句在版面整理插、每句可分點字／音檔；附圖預設「請參閱紙本試卷」、可每張圖分開設定；刪題念題號＋「此題請參閱紙本試卷」；詞句可匯出、匯入給其他老師。
+- 常用詞句 `span.vt-phrase`：`data-pb` 點字卷的字、`data-pa` 音檔念的字（空字串＝那一邊不出現），看得到的字是 `phraseLabel`（「…〔音檔念：…〕」）。`vtdoc.js` `makePhrase(doc, pb, pa)`、`inlineText(el, au)` 照版本取字（`tableLine` 也傳）。
+- `toText(v, { audio })`：音檔版。`audio` 是 true 或 `{ fig, drop, secdrop }`（預設 `AUDIO_DEFAULT`：請參閱紙本試卷／此題請參閱紙本試卷／此大題請參閱紙本試卷）。題目（section.vt-q 或題組）裡的「請參閱附圖」換成這一題第一張附圖的念法（`figure.vt-fig[data-audio]`，沒設定用 `fig`，空字串整個拿掉含「選項」）；題目裡沒寫「請參閱附圖」的附圖（輸出方式不是不輸出、文字敘述），在附圖位置念一句，一題一次；刪掉的題目（沒有 vt-phrase 的舊檔）念題號＋`drop`、`p.vt-secdrop` 念 `secdrop`。附圖那句是 `el: null` 的行，存回時不會寫進元素。
+- `phrases.js`（`window.vitoolsPhrases`：`open({ onPick, onCancel })`、`isOpen()`、`list()`）：`<dialog>`，`select size=8` 選句（Enter 插入、Delete 刪除），新增／修改（兩個欄位）、上移下移、匯出（`vi-tools-常用詞句.json`，`{ type: 'vi-tools-phrases', v: 1, items }`）、匯入（陣列或 `{ items }`，一樣的不重複）、恢復預設；localStorage `vitools-phrases`。內建三句：「此題型盲生不適合作答」→音檔「此題請參閱紙本試卷」、(選項請參閱附圖)→(選項請參閱紙本試卷)、請參閱紙本試卷。
+- `vt-layout.js`：`insertPhrase()`（P、工具列 `#ly-phrase`；改字中 Ctrl＋Alt＋P 插在游標處——Ctrl＋P 是列印），沒在改字就接在這一段最後面；改字時 vt-phrase 跟算式一樣 contenteditable=false。附圖工具列「音檔念」`#ly-faudio`（`setFigAudio`：照預設＝拿掉 data-audio、不念＝空字串、詞句裡的音檔說法、自訂…），附圖那列顯示「音檔念：…」。刪題、刪大題的說明改用 vt-phrase（點字卷的字照舊）。
+- `pdf-to-accessible.html`：「附圖念成」`#tts-figsay`（localStorage `vi-p2a-figsay`，請參閱紙本試卷／請參閱附圖／不念），開中繼檔、版面整理送過來、存回後重轉都用 `p2aAudioOpt()`；文字沒改過時換設定馬上重轉，改過就提示先存回再開。
+- 限制：在朗讀與音檔或文字轉點字改到有常用詞句的那一行，存回時詞句變成普通文字（音檔版存回就是音檔的字）。
