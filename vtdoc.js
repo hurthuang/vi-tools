@@ -80,6 +80,7 @@
     if (!isVtdoc(html)) return null;
     const doc = new DOMParser().parseFromString(html, 'text/html');
     sanitize(doc.documentElement);
+    doc.querySelectorAll('span.vt-phrase').forEach(fixPhrase);
     let meta = {};
     const m = doc.getElementById('vtdoc-meta');
     try { meta = m ? JSON.parse(m.textContent) : {}; } catch (e) { meta = {}; }
@@ -465,7 +466,7 @@
     return s;
   }
 
-  // 常用詞句（span.vt-phrase）：點字版的字 data-pb、音檔版的字 data-pa（空字串＝那一邊不出現）；看得到的字是 phraseLabel 做的說明
+  // 常用詞句（span.vt-phrase）：點字版的字 data-pb、音檔版的字 data-pa（空字串＝那一邊不出現）；看得到的字＝點字版（fixPhrase），phraseLabel 是清單、狀態列用的說明
   function phraseLabel(pb, pa) {
     pb = pb || ''; pa = pa || '';
     if (pb && pb === pa) return pb;
@@ -478,8 +479,15 @@
     s.className = 'vt-phrase';
     s.dataset.pb = pb || '';
     s.dataset.pa = pa || '';
-    s.textContent = phraseLabel(pb, pa);
+    fixPhrase(s);
     return s;
+  }
+  // 中繼檔裡看得到的字（NVDA 直接讀電子檔、版面整理的內容）只放點字卷的字；只在音檔的放零寬空白（空的元素改字時會被瀏覽器吃掉）。
+  // 點字卷和音檔用字不同的加 vt-au，版面整理在後面畫 🔊。2026-11-15 以前存的檔看得到的是 phraseLabel 的說明，開檔時改過來
+  function fixPhrase(s) {
+    const pb = s.dataset.pb || '', pa = s.dataset.pa || '';
+    s.textContent = pb || '\u200b';
+    s.classList.toggle('vt-au', pb !== pa);
   }
 
   // au：音檔版（toText 的 opt.audio），常用詞句用 data-pa；沒有就是點字版，用 data-pb
