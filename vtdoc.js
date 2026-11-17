@@ -546,6 +546,12 @@
     const blank = () => { if (lines.length && lines[lines.length - 1].text !== '') lines.push({ text: '', el: null }); };
     const scopeOf = el => el.closest('section.vt-q') || el.closest('section.vt-group');
     const figSaid = new Set();
+    // 題組（文章＋題目）前空一行：題組裡第一個輸出的行之前（題組從附圖開始時，音檔版先念附圖）
+    const grpSeen = new Set();
+    const grpBlank = el => {
+      const g = el.closest('section.vt-group');
+      if (g && !grpSeen.has(g)) { grpSeen.add(g); blank(); }
+    };
     const figPhrase = scope => {
       const f = scope && [...scope.querySelectorAll('figure.vt-fig')].find(f => f.dataset.how !== 'none' && !hiddenUp(f));
       return f && f.hasAttribute('data-audio') ? f.dataset.audio : au.fig;
@@ -563,7 +569,7 @@
         if (scope && /請參閱附圖/.test(scope.textContent)) continue;
         figSaid.add(key);
         const say = el.hasAttribute('data-audio') ? el.dataset.audio : au.fig;
-        if (say) lines.push({ text: say, el: null });
+        if (say) { grpBlank(el); lines.push({ text: say, el: null, grp: el.closest('section.vt-group') }); }
         continue;
       }
       // 譜例（規格第 4 節、3.7）：在音樂點字確認過的（有 ABC 原文、點字，雜湊對得上）→ 🎼 樂譜區塊（【樂譜】ABC【/樂譜】，
@@ -581,8 +587,7 @@
       const tag = el.tagName.toLowerCase();
       if (tag === 'h2') blank();  // 試卷標題前面不空行（辨識套件把頁首的附圖標記放在標題前）
       if (tag === 'h3' && el.closest('section.vt-q')) blank();
-      const grp = el.closest('section.vt-group');
-      if (grp && grp.querySelector(BLOCKS) === el) blank();   // 題組（文章＋題目）前空一行
+      grpBlank(el);
       let text = tag === 'table' ? tableLine(el, au) : inlineText(el, au);
       if (au) {
         const sec = el.closest('section.vt-q');
@@ -600,7 +605,24 @@
       if (tag === 'h2' || tag === 'h1') blank();
     }
     while (lines.length && lines[lines.length - 1].text === '') lines.pop();
-    return { text: lines.map(l => l.text).join('\n') + '\n', lines };
+    return { text: lines.map(l => l.text).join('\n') + '\n', lines, groups: groupStarts(lines) };
+  }
+
+  // 題組（section.vt-group）從哪幾行開始，給朗讀與音檔的分段匯出（exam-split.js 的 opts.groups，[{ lines, range }]）：
+  //   每個題組取開頭那一行的文字；開頭是附圖念法（不綁元素）時連下一行一起，避免對到別的附圖；range 是題組裡的題號。
+  //   題組直接從題目開始（沒有文章、說明）的不算
+  function groupStarts(lines) {
+    const out = [], seen = new Set();
+    lines.forEach((l, i) => {
+      const g = l.grp || (l.el && l.el.closest('section.vt-group'));
+      if (!g || seen.has(g) || !l.text.trim()) return;
+      seen.add(g);
+      if (l.el && l.el.tagName === 'H3') return;
+      const next = lines.slice(i + 1).find(x => x.text.trim());
+      const nums = [...g.querySelectorAll('section.vt-q[data-num]')].map(s => parseInt(s.dataset.num, 10)).filter(n => n > 0);
+      out.push({ lines: l.el || !next ? [l.text] : [l.text, next.text], range: nums.length ? [nums[0], nums[nums.length - 1]] : null });
+    });
+    return out;
   }
 
   // 一行文字 → 元素內容：算式包成 vt-math（同一個算式沿用原本的屬性：信心、原卷裁圖、MathML）

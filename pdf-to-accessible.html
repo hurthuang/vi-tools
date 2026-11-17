@@ -2086,7 +2086,9 @@ function initSplitExport(api, nativeVoice, getVoices) {
     list.innerHTML = '';
     rows = [];
     if (!txt.trim()) { summary.textContent = '沒有文字'; return; }
-    const segs = vitoolsExamSplit.split(txt, { mode: how.value });
+    // 開中繼檔（版面整理送來的）時，版面整理設的題組照設的切（題組文章自己一段）
+    const groups = p2aVtdoc && p2aVtdoc.t && p2aVtdoc.t.groups;
+    const segs = vitoolsExamSplit.split(txt, { mode: how.value, groups: groups && groups.length ? groups : undefined });
     summary.textContent = '整理清單中…';
     const texts = await speechTexts(txt, segs);
     if (builtKey !== key) return;

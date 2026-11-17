@@ -6,7 +6,9 @@
 //   選項：行首「(A)」「（Ａ）」，或選項是圖時的「（選項請參閱紙本試卷）」；一題的選項合成一段。
 //         題號和 (A) 在同一行（英聽：6. (A)… (B)…）整題一段，不拆題目、選項
 //   題組文章：「請閱讀以下短文，並回答25及26題」「請依圖回答21~23」這類提示行（可和文章接在同一行），
-//            單獨一行「第20及21題」「(20-21)」「A.」（閱讀測驗），或「二、題組」大標題後直接接的文章；文章到下一題的題目為止
+//            單獨一行「第20及21題」「(20-21)」「A.」（閱讀測驗）「【題組一】」，或「二、題組」大標題後直接接的文章；文章到下一題的題目為止；
+//            提示寫在文章最後一句（「…請回答 15〜17 題：」）時，題組從前一題選項後的第一行開始；
+//            opts.groups：版面整理按 T 設的題組（朗讀與音檔開中繼檔時傳進來），文字裡沒有題組字樣也照設的切
 //   大標題（「二、閱讀選擇（每題2分）」「第二部分：題組」「題組：」）自己一段；第一題之前的大標題留在「說明」裡
 //   第一段之前的文字是「說明」
 // 手動分割記號（比照 Balabolka）：單獨一行 === （三個以上等號），後面可接名稱，例「=== 閱讀測驗一」；
@@ -24,7 +26,7 @@
   'use strict';
 
   const NUM = '[0-9０-９]+';
-  const RANGE = `(${NUM})\\s*(?:題)?\\s*(?:[及至到、,，~～\\-–－]|and)\\s*(${NUM})`;
+  const RANGE = `(${NUM})\\s*(?:題)?\\s*(?:[及至到、,，~～〜\\-–－—]|and)\\s*(${NUM})`;
   const BLANK = '[(（][\\s\\u3000]*[)）]';    // 作答括號：( )1.、1.( )、2()
   const Q_DOCX = new RegExp(`^\\s*第\\s*(${NUM})\\s*題`);
   const Q_NUM = new RegExp(`^\\s*(?:${BLANK}\\s*)?(${NUM})\\s*(?:[.．、,，]\\s*(?:${BLANK})?|${BLANK})(?![0-9０-９])`);
@@ -38,7 +40,11 @@
   // 請閱讀以下短文，並回答25及26題／請依圖回答21~23（提示行可能和文章接在同一行，只看行首附近）
   const GROUP_PROMPT = new RegExp(`回答\\s*第?\\s*${RANGE}`);
   const PASSAGE_LABEL = /^\s*[A-HＡ-Ｈ]\s*[.．]\s*$/;              // 閱讀測驗的 A. B. C.
-  const HEADING_START = /^\s*(?:[一二三四五六七八九十]+\s*[、.．]|[壹貳參肆伍陸柒捌玖拾]+\s*[、.．]|第[一二三四五六七八九十]+部分)/;
+  // 題組標籤：單獨一行「【題組一】」「〔題組二〕」「題組三：」「(題組四)」（115 青年 3a2 自然卷）
+  const GROUP_LABEL = /^\s*[【〔[(（]?\s*題組\s*[一二三四五六七八九十0-9０-９]+\s*[】〕\])）]?\s*[:：]?\s*$/;
+  // 文章最後一句才寫「請回答 15〜17 題：」：行尾的提示也算（只看最後 30 字，避免文章中間提到的題號）
+  const GROUP_PROMPT_END = new RegExp(`回答\\s*第?\\s*${RANGE}\\s*題?[。:：]?\\s*$`);
+  const HEADING_START = /^\s*(?:[一二三四五六七八九十]+\s*[、.．]|[壹貳參肆伍陸柒捌玖拾]+\s*[、.．]|第[一二三四五六七八九十]+部分|[A-HＡ-Ｈ]\s*[.．]\s*\S)/;
   const HEADING_WORD = /題|分|測驗|閱讀|聽|作文|寫作|注音|翻譯|部分/;
   const isHeading = t => (HEADING_START.test(t) && HEADING_WORD.test(t) && t.trim().length <= 40) || /^\s*題組\s*[:：]?\s*$/.test(t);
   const RESTART = /非選|填充|填空|問答|計算|簡答|應用|作圖|翻譯|寫作|配合|是非/;
@@ -61,22 +67,47 @@
       if (nl < 0) break;
       pos = nl + 1;
     }
-    const kindOf = t => {
+    // opts.groups：已知的題組（版面整理按 T 設的題組，朗讀與音檔從中繼檔取得）[{ lines, range }]：
+    //   lines 是開頭連續幾行的文字（題組開頭是附圖時，附圖念法那行加上下一行，避免對到別的附圖；中間的空行跳過）；
+    //   range 是題組裡的題號 [第一題, 最後一題]；照順序對，一行只對一次
+    const known = new Map();
+    if (opts && Array.isArray(opts.groups)) {
+      const norm = s => s.replace(/\s+/g, ' ').trim();
+      let from = 0;
+      for (const g of opts.groups) {
+        const want = (g.lines || []).map(norm);
+        if (!want.length || !want[0]) continue;
+        for (let i = from; i < lines.length; i++) {
+          if (norm(lines[i].text) !== want[0]) continue;
+          let j = i, ok = true;
+          for (const w of want.slice(1)) {   // 後面幾行（中間的空行跳過）
+            do j++; while (j < lines.length && !lines[j].text.trim());
+            if (j >= lines.length || norm(lines[j].text) !== w) { ok = false; break; }
+          }
+          if (ok) { known.set(i, g.range || null); from = i + 1; break; }
+        }
+      }
+    }
+    const kindOf = (t, i) => {
       const mk = t.match(MARKER);
       if (mk) return { mark: mk[1] };
       if (!auto) return null;
       const g = GROUP_LINE.map(re => t.match(re)).find(Boolean);
       if (g && t.length < 80) return { group: [toInt(g[1]), toInt(g[2])] };
+      if (known.has(i)) return { group: known.get(i) };
+      // 提示寫在行尾（文章最後一句，或整行就是提示）：題組可能從前面幾行就開始，分段時再決定從哪裡開始
+      const ge = t.match(GROUP_PROMPT_END);
+      if (ge && t.length - ge.index <= 30) return { group: [toInt(ge[1]), toInt(ge[2])], tail: true };
       const gp = t.match(GROUP_PROMPT);
       if (gp && gp.index < 40) return { group: [toInt(gp[1]), toInt(gp[2])] };
-      if (PASSAGE_LABEL.test(t)) return { group: null };
+      if (PASSAGE_LABEL.test(t) || GROUP_LABEL.test(t)) return { group: null };
       let m = t.match(Q_DOCX) || t.match(Q_NUM);
       if (m) return { q: toInt(m[1]), sure: Q_DOCX.test(t), inline: OPTION_A.test(t.slice(m[0].length)) };
       if (OPTION.test(t)) return 'option';
       if (isHeading(t)) return { heading: t };
       return null;
     };
-    const kinds = lines.map(l => kindOf(l.text));
+    const kinds = lines.map((l, i) => kindOf(l.text, i));
     const isQ = k => k && k.q != null;
     const isBreak = k => k && (k.group !== undefined || k.mark != null);
     // 「1.」這類題號容易和文章、題目裡的編號清單、注意事項混淆，依題號順序判斷：
@@ -107,10 +138,11 @@
     //   大標題自己一段（第一題之前的大標題留在「說明」裡）；「二、題組」後面直接接文章時，文章另成一段
     //   題號和 (A) 在同一行（英聽：6. (A)… (B)…）整題一段，不拆題目、選項
     const segs = [];
-    let cur = null, seenQ = false, passageNext = false;
+    let cur = null, seenQ = false, passageNext = false, afterOpts = -1;
     const open = (kind, i, extra) => {
       cur = Object.assign({ kind, firstLine: i, markLine: -1 }, extra);
       segs.push(cur);
+      afterOpts = -1;
     };
     // 依空行切（同 Balabolka「依空行分割」，老師以前做語音卷的方式）：空行之後的第一行開始新的一段；
     // 段的種類（決定檔名）看那一行：題號、選項、題組提示、大標題，其他叫「分段」
@@ -131,7 +163,20 @@
       const t = lines[i].text;
       if (!cur) { cur = { kind: 'intro', firstLine: 0, markLine: -1 }; segs.push(cur); }
       if (k && k.mark != null) { open('mark', i, { name: k.mark, markLine: i }); passageNext = false; continue; }
-      if (k && k.group !== undefined) { open('passage', i, { range: k.group }); passageNext = false; }
+      // 選項後面接的第一行非選項文字：文章最後才寫「請回答 15〜17 題」時，題組從這裡開始
+      if (cur.kind === 'options' && afterOpts < 0 && t.trim() && k !== 'option') afterOpts = i;
+      if (k && k.tail) {
+        // 「…請回答 15〜17 題：」在文章最後：已經在題組文章裡就只記題號；在選項後面就從選項後的第一行開始題組
+        if (cur.kind === 'passage') { if (!cur.range) cur.range = k.group; }
+        else if (cur.kind === 'options' && afterOpts >= 0) open('passage', afterOpts, { range: k.group });
+        else open('passage', i, { range: k.group });
+        passageNext = false;
+      } else if (k && k.group !== undefined) {
+        // 「【題組一】」「A.」標籤行後面緊接的提示行（請回答 2～3 題）是同一個題組
+        const onlyLabel = cur.kind === 'passage' && !cur.range && lines.slice(cur.firstLine, i).every(l => !l.text.trim() || GROUP_LABEL.test(l.text) || PASSAGE_LABEL.test(l.text));
+        if (onlyLabel) cur.range = k.group; else open('passage', i, { range: k.group });
+        passageNext = false;
+      }
       else if (isQ(k)) { seenQ = true; passageNext = false; open('stem', i, { q: k.q, inline: k.inline }); }
       else if (k === 'option') { if (cur.kind === 'stem' && !cur.inline) open('options', i, { q: cur.q }); }
       else if (k && k.heading) {
@@ -155,7 +200,9 @@
       if (s.kind !== 'passage') return;
       const qs = [];
       // 手動記號只是切開，不是題組結束，照樣往後找
-      for (let k = n + 1; k < out.length && out[k].kind !== 'passage'; k++) if (out[k].kind === 'stem') qs.push(out[k].q);
+      // 大標題也是題組結束；提示行寫了題號範圍、後面也真的有最後那題時，到那題為止（題組後面接一般題目）
+      for (let k = n + 1; k < out.length && out[k].kind !== 'passage' && out[k].kind !== 'heading'; k++) if (out[k].kind === 'stem') qs.push(out[k].q);
+      if (s.range && qs.includes(s.range[1])) qs.splice(qs.indexOf(s.range[1]) + 1);
       [s.from, s.to] = qs.length ? [qs[0], qs[qs.length - 1]] : s.range || [];
     });
     out.forEach((s, n) => {
