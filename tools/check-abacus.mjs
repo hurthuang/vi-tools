@@ -152,9 +152,15 @@ for (let t = 0; t < 2000; t++) {
   // 先進位的代號要跟加這個設定之前完全一樣（舊代號、舊連結照樣能用）
   if (K.encode({ ...st, carry: 'carry' }) !== K.encode(st)) { fail('練習代號：先進位的代號跟以前不一樣'); break; }
   st.carry = t % 2 ? 'comp' : 'carry';
+  // 九九練哪幾個數：全選的代號要跟加這個設定之前完全一樣
+  const TB = Array.from({ length: 11 }, (_, n) => 'T' + n);
+  if (K.encode({ ...st, sizes: [...st.sizes, ...TB] }) !== K.encode(st)) { fail('練習代號：九九全選的代號跟以前不一樣'); break; }
+  const tb = t % 5 < 2 ? [] : TB.filter(() => rnd() < 0.4), both = rnd() < 0.5;
+  st.sizes = [...st.sizes, ...tb, ...(both ? ['K_both'] : [])];
   const code = K.encode(st), d = K.decode(code);
   if (d.carry !== st.carry) { fail(`練習代號 ${code} 進位順序讀回來是 ${d.carry}`); break; }
-  const want = st.sizes.filter(id => picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^[89]/ })[id[0]].test(p)));
+  const want = st.sizes.filter(id => id[0] !== 'T' && id[0] !== 'K' && picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^[89]/ })[id[0]].test(p)));
+  if (picks.includes('九九|×')) want.push(...(tb.length ? tb : TB), ...(both && tb.length && tb.length < TB.length ? ['K_both'] : []));
   codes++;
   if (d.error || JSON.stringify(d.picks) !== JSON.stringify(K.canonical(picks)) || d.count !== st.count || d.high !== st.high ||
     JSON.stringify(d.sizes) !== JSON.stringify(want) || d.seed !== st.seed || d.fp !== st.fp) { fail(`練習代號 ${code} 讀回來不一樣`); break; }

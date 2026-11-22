@@ -193,8 +193,28 @@ const FORMS = [
   { id: 'D3', name: '被除數三位數', ex: '486÷2、736÷23' },
   { id: 'D4', name: '被除數四位數', ex: '1032÷24、5481÷63' },
 ];
-const SIZE_GROUPS = [['加減法', ['F1', 'F2', 'F3', 'F4']], ['乘法', ['M2', 'M3']], ['除法', ['D2', 'D3', 'D4']]];
-const DEFAULT_SIZES = ['F1', 'F2', 'F3', 'M2', 'D2'];
+// 九九乘法練哪幾個數的乘法（使用者 2026-11-22）：T7 是「7 的乘法」。預設只出 7 在前面的（7×3），
+// K_both 是前後都有（7×3、3×7）。K_none 是一個數都沒選（九九出不了題）。
+// 跟題目大小放在一起（同一份 sizes）；沒有任何 T 也沒有 K_none（舊的設定、舊代號）時當全選
+const TABLE_IDS = Array.from({ length: 11 }, (_, n) => 'T' + n);
+FORMS.push(...TABLE_IDS.map((id, n) => ({ id, name: n + ' 的乘法' })));
+const SIZE_GROUPS = [['加減法', ['F1', 'F2', 'F3', 'F4']], ['九九乘法', TABLE_IDS], ['乘法', ['M2', 'M3']], ['除法', ['D2', 'D3', 'D4']]];
+const DEFAULT_SIZES = ['F1', 'F2', 'F3', ...TABLE_IDS, 'M2', 'D2'];
+// 某一行一個都沒選（舊的設定沒有這一行）時補上預設；九九刻意全不選（K_none）的不補
+const fillSizes = list => {
+  const on = list && list.length ? list : DEFAULT_SIZES, none = on.includes('K_none');
+  return [...SIZE_GROUPS.flatMap(([, ids]) => {
+    const got = ids.filter(id => on.includes(id));
+    if (!got.length && ids === TABLE_IDS && none) return [];
+    return got.length ? got : ids.filter(id => DEFAULT_SIZES.includes(id));
+  }), ...['K_both', 'K_none'].filter(k => on.includes(k))];
+};
+// 九九的題目有沒有選到的數
+const inTables = (x, y, sizes) => {
+  if (sizes.includes('K_none')) return false;
+  if (!sizes.some(id => id[0] === 'T')) return true;
+  return sizes.includes('T' + x) || (sizes.includes('K_both') && sizes.includes('T' + y));
+};
 const divForm = x => x < 100 ? 'D2' : x < 1000 ? 'D3' : 'D4';
 // 九九乘法不分大小
 const mulForm = (x, y) => x <= 10 && y <= 10 ? null : Math.max(x, y) < 100 ? 'M2' : 'M3';
@@ -296,7 +316,7 @@ function sampleBank(op, high) {
 }
 // 一級、一種運算可以出的題目：sizes 是選的題目大小（十十乘法不分大小，一律可以出）
 function poolOf(bank, op, lv, sizes, high) {
-  const ok = it => !it[2] || sizes.includes(it[2]);
+  const ok = lv === '九九' ? it => inTables(it[0], it[1], sizes) : it => !it[2] || sizes.includes(it[2]);
   const list = (bank[op][lv] || []).filter(ok);
   if ((op === '÷' ? sizes.includes('D4') : op !== '×' && sizes.includes('F4'))) list.push(...(sampleBank(op, op === '÷' ? false : high)[lv] || []));
   return list;
@@ -381,4 +401,4 @@ const remOf = p => p.op === '÷' ? p.x % p.y : 0;
 const ansText = p => calc(p) + (remOf(p) ? ` 餘 ${remOf(p)}` : '');
 const sym = op => ({ '+': '+', '-': '−', '×': '×', '÷': '÷' })[op];
 
-if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, sizeOf, sampleBank, poolOf, seeded, SIZE_GROUPS, DEFAULT_SIZES, classifyMul, classifyDiv, classifyDiv2, divForm, mulForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };
+if (typeof module !== 'undefined') module.exports = { addd, subd, trace, mulTrace, classify, classifyOne, digitSteps, sizeOf, sampleBank, poolOf, seeded, SIZE_GROUPS, DEFAULT_SIZES, TABLE_IDS, fillSizes, inTables,classifyMul, classifyDiv, classifyDiv2, divForm, mulForm, formOf, inRange, buildBank, parseAnswer, LEVELS, FORMS, makeProblems, calc, remOf, ansText, sym };

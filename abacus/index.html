@@ -238,6 +238,8 @@ $('preview-start').onclick = () => $('start').click();
 $('setup').addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'count' || t.closest('#level-list')) clearPreview();
+  // 改了勾選，上次按開始時的錯誤訊息就不對了，先清掉（按開始時會再檢查一次）
+  if (t.closest('#level-list')) $('setup-error').textContent = '';
 });
 $('count').addEventListener('input', clearPreview);
 
@@ -267,6 +269,9 @@ const codeSettings = () => ({
 $('code-make').onclick = () => {
   const st = codeSettings();
   if (!st.picks.length) { $('setup-error').textContent = '請至少勾選一項。'; return; }
+  if (st.picks.some(v => { const [lv, op] = v.split('|'); return !picker.pool(op, lv).length; })) {
+    $('setup-error').textContent = '有勾選的項目在目前的設定出不了題（例如九九還沒選要練哪幾個數），請先改好再產生代號。'; return;
+  }
   // 有預覽時，代號帶著預覽的種子：家長會拿到同一組題目
   if (previewProblems) { st.seed = previewSeed; st.fp = AbacusCode.fingerprint(st.picks, picker.pool); }
   const code = AbacusCode.encode(st), link = AbacusCode.linkOf(code, 'parent.html');

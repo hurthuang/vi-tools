@@ -10,6 +10,8 @@
  * 最後是選到的運算的題目大小（加減法 4、乘法 2、除法 3）。選 1～3 級加法大約 6～8 個字，同一組題目多 3 個字。
  * 加法進位「先扣補數」（2026-11-08 加）：題目大小後面多放一個 1；「先進位」什麼都不放，所以代號跟以前一樣、舊代號照樣讀得到。
  * 讀的時候後面還有位元才讀這一位（補齊 5 位的 0 就是先進位）。舊版網站讀新代號會忽略這一位（照先進位）。
+ * 九九乘法練哪幾個數（2026-11-22 加）：有選九九、而且沒有全選時，進位那一位一定寫（0 或 1），接著 1，再接 0～10 各 1 位、順序 1 位（1 是前後都有）；
+ * 全選或沒選九九時什麼都不放，代號跟以前一樣。讀的時候這一位是 0（或沒有了）就是全選。舊版網站讀新代號會出全部的數。
  */
 (function (g) {
   'use strict';
@@ -18,6 +20,13 @@
   const CODE_LEVELS = ['1', '2', '3a', '3b', '4', '5a-1', '5a-2', '5b-1', '5b-2', '5b-3', '5c-1', '5c-2', '5c-3', '5c-4', '5c-5', '5d',
     '九九', '6a', '6b', '6c', '7a', '7b', '7c', '7d', '8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d'];
   const SIZE_IDS = ['F1', 'F2', 'F3', 'F4', 'M2', 'M3', 'D2', 'D3', 'D4'];
+  const TABLES = Array.from({ length: 11 }, (_, n) => 'T' + n);
+  // 九九只練某幾個數：回傳選的 T 編號；全選、一個都沒選或沒選九九時回傳 null
+  const tablesOf = (lvs, sizes) => {
+    if (!lvs.includes('九九')) return null;
+    const on = TABLES.filter(id => sizes.includes(id));
+    return on.length && on.length < TABLES.length ? on : null;
+  };
   const VERSION = 1;
   const COUNTS = [10, 5, 15, 20, 25, 30, 50];
   const SIZE_OF = { F: /^[1-5]/, M: /^[67]/, D: /^[89]/ };
@@ -55,7 +64,9 @@
       if (same) put(masks[0], 2); else masks.forEach(m => put(m, 2));
     }
     for (const [k, re] of Object.entries(SIZE_OF)) if (lvs.some(lv => re.test(lv))) SIZE_IDS.filter(id => id[0] === k).forEach(id => put(sizes.includes(id) ? 1 : 0, 1));
-    if (carry === 'comp') put(1, 1);
+    const tables = tablesOf(lvs, sizes);
+    if (tables) { put(carry === 'comp' ? 1 : 0, 1); put(1, 1); TABLES.forEach(id => put(tables.includes(id) ? 1 : 0, 1)); put(sizes.includes('K_both') ? 1 : 0, 1); }
+    else if (carry === 'comp') put(1, 1);
     while (bits.length % 5) bits.push(0);
     const vals = [];
     for (let i = 0; i < bits.length; i += 5) vals.push(bits.slice(i, i + 5).reduce((s, b) => s * 2 + b, 0));
@@ -101,6 +112,12 @@
     for (const [k, re] of Object.entries(SIZE_OF)) if (lvs.some(lv => re.test(lv))) SIZE_IDS.filter(id => id[0] === k).forEach(id => { if (get(1)) out.sizes.push(id); });
     if (p > bits.length) return { error: '代號對不起來，請再對一次' };
     out.carry = p < bits.length && get(1) ? 'comp' : 'carry';
+    if (lvs.includes('九九')) {
+      const on = p < bits.length && get(1) ? TABLES.filter(() => get(1)) : [], both = on.length ? get(1) : 0;
+      if (p > bits.length) return { error: '代號對不起來，請再對一次' };
+      out.sizes.push(...(on.length ? on : TABLES));
+      if (both) out.sizes.push('K_both');
+    }
     return out;
   }
 
@@ -133,7 +150,9 @@
       (isAddSub(lv) ? OPN[ops.length > 1 ? 'both' : ops[0]] : ''));
     const has = re => [...byLv.keys()].some(lv => re.test(lv));
     const sz = d.sizes.filter(id => (id[0] === 'F' && has(/^[1-5]/)) || (id[0] === 'M' && has(/^[67]/)) || (id[0] === 'D' && has(/^[89]/)));
-    return [lvs.join('、') || '沒有選級數', sz.length ? '題目大小：' + sz.map(formName).join('、') : '',
+    const tables = tablesOf([...byLv.keys()], d.sizes);
+    return [lvs.join('、') || '沒有選級數', tables ? '九九練 ' + tables.map(id => id.slice(1)).join('、') + ' 的乘法' + (d.sizes.includes('K_both') ? '（前後都有）' : '（選的數在前面）') : '',
+      sz.length ? '題目大小：' + sz.map(formName).join('、') : '',
       `${d.count} 題`, d.high ? '從最高位開始' : '從個位開始', d.carry === 'comp' ? '加法先扣補數再進位' : '',
       d.seed != null ? '同一組題目' : ''].filter(Boolean).join('；');
   }
