@@ -158,8 +158,11 @@ for (let t = 0; t < 2000; t++) {
   const tb = t % 5 < 2 ? [] : TB.filter(() => rnd() < 0.4), both = rnd() < 0.5;
   st.sizes = [...st.sizes, ...tb, ...(both ? ['K_both'] : [])];
   const code = K.encode(st), d = K.decode(code);
+  // 沒選九九除法的代號要跟加九九除法之前一樣：版本 1（第一個字的前兩位是 01）
+  const wide = picks.some(p => p.startsWith('8九九'));
+  if ((('0123456789ABCDEFGHJKMNPQRSTVWXYZ'.indexOf(code[0]) >> 3) === 2) !== wide) { fail(`練習代號 ${code} 版本不對（${wide ? '有' : '沒有'}九九除法）`); break; }
   if (d.carry !== st.carry) { fail(`練習代號 ${code} 進位順序讀回來是 ${d.carry}`); break; }
-  const want = st.sizes.filter(id => id[0] !== 'T' && id[0] !== 'K' && picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^[89]/ })[id[0]].test(p)));
+  const want = st.sizes.filter(id => id[0] !== 'T' && id[0] !== 'K' && picks.some(p => ({ F: /^[1-5]/, M: /^[67]/, D: /^(8[a-d]|9)/ })[id[0]].test(p)));
   if (picks.includes('九九|×')) want.push(...(tb.length ? tb : TB), ...(both && tb.length && tb.length < TB.length ? ['K_both'] : []));
   codes++;
   if (d.error || JSON.stringify(d.picks) !== JSON.stringify(K.canonical(picks)) || d.count !== st.count || d.high !== st.high ||

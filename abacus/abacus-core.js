@@ -148,7 +148,7 @@ function classifyMul(x, y) {
 
 // 除法（除數一位數）：從最高位開始，這一位（連同上一位剩下的）裡有幾個除數，商就寫幾，乘回來扣掉。
 // 第 8 級看題型：每一位都除得盡 → 要往下一位借來除 → 有餘數 → 商有 0 或第一位比除數小。
-// 第一位比除數小但商只有一位（28÷7、14÷3）是九九的範圍，不算 8d。
+// 商只有一位（28÷7、14÷3、60÷8）是九九除法，排在 8a 前面：整除是「8九九」、有餘數是「8九九餘」（使用者 2026-11-23）。
 function classifyDiv(x, y) {
   if (x < y) return null;
   if (y >= 10) return classifyDiv2(x, y);
@@ -161,7 +161,8 @@ function classifyDiv(x, y) {
     r -= q * y;
     if (r && qd.length && i < ds.length - 1) borrow = true;
   });
-  if (qd.includes(0) || (qd.length > 1 && qd.length < ds.length)) return '8d';
+  if (qd.length === 1) return r ? '8九九餘' : '8九九';
+  if (qd.includes(0) || qd.length < ds.length) return '8d';
   if (r) return '8c';
   return borrow ? '8b' : '8a';
 }
@@ -274,7 +275,8 @@ function buildMulDiv() {
   }
   for (let x = 2; x <= 999; x++) for (let y = 2; y <= 99 && y <= x; y++) {
     const lv = classifyDiv(x, y);
-    if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, divForm(x)]);
+    // 九九除法跟九九乘法一樣不分題目大小
+    if (lv && inRange(lv, x, y, '÷')) bank['÷'][lv].push([x, y, lv.startsWith('8九九') ? null : divForm(x)]);
   }
   return bank;
 }

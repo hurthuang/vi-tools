@@ -44,9 +44,11 @@
     { id: '7b', name: '要用小補數', desc: '有一次加乘積時下珠不夠，要動上珠，但不用進位', form: '兩位數、三位數 × 兩位數', mul: '12×13、23×12、123×13' },
     { id: '7c', name: '進位一次', desc: '加乘積時有一次這一檔不夠加，要進位', form: '兩位數、三位數 × 兩位數', mul: '24×13、34×12、132×24' },
     { id: '7d', name: '進位兩次以上', desc: '進位兩次以上，或一次進位又連到更左邊一檔', form: '兩位數、三位數 × 兩位數', mul: '76×58、22×48、324×79' },
-    { id: '8a', name: '每一位都除得盡', desc: '每一位扣完都剛好是 0；28÷7 這種九九範圍的題目也在這一級', form: '兩位數到四位數 ÷ 一位數', div: '6÷2、28÷7、68÷2、486÷2' },
+    { id: '8九九', name: '商只有一位，剛好除盡', desc: '九九反過來用：想除數的幾倍剛好是被除數，商打幾、扣掉就清空', form: '十十乘法範圍', div: '6÷2、15÷5、28÷7、56÷8' },
+    { id: '8九九餘', name: '商只有一位，有剩下', desc: '找除數的幾倍最接近、但不超過被除數；扣完剩下的比除數小，就是餘數', form: '十十乘法範圍', div: '7÷2、14÷3、29÷6、60÷8' },
+    { id: '8a', name: '每一位都除得盡', desc: '商兩位以上，每一位扣完都剛好是 0', form: '兩位數到四位數 ÷ 一位數', div: '68÷2、84÷4、486÷2' },
     { id: '8b', name: '要往下一位借來除', desc: '有一位扣完有剩，剩下的跟下一位合起來再除', form: '兩位數到四位數 ÷ 一位數', div: '52÷4、96÷4、736÷4' },
-    { id: '8c', name: '有餘數', desc: '除到個位還有剩，剩下的比除數小', form: '兩位數到四位數 ÷ 一位數', div: '7÷2、14÷3、86÷4' },
+    { id: '8c', name: '有餘數', desc: '商兩位以上，除到個位還有剩，剩下的比除數小', form: '兩位數到四位數 ÷ 一位數', div: '86÷4、57÷4、739÷3' },
     { id: '8d', name: '商有 0，或第一位比除數小', desc: '中間或後面不夠除要打 0；第一位不夠除而且商不只一位', form: '兩位數到四位數 ÷ 一位數', div: '80÷4、412÷4、240÷6、619÷3' },
     { id: '9a', name: '除數是整十', desc: '估商就是九九（250÷70 看 25÷7）', form: '兩位數到四位數 ÷ 兩位數', div: '60÷20、250÷70、840÷40、1680÷40' },
     { id: '9b', name: '除數第二位小（1～3）', desc: '除數看成小一號的整十，估的商只會剛好或太大', form: '兩位數到四位數 ÷ 兩位數', div: '84÷21、96÷32、256÷32、736÷23、5481÷63' },
@@ -54,8 +56,13 @@
     { id: '9d', name: '除數第二位中（4～6）', desc: '4 看成小一號、5 和 6 看成大一號的整十，離整十最遠，最容易估錯', form: '兩位數到四位數 ÷ 兩位數', div: '92÷24、96÷16、156÷26、875÷25、1032÷24' },
   ];
   const groupOf = id => (id === '九九' ? '0' : /^[1-4]/.test(id) ? '1' : id[0]);
-  // 畫面上的級別名稱：「3a 級」；九九乘法沒有級數
-  const lvTag = id => id === '九九' ? '九九' : id + ' 級';
+  // 九九除法（使用者 2026-11-23，依課綱 N-3-4、N-3-5 與翰林三上：先練九九範圍的除法，再做多位數）：
+  // 商只有一位的題目，排在 8a 前面，分整除、有餘數兩級。代號以 8 開頭，所以歸在第 8 級那一組
+  const KUKU_DIV = { '8九九': '九九除法・整除', '8九九餘': '九九除法・有餘數' };
+  // 畫面上的級別名稱：「3a 級」；九九乘法、九九除法沒有級數
+  const lvTag = id => id === '九九' ? '九九' : KUKU_DIV[id] || id + ' 級';
+  // 短的級別名稱（家長版的按鈕、分級表的第一欄）
+  const lvShort = id => ({ '8九九': '九九整除', '8九九餘': '九九有餘' })[id] || id;
   const groupTitle = key => (GROUPS.find(gr => gr.key === key) || {}).title || '';
 
   // 產生一組的分級表（教學法筆記、各級撥珠教法用）。第 5 級分兩張表；5c 的列只在從個位開始時顯示。
@@ -73,7 +80,7 @@
       const head = addsub
         ? '<th scope="col">等級</th><th scope="col">名稱</th><th scope="col">怎麼判斷</th><th scope="col">加法例題</th><th scope="col">減法例題</th>'
         : '<th scope="col">等級</th><th scope="col">名稱</th><th scope="col">怎麼判斷</th><th scope="col">題型</th><th scope="col">例題</th>';
-      const rows = ls.map(l => `<tr><td>${l.id}</td><td>${l.name}</td><td>${l.desc}</td>` +
+      const rows = ls.map(l => `<tr><td>${KUKU_DIV[l.id] || l.id}</td><td>${l.name}</td><td>${l.desc}</td>` +
         (addsub ? `<td>${l.add || '—'}</td><td>${l.sub || '—'}</td>` : `<td>${l.form || ''}</td><td>${l.mul || l.div || ''}</td>`) + '</tr>').join('');
       // 表格標題跟上面的組名一樣時只給報讀軟體（畫面上不重複）
       const capCls = cap === groupTitle(key) ? ' class="lv-cap-hidden"' : '';
@@ -90,7 +97,7 @@
     (root || document).querySelectorAll('[data-level-table]').forEach(el => { el.innerHTML = tableHtml(el.dataset.levelTable); });
   }
 
-  const api = { GROUPS, LEVELS, groupOf, groupTitle, lvTag, tableHtml, renderTables };
+  const api = { GROUPS, LEVELS, groupOf, groupTitle, lvTag, lvShort, tableHtml, renderTables };
   g.AbacusLevels = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

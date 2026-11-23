@@ -41,6 +41,7 @@ button.secondary{background:transparent;color:var(--accent)}
 /* 選了的按鈕：深藍底白字加 ✓（深色主題的 --accent 是淺藍，白字看不清楚，固定用深藍） */
 .lv-btns button[aria-pressed=true]{background:#1f5fa8;border-color:#1f5fa8;color:#fff}
 .lv-btns button[aria-pressed=true]::before{content:'✓ '}
+.lv-btns button.wide{grid-column:span 2}
 .picked{min-height:1.6em;margin:4px 0 12px}
 button.big{width:100%;font-size:1.3rem;padding:14px}
 .more{margin:20px 0 0;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px 16px}
@@ -256,7 +257,7 @@ function renderGrid() {
   $('lv-grid').innerHTML = AbacusLevels.GROUPS.map(gr => {
     const lvs = shown().filter(l => AbacusLevels.groupOf(l.id) === gr.key);
     return `<div class="lv-group" role="group" aria-labelledby="lvg-${gr.key}"><h2 id="lvg-${gr.key}">${gr.title}</h2><div class="lv-btns">` +
-      lvs.map(l => `<button type="button" data-lv="${l.id}" aria-pressed="${chosen.has(l.id)}" aria-label="${AbacusLevels.lvTag(l.id)}，${l.name}">${l.id}</button>`).join('') +
+      lvs.map(l => { const s = AbacusLevels.lvShort(l.id); return `<button type="button"${s.length > 3 ? ' class="wide"' : ''} data-lv="${l.id}" aria-pressed="${chosen.has(l.id)}" aria-label="${AbacusLevels.lvTag(l.id)}，${l.name}">${s}</button>`; }).join('') +
       '</div></div>';
   }).join('');
   renderPicked();
@@ -266,7 +267,7 @@ function renderPicked() {
   const list = shown().filter(l => chosen.has(l.id));
   // 在目前的題目大小下出不了題的級數要說出來（例如只勾 20 以內時的 5b）
   const empty = list.filter(l => !levelPicks(l).some(v => { const [lv, op] = v.split('|'); return pool(op, lv).length; }));
-  $('picked').textContent = (list.length ? '已選：' + list.map(l => `${l.id} ${l.name}`).join('、') : '還沒有選級數。') +
+  $('picked').textContent = (list.length ? '已選：' + list.map(l => `${AbacusLevels.lvShort(l.id)} ${l.name}`).join('、') : '還沒有選級數。') +
     (empty.length ? `（${empty.map(l => AbacusLevels.lvTag(l.id)).join('、')}在目前的題目大小沒有題目，請到「更多設定」改題目大小。）` : '');
   // 代號裡每一級的加減法不一樣時，照代號出題，不顯示「加減法的題目」
   $('op-box').hidden = !!codePicks || (list.length > 0 && !list.some(l => l.add || l.sub));
@@ -456,7 +457,7 @@ function showResult() {
   if (demo) demo.stop();
   const done = session.problems.filter(p => p.ok !== null);
   const right = done.filter(p => p.ok).length, how = done.filter(p => p.how).length;
-  const lvs = [...new Set(done.map(p => `${p.lv} ${{ '+': '加法', '-': '減法', '×': '乘法', '÷': '除法' }[p.op]}`))];
+  const lvs = [...new Set(done.map(p => `${AbacusLevels.lvShort(p.lv)} ${{ '+': '加法', '-': '減法', '×': '乘法', '÷': '除法' }[p.op]}`))];
   const d = session.started;
   $('meta').textContent = [session.student, d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
     '加減法' + session.dir].filter(Boolean).join('　');
@@ -500,7 +501,7 @@ $('retry-wrong').onclick = () => {
 $('again').onclick = () => $('start').click();
 
 // ---- 看這一級怎麼教：各級撥珠教法蓋在上面（complement.html?embed=1，動畫預設家長版說法） ----
-const guideAnchor = lv => lv === '九九' ? 'kuku' : /^[1-4]/.test(lv) ? 'lv' + lv : lv[0] === '5' ? 'lv' + lv.slice(0, 2) : 'lv' + lv[0];
+const guideAnchor = lv => lv === '九九' ? 'kuku' : lv.startsWith('8九九') ? 'kuku-div' : /^[1-4]/.test(lv) ? 'lv' + lv : lv[0] === '5' ? 'lv' + lv.slice(0, 2) : 'lv' + lv[0];
 const guideBtn = lv => `<button type="button" class="secondary guide-link" data-guide="${lv}">${lv === '九九' ? '看九九乘法怎麼教' : `看 ${AbacusLevels.lvTag(lv)}怎麼教`}</button>`;
 let guideOpener = null;
 function openGuide(lv, from) {
@@ -560,7 +561,7 @@ function explain(x, y, op, high) {
     r.lv = classifyDiv(x, y);
     if (!r.lv) r.notes.push(y === 10 ? '除以 10 不在分級裡，可以看下面的撥法。' : '這一題不在分級裡，可以看下面的撥法。');
     else if (y === 1) r.notes.push('除以 1 練習題裡不會出。');
-    else r.notes.push('題目大小：' + AbacusPicker.formName(sizeOf(x, y, op)) + '。');
+    else if (!r.lv.startsWith('8九九')) r.notes.push('題目大小：' + AbacusPicker.formName(sizeOf(x, y, op)) + '。');
   }
   return r;
 }

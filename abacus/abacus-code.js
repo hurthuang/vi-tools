@@ -12,13 +12,16 @@
  * 讀的時候後面還有位元才讀這一位（補齊 5 位的 0 就是先進位）。舊版網站讀新代號會忽略這一位（照先進位）。
  * 九九乘法練哪幾個數（2026-11-22 加）：有選九九、而且沒有全選時，進位那一位一定寫（0 或 1），接著 1，再接 0～10 各 1 位、順序 1 位（1 是前後都有）；
  * 全選或沒選九九時什麼都不放，代號跟以前一樣。讀的時候這一位是 0（或沒有了）就是全選。舊版網站讀新代號會出全部的數。
+ * 九九除法（2026-11-23 加）：級數編號超過 31，5 位放不下。選了編號 32 以上的級數時，版本寫 2、每一級代號改用 6 位；
+ * 沒選時照舊寫版本 1，代號跟以前一樣。舊版網站讀到版本 2 會請家長重新整理網頁。九九除法不分題目大小，不寫除法的題目大小。
  */
 (function (g) {
   'use strict';
   const ALPHA = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
   // 代號裡級數的編號：只能往後加，不能改順序或刪除，不然舊代號會讀錯
   const CODE_LEVELS = ['1', '2', '3a', '3b', '4', '5a-1', '5a-2', '5b-1', '5b-2', '5b-3', '5c-1', '5c-2', '5c-3', '5c-4', '5c-5', '5d',
-    '九九', '6a', '6b', '6c', '7a', '7b', '7c', '7d', '8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d'];
+    '九九', '6a', '6b', '6c', '7a', '7b', '7c', '7d', '8a', '8b', '8c', '8d', '9a', '9b', '9c', '9d',
+    '8九九', '8九九餘'];
   const SIZE_IDS = ['F1', 'F2', 'F3', 'F4', 'M2', 'M3', 'D2', 'D3', 'D4'];
   const TABLES = Array.from({ length: 11 }, (_, n) => 'T' + n);
   // 九九只練某幾個數：回傳選的 T 編號；全選、一個都沒選或沒選九九時回傳 null
@@ -29,7 +32,7 @@
   };
   const VERSION = 1;
   const COUNTS = [10, 5, 15, 20, 25, 30, 50];
-  const SIZE_OF = { F: /^[1-5]/, M: /^[67]/, D: /^[89]/ };
+  const SIZE_OF = { F: /^[1-5]/, M: /^[67]/, D: /^(8[a-d]|9)/ };
   const isAddSub = lv => /^[1-5]/.test(lv);
   const opMask = ops => (ops.includes('+') ? 1 : 0) | (ops.includes('-') ? 2 : 0);
 
@@ -52,13 +55,14 @@
     const masks = lvs.filter(isAddSub).map(lv => opMask(byLv.get(lv)));
     const same = masks.every(m => m === masks[0]);
     const n = Math.max(1, Math.min(100, count)), ci = COUNTS.indexOf(n);
-    put(VERSION, 2); put(high ? 1 : 0, 1);
+    const wide = lvs.some(lv => CODE_LEVELS.indexOf(lv) > 31), lvBits = wide ? 6 : 5;
+    put(wide ? 2 : VERSION, 2); put(high ? 1 : 0, 1);
     put(ci < 0 ? 7 : ci, 3);
     if (ci < 0) put(n - 1, 7);
     put(seed != null ? 1 : 0, 1);
     if (seed != null) { put(seed & 1023, 10); put((fp || 0) & 15, 4); }
-    put(lvs.length, 5);
-    for (const lv of lvs) put(CODE_LEVELS.indexOf(lv), 5);
+    put(lvs.length, lvBits);
+    for (const lv of lvs) put(CODE_LEVELS.indexOf(lv), lvBits);
     if (masks.length) {
       put(same ? 1 : 0, 1);
       if (same) put(masks[0], 2); else masks.forEach(m => put(m, 2));
@@ -90,14 +94,14 @@
     let p = 0;
     const get = n => { let v = 0; for (let i = 0; i < n; i++) v = v * 2 + (bits[p++] || 0); return v; };
     const ver = get(2);
-    if (ver !== VERSION) return { error: '這個代號是新版網站產生的，請重新整理網頁再試' };
+    if (ver !== VERSION && ver !== 2) return { error: '這個代號是新版網站產生的，請重新整理網頁再試' };
     const out = { high: !!get(1), picks: [], sizes: [] };
     const ci = get(3);
     out.count = ci === 7 ? get(7) + 1 : COUNTS[ci];
     if (get(1)) { out.seed = get(10); out.fp = get(4); }
     const lvs = [];
-    for (let i = get(5); i > 0; i--) {
-      const lv = CODE_LEVELS[get(5)];
+    for (let i = get(ver === 2 ? 6 : 5); i > 0; i--) {
+      const lv = CODE_LEVELS[get(ver === 2 ? 6 : 5)];
       if (!lv) return { error: '代號對不起來，請再對一次' };
       lvs.push(lv);
     }
@@ -149,7 +153,7 @@
     const lvs = [...byLv].map(([lv, ops]) => AbacusLevels.lvTag(lv) +
       (isAddSub(lv) ? OPN[ops.length > 1 ? 'both' : ops[0]] : ''));
     const has = re => [...byLv.keys()].some(lv => re.test(lv));
-    const sz = d.sizes.filter(id => (id[0] === 'F' && has(/^[1-5]/)) || (id[0] === 'M' && has(/^[67]/)) || (id[0] === 'D' && has(/^[89]/)));
+    const sz = d.sizes.filter(id => (id[0] === 'F' && has(/^[1-5]/)) || (id[0] === 'M' && has(/^[67]/)) || (id[0] === 'D' && has(SIZE_OF.D)));
     const tables = tablesOf([...byLv.keys()], d.sizes);
     return [lvs.join('、') || '沒有選級數', tables ? '九九練 ' + tables.map(id => id.slice(1)).join('、') + ' 的乘法' + (d.sizes.includes('K_both') ? '（前後都有）' : '（選的數在前面）') : '',
       sz.length ? '題目大小：' + sz.map(formName).join('、') : '',

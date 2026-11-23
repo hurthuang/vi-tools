@@ -480,7 +480,7 @@ function showResult() {
     (missing ? `有 ${missing} 題曾經少打數字記號。` : '');
 
   // 依級數、運算、題型分開統計，看得出是補數還是位值出錯
-  const label = (lv, op, form) => lv + OPNAME[op] + (form ? `（${formName(form)}）` : '');
+  const label = (lv, op, form) => AbacusLevels.lvShort(lv) + OPNAME[op] + (form ? `（${formName(form)}）` : '');
   const stat = {};
   for (const p of done) {
     const k = label(p.lv, p.op, p.form);
@@ -497,7 +497,7 @@ function showResult() {
   let d = '<caption class="sr-only">每題紀錄</caption><tr><th scope="col">題號</th><th scope="col">題目</th><th scope="col">級數</th><th scope="col">題型</th><th scope="col">學生作答</th><th scope="col">結果</th></tr>';
   session.problems.forEach((p, i) => {
     if (!p.done) return;
-    d += `<tr><td>${i + 1}</td><td>${exprText(p, true)}</td><td>${p.lv}</td><td>${formName(p.form) || fixedForm(p.lv)}</td><td>${p.tries.map(x => escapeHtml(showTry(x))).join('、')}</td><td>${p.correct ? (p.tries.length === 1 ? '對' : `第 ${p.tries.length} 次對`) : '錯'}</td></tr>`;
+    d += `<tr><td>${i + 1}</td><td>${exprText(p, true)}</td><td>${AbacusLevels.lvShort(p.lv)}</td><td>${formName(p.form) || fixedForm(p.lv)}</td><td>${p.tries.map(x => escapeHtml(showTry(x))).join('、')}</td><td>${p.correct ? (p.tries.length === 1 ? '對' : `第 ${p.tries.length} 次對`) : '錯'}</td></tr>`;
   });
   $('detail').innerHTML = d;
   $('retry-wrong').hidden = !done.some(p => !p.correct || p.tries.length > 1);
@@ -554,7 +554,7 @@ $('download').onclick = () => {
   session.problems.forEach((p, i) => {
     if (!p.done) return;
     const tr = [0, 1, 2].map(k => p.tries[k] ? showTry(p.tries[k]) : '');
-    rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), ansText(p), p.lv, formName(p.form) || fixedForm(p.lv), ...tr,
+    rows.push([session.student, dt.toLocaleString('zh-TW'), i + 1, exprText(p, false), ansText(p), AbacusLevels.lvShort(p.lv), formName(p.form) || fixedForm(p.lv), ...tr,
       p.correct ? '對' : '錯', p.tries.length, p.tries.filter(t => !t.hasSign).length, session.dir]);
   });
   const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
