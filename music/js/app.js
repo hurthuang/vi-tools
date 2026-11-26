@@ -506,6 +506,14 @@
       paper.innerHTML = '<p class="hint" style="padding:12px">無法載入 abcjs（需要網路連線），五線譜預覽與播放暫時無法使用；轉換功能不受影響。</p>';
       return;
     }
+    // 五線譜區看不見（例如在首頁裡、音樂點字分頁還沒打開）時，abcjs 量不到文字大小，只能用猜的，
+    // 而且猜的大小會一直記在它的快取裡：歌詞、點字、唱名的高度不夠，下一行譜疊上來。
+    // 所以看不見時先不畫，等顯示出來再畫（見 rerenderPaper 後面的 ResizeObserver）
+    if (!paper.getClientRects().length || !paper.clientWidth) {
+      state.paperHidden = true;
+      return;
+    }
+    state.paperHidden = false;
     try {
       // 點字對照：改畫由樂譜產生、加了點字與名稱的 ABC；畫面上的位置透過事件 id 對回原本的 ABC
       const annot = $('paper-annot').value;
@@ -1712,6 +1720,12 @@
     renderPaper(state.paperAbc);
     if (state.current) setScoreClass('hl', [state.current.abc]);
   }
+  // 看不見時沒畫的五線譜：一顯示出來就畫
+  if (window.ResizeObserver)
+    new ResizeObserver(() => {
+      const paper = $('paper');
+      if (state.paperHidden && paper.getClientRects().length && paper.clientWidth) rerenderPaper();
+    }).observe($('paper'));
   for (const id of ['paper-fit', 'paper-annot', 'paper-per-line', 'paper-all'])
     $(id).addEventListener('change', () => {
       $('paper-per-line-wrap').hidden = $('paper-annot').value === 'none';
