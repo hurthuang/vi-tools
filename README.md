@@ -46,6 +46,8 @@
 | [國語字典查詢 (zhDict)](https://github.com/hurthuang/zhDict) | 選字查詢中文辭典（萌典）或英文字典，自動判斷語言 |
 | [點字表切換 (brailleTableSwitcher)](https://github.com/hurthuang/NVDA-brailleTableSwitcher) | 快速切換注音點字、UEB G1／G2 輸出轉譯表 |
 | [點字輸出匯出 (brailleExport)](https://github.com/hurthuang/NVDA-brailleExport) | 擷取點字顯示器畫面，匯出為 Unicode 點字或 BRF 檔案 |
+| [光點驅動 (metecBD)](https://github.com/hurthuang/metecBD-nvda-addon) | 光點點字顯示器 NVDA 驅動附加元件 |
+| [大字顯示 (largePrint)](https://github.com/hurthuang/NVDA-largePrint) | 把 NVDA 念的句子用大字重新畫出來，放大很多倍也清楚，適合低視力使用者 |
 
 ## 技術說明
 
